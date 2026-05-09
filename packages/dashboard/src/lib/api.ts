@@ -54,6 +54,23 @@ export const api = {
 
   // Agents (via backend, not gateway — public discovery)
   agents: () => request<Agent[]>("/agents", {}, BACKEND),
+  searchAgents: (q: string, mode: "keyword" | "semantic" | "hybrid" = "hybrid", limit = 20) =>
+    request<{ query: string; mode: string; count: number; results: AgentSearchHit[] }>(
+      `/agents?q=${encodeURIComponent(q)}&mode=${mode}&limit=${limit}`,
+      {},
+      BACKEND,
+    ),
+
+  // Direct call (proxied through gateway, debits balance, opens escrow on-chain, claims)
+  call: (service: string, payload: unknown) =>
+    request<{
+      result: unknown;
+      cost: { lamports: number; usd: number };
+      newBalance: { lamports: number; usd: number };
+    }>("/v1/call", {
+      method: "POST",
+      body: JSON.stringify({ service, payload }),
+    }),
 
   // OAuth connections (apps the user has authorized)
   oauthConnections: () => request<OAuthConnection[]>("/v1/oauth/connections"),
@@ -92,11 +109,20 @@ export type Transaction = {
 
 export type Agent = {
   service: string;
-  name: string;
   description: string;
   endpoint: string;
-  price_lamports: number;
-  owner?: string;
+  pricePerCall: number; // SOL
+  ownerWallet: string;
+  acceptedToken: "SOL";
+  totalCalls: number;
+  totalEarned: number;
+  createdAt: number;
+  source: "chain" | "fallback";
+};
+
+export type AgentSearchHit = Agent & {
+  score: number;
+  matchType: "keyword" | "semantic" | "hybrid";
 };
 
 export type OAuthConnection = {

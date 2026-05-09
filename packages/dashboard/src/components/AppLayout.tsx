@@ -4,6 +4,7 @@ import {
   BarChart3,
   Receipt,
   Bot,
+  Play,
   Key,
   CreditCard,
   Settings as SettingsIcon,
@@ -18,9 +19,10 @@ import { Button } from "@/components/ui/button";
 
 const nav = [
   { to: "/app", label: "Overview", icon: LayoutDashboard, end: true },
+  { to: "/app/agents", label: "Agents", icon: Bot },
+  { to: "/app/playground", label: "Playground", icon: Play },
   { to: "/app/usage", label: "Usage", icon: BarChart3 },
   { to: "/app/transactions", label: "Transactions", icon: Receipt },
-  { to: "/app/agents", label: "Agents", icon: Bot },
   { to: "/app/credentials", label: "Credentials", icon: Key },
   { to: "/app/billing", label: "Billing", icon: CreditCard },
   { to: "/app/settings", label: "Settings", icon: SettingsIcon },

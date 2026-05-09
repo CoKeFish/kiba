@@ -5,7 +5,11 @@ import Signup from "@/routes/Signup";
 import Overview from "@/routes/Overview";
 import Transactions from "@/routes/Transactions";
 import Credentials from "@/routes/Credentials";
-import { Usage, Agents, Billing, Settings } from "@/routes/Stubs";
+import Agents from "@/routes/Agents";
+import Playground from "@/routes/Playground";
+import Usage from "@/routes/Usage";
+import Billing from "@/routes/Billing";
+import Settings from "@/routes/Settings";
 import { useAuth } from "@/lib/auth";
 
 function Protected({ children }: { children: React.ReactNode }) {
@@ -32,6 +36,7 @@ export default function App() {
         <Route path="usage" element={<Usage />} />
         <Route path="transactions" element={<Transactions />} />
         <Route path="agents" element={<Agents />} />
+        <Route path="playground" element={<Playground />} />
         <Route path="credentials" element={<Credentials />} />
         <Route path="billing" element={<Billing />} />
         <Route path="settings" element={<Settings />} />
