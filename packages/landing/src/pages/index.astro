@@ -22,9 +22,10 @@ import Footer from "../components/Footer.astro";
   </section>
   <section id="agents" class="border-t border-[var(--color-border)] py-24 bg-[var(--color-bg-soft)]">
     <div class="max-w-6xl mx-auto px-6">
-      <h2 class="text-3xl font-semibold mb-2">Live agent catalog</h2>
+      <h2 class="text-3xl font-semibold mb-2">Find the right agent — in any language</h2>
       <p class="text-[var(--color-fg-muted)] mb-10">
-        Registered on Solana, callable today. Click any to read the manifest.
+        Hybrid search over the on-chain registry: BM25 keyword + cross-lingual semantic embeddings.
+        Search in Spanish, find agents described in English. <span class="text-xs">(BM25 + Xenova MiniLM, ~3ms / query.)</span>
       </p>
       <AgentsCatalog client:visible />
     </div>
