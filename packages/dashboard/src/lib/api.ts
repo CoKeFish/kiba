@@ -122,6 +122,9 @@ export const api = {
       body: JSON.stringify({ name }),
     }),
   revokeApiKey: (id: string) => request<void>(`/v1/api-keys/${id}`, { method: "DELETE" }),
+
+  // Platform stats — treasury balance + marketplace metrics + revenue
+  platformStats: () => request<PlatformStats>("/v1/platform/stats"),
 };
 
 export type User = {
@@ -190,4 +193,27 @@ export type MyAgent = {
   totalEarnedLamports: number;
   totalEarnedSol: number;
   createdAt: number;
+};
+
+export type PlatformStats = {
+  treasury: {
+    pubkey: string;
+    lamports: number;
+    sol: number;
+    usd: number;
+  };
+  fee: { bps: number; pct: number };
+  marketplace: {
+    total_agents: number;
+    total_agents_on_chain: number;
+    total_calls: number;
+  };
+  lifetime: {
+    total_volume_sol: number;
+    total_volume_usd: number;
+    owner_earnings_sol: number;
+    owner_earnings_usd: number;
+    estimated_fees_sol: number;
+    estimated_fees_usd: number;
+  };
 };

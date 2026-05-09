@@ -7,6 +7,7 @@ import {
   Play,
   Key,
   CreditCard,
+  Coins,
   Settings as SettingsIcon,
   LogOut,
 } from "lucide-react";
@@ -25,6 +26,7 @@ const nav = [
   { to: "/app/transactions", label: "Transactions", icon: Receipt },
   { to: "/app/credentials", label: "Credentials", icon: Key },
   { to: "/app/billing", label: "Billing", icon: CreditCard },
+  { to: "/app/platform", label: "Platform", icon: Coins },
   { to: "/app/settings", label: "Settings", icon: SettingsIcon },
 ];
 
