@@ -28,7 +28,7 @@ import {
 } from './oauth';
 import { getBalance, getTransactions, lamportsToUsd, topup } from './billing';
 import { callOnBehalf, listAgents, masterWalletPubkey } from './proxy';
-import { getOnChainBalance, loadUserWallet } from './wallets';
+import { getOnChainBalance, getUserBalances, loadUserWallet } from './wallets';
 import {
   createApiKey,
   getUserByApiKey,
@@ -51,7 +51,7 @@ const PORT = Number(process.env.PORT) || 8000;
 const app = express();
 // CORS con credentials habilitado para los frontends locales (dashboard SPA + landing).
 // Express acepta también un origin function que refleja el origin del request si está en allowlist.
-const ALLOWED_ORIGINS = (process.env.CORS_ORIGINS ?? 'http://localhost:3020,http://localhost:3010,http://localhost:5173,http://localhost:4321')
+const ALLOWED_ORIGINS = (process.env.CORS_ORIGINS ?? 'http://localhost:3020,http://localhost:3010,http://localhost:5173,http://localhost:4321,http://localhost:8000')
   .split(',')
   .map((s) => s.trim())
   .filter(Boolean);
@@ -231,14 +231,21 @@ app.post('/logout', (_req, res) => {
 
 // ─── Dashboard ─────────────────────────────────────────────────
 
-app.get('/dashboard', requireSession, (req, res) => {
+app.get('/dashboard', requireSession, async (req, res) => {
   const user = getUser(req.user!.id);
   if (!user) return res.redirect('/logout');
+
+  const balances = await getUserBalances(user.id);
 
   res.send(
     dashboardView({
       email: user.email,
-      balanceUsd: lamportsToUsd(user.balance_lamports),
+      creditUsd: balances.creditUsd,
+      walletLamports: balances.walletLamports,
+      walletSol: balances.walletSol,
+      walletUsd: balances.walletUsd,
+      totalUsd: balances.totalUsd,
+      totalSol: balances.totalSol,
       walletPubkey: user.custodial_wallet_pubkey,
       transactions: getTransactions(user.id),
     }),
@@ -371,22 +378,38 @@ app.post('/oauth/revoke', (req, res) => {
 //   API endpoints (Bearer auth)
 // ═══════════════════════════════════════════════════════════════
 
-app.get('/v1/me', requireAuth, (req, res) => {
+app.get('/v1/me', requireAuth, async (req, res) => {
   const user = getUser(req.bearerUser!.id);
   if (!user) return res.status(404).json({ error: 'user not found' });
+  const balances = await getUserBalances(user.id);
   res.json({
     id: String(user.id),
     email: user.email,
     custodial_wallet: user.custodial_wallet_pubkey,
-    balance_lamports: user.balance_lamports,
-    balance_usd: lamportsToUsd(user.balance_lamports),
+    balance_lamports: balances.creditLamports,
+    balance_usd: balances.creditUsd,
+    wallet_lamports: balances.walletLamports,
+    wallet_sol: balances.walletSol,
+    wallet_usd: balances.walletUsd,
+    total_lamports: balances.totalLamports,
+    total_usd: balances.totalUsd,
+    total_sol: balances.totalSol,
     created_at: user.created_at,
   });
 });
 
-app.get('/v1/balance', requireAuth, (req, res) => {
-  const balance = getBalance(req.bearerUser!.id);
-  res.json({ balance_lamports: balance, balance_usd: lamportsToUsd(balance) });
+app.get('/v1/balance', requireAuth, async (req, res) => {
+  const balances = await getUserBalances(req.bearerUser!.id);
+  res.json({
+    balance_lamports: balances.creditLamports,
+    balance_usd: balances.creditUsd,
+    wallet_lamports: balances.walletLamports,
+    wallet_sol: balances.walletSol,
+    wallet_usd: balances.walletUsd,
+    total_lamports: balances.totalLamports,
+    total_usd: balances.totalUsd,
+    total_sol: balances.totalSol,
+  });
 });
 
 /**

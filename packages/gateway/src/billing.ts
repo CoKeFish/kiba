@@ -13,6 +13,10 @@ export function lamportsToUsd(lamports: number): number {
   return (lamports / 1e9) * SOL_USD_RATE;
 }
 
+export function lamportsToSol(lamports: number): number {
+  return lamports / 1e9;
+}
+
 export function getBalance(userId: number): number {
   const row = db.prepare('SELECT balance_lamports FROM users WHERE id = ?').get(userId) as
     | { balance_lamports: number }

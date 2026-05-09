@@ -130,13 +130,17 @@ export function loginView(error?: string, next?: string): string {
 
 interface DashboardData {
   email: string;
-  balanceUsd: number;
+  creditUsd: number;
+  walletLamports: number;
+  walletSol: number;
+  walletUsd: number;
+  totalUsd: number;
+  totalSol: number;
   walletPubkey: string;
   transactions: { type: string; amount_lamports: number; service: string | null; created_at: number }[];
 }
 
 export function dashboardView(data: DashboardData): string {
-  const balanceFormatted = `$${data.balanceUsd.toFixed(2)}`;
   const txRows = data.transactions
     .slice(0, 20)
     .map((t) => {
@@ -153,26 +157,54 @@ export function dashboardView(data: DashboardData): string {
       <h1>Dashboard</h1>
       <p class="muted">${data.email} · <a href="/logout">cerrar sesión</a></p>
 
-      <div class="stat-row" style="margin-bottom:24px">
+      <div class="stat-row" style="margin-bottom:12px">
         <div class="stat">
-          <div class="stat-label">Saldo</div>
-          <div class="stat-value green">${balanceFormatted}</div>
+          <div class="stat-label">Total disponible</div>
+          <div class="stat-value green">$${data.totalUsd.toFixed(2)}</div>
+          <div class="muted" style="font-size:12px;margin-top:4px">${data.totalSol.toFixed(4)} SOL</div>
         </div>
         <div class="stat">
-          <div class="stat-label">Wallet custodia</div>
-          <div class="stat-value" style="font-size:14px;font-family:ui-monospace,Menlo,monospace;word-break:break-all">${data.walletPubkey}</div>
+          <div class="stat-label">Crédito USD</div>
+          <div class="stat-value">$${data.creditUsd.toFixed(2)}</div>
+          <div class="muted" style="font-size:12px;margin-top:4px">se gasta primero</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Saldo wallet on-chain</div>
+          <div class="stat-value">${data.walletSol.toFixed(4)} <span style="font-size:14px;color:#888">SOL</span></div>
+          <div class="muted" style="font-size:12px;margin-top:4px">≈ $${data.walletUsd.toFixed(2)}</div>
         </div>
       </div>
 
       <div class="panel">
-        <h2 style="margin-top:0">Cargar saldo</h2>
-        <p class="muted">Demo: en producción esto sería Stripe Checkout. Aquí simula carga directa.</p>
+        <h2 style="margin-top:0">Recargar crédito (mockup)</h2>
+        <p class="muted">Demo: en producción sería Stripe Checkout. Aquí simula carga directa al crédito USD.</p>
         <form method="POST" action="/topup">
           <span class="topup-pill"><label><input type="radio" name="amount" value="5" checked> $5</label></span>
           <span class="topup-pill"><label><input type="radio" name="amount" value="10"> $10</label></span>
           <span class="topup-pill"><label><input type="radio" name="amount" value="25"> $25</label></span>
           <button type="submit">Cargar (demo)</button>
         </form>
+      </div>
+
+      <div class="panel">
+        <h2 style="margin-top:0">Fondear tu wallet on-chain</h2>
+        <p class="muted">¿Prefieres usar tu propia SOL? Envía desde Phantom/Solflare a la dirección de tu wallet custodia. Una vez confirmada, su saldo se gasta automáticamente cuando se acabe el crédito USD.</p>
+        <label style="margin-top:8px">Tu wallet custodia (devnet)</label>
+        <div class="row" style="align-items:stretch">
+          <input type="text" id="wallet-pubkey" readonly value="${data.walletPubkey}" style="flex:3;font-family:ui-monospace,Menlo,monospace;font-size:12px">
+          <button type="button" onclick="copyWallet()" class="secondary" style="flex:1;margin-top:0">Copiar</button>
+          <a href="/dashboard" style="flex:1"><button type="button" class="secondary" style="width:100%;margin-top:0">Refrescar</button></a>
+        </div>
+        <p class="muted" style="margin-top:12px;font-size:12px">⚠ Esta es una wallet de devnet. Cualquier SOL enviado a otra red se perderá.</p>
+        <script>
+          function copyWallet() {
+            const el = document.getElementById('wallet-pubkey');
+            el.select();
+            navigator.clipboard.writeText(el.value);
+            event.target.textContent = '✓ Copiado';
+            setTimeout(() => { event.target.textContent = 'Copiar'; }, 1500);
+          }
+        </script>
       </div>
 
       <div class="panel">

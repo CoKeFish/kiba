@@ -19,6 +19,7 @@ import {
   Transaction,
 } from '@solana/web3.js';
 import { loadOrCreateKeypair } from '@agent-bazaar/sdk';
+import { getBalance, lamportsToSol, lamportsToUsd } from './billing';
 import { db } from './db';
 
 const SOLANA_RPC_URL = process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com';
@@ -52,6 +53,44 @@ export function loadUserWallet(userId: number): Keypair {
 
 export async function getOnChainBalance(pubkey: PublicKey): Promise<number> {
   return connection.getBalance(pubkey, 'confirmed');
+}
+
+export interface UserBalances {
+  creditLamports: number;
+  creditUsd: number;
+  walletLamports: number;
+  walletSol: number;
+  walletUsd: number;
+  totalLamports: number;
+  totalUsd: number;
+  totalSol: number;
+}
+
+/**
+ * Suma del crédito USD virtual y el SOL on-chain de la custodial del user.
+ * Si la query on-chain falla, walletLamports = 0 y se loggea — el dashboard
+ * sigue siendo usable sin RPC.
+ */
+export async function getUserBalances(userId: number): Promise<UserBalances> {
+  const creditLamports = getBalance(userId);
+  let walletLamports = 0;
+  try {
+    const wallet = loadUserWallet(userId);
+    walletLamports = await getOnChainBalance(wallet.publicKey);
+  } catch (err) {
+    console.warn(`[wallets] on-chain balance query failed for user ${userId}:`, (err as Error).message);
+  }
+  const totalLamports = creditLamports + walletLamports;
+  return {
+    creditLamports,
+    creditUsd: lamportsToUsd(creditLamports),
+    walletLamports,
+    walletSol: lamportsToSol(walletLamports),
+    walletUsd: lamportsToUsd(walletLamports),
+    totalLamports,
+    totalUsd: lamportsToUsd(totalLamports),
+    totalSol: lamportsToSol(totalLamports),
+  };
 }
 
 export interface RefillResult {
