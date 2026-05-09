@@ -6,7 +6,7 @@ import { useAuth } from "@/lib/auth";
 import { Card, CardBody, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
-import { Copy, Check, ExternalLink, LogOut, AlertTriangle } from "lucide-react";
+import { Copy, Check, ExternalLink, LogOut, AlertTriangle, RefreshCw } from "lucide-react";
 
 function explorerWallet(addr: string): string {
   return `https://explorer.solana.com/address/${addr}?cluster=devnet`;
@@ -34,7 +34,13 @@ function CopyButton({ value }: { value: string }) {
   );
 }
 
-function Field({ label, value, hint, copyable, link }: {
+function Field({
+  label,
+  value,
+  hint,
+  copyable,
+  link,
+}: {
   label: string;
   value: string;
   hint?: string;
@@ -72,6 +78,15 @@ export default function Settings() {
   const navigate = useNavigate();
   const { logout } = useAuth();
   const { data: me } = useQuery({ queryKey: ["me"], queryFn: api.me });
+  const {
+    data: wallet,
+    isFetching,
+    refetch: refetchWallet,
+  } = useQuery({
+    queryKey: ["wallet"],
+    queryFn: api.wallet,
+    refetchInterval: 30_000,
+  });
 
   async function handleLogout() {
     await logout();
@@ -82,7 +97,7 @@ export default function Settings() {
     <div className="space-y-6 max-w-3xl">
       <div>
         <h1 className="text-2xl font-semibold">Settings</h1>
-        <p className="text-sm text-[var(--color-fg-muted)]">Account and identity.</p>
+        <p className="text-sm text-[var(--color-fg-muted)]">Account, wallet and identity.</p>
       </div>
 
       <Card>
@@ -94,18 +109,58 @@ export default function Settings() {
           {me ? (
             <>
               <Field label="Email" value={me.email} copyable />
-              <Field
-                label="Custodial wallet (Solana devnet)"
-                value={me.custodial_wallet}
-                hint="The gateway signs x402 escrows on your behalf with this keypair."
-                copyable
-                link={explorerWallet(me.custodial_wallet)}
-              />
+              <Field label="User ID" value={me.id} copyable />
               <Field
                 label="Account created"
                 value={format(new Date(me.created_at * 1000), "PPpp")}
               />
-              <Field label="User ID" value={me.id} copyable />
+            </>
+          ) : (
+            <div className="py-8 text-sm text-[var(--color-fg-muted)] text-center">Loading…</div>
+          )}
+        </CardBody>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex items-center justify-between flex-row">
+          <div>
+            <CardTitle>Custodial wallet</CardTitle>
+            <CardDescription>
+              Your Solana keypair. Lives in the gateway. Signs every <code>open_escrow</code> and{" "}
+              <code>claim_payment</code> on your behalf.
+            </CardDescription>
+          </div>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => refetchWallet()}
+            disabled={isFetching}
+            title="Refresh on-chain balance"
+          >
+            <RefreshCw className={`w-3 h-3 ${isFetching ? "animate-spin" : ""}`} />
+          </Button>
+        </CardHeader>
+        <CardBody className="px-6 py-0">
+          {wallet ? (
+            <>
+              <Field
+                label="Public key (devnet)"
+                value={wallet.pubkey}
+                copyable
+                link={explorerWallet(wallet.pubkey)}
+              />
+              <Field
+                label="On-chain balance"
+                value={`${wallet.sol.toFixed(6)} SOL`}
+                hint={`${wallet.lamports.toLocaleString()} lamports — refilled on-demand from the gateway treasury when you make a call`}
+              />
+              <Field
+                label="Treasury wallet (refill source)"
+                value={wallet.master_wallet}
+                hint="When your custodial runs low, the gateway transfers SOL from this master wallet to yours. Operated by the platform."
+                copyable
+                link={explorerWallet(wallet.master_wallet)}
+              />
             </>
           ) : (
             <div className="py-8 text-sm text-[var(--color-fg-muted)] text-center">Loading…</div>
@@ -115,16 +170,28 @@ export default function Settings() {
 
       <Card>
         <CardHeader>
-          <CardTitle>About</CardTitle>
-          <CardDescription>What this dashboard is.</CardDescription>
+          <CardTitle>How payments flow</CardTitle>
+          <CardDescription>What happens behind every call.</CardDescription>
         </CardHeader>
         <CardBody>
-          <p className="text-sm text-[var(--color-fg-muted)] leading-relaxed">
-            Agent Bazaar is a marketplace where AI agents pay each other on Solana via the x402
-            protocol. The dashboard lives on top of the gateway — it browses the on-chain registry,
-            authenticates you with a custodial wallet, lets you call agents, and shows your
-            transaction history. Native SDK and MCP server are alternative integration paths.
-          </p>
+          <ol className="text-sm text-[var(--color-fg-muted)] leading-relaxed space-y-2 list-decimal list-inside">
+            <li>You hit <code className="text-[var(--color-fg)]">/v1/call</code> with a service id and payload.</li>
+            <li>
+              The gateway debits the agent's price from your USD credit balance (atomic — fails if
+              you don't have enough).
+            </li>
+            <li>
+              If your custodial wallet doesn't have enough SOL on-chain, the gateway transfers what's
+              missing from the treasury wallet above (one-time refill, kept silent).
+            </li>
+            <li>
+              <strong className="text-[var(--color-fg)]">Your custodial wallet</strong> signs{" "}
+              <code className="text-[var(--color-fg)]">open_escrow</code> on Solana, locking the
+              SOL in a PDA owned by the program.
+            </li>
+            <li>The agent calls back, returns the result, and signs <code className="text-[var(--color-fg)]">claim_payment</code> — the SOL moves from the escrow to the agent's wallet.</li>
+            <li>If anything fails along the way, the USD credit is automatically refunded.</li>
+          </ol>
         </CardBody>
       </Card>
 

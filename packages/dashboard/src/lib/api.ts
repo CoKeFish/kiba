@@ -43,6 +43,13 @@ export const api = {
 
   // Balance & billing
   balance: () => request<{ balance_lamports: number; balance_usd: number }>("/v1/balance"),
+  wallet: () =>
+    request<{
+      pubkey: string;
+      lamports: number;
+      sol: number;
+      master_wallet: string;
+    }>("/v1/wallet"),
   topup: (amount_usd: number) =>
     request<{ ok: boolean; new_balance_lamports: number }>("/v1/topup", {
       method: "POST",
