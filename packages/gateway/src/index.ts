@@ -28,6 +28,7 @@ import {
 } from './oauth';
 import { getBalance, getTransactions, lamportsToUsd, topup } from './billing';
 import { callOnBehalf, listAgents, masterWalletPubkey } from './proxy';
+import { getOnChainBalance, loadUserWallet } from './wallets';
 import {
   createApiKey,
   getUserByApiKey,
@@ -386,6 +387,27 @@ app.get('/v1/me', requireAuth, (req, res) => {
 app.get('/v1/balance', requireAuth, (req, res) => {
   const balance = getBalance(req.bearerUser!.id);
   res.json({ balance_lamports: balance, balance_usd: lamportsToUsd(balance) });
+});
+
+/**
+ * Estado on-chain de la custodial wallet del user.
+ * Útil para mostrar transparencia: lamports reales, no solo USD virtual.
+ */
+app.get('/v1/wallet', requireAuth, async (req, res) => {
+  const user = getUser(req.bearerUser!.id);
+  if (!user) return res.status(404).json({ error: 'user not found' });
+  try {
+    const wallet = loadUserWallet(user.id);
+    const lamports = await getOnChainBalance(wallet.publicKey);
+    res.json({
+      pubkey: user.custodial_wallet_pubkey,
+      lamports,
+      sol: lamports / 1e9,
+      master_wallet: masterWalletPubkey(),
+    });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
 });
 
 app.get('/v1/agents', requireAuth, async (_req, res) => {
