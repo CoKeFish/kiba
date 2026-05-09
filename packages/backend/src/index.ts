@@ -1,18 +1,21 @@
 /**
- * Backend Discovery API — Phase 2
+ * Backend Discovery API — Phase 3 (indexer + búsqueda híbrida)
  *
- *  - Lee agentes registrados directamente del registry on-chain
- *  - Cachea resultados por 30s
- *  - Suscribe a logs del programa para broadcast en vivo vía WebSocket
- *  - Endpoints REST: GET /agents, GET /agents/:service, GET /health
- *  - WebSocket: ws://host:4000/ws → emite eventos `{type, ...}`
+ *  - Indexer mantiene SQLite sincronizado con el registry on-chain
+ *  - GET /agents soporta ?q (búsqueda) + ?mode=keyword|semantic|hybrid + ?limit
+ *  - WebSocket /ws stream de eventos del programa + actualizaciones del indexer
  */
 import express from 'express';
 import cors from 'cors';
 import { WebSocketServer } from 'ws';
 import { createServer } from 'node:http';
 import { Connection, PublicKey } from '@solana/web3.js';
-import { AgentBazaarProgram, type AgentAccount } from '@agent-bazaar/sdk';
+import { AgentBazaarProgram } from '@agent-bazaar/sdk';
+
+import { getDb, listAgents, type AgentRecord } from './db';
+import { Indexer } from './indexer';
+import { search, searchStatus, type SearchMode } from './search';
+import { warmup as warmupEmbeddings, status as embeddingsStatus } from './embeddings';
 
 const PORT = Number(process.env.PORT) || 4000;
 const SOLANA_RPC = process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com';
@@ -27,65 +30,26 @@ if (PROGRAM_ID) {
     console.error('[backend] PROGRAM_ID inválido:', (err as Error).message);
   }
 } else {
-  console.warn('[backend] PROGRAM_ID no configurado — devolviendo lista vacía hasta deploy');
+  console.warn('[backend] PROGRAM_ID no configurado — modo demo con FALLBACK_AGENTS');
 }
 
-// ─── Cache ───────────────────────────────────────────────────────
-let agentsCache: { pda: PublicKey; data: AgentAccount }[] = [];
-let cacheAt = 0;
-const CACHE_TTL_MS = 30_000;
+// ─── DB + Indexer ────────────────────────────────────────────────
+getDb(); // toca el singleton para que cree el archivo y aplique el schema
+const indexer = new Indexer(program, program ? connection : null);
 
-// Fallback hardcoded — se usa cuando PROGRAM_ID no está configurado (demo mode)
-const FALLBACK_AGENTS = [
-  {
-    service: 'yield-hunter',
-    pricePerCall: 0.01,
-    description: 'Encuentra el mejor APY entre protocolos DeFi en Solana',
-    endpoint: 'http://demo-agents:5001',
-    ownerWallet: 'PHASE_1_PLACEHOLDER',
-    acceptedToken: 'SOL' as const,
-    totalCalls: 0,
-    totalEarned: 0,
-    createdAt: Math.floor(Date.now() / 1000),
-  },
-  {
-    service: 'risk-auditor',
-    pricePerCall: 0.02,
-    description: 'Analiza el riesgo de un smart contract / protocolo Solana',
-    endpoint: 'http://demo-agents:5002',
-    ownerWallet: 'PHASE_1_PLACEHOLDER',
-    acceptedToken: 'SOL' as const,
-    totalCalls: 0,
-    totalEarned: 0,
-    createdAt: Math.floor(Date.now() / 1000),
-  },
-];
-
-async function getAgents(): Promise<typeof agentsCache> {
-  const now = Date.now();
-  if (program && now - cacheAt < CACHE_TTL_MS && agentsCache.length > 0) return agentsCache;
-  if (!program) return [];
-
-  try {
-    agentsCache = await program.fetchAllAgents();
-    cacheAt = now;
-  } catch (err) {
-    console.error('[backend] error fetching agents:', (err as Error).message);
-  }
-  return agentsCache;
-}
-
-function toManifest(a: AgentAccount, _pda: PublicKey) {
+// ─── Serializador ────────────────────────────────────────────────
+function toManifest(a: AgentRecord) {
   return {
     service: a.service,
-    pricePerCall: Number(a.pricePerCall) / 1e9,
+    pricePerCall: a.price_per_call / 1e9,
     description: a.description,
     endpoint: a.endpoint,
-    ownerWallet: a.owner.toBase58(),
+    ownerWallet: a.owner_wallet,
     acceptedToken: 'SOL' as const,
-    totalCalls: Number(a.totalCalls),
-    totalEarned: Number(a.totalEarned) / 1e9,
-    createdAt: Number(a.createdAt),
+    totalCalls: a.total_calls,
+    totalEarned: a.total_earned / 1e9,
+    createdAt: a.created_at,
+    source: a.source,
   };
 }
 
@@ -95,41 +59,62 @@ app.use(cors());
 app.use(express.json());
 
 app.get('/health', (_req, res) => {
+  const db = getDb();
   res.json({
     ok: true,
     service: 'agent-bazaar-backend',
     network: SOLANA_RPC,
     programId: PROGRAM_ID ?? '(not deployed)',
-    cachedAgents: agentsCache.length,
+    indexedAgents: listAgents(db, { limit: 1000 }).length,
+    embeddings: embeddingsStatus(),
+    search: searchStatus(),
     uptime: process.uptime(),
   });
 });
 
-app.get('/agents', async (_req, res) => {
-  const agents = await getAgents();
-  if (agents.length > 0) {
-    res.json(agents.map(({ pda, data }) => toManifest(data, pda)));
+app.get('/agents', async (req, res) => {
+  const q = typeof req.query.q === 'string' ? req.query.q : undefined;
+  const mode = (typeof req.query.mode === 'string' ? req.query.mode : 'hybrid') as SearchMode;
+  const limit = req.query.limit ? Number(req.query.limit) : 20;
+
+  if (q && mode && !['keyword', 'semantic', 'hybrid'].includes(mode)) {
+    res.status(400).json({ error: 'mode must be keyword|semantic|hybrid' });
     return;
   }
-  // Fallback demo si el contract no está deployado
-  res.json(FALLBACK_AGENTS);
+
+  try {
+    const hits = await search(getDb(), { q, mode, limit });
+    if (q) {
+      res.json({
+        query: q,
+        mode,
+        count: hits.length,
+        results: hits.map((h) => ({
+          ...toManifest(h.agent),
+          score: Number(h.score.toFixed(4)),
+          matchType: h.matchType,
+        })),
+      });
+      return;
+    }
+    // Sin query: shape compatible con el endpoint anterior (array plano)
+    res.json(hits.map((h) => toManifest(h.agent)));
+  } catch (err) {
+    console.error('[backend] search error:', (err as Error).message);
+    res.status(500).json({ error: 'search failed' });
+  }
 });
 
 app.get('/agents/:service', async (req, res) => {
-  if (program) {
-    const onChain = await program.fetchAgent(req.params.service);
-    if (onChain) {
-      res.json(toManifest(onChain, PublicKey.default));
-      return;
-    }
-  }
-  // Fallback
-  const found = FALLBACK_AGENTS.find((a) => a.service === req.params.service);
-  if (!found) {
+  const db = getDb();
+  const row = db
+    .prepare('SELECT * FROM agents WHERE service = ? AND deleted = 0')
+    .get(req.params.service) as AgentRecord | undefined;
+  if (!row) {
     res.status(404).json({ error: 'agent not found' });
     return;
   }
-  res.json(found);
+  res.json(toManifest(row));
 });
 
 // ─── WebSocket ───────────────────────────────────────────────────
@@ -140,58 +125,45 @@ const wsClients = new Set<import('ws').WebSocket>();
 wss.on('connection', (ws) => {
   wsClients.add(ws);
   ws.on('close', () => wsClients.delete(ws));
-  // Mensaje inicial — usa la misma lógica que GET /agents (con fallback si no hay onchain)
-  getAgents().then((agents) => {
-    const list =
-      agents.length > 0 ? agents.map(({ pda, data }) => toManifest(data, pda)) : FALLBACK_AGENTS;
-    ws.send(JSON.stringify({ type: 'snapshot', agents: list }));
-  });
+  // Snapshot inicial
+  const list = listAgents(getDb(), { limit: 100 }).map(toManifest);
+  ws.send(JSON.stringify({ type: 'snapshot', agents: list }));
 });
 
-function broadcast(event: unknown) {
+function broadcast(event: unknown): void {
   const msg = JSON.stringify(event);
   for (const client of wsClients) {
     if (client.readyState === client.OPEN) client.send(msg);
   }
 }
 
-// ─── Subscripción a logs del programa ─────────────────────────────
-if (program) {
-  try {
-    connection.onLogs(
-      program.programId,
-      (logs) => {
-        const isInteresting = logs.logs.some((l) =>
-          /Program log: Instruction: (RegisterAgent|OpenEscrow|ClaimPayment|RefundEscrow)/i.test(l),
-        );
-        if (!isInteresting) return;
-
-        broadcast({
-          type: 'program_event',
-          signature: logs.signature,
-          slot: logs.err === null ? 'success' : 'error',
-          logs: logs.logs.slice(0, 10), // primer slice — más es ruido
-        });
-
-        // Invalida cache para que la próxima request recargue
-        cacheAt = 0;
-      },
-      'confirmed',
-    );
-    console.log(`[backend] suscrito a logs del programa ${program.programId.toBase58()}`);
-  } catch (err) {
-    console.error('[backend] no se pudo suscribir a logs:', (err as Error).message);
+indexer.on((e) => {
+  if (e.type === 'snapshot') {
+    const list = listAgents(getDb(), { limit: 100 }).map(toManifest);
+    broadcast({ type: 'snapshot', agents: list });
+    return;
   }
-}
+  broadcast(e);
+});
 
 // ─── Start ───────────────────────────────────────────────────────
-server.listen(PORT, () => {
-  console.log('╔══════════════════════════════════════════╗');
-  console.log('║  Agent Bazaar — Backend (Phase 2)        ║');
-  console.log('╚══════════════════════════════════════════╝');
-  console.log(`  http://localhost:${PORT}/health`);
-  console.log(`  http://localhost:${PORT}/agents`);
-  console.log(`  ws://localhost:${PORT}/ws`);
-  console.log(`  network: ${SOLANA_RPC}`);
-  console.log(`  programId: ${PROGRAM_ID ?? '(not deployed)'}`);
-});
+async function main(): Promise<void> {
+  warmupEmbeddings(); // carga el modelo en background
+  await indexer.bootstrap();
+  indexer.subscribeToChain();
+  indexer.startHeartbeat();
+
+  server.listen(PORT, () => {
+    console.log('╔══════════════════════════════════════════╗');
+    console.log('║  Agent Bazaar — Backend (Phase 3)        ║');
+    console.log('╚══════════════════════════════════════════╝');
+    console.log(`  http://localhost:${PORT}/health`);
+    console.log(`  http://localhost:${PORT}/agents`);
+    console.log(`  http://localhost:${PORT}/agents?q=yield&mode=hybrid`);
+    console.log(`  ws://localhost:${PORT}/ws`);
+    console.log(`  network: ${SOLANA_RPC}`);
+    console.log(`  programId: ${PROGRAM_ID ?? '(not deployed)'}`);
+  });
+}
+
+void main();

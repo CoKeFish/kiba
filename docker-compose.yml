@@ -23,7 +23,10 @@ services:
     container_name: ab-backend
     volumes:
       - ./packages/backend/src:/app/packages/backend/src
+      - ./packages/backend/test:/app/packages/backend/test
       - ./packages/sdk/src:/app/packages/sdk/src
+      - backend-data:/app/packages/backend/data
+      - backend-models:/app/packages/backend/models
     ports:
       - "4000:4000"
     environment:
@@ -31,6 +34,7 @@ services:
       - SOLANA_RPC_URL=${SOLANA_RPC_URL:-https://api.devnet.solana.com}
       - PORT=${BACKEND_PORT:-4000}
       - PROGRAM_ID=${PROGRAM_ID:-}
+      - SEMANTIC_SEARCH=${SEMANTIC_SEARCH:-true}
     depends_on:
       - contracts
 
@@ -145,3 +149,5 @@ volumes:
   agents-data:
   orchestrator-data:
   gateway-data:
+  backend-data:
+  backend-models:
