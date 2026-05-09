@@ -1,0 +1,169 @@
+#!/bin/bash
+# Agent Bazaar CLI helper
+# Usage: bazaar <command> [args]
+
+set -e
+
+CMD=$1
+shift || true
+
+WORKDIR=/workspace
+LIB_RS=$WORKDIR/programs/agent-bazaar/src/lib.rs
+ANCHOR_TOML=$WORKDIR/Anchor.toml
+
+case $CMD in
+  status)
+    echo "═════════ Agent Bazaar Status ═════════"
+    solana config get
+    echo ""
+    if WALLET=$(solana address 2>/dev/null); then
+      echo "Wallet:  $WALLET"
+      echo "Balance: $(solana balance 2>/dev/null)"
+    else
+      echo "Wallet:  ⚠ no wallet — corre 'bazaar init-wallet'"
+    fi
+    echo "Program ID env: ${PROGRAM_ID:-(not set)}"
+    if [ -f $WORKDIR/target/deploy/agent_bazaar-keypair.json ]; then
+      echo "Program keypair address: $(solana address -k $WORKDIR/target/deploy/agent_bazaar-keypair.json)"
+    fi
+    echo "═══════════════════════════════════════"
+    ;;
+
+  init-wallet)
+    if [ -f /root/.config/solana/id.json ]; then
+      echo "✓ Wallet ya existe en /root/.config/solana/id.json"
+      solana address
+    else
+      solana-keygen new --no-bip39-passphrase
+    fi
+    ;;
+
+  airdrop)
+    AMOUNT=${1:-2}
+    echo "Pidiendo $AMOUNT SOL..."
+    solana airdrop "$AMOUNT"
+    solana balance
+    ;;
+
+  build)
+    cd $WORKDIR
+    anchor build
+    ;;
+
+  deploy)
+    cd $WORKDIR
+
+    # Asegurar wallet
+    if [ ! -f /root/.config/solana/id.json ]; then
+      echo "→ creando wallet..."
+      solana-keygen new --no-bip39-passphrase
+    fi
+
+    # Asegurar balance
+    BAL=$(solana balance | grep -oE '[0-9.]+' | head -1)
+    if [ -z "$BAL" ] || [ "$(echo "$BAL < 2" | awk '{print ($1<2)}')" = "1" ]; then
+      echo "→ pidiendo airdrop..."
+      solana airdrop 2 || true
+    fi
+
+    # Primer build genera el keypair del programa
+    if [ ! -f target/deploy/agent_bazaar-keypair.json ]; then
+      echo "→ build inicial (genera keypair del programa)..."
+      anchor build
+    fi
+
+    PID=$(solana address -k target/deploy/agent_bazaar-keypair.json)
+    echo "→ Program ID: $PID"
+
+    # Sincronizar declare_id! y Anchor.toml
+    sed -i.bak "s/declare_id!(\"[^\"]*\")/declare_id!(\"$PID\")/" $LIB_RS
+    sed -i.bak "s|agent_bazaar = \"[^\"]*\"|agent_bazaar = \"$PID\"|g" $ANCHOR_TOML
+    rm -f $LIB_RS.bak $ANCHOR_TOML.bak
+
+    echo "→ rebuild con declare_id! correcto..."
+    anchor build
+
+    echo "→ deploying a devnet..."
+    anchor deploy --provider.cluster devnet
+
+    echo ""
+    echo "═══════════════════════════════════════════"
+    echo "  ✓ Deployed: $PID"
+    echo "═══════════════════════════════════════════"
+    echo ""
+    echo "Próximos pasos:"
+    echo "  1. exit (salir del container)"
+    echo "  2. Editar .env y poner:    PROGRAM_ID=$PID"
+    echo "  3. docker compose restart backend demo-agents orchestrator-agent"
+    ;;
+
+  test)
+    cd $WORKDIR
+    anchor test --skip-local-validator
+    ;;
+
+  logs)
+    if [ -z "$1" ]; then
+      echo "Streaming logs de devnet (Ctrl+C para parar)..."
+      solana logs
+    else
+      echo "Logs de transacción $1:"
+      solana confirm "$1" -v
+    fi
+    ;;
+
+  network)
+    NET=${1:-devnet}
+    case $NET in
+      devnet) URL=https://api.devnet.solana.com ;;
+      mainnet) URL=https://api.mainnet-beta.solana.com ;;
+      localnet) URL=http://localhost:8899 ;;
+      *) URL=$NET ;;
+    esac
+    solana config set --url "$URL"
+    ;;
+
+  list-agents)
+    if [ -z "$PROGRAM_ID" ]; then
+      echo "PROGRAM_ID no configurado en env"
+      exit 1
+    fi
+    echo "Querying registry on-chain..."
+    curl -s -X POST "$(solana config get | grep 'RPC URL' | awk '{print $3}')" \
+      -H "Content-Type: application/json" \
+      -d "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"getProgramAccounts\",\"params\":[\"$PROGRAM_ID\",{\"encoding\":\"base64\"}]}" \
+      | jq -C '.result | length as $n | "\($n) program accounts found"'
+    ;;
+
+  help|"")
+    cat <<EOF
+Agent Bazaar CLI
+
+Usage: bazaar <command> [args]
+
+Commands:
+  status              Estado actual: red, wallet, balance, program ID
+  init-wallet         Crear wallet nueva (si no existe)
+  airdrop [amount]    Pedir SOL falso de devnet (default: 2)
+  build               anchor build
+  deploy              Deploy completo a devnet (auto-actualiza declare_id! y Anchor.toml)
+  test                Corre tests del programa
+  logs [signature]    Stream logs en vivo o detalles de una tx específica
+  network <name>      Cambia red: devnet | mainnet | localnet
+  list-agents         Lista accounts del programa on-chain
+  help                Esta ayuda
+
+Flujo primera vez:
+  bazaar init-wallet
+  bazaar airdrop 5
+  bazaar deploy
+  # → copiar Program ID al .env, salir, reiniciar containers
+EOF
+    ;;
+
+  *)
+    echo "Comando desconocido: $CMD"
+    echo "Corre: bazaar help"
+    exit 1
+    ;;
+esac

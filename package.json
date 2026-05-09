@@ -1,0 +1,36 @@
+{
+  "name": "agent-bazaar",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Marketplace de agentes IA con pagos x402 en Solana",
+  "workspaces": [
+    "packages/sdk",
+    "packages/backend",
+    "packages/frontend",
+    "packages/demo-agents",
+    "packages/orchestrator-agent",
+    "packages/gateway",
+    "packages/mcp-server"
+  ],
+  "scripts": {
+    "dev": "docker compose up",
+    "dev:detached": "docker compose up -d",
+    "down": "docker compose down",
+    "reset": "docker compose down -v && docker compose up --build",
+    "logs": "docker compose logs -f",
+    "contracts:shell": "docker compose exec contracts bash",
+    "build:sdk": "npm run build --workspace=@agent-bazaar/sdk",
+    "build:backend": "npm run build --workspace=@agent-bazaar/backend",
+    "build:frontend": "npm run build --workspace=@agent-bazaar/frontend",
+    "build:agents": "npm run build --workspace=@agent-bazaar/demo-agents",
+    "build:orchestrator": "npm run build --workspace=@agent-bazaar/orchestrator-agent",
+    "build:all": "npm run build:sdk && npm run build:backend && npm run build:frontend && npm run build:agents && npm run build:orchestrator"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "@types/node": "^20.12.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "name": "@agent-bazaar/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "test": "anchor test --skip-local-validator",
+    "build": "anchor build",
+    "deploy": "anchor deploy --provider.cluster devnet"
+  },
+  "devDependencies": {
+    "@coral-xyz/anchor": "^0.30.1",
+    "@types/bn.js": "^5.1.5",
+    "@types/chai": "^4.3.11",
+    "@types/mocha": "^10.0.6",
+    "chai": "^4.4.1",
+    "mocha": "^10.3.0",
+    "ts-mocha": "^10.0.0",
+    "typescript": "^5.4.0"
+  }
+}

@@ -1,0 +1,127 @@
+services:
+  contracts:
+    build:
+      context: .
+      dockerfile: packages/contracts/Dockerfile
+    container_name: ab-contracts
+    volumes:
+      - ./packages/contracts:/workspace
+      - solana-keys:/root/.config/solana
+      - cargo-cache:/root/.cargo/registry
+      - anchor-cache:/root/.avm
+    environment:
+      - SOLANA_RPC_URL=${SOLANA_RPC_URL:-https://api.devnet.solana.com}
+      - SOLANA_NETWORK=${SOLANA_NETWORK:-devnet}
+    stdin_open: true
+    tty: true
+    command: tail -f /dev/null  # Mantiene el container vivo para `docker compose exec`
+
+  backend:
+    build:
+      context: .
+      dockerfile: packages/backend/Dockerfile
+    container_name: ab-backend
+    volumes:
+      - ./packages/backend/src:/app/packages/backend/src
+      - ./packages/sdk/src:/app/packages/sdk/src
+    ports:
+      - "4000:4000"
+    environment:
+      - NODE_ENV=development
+      - SOLANA_RPC_URL=${SOLANA_RPC_URL:-https://api.devnet.solana.com}
+      - PORT=${BACKEND_PORT:-4000}
+      - PROGRAM_ID=${PROGRAM_ID:-}
+    depends_on:
+      - contracts
+
+  frontend:
+    build:
+      context: .
+      dockerfile: packages/frontend/Dockerfile
+    container_name: ab-frontend
+    volumes:
+      - ./packages/frontend/src:/app/packages/frontend/src
+      - ./packages/frontend/public:/app/packages/frontend/public
+    ports:
+      - "3010:3000"
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_BACKEND_URL=${NEXT_PUBLIC_BACKEND_URL:-http://localhost:4000}
+      - NEXT_PUBLIC_ORCHESTRATOR_URL=${NEXT_PUBLIC_ORCHESTRATOR_URL:-http://localhost:6001}
+      - NEXT_PUBLIC_SOLANA_RPC=${NEXT_PUBLIC_SOLANA_RPC:-https://api.devnet.solana.com}
+    depends_on:
+      - backend
+
+  demo-agents:
+    build:
+      context: .
+      dockerfile: packages/demo-agents/Dockerfile
+    container_name: ab-agents
+    volumes:
+      - ./packages/demo-agents/src:/app/packages/demo-agents/src
+      - ./packages/sdk/src:/app/packages/sdk/src
+      - agents-data:/app/data
+    ports:
+      - "5001:5001"  # yield-hunter
+      - "5002:5002"  # risk-auditor
+    environment:
+      - NODE_ENV=development
+      - SOLANA_RPC_URL=${SOLANA_RPC_URL:-https://api.devnet.solana.com}
+      - PROGRAM_ID=${PROGRAM_ID:-}
+      - BACKEND_URL=http://backend:4000
+    depends_on:
+      - backend
+
+  gateway:
+    build:
+      context: .
+      dockerfile: packages/gateway/Dockerfile
+    container_name: ab-gateway
+    volumes:
+      - ./packages/gateway/src:/app/packages/gateway/src
+      - ./packages/sdk/src:/app/packages/sdk/src
+      - gateway-data:/app/data
+    ports:
+      - "8000:8000"
+    environment:
+      - NODE_ENV=development
+      - SOLANA_RPC_URL=${SOLANA_RPC_URL:-https://api.devnet.solana.com}
+      - PROGRAM_ID=${PROGRAM_ID:-}
+      - BACKEND_URL=http://backend:4000
+      - PORT=8000
+      - JWT_SECRET=${JWT_SECRET:-dev-secret-change-in-prod}
+      - PUBLIC_URL=${PUBLIC_URL:-http://localhost:8000}
+      - SOL_USD_RATE=${SOL_USD_RATE:-150}
+    depends_on:
+      - backend
+      - demo-agents
+
+  orchestrator-agent:
+    build:
+      context: .
+      dockerfile: packages/orchestrator-agent/Dockerfile
+    container_name: ab-orchestrator
+    volumes:
+      - ./packages/orchestrator-agent/src:/app/packages/orchestrator-agent/src
+      - ./packages/sdk/src:/app/packages/sdk/src
+      - orchestrator-data:/app/data
+    ports:
+      - "6001:6001"
+    environment:
+      - NODE_ENV=development
+      - SOLANA_RPC_URL=${SOLANA_RPC_URL:-https://api.devnet.solana.com}
+      - PROGRAM_ID=${PROGRAM_ID:-}
+      - BACKEND_URL=http://backend:4000
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - PORT=6001
+    depends_on:
+      - backend
+      - demo-agents
+
+volumes:
+  solana-keys:
+  cargo-cache:
+  anchor-cache:
+  agents-data:
+  orchestrator-data:
+  gateway-data:
