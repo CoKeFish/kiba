@@ -1,12 +1,23 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, type Agent } from "@/lib/api";
+import { api, type Agent, type X402Trace, type X402Step } from "@/lib/api";
 import { Card, CardBody, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatUsd, shortSig, explorerUrl } from "@/lib/format";
-import { Play, AlertCircle, CheckCircle2, ExternalLink } from "lucide-react";
+import {
+  Play,
+  AlertCircle,
+  CheckCircle2,
+  ExternalLink,
+  Search,
+  Lock,
+  ShieldCheck,
+  CreditCard,
+  ChevronDown,
+  ChevronRight,
+} from "lucide-react";
 
 const SOL_USD_RATE = 150;
 const solToUsd = (sol: number) => sol * SOL_USD_RATE;
@@ -42,6 +53,7 @@ interface CallEntry {
   error?: string;
   cost?: { usd: number };
   signature?: string;
+  trace?: X402Trace;
   durationMs: number;
 }
 
@@ -105,6 +117,7 @@ export default function Playground() {
           result: data.result,
           cost: { usd: data.cost.usd },
           signature: sig,
+          trace: data.trace,
           durationMs: performance.now() - t0,
         },
         ...h,
@@ -243,9 +256,12 @@ export default function Playground() {
                 {h.error ? (
                   <p className="text-sm text-[var(--color-danger)] font-mono">{h.error}</p>
                 ) : (
-                  <pre className="text-xs font-mono bg-[var(--color-bg-soft)] p-3 rounded overflow-x-auto">
-                    {JSON.stringify(h.result, null, 2)}
-                  </pre>
+                  <>
+                    <pre className="text-xs font-mono bg-[var(--color-bg-soft)] p-3 rounded overflow-x-auto">
+                      {JSON.stringify(h.result, null, 2)}
+                    </pre>
+                    {h.trace && <X402TraceView trace={h.trace} />}
+                  </>
                 )}
               </div>
             ))}
@@ -254,4 +270,178 @@ export default function Playground() {
       )}
     </div>
   );
+}
+
+// ════════════════════════════════════════════════════════════════
+//   X402TraceView — timeline del handshake x402 paso a paso
+// ════════════════════════════════════════════════════════════════
+
+const STEP_META: Record<
+  X402Step["type"],
+  { icon: typeof Search; label: string; tone: "neutral" | "warning" | "info" | "success" }
+> = {
+  discover: { icon: Search, label: "Discover", tone: "neutral" },
+  "402_received": { icon: Lock, label: "HTTP 402 received", tone: "warning" },
+  escrow_opened: { icon: ShieldCheck, label: "open_escrow", tone: "info" },
+  service_responded: { icon: CreditCard, label: "Service + claim_payment", tone: "success" },
+};
+
+function X402TraceView({ trace }: { trace: X402Trace }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="mt-3 border-t border-[var(--color-border)] pt-3">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center justify-between w-full text-xs text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] transition-colors"
+      >
+        <span className="flex items-center gap-2">
+          {open ? (
+            <ChevronDown className="w-3 h-3" />
+          ) : (
+            <ChevronRight className="w-3 h-3" />
+          )}
+          <span className="font-medium">x402 trace</span>
+          <span className="font-mono">
+            {trace.steps.length} steps · {trace.totalDurationMs}ms total
+          </span>
+        </span>
+      </button>
+
+      {open && (
+        <div className="mt-3 space-y-2 pl-1">
+          {trace.steps.map((step, i) => (
+            <X402StepCard key={i} step={step} index={i} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function X402StepCard({ step, index }: { step: X402Step; index: number }) {
+  const meta = STEP_META[step.type];
+  const Icon = meta.icon;
+  return (
+    <div className="flex gap-3 items-start">
+      <div className="flex flex-col items-center pt-1">
+        <div className="w-6 h-6 rounded-full border border-[var(--color-border)] bg-[var(--color-bg)] flex items-center justify-center">
+          <Icon className="w-3 h-3" />
+        </div>
+        <div className="w-px flex-1 bg-[var(--color-border)] mt-1" />
+      </div>
+      <div className="flex-1 pb-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs font-medium">
+            {index + 1}. {meta.label}
+          </span>
+          <Badge tone={meta.tone}>{step.type}</Badge>
+          <span className="text-xs text-[var(--color-fg-muted)] font-mono">
+            +{step.durationMs}ms
+          </span>
+        </div>
+        <div className="mt-1 text-xs text-[var(--color-fg-muted)]">
+          <X402StepDetails step={step} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function X402StepDetails({ step }: { step: X402Step }) {
+  if (step.type === "discover") {
+    return (
+      <div className="space-y-1 font-mono">
+        <div>
+          GET <span className="text-[var(--color-fg)]">{step.endpoint}</span>
+        </div>
+        <div>
+          <span className="text-[var(--color-fg)]">{step.service}</span> · price{" "}
+          <span className="text-[var(--color-success)]">
+            {step.pricePerCall.toFixed(6)} SOL
+          </span>
+        </div>
+      </div>
+    );
+  }
+  if (step.type === "402_received") {
+    const lamports = Number(step.quote.amount);
+    return (
+      <div className="space-y-1 font-mono">
+        <div>
+          POST {step.quote.asset === "SOL" ? "" : ""}/service → <span className="text-[var(--color-warning)]">402 Payment Required</span>
+        </div>
+        <div>
+          amount: <span className="text-[var(--color-fg)]">{lamports.toLocaleString()}</span>{" "}
+          lamports ({(lamports / 1e9).toFixed(6)} SOL)
+        </div>
+        <div>
+          payTo: <span className="text-[var(--color-fg)]">{shortSig(step.quote.payTo, 6)}</span>
+        </div>
+        <div>
+          nonce: <span className="text-[var(--color-fg)]">{step.quote.nonce}</span>
+        </div>
+      </div>
+    );
+  }
+  if (step.type === "escrow_opened") {
+    const isReal = step.signature && step.signature !== "NO_ONCHAIN_PROGRAM_ID";
+    return (
+      <div className="space-y-1 font-mono">
+        <div>
+          locked <span className="text-[var(--color-fg)]">{Number(step.amount).toLocaleString()}</span>{" "}
+          lamports in escrow PDA
+        </div>
+        {isReal ? (
+          <div className="flex items-center gap-1">
+            sig:
+            <a
+              href={explorerUrl(step.signature, "devnet")}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[var(--color-primary)] hover:underline flex items-center gap-1"
+            >
+              {shortSig(step.signature)}
+              <ExternalLink className="w-3 h-3" />
+            </a>
+          </div>
+        ) : (
+          <div className="text-[var(--color-fg-muted)]">no on-chain (degraded mode)</div>
+        )}
+      </div>
+    );
+  }
+  if (step.type === "service_responded") {
+    return (
+      <div className="space-y-1 font-mono">
+        <div>
+          POST /service + X-PAYMENT →{" "}
+          <span className="text-[var(--color-success)]">{step.status} OK</span>
+        </div>
+        <div>agent verified escrow on-chain → executed handler</div>
+        {step.claimSignature && (
+          <div className="flex items-center gap-1">
+            claim sig:
+            <a
+              href={explorerUrl(step.claimSignature, "devnet")}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[var(--color-primary)] hover:underline flex items-center gap-1"
+            >
+              {shortSig(step.claimSignature)}
+              <ExternalLink className="w-3 h-3" />
+            </a>
+          </div>
+        )}
+        {step.claimedAmount && (
+          <div>
+            split: 95% to owner / 5% to platform treasury · gross{" "}
+            {Number(step.claimedAmount).toLocaleString()} lamports
+          </div>
+        )}
+      </div>
+    );
+  }
+  return null;
 }

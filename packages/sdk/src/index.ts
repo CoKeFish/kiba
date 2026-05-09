@@ -11,6 +11,7 @@
 
 export { AgentProvider } from './provider';
 export { AgentClient } from './client';
+export type { X402Step, X402Trace } from './client';
 export { AgentBazaarProgram } from './program';
 export type {
   AgentConfig,

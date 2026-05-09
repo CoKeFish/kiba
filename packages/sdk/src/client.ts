@@ -6,6 +6,55 @@ import { AgentBazaarProgram } from './program';
 const RPC_DEFAULT = process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com';
 
 /**
+ * Trace de cada paso del handshake x402.
+ * Útil para inspección/UI: el dashboard renderiza este array como timeline.
+ */
+export type X402Step =
+  | {
+      type: 'discover';
+      service: string;
+      endpoint: string;
+      pricePerCall: number;
+      durationMs: number;
+      timestamp: number;
+    }
+  | {
+      type: '402_received';
+      quote: {
+        amount: string;
+        payTo: string;
+        asset: string;
+        nonce: string;
+        expiresAt: number;
+      };
+      durationMs: number;
+      timestamp: number;
+    }
+  | {
+      type: 'escrow_opened';
+      signature: string;
+      amount: string;
+      nonce: string;
+      durationMs: number;
+      timestamp: number;
+    }
+  | {
+      type: 'service_responded';
+      status: number;
+      claimSignature?: string;
+      claimedAmount?: string;
+      durationMs: number;
+      timestamp: number;
+    };
+
+export interface X402Trace {
+  service: string;
+  endpoint: string;
+  totalDurationMs: number;
+  steps: X402Step[];
+}
+
+/**
  * AgentClient — para agentes que CONSUMEN un servicio.
  *
  *   const client = new AgentClient({ wallet: myKeypair });
@@ -65,13 +114,44 @@ export class AgentClient {
   /**
    * Descubre y llama un servicio en el marketplace.
    * Maneja el handshake x402 automáticamente.
+   *
+   * Wrapper sobre callWithTrace() que descarta el trace para callers que solo
+   * necesitan el resultado.
    */
   async call<TRes = unknown>(
     service: string,
     payload: unknown,
     options: CallOptions = {},
   ): Promise<TRes> {
+    const { result } = await this.callWithTrace<TRes>(service, payload, options);
+    return result;
+  }
+
+  /**
+   * Igual que call() pero también devuelve el trace de cada paso del handshake
+   * x402 (con timestamps + signatures). El dashboard usa esto para renderizar
+   * el flujo del 402 → escrow → service → claim como timeline visual.
+   */
+  async callWithTrace<TRes = unknown>(
+    service: string,
+    payload: unknown,
+    options: CallOptions = {},
+  ): Promise<{ result: TRes; trace: X402Trace }> {
+    const t0 = performance.now();
+    const steps: X402Step[] = [];
+    const stepStart = (start: number) => Math.max(1, Math.round(performance.now() - start));
+
+    // 0) Discover
+    const tDiscover = performance.now();
     const manifest = await this.discover(service);
+    steps.push({
+      type: 'discover',
+      service: manifest.service,
+      endpoint: manifest.endpoint,
+      pricePerCall: manifest.pricePerCall,
+      durationMs: stepStart(tDiscover),
+      timestamp: Date.now(),
+    });
 
     if (options.allowlist && !options.allowlist.includes(service)) {
       throw new Error(`service '${service}' not in allowlist`);
@@ -83,15 +163,26 @@ export class AgentClient {
     }
 
     // 1) Probe → esperamos 402 con quote
+    const tProbe = performance.now();
     let quote: X402Quote;
     try {
       const probe = await axios.post(`${manifest.endpoint}/service`, payload, {
         timeout: options.timeoutMs ?? 30_000,
-        validateStatus: () => true, // no tirar excepción por 402
+        validateStatus: () => true,
       });
       if (probe.status !== 402) {
-        // Si responde 200 directo, devolverlo (modo legacy / sin paywall)
-        if (probe.status >= 200 && probe.status < 300) return probe.data as TRes;
+        if (probe.status >= 200 && probe.status < 300) {
+          // Modo legacy / sin paywall — devolvemos el resultado pero el trace queda parcial.
+          return {
+            result: probe.data as TRes,
+            trace: {
+              service: manifest.service,
+              endpoint: manifest.endpoint,
+              totalDurationMs: Math.round(performance.now() - t0),
+              steps,
+            },
+          };
+        }
         throw new Error(`unexpected status ${probe.status}: ${JSON.stringify(probe.data)}`);
       }
       quote = probe.data;
@@ -103,8 +194,21 @@ export class AgentClient {
         throw err;
       }
     }
+    steps.push({
+      type: '402_received',
+      quote: {
+        amount: String(quote.amount),
+        payTo: String(quote.payTo),
+        asset: String(quote.asset ?? 'SOL'),
+        nonce: String(quote.nonce),
+        expiresAt: Number(quote.expiresAt ?? 0),
+      },
+      durationMs: stepStart(tProbe),
+      timestamp: Date.now(),
+    });
 
-    // 2) Abrir escrow on-chain (firma + envía + espera confirm)
+    // 2) Abrir escrow on-chain
+    const tEscrow = performance.now();
     let escrowSig = 'NO_ONCHAIN_PROGRAM_ID';
     if (this.program) {
       const agentOwner = new PublicKey(quote.payTo);
@@ -121,8 +225,16 @@ export class AgentClient {
       });
       escrowSig = await this.program.sendAndConfirm([ix], this.wallet);
     }
+    steps.push({
+      type: 'escrow_opened',
+      signature: escrowSig,
+      amount: String(quote.amount),
+      nonce: String(quote.nonce),
+      durationMs: stepStart(tEscrow),
+      timestamp: Date.now(),
+    });
 
-    // 3) Construir X-PAYMENT header con prueba del pago
+    // 3) Construir X-PAYMENT header
     const paymentHeader = Buffer.from(
       JSON.stringify({
         signature: escrowSig,
@@ -132,12 +244,32 @@ export class AgentClient {
       'utf8',
     ).toString('base64');
 
-    // 4) Reintentar con el header
+    // 4) Reintentar con el header → el agente verifica + ejecuta + claim
+    const tFinal = performance.now();
     const final = await axios.post(`${manifest.endpoint}/service`, payload, {
       headers: { 'X-PAYMENT': paymentHeader },
       timeout: options.timeoutMs ?? 30_000,
     });
-    return final.data as TRes;
+    const responsePayment = (final.data as { _payment?: { signature?: string; amount?: string } })
+      ?._payment;
+    steps.push({
+      type: 'service_responded',
+      status: final.status,
+      claimSignature: responsePayment?.signature,
+      claimedAmount: responsePayment?.amount,
+      durationMs: stepStart(tFinal),
+      timestamp: Date.now(),
+    });
+
+    return {
+      result: final.data as TRes,
+      trace: {
+        service: manifest.service,
+        endpoint: manifest.endpoint,
+        totalDurationMs: Math.round(performance.now() - t0),
+        steps,
+      },
+    };
   }
 
   /**

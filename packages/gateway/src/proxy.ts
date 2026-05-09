@@ -11,7 +11,7 @@
  *      lo que se debita por cada call. La master es solo treasury.
  */
 import axios from 'axios';
-import { AgentClient } from '@agent-bazaar/sdk';
+import { AgentClient, type X402Trace } from '@agent-bazaar/sdk';
 import { debit, lamportsToUsd } from './billing';
 import { db } from './db';
 import { ensureFunded, loadUserWallet, masterWalletPubkey, type RefillResult } from './wallets';
@@ -47,6 +47,7 @@ export async function callOnBehalf(args: {
   cost: { lamports: number; usd: number };
   newBalance: { lamports: number; usd: number };
   refill?: { signature: string; lamports: number };
+  trace: X402Trace;
 }> {
   const userWallet = loadUserWallet(args.userId);
 
@@ -80,11 +81,14 @@ export async function callOnBehalf(args: {
 
   // 4. Llamar al servicio vía SDK firmando con la wallet del user
   let result: unknown;
+  let trace: X402Trace;
   try {
-    result = await client.call(args.service, args.payload, {
+    const traced = await client.callWithTrace(args.service, args.payload, {
       maxPrice: manifest.pricePerCall + 0.01,
       timeoutMs: 30_000,
     });
+    result = traced.result;
+    trace = traced.trace;
   } catch (err) {
     refundDebit(args.userId, lamports, args.service, (err as Error).message);
     throw err;
@@ -97,6 +101,7 @@ export async function callOnBehalf(args: {
       lamports: debitResult.newBalance,
       usd: lamportsToUsd(debitResult.newBalance),
     },
+    trace,
     ...(refillInfo.refilled && refillInfo.signature
       ? {
           refill: {

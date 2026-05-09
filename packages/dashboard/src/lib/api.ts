@@ -74,6 +74,8 @@ export const api = {
       result: unknown;
       cost: { lamports: number; usd: number };
       newBalance: { lamports: number; usd: number };
+      refill?: { signature: string; lamports: number };
+      trace: X402Trace;
     }>("/v1/call", {
       method: "POST",
       body: JSON.stringify({ service, payload }),
@@ -193,6 +195,45 @@ export type MyAgent = {
   totalEarnedLamports: number;
   totalEarnedSol: number;
   createdAt: number;
+};
+
+export type X402Step =
+  | {
+      type: "discover";
+      service: string;
+      endpoint: string;
+      pricePerCall: number;
+      durationMs: number;
+      timestamp: number;
+    }
+  | {
+      type: "402_received";
+      quote: { amount: string; payTo: string; asset: string; nonce: string; expiresAt: number };
+      durationMs: number;
+      timestamp: number;
+    }
+  | {
+      type: "escrow_opened";
+      signature: string;
+      amount: string;
+      nonce: string;
+      durationMs: number;
+      timestamp: number;
+    }
+  | {
+      type: "service_responded";
+      status: number;
+      claimSignature?: string;
+      claimedAmount?: string;
+      durationMs: number;
+      timestamp: number;
+    };
+
+export type X402Trace = {
+  service: string;
+  endpoint: string;
+  totalDurationMs: number;
+  steps: X402Step[];
 };
 
 export type PlatformStats = {
