@@ -1,15 +1,15 @@
 [toolchain]
-anchor_version = "0.30.1"
+anchor_version = "0.31.1"
 
 [features]
 resolution = true
 skip-lint = false
 
 [programs.devnet]
-agent_bazaar = "11111111111111111111111111111111"
+agent_bazaar = "3CsQnAua3xniuMY5axKUNYtmTyAxh6cG2E257PLjJCmA"
 
 [programs.localnet]
-agent_bazaar = "11111111111111111111111111111111"
+agent_bazaar = "3CsQnAua3xniuMY5axKUNYtmTyAxh6cG2E257PLjJCmA"
 
 [registry]
 url = "https://api.apr.dev"
