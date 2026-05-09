@@ -3,9 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "concurrently \"npm:dev:yield\" \"npm:dev:risk\"",
+    "dev": "concurrently \"npm:dev:yield\" \"npm:dev:risk\" \"npm:dev:translator\" \"npm:dev:price\" \"npm:dev:code\"",
     "dev:yield": "tsx watch src/yield-hunter.ts",
     "dev:risk": "tsx watch src/risk-auditor.ts",
+    "dev:translator": "tsx watch src/translator.ts",
+    "dev:price": "tsx watch src/price-oracle.ts",
+    "dev:code": "tsx watch src/code-reviewer.ts",
     "build": "tsc"
   },
   "dependencies": {

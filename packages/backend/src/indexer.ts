@@ -39,9 +39,11 @@ const PROGRAM_INSTR_REGEX =
   /Program log: Instruction: (RegisterAgent|UpdateAgent|DeregisterAgent|ClaimPayment|RefundEscrow)/i;
 
 /**
- * Catálogo de demo agents en mezcla ES/EN — la mezcla intencional valida
- * el discovery cross-lingüe (queries en español encuentran descriptions en inglés
- * sólo gracias al modo semantic).
+ * Catálogo de demo agents — espejo de los 5 agents reales que corre el container
+ * `ab-agents` (yield-hunter, risk-auditor, translator-pro, price-oracle, code-reviewer).
+ *
+ * Solo se siembran si `PROGRAM_ID` no está configurado (modo demo). Cuando hay
+ * program activo, el indexer lee del registry on-chain y estos quedan ignorados.
  */
 const NOW_TS = Math.floor(Date.now() / 1000);
 const FALLBACK_AGENTS: AgentRecord[] = [
@@ -104,41 +106,11 @@ const FALLBACK_AGENTS: AgentRecord[] = [
     deleted: 0,
   },
   {
-    pda: 'fallback:meme-screener',
-    service: 'meme-screener',
-    owner_wallet: 'PHASE_1_PLACEHOLDER',
-    price_per_call: 15_000_000, // 0.015 SOL
-    endpoint: 'http://demo-agents:5005',
-    description:
-      'Detecta posibles rugpulls y honeypots en memecoins recién lanzados en Solana, evaluando liquidez, holders y ownership renunciado',
-    total_calls: 67,
-    total_earned: 1_005_000_000,
-    created_at: NOW_TS,
-    updated_at: NOW_TS,
-    source: 'fallback',
-    deleted: 0,
-  },
-  {
-    pda: 'fallback:tweet-digest',
-    service: 'tweet-digest',
-    owner_wallet: 'PHASE_1_PLACEHOLDER',
-    price_per_call: 3_000_000, // 0.003 SOL
-    endpoint: 'http://demo-agents:5006',
-    description:
-      'Summarizes long Twitter / X threads into concise bullet points with key takeaways',
-    total_calls: 524,
-    total_earned: 1_572_000_000,
-    created_at: NOW_TS,
-    updated_at: NOW_TS,
-    source: 'fallback',
-    deleted: 0,
-  },
-  {
     pda: 'fallback:code-reviewer',
     service: 'code-reviewer',
     owner_wallet: 'PHASE_1_PLACEHOLDER',
     price_per_call: 25_000_000, // 0.025 SOL
-    endpoint: 'http://demo-agents:5007',
+    endpoint: 'http://demo-agents:5005',
     description:
       'Reviews TypeScript, Rust and Solidity code for bugs, style issues, and common security vulnerabilities',
     total_calls: 41,

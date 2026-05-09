@@ -88,6 +88,9 @@ services:
     ports:
       - "5001:5001"  # yield-hunter
       - "5002:5002"  # risk-auditor
+      - "5003:5003"  # translator-pro
+      - "5004:5004"  # price-oracle
+      - "5005:5005"  # code-reviewer
     environment:
       - NODE_ENV=development
       - SOLANA_RPC_URL=${SOLANA_RPC_URL:-https://api.devnet.solana.com}
