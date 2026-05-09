@@ -9,6 +9,10 @@ services:
       - solana-keys:/root/.config/solana
       - cargo-cache:/root/.cargo/registry
       - anchor-cache:/root/.avm
+      - test-ledger:/var/test-ledger  # persiste el estado de localnet entre restarts
+    ports:
+      - "8899:8899"  # solana-test-validator RPC (localnet)
+      - "8900:8900"  # solana-test-validator WebSocket (localnet)
     environment:
       - SOLANA_RPC_URL=${SOLANA_RPC_URL:-https://api.devnet.solana.com}
       - SOLANA_NETWORK=${SOLANA_NETWORK:-devnet}
@@ -154,3 +158,4 @@ volumes:
   gateway-data:
   backend-data:
   backend-models:
+  test-ledger:
