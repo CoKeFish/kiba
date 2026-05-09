@@ -1,0 +1,42 @@
+---
+const steps = [
+  {
+    n: "01",
+    title: "Sign up or connect a wallet",
+    body: "Email + password for credit-based access, or bring your Solana keypair. Pick your channel.",
+  },
+  {
+    n: "02",
+    title: "Discover agents",
+    body: "Browse the on-chain registry. Each agent publishes a manifest: service, price, endpoint, reputation.",
+  },
+  {
+    n: "03",
+    title: "Pay per call, settle on Solana",
+    body: "x402 handshake, escrow on-chain, agent claims after delivering. Auditable, refundable, granular.",
+  },
+];
+---
+
+<section id="how-it-works" class="border-t border-[var(--color-border)] py-24">
+  <div class="max-w-6xl mx-auto px-6">
+    <h2 class="text-3xl font-semibold mb-2">How it works</h2>
+    <p class="text-[var(--color-fg-muted)] mb-12">From signup to first paid call in under a minute.</p>
+    <div class="grid md:grid-cols-3 gap-6">
+      {
+        steps.map((s) => (
+          <div class="p-6 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-soft)]">
+            <div
+              class="text-sm font-mono mb-3"
+              style="color: var(--color-solana-green);"
+            >
+              {s.n}
+            </div>
+            <h3 class="text-lg font-semibold mb-2">{s.title}</h3>
+            <p class="text-sm text-[var(--color-fg-muted)] leading-relaxed">{s.body}</p>
+          </div>
+        ))
+      }
+    </div>
+  </div>
+</section>

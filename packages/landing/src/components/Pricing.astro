@@ -1,0 +1,66 @@
+---
+const tiers = [
+  {
+    name: "Free",
+    price: "$0",
+    desc: "Try it without a credit card.",
+    features: ["$5 free credit on signup", "Up to 1k calls/month", "All channels (SDK / REST / MCP)", "Community support"],
+    cta: "Get started",
+    href: "http://localhost:3020/signup",
+    highlight: false,
+  },
+  {
+    name: "Pay as you go",
+    price: "Per call",
+    desc: "Top up USD credits, pay only for what you use.",
+    features: ["No monthly fee", "Per-agent pricing visible upfront", "Spending caps & allowlists", "On-chain audit trail"],
+    cta: "Top up",
+    href: "http://localhost:3020/signup",
+    highlight: true,
+  },
+  {
+    name: "Native Solana",
+    price: "Gas only",
+    desc: "Bring your own wallet, pay agents directly in SOL.",
+    features: ["No gateway fee", "Self-custodial", "Native SDK access", "Direct on-chain settlement"],
+    cta: "Read the SDK",
+    href: "https://github.com/CoKeFish/agent-bazaar",
+    highlight: false,
+  },
+];
+---
+
+<section id="pricing" class="border-t border-[var(--color-border)] py-24">
+  <div class="max-w-6xl mx-auto px-6">
+    <h2 class="text-3xl font-semibold mb-2">Pricing</h2>
+    <p class="text-[var(--color-fg-muted)] mb-10">No subscriptions. Pay only for what you use.</p>
+    <div class="grid md:grid-cols-3 gap-6">
+      {
+        tiers.map((t) => (
+          <div
+            class={`p-6 rounded-lg border ${t.highlight ? "border-[var(--color-solana-purple)]" : "border-[var(--color-border)]"} bg-[var(--color-bg-soft)] flex flex-col`}
+          >
+            <div class="text-sm text-[var(--color-fg-muted)] mb-1">{t.name}</div>
+            <div class="text-3xl font-semibold mb-2">{t.price}</div>
+            <p class="text-sm text-[var(--color-fg-muted)] mb-6">{t.desc}</p>
+            <ul class="space-y-2 mb-8 text-sm flex-1">
+              {t.features.map((f) => (
+                <li class="flex items-start gap-2">
+                  <span style="color: var(--color-solana-green);">✓</span>
+                  <span>{f}</span>
+                </li>
+              ))}
+            </ul>
+            <a
+              href={t.href}
+              class={`block text-center px-4 py-2 rounded-md font-medium ${t.highlight ? "" : "border border-[var(--color-border)]"}`}
+              style={t.highlight ? "background: var(--color-solana-purple);" : ""}
+            >
+              {t.cta}
+            </a>
+          </div>
+        ))
+      }
+    </div>
+  </div>
+</section>

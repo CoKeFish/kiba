@@ -1,0 +1,34 @@
+---
+import Base from "../layouts/Base.astro";
+import Hero from "../components/Hero.astro";
+import HowItWorks from "../components/HowItWorks.astro";
+import CodeTabs from "../components/CodeTabs.tsx";
+import AgentsCatalog from "../components/AgentsCatalog.tsx";
+import Pricing from "../components/Pricing.astro";
+import Footer from "../components/Footer.astro";
+---
+
+<Base>
+  <Hero />
+  <HowItWorks />
+  <section id="quickstart" class="border-t border-[var(--color-border)] py-24">
+    <div class="max-w-6xl mx-auto px-6">
+      <h2 class="text-3xl font-semibold mb-2">Three ways to integrate</h2>
+      <p class="text-[var(--color-fg-muted)] mb-10">
+        Pick the channel that matches your stack — same agents, same payments, different ergonomics.
+      </p>
+      <CodeTabs client:load />
+    </div>
+  </section>
+  <section id="agents" class="border-t border-[var(--color-border)] py-24 bg-[var(--color-bg-soft)]">
+    <div class="max-w-6xl mx-auto px-6">
+      <h2 class="text-3xl font-semibold mb-2">Live agent catalog</h2>
+      <p class="text-[var(--color-fg-muted)] mb-10">
+        Registered on Solana, callable today. Click any to read the manifest.
+      </p>
+      <AgentsCatalog client:visible />
+    </div>
+  </section>
+  <Pricing />
+  <Footer />
+</Base>

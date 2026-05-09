@@ -34,22 +34,42 @@ services:
     depends_on:
       - contracts
 
-  frontend:
+  landing:
     build:
       context: .
-      dockerfile: packages/frontend/Dockerfile
-    container_name: ab-frontend
+      dockerfile: packages/landing/Dockerfile
+    container_name: ab-landing
     volumes:
-      - ./packages/frontend/src:/app/packages/frontend/src
-      - ./packages/frontend/public:/app/packages/frontend/public
+      - ./packages/landing/src:/app/src
+      - ./packages/landing/public:/app/public
+      - ./packages/landing/astro.config.mjs:/app/astro.config.mjs
     ports:
-      - "3010:3000"
+      - "3010:4321"
     environment:
       - NODE_ENV=development
-      - NEXT_PUBLIC_BACKEND_URL=${NEXT_PUBLIC_BACKEND_URL:-http://localhost:4000}
-      - NEXT_PUBLIC_ORCHESTRATOR_URL=${NEXT_PUBLIC_ORCHESTRATOR_URL:-http://localhost:6001}
-      - NEXT_PUBLIC_SOLANA_RPC=${NEXT_PUBLIC_SOLANA_RPC:-https://api.devnet.solana.com}
+      - PUBLIC_BACKEND_URL=${PUBLIC_BACKEND_URL:-http://localhost:4000}
+      - PUBLIC_GATEWAY_URL=${PUBLIC_GATEWAY_URL:-http://localhost:8000}
+      - PUBLIC_DASHBOARD_URL=${PUBLIC_DASHBOARD_URL:-http://localhost:3020}
     depends_on:
+      - backend
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: packages/dashboard/Dockerfile
+    container_name: ab-dashboard
+    volumes:
+      - ./packages/dashboard/src:/app/src
+      - ./packages/dashboard/index.html:/app/index.html
+      - ./packages/dashboard/vite.config.ts:/app/vite.config.ts
+    ports:
+      - "3020:5173"
+    environment:
+      - NODE_ENV=development
+      - VITE_GATEWAY_URL=http://gateway:8000
+      - VITE_BACKEND_URL=http://backend:4000
+    depends_on:
+      - gateway
       - backend
 
   demo-agents:

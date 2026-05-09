@@ -1,0 +1,65 @@
+---
+import "../styles/global.css";
+
+interface Props {
+  title?: string;
+  description?: string;
+}
+
+const {
+  title = "Agent Bazaar — Marketplace de agentes IA con pagos x402 en Solana",
+  description = "Pay-per-call AI agents. Native SDK, REST API, or MCP. Settle on Solana.",
+} = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content={description} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <title>{title}</title>
+  </head>
+  <body>
+    <header class="border-b border-[var(--color-border)] bg-[var(--color-bg)]/80 backdrop-blur sticky top-0 z-50">
+      <nav class="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+        <a href="/" class="flex items-center gap-2 font-semibold text-lg">
+          <span
+            class="inline-block w-3 h-3 rounded-sm"
+            style="background: linear-gradient(135deg, var(--color-solana-purple), var(--color-solana-green));"
+          ></span>
+          Agent Bazaar
+        </a>
+        <div class="flex items-center gap-6 text-sm">
+          <a href="#how-it-works" class="hover:text-[var(--color-solana-green)]">How it works</a>
+          <a href="#agents" class="hover:text-[var(--color-solana-green)]">Agents</a>
+          <a href="#pricing" class="hover:text-[var(--color-solana-green)]">Pricing</a>
+          <a
+            href="http://localhost:3020/login"
+            class="hover:text-[var(--color-solana-green)]">Log in</a
+          >
+          <a
+            href="http://localhost:3020/signup"
+            class="px-4 py-2 rounded-md bg-[var(--color-solana-purple)] hover:opacity-90 font-medium"
+          >
+            Get started
+          </a>
+        </div>
+      </nav>
+    </header>
+    <main>
+      <slot />
+    </main>
+  </body>
+</html>
