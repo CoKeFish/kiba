@@ -58,8 +58,22 @@ db.exec(`
     FOREIGN KEY (user_id) REFERENCES users(id)
   );
 
+  CREATE TABLE IF NOT EXISTS api_keys (
+    id TEXT PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    key_hash TEXT NOT NULL,
+    prefix TEXT NOT NULL,
+    revoked INTEGER NOT NULL DEFAULT 0,
+    last_used_at INTEGER,
+    created_at INTEGER NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+  );
+
   CREATE INDEX IF NOT EXISTS idx_tokens_user ON oauth_tokens(user_id);
   CREATE INDEX IF NOT EXISTS idx_tx_user ON transactions(user_id);
+  CREATE INDEX IF NOT EXISTS idx_apikeys_user ON api_keys(user_id);
+  CREATE INDEX IF NOT EXISTS idx_apikeys_hash ON api_keys(key_hash);
 `);
 
 export interface UserRow {

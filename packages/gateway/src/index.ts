@@ -29,6 +29,14 @@ import {
 import { getBalance, getTransactions, lamportsToUsd, topup } from './billing';
 import { callOnBehalf, listAgents, masterWalletPubkey } from './proxy';
 import {
+  createApiKey,
+  getUserByApiKey,
+  listApiKeys,
+  listOAuthConnections,
+  revokeApiKey,
+  revokeOAuthByPrefix,
+} from './api-keys';
+import {
   authorizeView,
   authorizedView,
   dashboardView,
@@ -75,20 +83,40 @@ function requireSession(req: Request, res: Response, next: NextFunction) {
   next();
 }
 
-function requireBearer(req: Request, res: Response, next: NextFunction) {
+/**
+ * Auth middleware that accepts EITHER:
+ *   - Session cookie (set on /login, used by the dashboard)
+ *   - Bearer token (OAuth-issued or API key, used by MCP/SDK clients)
+ *
+ * Populates req.bearerUser so downstream handlers don't care which path was used.
+ */
+function requireAuth(req: Request, res: Response, next: NextFunction) {
+  // 1. Session cookie (loadSession ran first via app.use)
+  if (req.user) {
+    req.bearerUser = { id: req.user.id, email: req.user.email };
+    return next();
+  }
+  // 2. Bearer token
   const auth = req.header('Authorization');
-  if (!auth || !auth.startsWith('Bearer ')) {
-    res.status(401).json({ error: 'missing bearer token' });
-    return;
+  if (auth?.startsWith('Bearer ')) {
+    const token = auth.slice(7);
+    // Try OAuth-issued tokens first
+    let user = getUserByToken(token);
+    // Then try API keys (sk_live_*)
+    if (!user) {
+      const apiUser = getUserByApiKey(token);
+      if (apiUser) user = getUser(apiUser.id);
+    }
+    if (user) {
+      req.bearerUser = { id: user.id, email: user.email };
+      return next();
+    }
   }
-  const token = auth.slice(7);
-  const user = getUserByToken(token);
-  if (!user) {
-    res.status(401).json({ error: 'invalid or expired token' });
-    return;
-  }
-  req.bearerUser = { id: user.id, email: user.email };
-  next();
+  res.status(401).json({ error: 'authentication required' });
+}
+
+function wantsJson(req: Request): boolean {
+  return req.is('application/json') !== false || req.accepts(['html', 'json']) === 'json';
 }
 
 app.use(loadSession);
@@ -112,15 +140,33 @@ app.get('/signup', (_req, res) => {
 });
 
 app.post('/signup', (req, res) => {
+  const json = wantsJson(req);
   const { email, password } = req.body;
-  if (!email || !password) return res.status(400).send(signupView('Email y contraseña requeridos'));
-  if (password.length < 6) return res.status(400).send(signupView('Mínimo 6 caracteres'));
+  const fail = (status: number, msg: string) => {
+    if (json) return res.status(status).json({ error: msg });
+    return res.status(status).send(signupView(msg));
+  };
+
+  if (!email || !password) return fail(400, 'Email y contraseña requeridos');
+  if (password.length < 6) return fail(400, 'Mínimo 6 caracteres');
 
   const result = createUser(email, password);
-  if ('error' in result) return res.status(400).send(signupView(result.error));
+  if ('error' in result) return fail(400, result.error);
 
   const token = signJwt({ id: result.id, email: result.email });
   res.cookie('session', token, { httpOnly: true, sameSite: 'lax', maxAge: 30 * 24 * 60 * 60 * 1000 });
+
+  if (json) {
+    return res.json({
+      user: {
+        id: String(result.id),
+        email: result.email,
+        custodial_wallet: result.custodial_wallet_pubkey,
+        balance_lamports: result.balance_lamports,
+        created_at: result.created_at,
+      },
+    });
+  }
   res.redirect('/dashboard');
 });
 
@@ -131,20 +177,39 @@ app.get('/login', (req, res) => {
 });
 
 app.post('/login', (req, res) => {
+  const json = wantsJson(req);
   const { email, password } = req.body;
   const next_url = (req.query.next as string) || '/dashboard';
   const user = authenticate(email, password);
   if (!user) {
+    if (json) return res.status(401).json({ error: 'Email o contraseña incorrectos' });
     return res.status(401).send(loginView('Email o contraseña incorrectos', next_url));
   }
   const token = signJwt({ id: user.id, email: user.email });
   res.cookie('session', token, { httpOnly: true, sameSite: 'lax', maxAge: 30 * 24 * 60 * 60 * 1000 });
+
+  if (json) {
+    return res.json({
+      user: {
+        id: String(user.id),
+        email: user.email,
+        custodial_wallet: user.custodial_wallet_pubkey,
+        balance_lamports: user.balance_lamports,
+        created_at: user.created_at,
+      },
+    });
+  }
   res.redirect(next_url);
 });
 
 app.get('/logout', (_req, res) => {
   res.clearCookie('session');
   res.redirect('/');
+});
+
+app.post('/logout', (_req, res) => {
+  res.clearCookie('session');
+  res.json({ ok: true });
 });
 
 // ─── Dashboard ─────────────────────────────────────────────────
@@ -163,14 +228,30 @@ app.get('/dashboard', requireSession, (req, res) => {
   );
 });
 
-app.post('/topup', requireSession, (req, res) => {
-  const amount = Number(req.body.amount);
+function handleTopup(req: Request, res: Response) {
+  const json = wantsJson(req);
+  const amount = Number(req.body.amount ?? req.body.amount_usd);
+  const userId = req.bearerUser!.id;
+
   if (!Number.isFinite(amount) || amount <= 0 || amount > 1000) {
+    if (json) return res.status(400).json({ error: 'invalid amount (must be 0 < n <= 1000)' });
     return res.status(400).send('invalid amount');
   }
-  topup(req.user!.id, amount);
+  topup(userId, amount);
+  const balance = getBalance(userId);
+
+  if (json) {
+    return res.json({
+      ok: true,
+      new_balance_lamports: balance,
+      balance_usd: lamportsToUsd(balance),
+    });
+  }
   res.redirect('/dashboard');
-});
+}
+
+app.post('/topup', requireAuth, handleTopup);
+app.post('/v1/topup', requireAuth, handleTopup);
 
 // ═══════════════════════════════════════════════════════════════
 //   OAuth 2.0 PKCE
@@ -273,23 +354,25 @@ app.post('/oauth/revoke', (req, res) => {
 //   API endpoints (Bearer auth)
 // ═══════════════════════════════════════════════════════════════
 
-app.get('/v1/me', requireBearer, (req, res) => {
+app.get('/v1/me', requireAuth, (req, res) => {
   const user = getUser(req.bearerUser!.id);
   if (!user) return res.status(404).json({ error: 'user not found' });
   res.json({
+    id: String(user.id),
     email: user.email,
-    balance_usd: lamportsToUsd(user.balance_lamports),
-    balance_lamports: user.balance_lamports,
     custodial_wallet: user.custodial_wallet_pubkey,
+    balance_lamports: user.balance_lamports,
+    balance_usd: lamportsToUsd(user.balance_lamports),
+    created_at: user.created_at,
   });
 });
 
-app.get('/v1/balance', requireBearer, (req, res) => {
+app.get('/v1/balance', requireAuth, (req, res) => {
   const balance = getBalance(req.bearerUser!.id);
   res.json({ balance_lamports: balance, balance_usd: lamportsToUsd(balance) });
 });
 
-app.get('/v1/agents', requireBearer, async (_req, res) => {
+app.get('/v1/agents', requireAuth, async (_req, res) => {
   try {
     const agents = await listAgents();
     res.json(agents);
@@ -298,7 +381,7 @@ app.get('/v1/agents', requireBearer, async (_req, res) => {
   }
 });
 
-app.post('/v1/call', requireBearer, async (req, res) => {
+app.post('/v1/call', requireAuth, async (req, res) => {
   const { service, payload } = req.body ?? {};
   if (!service) return res.status(400).json({ error: 'service required' });
 
@@ -315,17 +398,62 @@ app.post('/v1/call', requireBearer, async (req, res) => {
   }
 });
 
-app.get('/v1/transactions', requireBearer, (req, res) => {
-  const txs = getTransactions(req.bearerUser!.id);
+app.get('/v1/transactions', requireAuth, (req, res) => {
+  const limit = Math.min(Number(req.query.limit) || 50, 500);
+  const txs = getTransactions(req.bearerUser!.id, limit);
   res.json(
     txs.map((t) => ({
+      id: String(t.id),
+      user_id: String(t.user_id),
       type: t.type,
-      service: t.service,
-      amount_usd: lamportsToUsd(Math.abs(t.amount_lamports)) * (t.amount_lamports < 0 ? -1 : 1),
-      signature: t.signature,
+      amount_lamports: Math.abs(t.amount_lamports),
+      service: t.service ?? undefined,
+      tx_signature: t.signature ?? undefined,
+      status: 'success' as const,
       created_at: t.created_at,
     })),
   );
+});
+
+// ─── API Keys (long-lived bearer tokens for direct REST access) ──
+
+app.get('/v1/api-keys', requireAuth, (req, res) => {
+  res.json(listApiKeys(req.bearerUser!.id));
+});
+
+app.post('/v1/api-keys', requireAuth, (req, res) => {
+  const name = String(req.body?.name ?? '').trim();
+  if (!name) return res.status(400).json({ error: 'name required' });
+  if (name.length > 64) return res.status(400).json({ error: 'name too long (max 64)' });
+  const key = createApiKey(req.bearerUser!.id, name);
+  res.json(key);
+});
+
+app.delete('/v1/api-keys/:id', requireAuth, (req, res) => {
+  const ok = revokeApiKey(req.bearerUser!.id, req.params.id);
+  if (!ok) return res.status(404).json({ error: 'not found' });
+  res.status(204).end();
+});
+
+// ─── OAuth connections (apps the user has authorized via PKCE) ────
+
+app.get('/v1/oauth/connections', requireAuth, (req, res) => {
+  const conns = listOAuthConnections(req.bearerUser!.id);
+  res.json(
+    conns.map((c) => ({
+      id: c.token.slice(0, 16),
+      client_name: c.client_name,
+      scope: 'call_agent',
+      created_at: c.created_at,
+      last_used_at: undefined,
+    })),
+  );
+});
+
+app.delete('/v1/oauth/connections/:id', requireAuth, (req, res) => {
+  const ok = revokeOAuthByPrefix(req.bearerUser!.id, req.params.id);
+  if (!ok) return res.status(404).json({ error: 'not found' });
+  res.status(204).end();
 });
 
 // ═══════════════════════════════════════════════════════════════
