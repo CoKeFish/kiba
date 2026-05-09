@@ -30,6 +30,14 @@ import { getBalance, getTransactions, lamportsToUsd, topup } from './billing';
 import { callOnBehalf, listAgents, masterWalletPubkey } from './proxy';
 import { getOnChainBalance, loadUserWallet } from './wallets';
 import {
+  deregisterAgent,
+  listMyAgents,
+  registerAgent,
+  updateAgent,
+  validateRegisterInput,
+  validateUpdateInput,
+} from './agents';
+import {
   createApiKey,
   getUserByApiKey,
   listApiKeys,
@@ -416,6 +424,83 @@ app.get('/v1/agents', requireAuth, async (_req, res) => {
     res.json(agents);
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+// ─── Agent management (registry CRUD) ─────────────────────────────
+// El user firma con su custodial wallet → on-chain queda como owner.
+
+app.get('/v1/agents/mine', requireAuth, async (req, res) => {
+  try {
+    const agents = await listMyAgents(req.bearerUser!.id);
+    res.json(agents);
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+app.post('/v1/agents', requireAuth, async (req, res) => {
+  const input = {
+    service: String(req.body?.service ?? '').trim(),
+    pricePerCallLamports: Number(req.body?.pricePerCallLamports),
+    endpoint: String(req.body?.endpoint ?? '').trim(),
+    description: String(req.body?.description ?? '').trim(),
+  };
+  const err = validateRegisterInput(input);
+  if (err) return res.status(400).json({ error: err });
+
+  try {
+    const result = await registerAgent(req.bearerUser!.id, input);
+    res.status(201).json(result);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'unknown error';
+    const status = msg.includes('already registered') ? 409 : 500;
+    res.status(status).json({ error: msg });
+  }
+});
+
+app.put('/v1/agents/:service', requireAuth, async (req, res) => {
+  const service = String(req.params.service).trim();
+  const input = {
+    pricePerCallLamports:
+      req.body?.pricePerCallLamports !== undefined
+        ? Number(req.body.pricePerCallLamports)
+        : undefined,
+    endpoint: req.body?.endpoint !== undefined ? String(req.body.endpoint).trim() : undefined,
+    description:
+      req.body?.description !== undefined ? String(req.body.description).trim() : undefined,
+  };
+  if (
+    input.pricePerCallLamports === undefined &&
+    input.endpoint === undefined &&
+    input.description === undefined
+  ) {
+    return res.status(400).json({ error: 'at least one field required' });
+  }
+  const err = validateUpdateInput(input);
+  if (err) return res.status(400).json({ error: err });
+
+  try {
+    const result = await updateAgent(req.bearerUser!.id, service, input);
+    res.json(result);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'unknown error';
+    const status =
+      msg.includes('not found') ? 404 : msg.includes('not the owner') ? 403 : 500;
+    res.status(status).json({ error: msg });
+  }
+});
+
+app.delete('/v1/agents/:service', requireAuth, async (req, res) => {
+  const service = String(req.params.service).trim();
+  try {
+    const result = await deregisterAgent(req.bearerUser!.id, service);
+    res.json(result);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'unknown error';
+    const status =
+      msg.includes('not found') ? 404 : msg.includes('not the owner') ? 403 : 500;
+    res.status(status).json({ error: msg });
   }
 });
 

@@ -91,6 +91,21 @@ export class AgentBazaarProgram {
     });
   }
 
+  deregisterAgentInstr(args: {
+    owner: PublicKey;
+    service: string;
+  }): TransactionInstruction {
+    const [agentPda] = getAgentPda(this.programId, args.service);
+    return new TransactionInstruction({
+      keys: [
+        { pubkey: agentPda, isSigner: false, isWritable: true },
+        { pubkey: args.owner, isSigner: true, isWritable: true },
+      ],
+      programId: this.programId,
+      data: Buffer.from(INSTR_DISCRIMINATORS.deregisterAgent()),
+    });
+  }
+
   openEscrowInstr(args: {
     client: PublicKey;
     agent: PublicKey;

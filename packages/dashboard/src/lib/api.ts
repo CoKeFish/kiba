@@ -79,6 +79,36 @@ export const api = {
       body: JSON.stringify({ service, payload }),
     }),
 
+  // Agent management — registry CRUD a nombre del user (su custodial wallet firma)
+  myAgents: () => request<MyAgent[]>("/v1/agents/mine"),
+  registerAgent: (params: {
+    service: string;
+    pricePerCallLamports: number;
+    endpoint: string;
+    description: string;
+  }) =>
+    request<{ signature: string; pda: string; owner: string }>("/v1/agents", {
+      method: "POST",
+      body: JSON.stringify(params),
+    }),
+  updateAgent: (
+    service: string,
+    params: {
+      pricePerCallLamports?: number;
+      endpoint?: string;
+      description?: string;
+    },
+  ) =>
+    request<{ signature: string; pda: string }>(`/v1/agents/${encodeURIComponent(service)}`, {
+      method: "PUT",
+      body: JSON.stringify(params),
+    }),
+  deregisterAgent: (service: string) =>
+    request<{ signature: string; service: string; rentRecovered: number }>(
+      `/v1/agents/${encodeURIComponent(service)}`,
+      { method: "DELETE" },
+    ),
+
   // OAuth connections (apps the user has authorized)
   oauthConnections: () => request<OAuthConnection[]>("/v1/oauth/connections"),
   revokeOAuth: (token_id: string) =>
@@ -146,4 +176,18 @@ export type ApiKey = {
   prefix: string;
   created_at: number;
   last_used_at?: number;
+};
+
+export type MyAgent = {
+  pda: string;
+  owner: string;
+  service: string;
+  pricePerCallLamports: number;
+  pricePerCallSol: number;
+  endpoint: string;
+  description: string;
+  totalCalls: number;
+  totalEarnedLamports: number;
+  totalEarnedSol: number;
+  createdAt: number;
 };
