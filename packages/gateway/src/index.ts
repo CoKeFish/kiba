@@ -48,7 +48,23 @@ import {
 const PORT = Number(process.env.PORT) || 8000;
 
 const app = express();
-app.use(cors());
+// CORS con credentials habilitado para los frontends locales (dashboard SPA + landing).
+// Express acepta también un origin function que refleja el origin del request si está en allowlist.
+const ALLOWED_ORIGINS = (process.env.CORS_ORIGINS ?? 'http://localhost:3020,http://localhost:3010,http://localhost:5173,http://localhost:4321')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
+app.use(
+  cors({
+    origin: (origin, cb) => {
+      // Sin origin (curl, server-to-server) → permitido
+      if (!origin) return cb(null, true);
+      if (ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
+      cb(new Error(`CORS: origin ${origin} no permitido`));
+    },
+    credentials: true,
+  }),
+);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
