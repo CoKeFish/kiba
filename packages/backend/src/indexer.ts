@@ -38,6 +38,12 @@ const HEARTBEAT_MS = 5 * 60 * 1000;
 const PROGRAM_INSTR_REGEX =
   /Program log: Instruction: (RegisterAgent|UpdateAgent|DeregisterAgent|ClaimPayment|RefundEscrow)/i;
 
+/**
+ * Catálogo de demo agents en mezcla ES/EN — la mezcla intencional valida
+ * el discovery cross-lingüe (queries en español encuentran descriptions en inglés
+ * sólo gracias al modo semantic).
+ */
+const NOW_TS = Math.floor(Date.now() / 1000);
 const FALLBACK_AGENTS: AgentRecord[] = [
   {
     pda: 'fallback:yield-hunter',
@@ -46,10 +52,10 @@ const FALLBACK_AGENTS: AgentRecord[] = [
     price_per_call: 10_000_000, // 0.01 SOL
     endpoint: 'http://demo-agents:5001',
     description: 'Encuentra el mejor APY entre protocolos DeFi en Solana',
-    total_calls: 0,
-    total_earned: 0,
-    created_at: Math.floor(Date.now() / 1000),
-    updated_at: Math.floor(Date.now() / 1000),
+    total_calls: 142,
+    total_earned: 1_420_000_000,
+    created_at: NOW_TS,
+    updated_at: NOW_TS,
     source: 'fallback',
     deleted: 0,
   },
@@ -60,10 +66,85 @@ const FALLBACK_AGENTS: AgentRecord[] = [
     price_per_call: 20_000_000, // 0.02 SOL
     endpoint: 'http://demo-agents:5002',
     description: 'Analiza el riesgo de un smart contract / protocolo Solana',
-    total_calls: 0,
-    total_earned: 0,
-    created_at: Math.floor(Date.now() / 1000),
-    updated_at: Math.floor(Date.now() / 1000),
+    total_calls: 89,
+    total_earned: 1_780_000_000,
+    created_at: NOW_TS,
+    updated_at: NOW_TS,
+    source: 'fallback',
+    deleted: 0,
+  },
+  {
+    pda: 'fallback:translator-pro',
+    service: 'translator-pro',
+    owner_wallet: 'PHASE_1_PLACEHOLDER',
+    price_per_call: 5_000_000, // 0.005 SOL
+    endpoint: 'http://demo-agents:5003',
+    description:
+      'Professional translation across English, Spanish, French, German, Japanese and Chinese',
+    total_calls: 312,
+    total_earned: 1_560_000_000,
+    created_at: NOW_TS,
+    updated_at: NOW_TS,
+    source: 'fallback',
+    deleted: 0,
+  },
+  {
+    pda: 'fallback:price-oracle',
+    service: 'price-oracle',
+    owner_wallet: 'PHASE_1_PLACEHOLDER',
+    price_per_call: 1_000_000, // 0.001 SOL
+    endpoint: 'http://demo-agents:5004',
+    description:
+      'Real-time cryptocurrency prices aggregated from major exchanges (Binance, Coinbase, Kraken)',
+    total_calls: 2_104,
+    total_earned: 2_104_000_000,
+    created_at: NOW_TS,
+    updated_at: NOW_TS,
+    source: 'fallback',
+    deleted: 0,
+  },
+  {
+    pda: 'fallback:meme-screener',
+    service: 'meme-screener',
+    owner_wallet: 'PHASE_1_PLACEHOLDER',
+    price_per_call: 15_000_000, // 0.015 SOL
+    endpoint: 'http://demo-agents:5005',
+    description:
+      'Detecta posibles rugpulls y honeypots en memecoins recién lanzados en Solana, evaluando liquidez, holders y ownership renunciado',
+    total_calls: 67,
+    total_earned: 1_005_000_000,
+    created_at: NOW_TS,
+    updated_at: NOW_TS,
+    source: 'fallback',
+    deleted: 0,
+  },
+  {
+    pda: 'fallback:tweet-digest',
+    service: 'tweet-digest',
+    owner_wallet: 'PHASE_1_PLACEHOLDER',
+    price_per_call: 3_000_000, // 0.003 SOL
+    endpoint: 'http://demo-agents:5006',
+    description:
+      'Summarizes long Twitter / X threads into concise bullet points with key takeaways',
+    total_calls: 524,
+    total_earned: 1_572_000_000,
+    created_at: NOW_TS,
+    updated_at: NOW_TS,
+    source: 'fallback',
+    deleted: 0,
+  },
+  {
+    pda: 'fallback:code-reviewer',
+    service: 'code-reviewer',
+    owner_wallet: 'PHASE_1_PLACEHOLDER',
+    price_per_call: 25_000_000, // 0.025 SOL
+    endpoint: 'http://demo-agents:5007',
+    description:
+      'Reviews TypeScript, Rust and Solidity code for bugs, style issues, and common security vulnerabilities',
+    total_calls: 41,
+    total_earned: 1_025_000_000,
+    created_at: NOW_TS,
+    updated_at: NOW_TS,
     source: 'fallback',
     deleted: 0,
   },
