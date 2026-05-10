@@ -44,7 +44,9 @@ RUN solana config set --url https://api.devnet.solana.com
 # CLI helper para el equipo
 COPY packages/contracts/scripts/bazaar /usr/local/bin/bazaar
 COPY packages/contracts/scripts/init.sh /usr/local/bin/init-contracts
-RUN chmod +x /usr/local/bin/bazaar /usr/local/bin/init-contracts
+# Strip CRLF si los scripts vienen con line endings de Windows (autocrlf en git, editor, etc.)
+RUN sed -i 's/\r$//' /usr/local/bin/bazaar /usr/local/bin/init-contracts \
+    && chmod +x /usr/local/bin/bazaar /usr/local/bin/init-contracts
 
 WORKDIR /workspace
 

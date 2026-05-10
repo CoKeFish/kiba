@@ -97,6 +97,89 @@ case $CMD in
     echo "  3. docker compose restart backend demo-agents orchestrator-agent"
     ;;
 
+  localnet-up)
+    # Inicia solana-test-validator-2.3 en background si no está corriendo
+    if pgrep -x "solana-test-valid" > /dev/null 2>&1; then
+      echo "✓ solana-test-validator ya está corriendo"
+    else
+      echo "→ iniciando solana-test-validator-2.3 en background..."
+      solana-test-validator-2.3 \
+        --ledger /tmp/test-ledger \
+        --reset \
+        --rpc-port 8899 \
+        --bind-address 0.0.0.0 \
+        --log /tmp/validator.log \
+        > /dev/null 2>&1 &
+      echo "→ esperando que el validator arranque..."
+      for i in $(seq 1 30); do
+        if curl -sf http://localhost:8899/health > /dev/null 2>&1; then
+          echo "✓ Validator listo en :8899"
+          break
+        fi
+        sleep 1
+        if [ "$i" = "30" ]; then
+          echo "✗ Validator no arrancó en 30s — revisa /tmp/validator.log"
+          exit 1
+        fi
+      done
+    fi
+    solana config set --url http://localhost:8899
+    echo "✓ Solana CLI apunta a localnet"
+    ;;
+
+  localnet-deploy)
+    cd $WORKDIR
+
+    # Asegurar que el validator está corriendo
+    if ! curl -sf http://localhost:8899/health > /dev/null 2>&1; then
+      echo "→ validator no está corriendo, iniciando..."
+      bazaar localnet-up
+    fi
+
+    # Asegurar wallet
+    if [ ! -f /root/.config/solana/id.json ]; then
+      solana-keygen new --no-bip39-passphrase
+    fi
+
+    # Configurar CLI para localnet
+    solana config set --url http://localhost:8899
+
+    # Airdrop en localnet (ilimitado, no cuesta nada)
+    echo "→ airdrop en localnet..."
+    solana airdrop 10 || true
+
+    # Primer build
+    if [ ! -f target/deploy/agent_bazaar-keypair.json ]; then
+      echo "→ build inicial..."
+      anchor build
+    fi
+
+    PID=$(solana address -k target/deploy/agent_bazaar-keypair.json)
+    echo "→ Program ID: $PID"
+
+    # Sincronizar declare_id! y Anchor.toml
+    sed -i.bak "s/declare_id!(\"[^\"]*\")/declare_id!(\"$PID\")/" $LIB_RS
+    sed -i.bak "s|agent_bazaar = \"[^\"]*\"|agent_bazaar = \"$PID\"|g" $ANCHOR_TOML
+    rm -f $LIB_RS.bak $ANCHOR_TOML.bak
+
+    echo "→ rebuild con declare_id! correcto..."
+    anchor build
+
+    echo "→ deploying a localnet..."
+    anchor deploy --provider.cluster localnet
+
+    echo ""
+    echo "═══════════════════════════════════════════"
+    echo "  ✓ Deployed en localnet: $PID"
+    echo "═══════════════════════════════════════════"
+    echo ""
+    echo "Próximos pasos:"
+    echo "  1. Editar .env (en el host) y poner:"
+    echo "     SOLANA_RPC_URL=http://contracts:8899"
+    echo "     PROGRAM_ID=$PID"
+    echo "  2. docker compose restart backend demo-agents orchestrator-agent gateway"
+    ;;
+
   test)
     cd $WORKDIR
     anchor test --skip-local-validator
@@ -142,22 +225,30 @@ Agent Bazaar CLI
 Usage: bazaar <command> [args]
 
 Commands:
-  status              Estado actual: red, wallet, balance, program ID
-  init-wallet         Crear wallet nueva (si no existe)
-  airdrop [amount]    Pedir SOL falso de devnet (default: 2)
-  build               anchor build
-  deploy              Deploy completo a devnet (auto-actualiza declare_id! y Anchor.toml)
-  test                Corre tests del programa
-  logs [signature]    Stream logs en vivo o detalles de una tx específica
-  network <name>      Cambia red: devnet | mainnet | localnet
-  list-agents         Lista accounts del programa on-chain
-  help                Esta ayuda
+  status                Estado actual: red, wallet, balance, program ID
+  init-wallet           Crear wallet nueva (si no existe)
+  airdrop [amount]      Pedir SOL de devnet (default: 2) — máx 10 SOL/8h
+  build                 anchor build
+  deploy                Deploy a devnet (usa SOL real de devnet)
+  localnet-up           Inicia solana-test-validator-2.3 en background (:8899)
+  localnet-deploy       Deploy a localnet (SOL ilimitado, sin coste)
+  test                  Corre tests del programa
+  logs [signature]      Stream logs en vivo o detalles de una tx específica
+  network <name>        Cambia red: devnet | mainnet | localnet
+  list-agents           Lista accounts del programa on-chain
+  help                  Esta ayuda
 
-Flujo primera vez:
+Flujo desarrollo (localnet — recomendado):
+  bazaar localnet-up
+  bazaar localnet-deploy
+  # → editar .env: SOLANA_RPC_URL=http://contracts:8899  PROGRAM_ID=<nuevo>
+  # → docker compose restart backend demo-agents orchestrator-agent gateway
+
+Flujo deploy final a devnet (solo cuando esté listo):
   bazaar init-wallet
   bazaar airdrop 5
   bazaar deploy
-  # → copiar Program ID al .env, salir, reiniciar containers
+  # → copiar Program ID al .env, reiniciar containers
 EOF
     ;;
 

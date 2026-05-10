@@ -28,7 +28,16 @@ import {
 } from './oauth';
 import { getBalance, getTransactions, lamportsToUsd, topup } from './billing';
 import { callOnBehalf, listAgents, masterWalletPubkey } from './proxy';
-import { getOnChainBalance, getUserBalances, loadUserWallet } from './wallets';
+import { getMasterWallet, getOnChainBalance, getUserBalances, loadUserWallet } from './wallets';
+import { PLATFORM_FEE_BPS, BPS_DENOMINATOR } from '@agent-bazaar/sdk';
+import {
+  deregisterAgent,
+  listMyAgents,
+  registerAgent,
+  updateAgent,
+  validateRegisterInput,
+  validateUpdateInput,
+} from './agents';
 import {
   createApiKey,
   getUserByApiKey,
@@ -439,6 +448,144 @@ app.get('/v1/agents', requireAuth, async (_req, res) => {
     res.json(agents);
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+/**
+ * Stats agregadas del marketplace + revenue de la plataforma.
+ * El balance on-chain de la treasury es la fuente de verdad del revenue;
+ * el "estimated_fees_lifetime" se calcula de los agents (sum total_earned * fee/(1-fee))
+ * y sirve como sanity check.
+ */
+app.get('/v1/platform/stats', requireAuth, async (_req, res) => {
+  try {
+    const treasuryPk = getMasterWallet().publicKey;
+    const [treasuryLamports, agents] = await Promise.all([
+      getOnChainBalance(treasuryPk),
+      listAgents() as Promise<Array<{
+        service: string;
+        ownerWallet: string;
+        pricePerCall: number;
+        totalCalls: number;
+        totalEarned: number;
+        source: 'chain' | 'fallback';
+      }>>,
+    ]);
+
+    const onChainAgents = agents.filter((a) => a.source === 'chain');
+    const totalCalls = onChainAgents.reduce((sum, a) => sum + (a.totalCalls || 0), 0);
+    // total_earned está en SOL en la respuesta del backend (decoded de lamports)
+    const totalOwnerEarnedSol = onChainAgents.reduce((sum, a) => sum + (a.totalEarned || 0), 0);
+    // Si owner_amount = amount * (1 - fee_bps/10000), entonces fee = owner_amount * fee_bps / (10000 - fee_bps)
+    const estimatedFeesSol =
+      totalOwnerEarnedSol * (PLATFORM_FEE_BPS / (BPS_DENOMINATOR - PLATFORM_FEE_BPS));
+    const totalVolumeSol = totalOwnerEarnedSol + estimatedFeesSol;
+
+    res.json({
+      treasury: {
+        pubkey: treasuryPk.toBase58(),
+        lamports: treasuryLamports,
+        sol: treasuryLamports / 1e9,
+        usd: lamportsToUsd(treasuryLamports),
+      },
+      fee: {
+        bps: PLATFORM_FEE_BPS,
+        pct: PLATFORM_FEE_BPS / 100,
+      },
+      marketplace: {
+        total_agents: agents.length,
+        total_agents_on_chain: onChainAgents.length,
+        total_calls: totalCalls,
+      },
+      lifetime: {
+        total_volume_sol: totalVolumeSol,
+        total_volume_usd: totalVolumeSol * Number(process.env.SOL_USD_RATE || 150),
+        owner_earnings_sol: totalOwnerEarnedSol,
+        owner_earnings_usd:
+          totalOwnerEarnedSol * Number(process.env.SOL_USD_RATE || 150),
+        estimated_fees_sol: estimatedFeesSol,
+        estimated_fees_usd: estimatedFeesSol * Number(process.env.SOL_USD_RATE || 150),
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+// ─── Agent management (registry CRUD) ─────────────────────────────
+// El user firma con su custodial wallet → on-chain queda como owner.
+
+app.get('/v1/agents/mine', requireAuth, async (req, res) => {
+  try {
+    const agents = await listMyAgents(req.bearerUser!.id);
+    res.json(agents);
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+app.post('/v1/agents', requireAuth, async (req, res) => {
+  const input = {
+    service: String(req.body?.service ?? '').trim(),
+    pricePerCallLamports: Number(req.body?.pricePerCallLamports),
+    endpoint: String(req.body?.endpoint ?? '').trim(),
+    description: String(req.body?.description ?? '').trim(),
+  };
+  const err = validateRegisterInput(input);
+  if (err) return res.status(400).json({ error: err });
+
+  try {
+    const result = await registerAgent(req.bearerUser!.id, input);
+    res.status(201).json(result);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'unknown error';
+    const status = msg.includes('already registered') ? 409 : 500;
+    res.status(status).json({ error: msg });
+  }
+});
+
+app.put('/v1/agents/:service', requireAuth, async (req, res) => {
+  const service = String(req.params.service).trim();
+  const input = {
+    pricePerCallLamports:
+      req.body?.pricePerCallLamports !== undefined
+        ? Number(req.body.pricePerCallLamports)
+        : undefined,
+    endpoint: req.body?.endpoint !== undefined ? String(req.body.endpoint).trim() : undefined,
+    description:
+      req.body?.description !== undefined ? String(req.body.description).trim() : undefined,
+  };
+  if (
+    input.pricePerCallLamports === undefined &&
+    input.endpoint === undefined &&
+    input.description === undefined
+  ) {
+    return res.status(400).json({ error: 'at least one field required' });
+  }
+  const err = validateUpdateInput(input);
+  if (err) return res.status(400).json({ error: err });
+
+  try {
+    const result = await updateAgent(req.bearerUser!.id, service, input);
+    res.json(result);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'unknown error';
+    const status =
+      msg.includes('not found') ? 404 : msg.includes('not the owner') ? 403 : 500;
+    res.status(status).json({ error: msg });
+  }
+});
+
+app.delete('/v1/agents/:service', requireAuth, async (req, res) => {
+  const service = String(req.params.service).trim();
+  try {
+    const result = await deregisterAgent(req.bearerUser!.id, service);
+    res.json(result);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'unknown error';
+    const status =
+      msg.includes('not found') ? 404 : msg.includes('not the owner') ? 403 : 500;
+    res.status(status).json({ error: msg });
   }
 });
 

@@ -10,6 +10,7 @@ import Playground from "@/routes/Playground";
 import Usage from "@/routes/Usage";
 import Billing from "@/routes/Billing";
 import Settings from "@/routes/Settings";
+import Platform from "@/routes/Platform";
 import { useAuth } from "@/lib/auth";
 
 function Protected({ children }: { children: React.ReactNode }) {
@@ -39,6 +40,7 @@ export default function App() {
         <Route path="playground" element={<Playground />} />
         <Route path="credentials" element={<Credentials />} />
         <Route path="billing" element={<Billing />} />
+        <Route path="platform" element={<Platform />} />
         <Route path="settings" element={<Settings />} />
       </Route>
       <Route path="/" element={<Navigate to="/app" replace />} />

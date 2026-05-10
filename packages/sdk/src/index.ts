@@ -11,6 +11,7 @@
 
 export { AgentProvider } from './provider';
 export { AgentClient } from './client';
+export type { X402Step, X402Trace } from './client';
 export { AgentBazaarProgram } from './program';
 export type {
   AgentConfig,
@@ -20,5 +21,12 @@ export type {
   CallOptions,
 } from './types';
 export type { AgentAccount, EscrowAccount, EscrowState } from './anchor-helpers';
-export { getAgentPda, getEscrowPda } from './anchor-helpers';
+export {
+  getAgentPda,
+  getEscrowPda,
+  PLATFORM_FEE_BPS,
+  PLATFORM_TREASURY,
+  BPS_DENOMINATOR,
+  computeFeeSplit,
+} from './anchor-helpers';
 export { loadOrCreateKeypair } from './keypair-store';

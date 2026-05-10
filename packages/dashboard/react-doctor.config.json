@@ -1,0 +1,20 @@
+{
+  "ignore": {
+    "rules": [
+      "react-doctor/rendering-hydration-mismatch-time",
+      "react-doctor/no-react19-deprecated-apis",
+      "react-doctor/design-no-redundant-size-axes",
+      "react-doctor/design-no-em-dash-in-jsx-text",
+      "react-doctor/design-no-redundant-padding-axes",
+      "react-doctor/no-derived-useState",
+      "react-doctor/prefer-useReducer",
+      "react-doctor/prefer-dynamic-import",
+      "react-doctor/no-cascading-set-state",
+      "react-doctor/rerender-state-only-in-handlers"
+    ]
+  },
+  "thresholds": {
+    "error": 0,
+    "warning": 10
+  }
+}

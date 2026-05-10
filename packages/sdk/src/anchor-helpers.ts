@@ -212,3 +212,25 @@ export const ACCOUNT_DISCRIMINATORS = {
   agent: () => discriminator('account', 'Agent'),
   escrow: () => discriminator('account', 'Escrow'),
 };
+
+// ─── Platform fee constants ──────────────────────────────────────
+// Deben coincidir con `PLATFORM_FEE_BPS` y `PLATFORM_TREASURY` en lib.rs.
+
+/** Comisión que cobra la plataforma — 500 bps = 5%. */
+export const PLATFORM_FEE_BPS = 500;
+export const BPS_DENOMINATOR = 10_000;
+
+/** Wallet de la plataforma que recibe el fee (master wallet del Gateway). */
+export const PLATFORM_TREASURY = new PublicKey(
+  '3JcShJD9boEZQhXb515MDfMwX34muLzyQj8QyysKXuEF',
+);
+
+/** Calcula el split (owner net + platform fee) para un amount dado. */
+export function computeFeeSplit(amount: bigint | number): {
+  ownerAmount: bigint;
+  platformFee: bigint;
+} {
+  const a = BigInt(amount);
+  const fee = (a * BigInt(PLATFORM_FEE_BPS)) / BigInt(BPS_DENOMINATOR);
+  return { ownerAmount: a - fee, platformFee: fee };
+}

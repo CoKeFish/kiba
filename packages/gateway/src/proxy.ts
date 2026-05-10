@@ -1,7 +1,7 @@
 /**
  * Proxy de /v1/call al SDK de Agent Bazaar.
  *
- * Modelo: cascada virtual → on-chain con pricing dinámico.
+ * Modelo: cascada virtual → on-chain con pricing dinámico y x402 trace.
  *   1. Pre-quote: probe HTTP sin pago para obtener el monto REAL que el agente
  *      cobrará por ESTE payload (pricing dinámico via priceFn).
  *   2. Cascada (decide ANTES de llamar):
@@ -10,12 +10,13 @@
  *      - Si no → modo wallet-direct: la custodial paga directo con su SOL
  *        on-chain (lo que el user transfirió desde Phantom externa). Sin debit
  *        ni refill master.
- *   3. La llamada al servicio se hace UNA sola vez, después de la decisión.
- *      El handshake x402 (escrow + claim) lo maneja el SDK por debajo.
+ *   3. La llamada al servicio se hace UNA sola vez (callWithTrace), después de
+ *      la decisión. El SDK maneja el handshake x402 internamente y devuelve
+ *      un trace estructurado de los 4 steps.
  *   4. La cascada es por call entera, no parcial — para no fragmentar el escrow.
  */
 import axios from 'axios';
-import { AgentClient } from '@agent-bazaar/sdk';
+import { AgentClient, type X402Trace } from '@agent-bazaar/sdk';
 import { debit, getBalance, lamportsToUsd } from './billing';
 import { db } from './db';
 import {
@@ -83,6 +84,7 @@ export async function callOnBehalf(args: {
   mode: 'virtual' | 'wallet-direct';
   newBalance: { lamports: number; usd: number };
   refill?: { signature: string; lamports: number };
+  trace: X402Trace;
 }> {
   const userWallet = loadUserWallet(args.userId);
 
@@ -140,16 +142,20 @@ export async function callOnBehalf(args: {
     }
   }
 
-  // 3. Llamada única al servicio. El SDK maneja el handshake x402 internamente
-  //    (probe → escrow → claim). El monto del escrow coincide con `lamports`
-  //    porque priceFn es determinista en el payload.
+  // 3. Llamada única al servicio. callWithTrace devuelve el resultado + un
+  //    timeline de los 4 steps del handshake x402 (discover, 402_received,
+  //    escrow_opened, service_responded). El monto del escrow coincide con
+  //    `lamports` porque priceFn es determinista en el payload.
   let result: unknown;
+  let trace: X402Trace;
   try {
-    result = await client.call(args.service, args.payload, {
+    const traced = await client.callWithTrace(args.service, args.payload, {
       // maxPrice circuit breaker — 2x del cotizado por seguridad
       maxPrice: (lamports / 1e9) * 2,
       timeoutMs: 30_000,
     });
+    result = traced.result;
+    trace = traced.trace;
   } catch (err) {
     if (mode === 'virtual') {
       refundDebit(args.userId, lamports, args.service, (err as Error).message);
@@ -183,6 +189,7 @@ export async function callOnBehalf(args: {
           },
         }
       : {}),
+    trace,
   };
 }
 

@@ -13,6 +13,7 @@
 //!   open_escrow / claim_payment / refund_escrow
 
 use anchor_lang::prelude::*;
+use anchor_lang::solana_program::pubkey;
 use anchor_lang::system_program;
 
 declare_id!("3CsQnAua3xniuMY5axKUNYtmTyAxh6cG2E257PLjJCmA");
@@ -25,6 +26,19 @@ pub const REFUND_DELAY_SECS: i64 = 300;
 pub const MAX_SERVICE_LEN: usize = 32;
 pub const MAX_ENDPOINT_LEN: usize = 256;
 pub const MAX_DESCRIPTION_LEN: usize = 512;
+
+/// Comisión de la plataforma — basis points (500 = 5%). Se descuenta de cada
+/// `claim_payment` y se transfiere a `PLATFORM_TREASURY`. El resto va al owner
+/// del agente. Modelo de negocio del marketplace.
+pub const PLATFORM_FEE_BPS: u64 = 500;
+pub const BPS_DENOMINATOR: u64 = 10_000;
+
+/// Wallet que recibe el fee de la plataforma. Hardcoded en el contrato → para
+/// cambiarla hay que redeploy (intencional: nadie puede redirigir comisiones a
+/// otra cuenta sin upgrade authority del programa).
+///
+/// Hackathon: master wallet del Gateway. Producción: multisig.
+pub const PLATFORM_TREASURY: Pubkey = pubkey!("3JcShJD9boEZQhXb515MDfMwX34muLzyQj8QyysKXuEF");
 
 #[program]
 pub mod agent_bazaar {
@@ -160,12 +174,26 @@ pub mod agent_bazaar {
         let client = escrow.client;
         let agent_owner = escrow.agent_owner;
 
-        // Mover lamports del PDA al owner del agente. El PDA puede mutar sus propios lamports.
+        // Split: platform_fee + owner_amount = amount
+        // El cálculo redondea hacia abajo en favor de la plataforma → el owner
+        // se queda con el resto exacto. Para amounts de 1 lamport el fee es 0.
+        let platform_fee = amount
+            .checked_mul(PLATFORM_FEE_BPS)
+            .ok_or(ErrorCode::ArithmeticOverflow)?
+            .checked_div(BPS_DENOMINATOR)
+            .ok_or(ErrorCode::ArithmeticOverflow)?;
+        let owner_amount = amount
+            .checked_sub(platform_fee)
+            .ok_or(ErrorCode::ArithmeticOverflow)?;
+
+        // Sub del PDA del escrow
         **escrow.to_account_info().try_borrow_mut_lamports()? = escrow
             .to_account_info()
             .lamports()
             .checked_sub(amount)
             .ok_or(ErrorCode::InsufficientEscrowBalance)?;
+
+        // Add al owner del agente
         **ctx
             .accounts
             .agent_owner
@@ -175,19 +203,36 @@ pub mod agent_bazaar {
             .agent_owner
             .to_account_info()
             .lamports()
-            .checked_add(amount)
+            .checked_add(owner_amount)
+            .ok_or(ErrorCode::ArithmeticOverflow)?;
+
+        // Add a la platform treasury (validada por address constraint en ClaimPayment)
+        **ctx
+            .accounts
+            .platform_treasury
+            .try_borrow_mut_lamports()? = ctx
+            .accounts
+            .platform_treasury
+            .lamports()
+            .checked_add(platform_fee)
             .ok_or(ErrorCode::ArithmeticOverflow)?;
 
         escrow.state = EscrowState::Completed;
 
         let agent = &mut ctx.accounts.agent;
         agent.total_calls = agent.total_calls.checked_add(1).unwrap_or(agent.total_calls);
-        agent.total_earned = agent.total_earned.checked_add(amount).unwrap_or(agent.total_earned);
+        // total_earned refleja lo que efectivamente recibió el owner (net del fee)
+        agent.total_earned = agent
+            .total_earned
+            .checked_add(owner_amount)
+            .unwrap_or(agent.total_earned);
 
         emit!(PaymentClaimed {
             client,
             agent_owner,
             amount,
+            owner_amount,
+            platform_fee,
             nonce,
             timestamp: Clock::get()?.unix_timestamp,
         });
@@ -388,6 +433,11 @@ pub struct ClaimPayment<'info> {
     /// Es Signer porque solo el owner del agente puede claim.
     #[account(mut)]
     pub agent_owner: Signer<'info>,
+
+    /// CHECK: La address constraint garantiza que es exactamente PLATFORM_TREASURY.
+    /// No es signer — solo recibe lamports.
+    #[account(mut, address = PLATFORM_TREASURY @ ErrorCode::InvalidTreasury)]
+    pub platform_treasury: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]
@@ -447,7 +497,12 @@ pub struct EscrowOpened {
 pub struct PaymentClaimed {
     pub client: Pubkey,
     pub agent_owner: Pubkey,
+    /// Monto bruto que pagó el cliente (lo que estaba lockeado en el escrow).
     pub amount: u64,
+    /// Lo que efectivamente recibió el owner del agente (= amount - platform_fee).
+    pub owner_amount: u64,
+    /// Comisión que se transfirió a PLATFORM_TREASURY.
+    pub platform_fee: u64,
     pub nonce: u64,
     pub timestamp: i64,
 }
@@ -489,4 +544,6 @@ pub enum ErrorCode {
     InsufficientEscrowBalance,
     #[msg("Arithmetic overflow")]
     ArithmeticOverflow,
+    #[msg("Provided treasury account does not match the platform treasury")]
+    InvalidTreasury,
 }

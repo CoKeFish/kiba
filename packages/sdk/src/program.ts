@@ -16,6 +16,7 @@ import {
 import {
   ACCOUNT_DISCRIMINATORS,
   INSTR_DISCRIMINATORS,
+  PLATFORM_TREASURY,
   decodeAgent,
   decodeEscrow,
   encodeOptionString,
@@ -91,6 +92,21 @@ export class AgentBazaarProgram {
     });
   }
 
+  deregisterAgentInstr(args: {
+    owner: PublicKey;
+    service: string;
+  }): TransactionInstruction {
+    const [agentPda] = getAgentPda(this.programId, args.service);
+    return new TransactionInstruction({
+      keys: [
+        { pubkey: agentPda, isSigner: false, isWritable: true },
+        { pubkey: args.owner, isSigner: true, isWritable: true },
+      ],
+      programId: this.programId,
+      data: Buffer.from(INSTR_DISCRIMINATORS.deregisterAgent()),
+    });
+  }
+
   openEscrowInstr(args: {
     client: PublicKey;
     agent: PublicKey;
@@ -128,15 +144,19 @@ export class AgentBazaarProgram {
     agentOwner: PublicKey;
     nonce: bigint | number;
     service: string;
+    /** Override de la treasury — por defecto usa PLATFORM_TREASURY del contrato. */
+    platformTreasury?: PublicKey;
   }): TransactionInstruction {
     const [escrowPda] = getEscrowPda(this.programId, args.client, args.agentOwner, args.nonce);
     const [agentPda] = getAgentPda(this.programId, args.service);
+    const treasury = args.platformTreasury ?? PLATFORM_TREASURY;
 
     return new TransactionInstruction({
       keys: [
         { pubkey: escrowPda, isSigner: false, isWritable: true },
         { pubkey: agentPda, isSigner: false, isWritable: true },
         { pubkey: args.agentOwner, isSigner: true, isWritable: true },
+        { pubkey: treasury, isSigner: false, isWritable: true },
       ],
       programId: this.programId,
       data: Buffer.from(INSTR_DISCRIMINATORS.claimPayment()),

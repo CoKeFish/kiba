@@ -74,10 +74,42 @@ export const api = {
       result: unknown;
       cost: { lamports: number; usd: number };
       newBalance: { lamports: number; usd: number };
+      refill?: { signature: string; lamports: number };
+      trace: X402Trace;
     }>("/v1/call", {
       method: "POST",
       body: JSON.stringify({ service, payload }),
     }),
+
+  // Agent management — registry CRUD a nombre del user (su custodial wallet firma)
+  myAgents: () => request<MyAgent[]>("/v1/agents/mine"),
+  registerAgent: (params: {
+    service: string;
+    pricePerCallLamports: number;
+    endpoint: string;
+    description: string;
+  }) =>
+    request<{ signature: string; pda: string; owner: string }>("/v1/agents", {
+      method: "POST",
+      body: JSON.stringify(params),
+    }),
+  updateAgent: (
+    service: string,
+    params: {
+      pricePerCallLamports?: number;
+      endpoint?: string;
+      description?: string;
+    },
+  ) =>
+    request<{ signature: string; pda: string }>(`/v1/agents/${encodeURIComponent(service)}`, {
+      method: "PUT",
+      body: JSON.stringify(params),
+    }),
+  deregisterAgent: (service: string) =>
+    request<{ signature: string; service: string; rentRecovered: number }>(
+      `/v1/agents/${encodeURIComponent(service)}`,
+      { method: "DELETE" },
+    ),
 
   // OAuth connections (apps the user has authorized)
   oauthConnections: () => request<OAuthConnection[]>("/v1/oauth/connections"),
@@ -92,6 +124,9 @@ export const api = {
       body: JSON.stringify({ name }),
     }),
   revokeApiKey: (id: string) => request<void>(`/v1/api-keys/${id}`, { method: "DELETE" }),
+
+  // Platform stats — treasury balance + marketplace metrics + revenue
+  platformStats: () => request<PlatformStats>("/v1/platform/stats"),
 };
 
 export type User = {
@@ -146,4 +181,80 @@ export type ApiKey = {
   prefix: string;
   created_at: number;
   last_used_at?: number;
+};
+
+export type MyAgent = {
+  pda: string;
+  owner: string;
+  service: string;
+  pricePerCallLamports: number;
+  pricePerCallSol: number;
+  endpoint: string;
+  description: string;
+  totalCalls: number;
+  totalEarnedLamports: number;
+  totalEarnedSol: number;
+  createdAt: number;
+};
+
+export type X402Step =
+  | {
+      type: "discover";
+      service: string;
+      endpoint: string;
+      pricePerCall: number;
+      durationMs: number;
+      timestamp: number;
+    }
+  | {
+      type: "402_received";
+      quote: { amount: string; payTo: string; asset: string; nonce: string; expiresAt: number };
+      durationMs: number;
+      timestamp: number;
+    }
+  | {
+      type: "escrow_opened";
+      signature: string;
+      amount: string;
+      nonce: string;
+      durationMs: number;
+      timestamp: number;
+    }
+  | {
+      type: "service_responded";
+      status: number;
+      claimSignature?: string;
+      claimedAmount?: string;
+      durationMs: number;
+      timestamp: number;
+    };
+
+export type X402Trace = {
+  service: string;
+  endpoint: string;
+  totalDurationMs: number;
+  steps: X402Step[];
+};
+
+export type PlatformStats = {
+  treasury: {
+    pubkey: string;
+    lamports: number;
+    sol: number;
+    usd: number;
+  };
+  fee: { bps: number; pct: number };
+  marketplace: {
+    total_agents: number;
+    total_agents_on_chain: number;
+    total_calls: number;
+  };
+  lifetime: {
+    total_volume_sol: number;
+    total_volume_usd: number;
+    owner_earnings_sol: number;
+    owner_earnings_usd: number;
+    estimated_fees_sol: number;
+    estimated_fees_usd: number;
+  };
 };

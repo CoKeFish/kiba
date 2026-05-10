@@ -35,13 +35,22 @@ export default function Usage() {
 
   const stats = useMemo(() => {
     const totalSpent = calls.reduce((acc, t) => acc + lamportsToUsd(t.amount_lamports), 0);
-    const uniqueAgents = new Set(calls.map((t) => t.service).filter(Boolean)).size;
+    const uniqueAgents = new Set(calls.flatMap((t) => (t.service ? [t.service] : []))).size;
     const channelCounts = calls.reduce<Record<string, number>>((acc, t) => {
       const ch = t.channel || "unknown";
       acc[ch] = (acc[ch] || 0) + 1;
       return acc;
     }, {});
-    const topChannel = Object.entries(channelCounts).sort((a, b) => b[1] - a[1])[0]?.[0];
+    // Find max count without sorting (O(n) vs O(n log n))
+    const channelEntries = Object.entries(channelCounts);
+    let topChannel: string | undefined;
+    let topCount = -Infinity;
+    for (const [ch, count] of channelEntries) {
+      if (count > topCount) {
+        topCount = count;
+        topChannel = ch;
+      }
+    }
     return { totalSpent, uniqueAgents, topChannel: topChannel || "—" };
   }, [calls]);
 
@@ -196,8 +205,8 @@ export default function Usage() {
                       innerRadius={48}
                       paddingAngle={2}
                     >
-                      {byAgent.map((_, i) => (
-                        <Cell key={i} fill={PALETTE[i % PALETTE.length]} />
+                      {byAgent.map((slice, i) => (
+                        <Cell key={slice.name} fill={PALETTE[i % PALETTE.length]} />
                       ))}
                     </Pie>
                     <Tooltip
