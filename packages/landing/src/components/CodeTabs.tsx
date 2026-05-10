@@ -11,7 +11,7 @@ const tabs: Tab[] = [
   {
     id: "sdk",
     label: "Native SDK",
-    desc: "Self-custodial. Sign with your own keypair.",
+    desc: "Self-custodial. Sign with your own keypair — gas only, no gateway fee.",
     code: `import { AgentClient } from '@agent-bazaar/sdk';
 
 const client = new AgentClient({
@@ -25,9 +25,9 @@ const result = await client.call('yield-hunter', {
   },
   {
     id: "rest",
-    label: "Gateway REST API",
-    desc: "Custodial. Top up USD, call any agent over HTTPS.",
-    code: `const res = await fetch('https://gateway.agent-bazaar.io/v1/call', {
+    label: "Gateway REST",
+    desc: "Custodial. Top up USD credits, call any agent over HTTPS with an API key.",
+    code: `const res = await fetch('https://gateway-production-a12f.up.railway.app/v1/call', {
   method: 'POST',
   headers: {
     'Authorization': 'Bearer sk_live_...',
@@ -42,18 +42,18 @@ const result = await client.call('yield-hunter', {
   {
     id: "mcp",
     label: "MCP Server",
-    desc: "OAuth-based. No API keys. Plug into Claude / Cursor.",
-    code: `// Add to your Claude Desktop config:
+    desc: "OAuth-based. No API keys. Plug directly into Claude Desktop or Cursor.",
+    code: `// Add to your Claude Desktop config (~/claude.json):
 {
   "mcpServers": {
     "agent-bazaar": {
       "command": "npx",
-      "args": ["@agent-bazaar/mcp"]
+      "args": ["-y", "agent-bazaar-mcp"]
     }
   }
 }
 
-// Then ask Claude: "find the best yield with risk audit"
+// Ask Claude: "find the best yield with risk audit"
 // → browser opens once for OAuth, never again.`,
   },
 ];
@@ -63,26 +63,64 @@ export default function CodeTabs() {
   const tab = tabs.find((t) => t.id === active)!;
 
   return (
-    <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-soft)] overflow-hidden">
-      <div className="flex border-b border-[var(--color-border)]">
+    <div style={{
+      borderRadius: "var(--radius-lg)",
+      border: "1px solid var(--border-default)",
+      background: "var(--bg-card)",
+      overflow: "hidden",
+    }}>
+      {/* Tab bar */}
+      <div style={{
+        display: "flex",
+        borderBottom: "1px solid var(--border-default)",
+      }}>
         {tabs.map((t) => (
           <button
             key={t.id}
             onClick={() => setActive(t.id)}
-            className={`px-5 py-3 text-sm font-medium border-r border-[var(--color-border)] transition-colors ${
-              active === t.id
-                ? "bg-[var(--color-bg)] text-[var(--color-fg)]"
-                : "text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]"
-            }`}
+            style={{
+              padding: "14px 20px",
+              fontFamily: "var(--font-display)",
+              fontSize: 13,
+              fontWeight: 600,
+              border: "none",
+              borderRight: "1px solid var(--border-default)",
+              cursor: "pointer",
+              transition: "all var(--dur-fast) var(--ease-out)",
+              background: active === t.id ? "var(--bg-elevated)" : "transparent",
+              color: active === t.id ? "var(--fg-1)" : "var(--fg-3)",
+              borderBottom: active === t.id ? "1px solid var(--accent)" : "none",
+              position: "relative",
+              top: active === t.id ? 1 : 0,
+            }}
           >
             {t.label}
           </button>
         ))}
       </div>
-      <div className="p-6">
-        <p className="text-sm text-[var(--color-fg-muted)] mb-4">{tab.desc}</p>
-        <pre className="text-sm font-mono leading-relaxed overflow-x-auto p-4 rounded-md bg-[var(--color-bg)] border border-[var(--color-border)]">
-          <code>{tab.code}</code>
+
+      {/* Tab body */}
+      <div style={{ padding: 32 }}>
+        <p style={{
+          fontFamily: "var(--font-sans)",
+          fontSize: 14,
+          color: "var(--fg-2)",
+          marginBottom: 20,
+          lineHeight: 1.55,
+        }}>{tab.desc}</p>
+        <pre style={{
+          fontFamily: "var(--font-mono)",
+          fontSize: 13,
+          lineHeight: 1.65,
+          overflowX: "auto",
+          padding: "20px 24px",
+          borderRadius: "var(--radius-md)",
+          background: "var(--bg-canvas)",
+          border: "1px solid var(--border-subtle)",
+          color: "var(--fg-2)",
+          margin: 0,
+        }}>
+          <code style={{ color: "var(--fg-2)" }}>{tab.code}</code>
         </pre>
       </div>
     </div>

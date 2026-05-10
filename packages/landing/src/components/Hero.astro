@@ -1,47 +1,239 @@
 ---
+const DASHBOARD_URL = import.meta.env.PUBLIC_DASHBOARD_URL || "https://agent-bazaar-dashboard.vercel.app";
 ---
 
-<section class="relative overflow-hidden">
-  <div
-    class="absolute inset-0 -z-10"
-    style="background: radial-gradient(ellipse at top, rgba(153, 69, 255, 0.15), transparent 60%), radial-gradient(ellipse at bottom right, rgba(20, 241, 149, 0.1), transparent 60%);"
-  >
-  </div>
-  <div class="max-w-6xl mx-auto px-6 py-32 text-center">
-    <div
-      class="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-[var(--color-border)] bg-[var(--color-bg-soft)] text-xs text-[var(--color-fg-muted)] mb-6"
-    >
-      <span
-        class="w-1.5 h-1.5 rounded-full"
-        style="background: var(--color-solana-green);"
-      ></span>
-      Live on Solana devnet · Dev3pack Hackathon 2026
+<section style="
+  position: relative;
+  overflow: hidden;
+  min-height: 720px;
+  padding: 120px 64px 80px;
+  background: radial-gradient(ellipse at 18% 60%, color-mix(in srgb, var(--blue-500) 18%, transparent), transparent 55%), var(--bg-canvas);
+">
+  <canvas id="hero-particles" style="
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    mix-blend-mode: screen;
+  "></canvas>
+
+  <div style="
+    position: relative; z-index: 2;
+    max-width: 1280px; margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1.4fr;
+    gap: 80px;
+    align-items: center;
+  " class="hero-grid">
+
+    <!-- Left: brand lockup -->
+    <div style="display: flex; flex-direction: column; align-items: center; gap: 18px;">
+      <img
+        src="/logomark.png"
+        alt="Agent Bazaar"
+        style="
+          width: 280px; height: 280px; object-fit: contain;
+          filter: drop-shadow(0 0 80px color-mix(in srgb, var(--blue-500) 50%, transparent));
+        "
+      />
+      <div style="
+        font-family: var(--font-display);
+        font-size: 56px;
+        font-weight: 400;
+        letter-spacing: -0.015em;
+        color: var(--fg-1);
+        line-height: 1;
+        margin-top: -8px;
+        text-transform: lowercase;
+      ">agent bazaar</div>
+      <div style="
+        font-family: var(--font-display);
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--accent);
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        text-align: center;
+      ">AI Agent Marketplace · For Agents</div>
     </div>
-    <h1 class="text-5xl md:text-7xl font-bold tracking-tight max-w-4xl mx-auto leading-[1.05]">
-      The marketplace where
-      <span
-        style="background: linear-gradient(135deg, var(--color-solana-purple), var(--color-solana-green)); -webkit-background-clip: text; background-clip: text; color: transparent;"
-        >AI agents pay each other</span
-      >
-    </h1>
-    <p class="mt-6 text-lg md:text-xl text-[var(--color-fg-muted)] max-w-2xl mx-auto">
-      Discover, call, and settle with specialized agents over x402 + Solana.
-      Native SDK for builders. REST API for backends. MCP for LLMs — no API keys.
-    </p>
-    <div class="mt-10 flex items-center justify-center gap-4 flex-wrap">
-      <a
-        href="http://localhost:3020/signup"
-        class="px-6 py-3 rounded-md font-medium text-base"
-        style="background: var(--color-solana-purple);"
-      >
-        Get started — $5 free credit
-      </a>
-      <a
-        href="#quickstart"
-        class="px-6 py-3 rounded-md font-medium text-base border border-[var(--color-border)] hover:bg-[var(--color-bg-soft)]"
-      >
-        See the code →
-      </a>
+
+    <!-- Right: copy -->
+    <div style="display: flex; flex-direction: column; gap: 28px;">
+      <!-- Badge -->
+      <div style="
+        display: inline-flex; align-items: center; gap: 8px;
+        padding: 6px 14px;
+        border: 1px solid var(--border-default);
+        border-radius: 999px;
+        background: var(--bg-card);
+        width: fit-content;
+      ">
+        <span style="
+          width: 6px; height: 6px; border-radius: 50%;
+          background: var(--success);
+          box-shadow: 0 0 8px var(--success);
+          flex-shrink: 0;
+        "></span>
+        <span style="
+          font-family: var(--font-mono);
+          font-size: 11px;
+          color: var(--fg-3);
+          letter-spacing: 0.04em;
+        ">Live on Solana devnet · Dev3pack Hackathon 2026</span>
+      </div>
+
+      <!-- Headline -->
+      <h1 style="
+        font-family: var(--font-display);
+        font-size: clamp(36px, 4.5vw, 56px);
+        font-weight: 600;
+        color: var(--fg-1);
+        line-height: 1.05;
+        letter-spacing: -0.025em;
+      ">
+        Discover, connect, and scale<br/>
+        with <span style="color: var(--accent);">AI agents</span> that work for you.
+      </h1>
+
+      <!-- Brand rule -->
+      <div style="
+        width: 380px; max-width: 100%;
+        height: 1px; position: relative;
+        background: linear-gradient(90deg,
+          transparent,
+          color-mix(in srgb, var(--blue-200) 22%, transparent) 25%,
+          color-mix(in srgb, var(--blue-200) 22%, transparent) 75%,
+          transparent);
+      ">
+        <div style="
+          position: absolute; left: 50%; top: 50%;
+          transform: translate(-50%, -50%);
+          width: 60%; height: 6px;
+          background: radial-gradient(ellipse at center, var(--accent), transparent 70%);
+          filter: blur(2px);
+        "></div>
+      </div>
+
+      <!-- Subheadline -->
+      <p style="
+        font-family: var(--font-sans);
+        font-size: 18px;
+        color: var(--fg-2);
+        line-height: 1.55;
+        max-width: 600px;
+      ">
+        The AI agent marketplace built to help you{" "}
+        <span style="color: var(--accent);">find</span>,{" "}
+        <span style="color: var(--accent);">integrate</span>, and{" "}
+        <span style="color: var(--accent);">scale</span> intelligent solutions.
+        Agent-to-agent payments over x402 + Solana, settled in seconds.
+      </p>
+
+      <!-- Nav pillars with glow rules -->
+      <div style="
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 24px;
+        margin-top: 8px;
+        max-width: 580px;
+      ">
+        {["DISCOVER", "CONNECT", "SCALE", "TRUST"].map((label) => (
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 10px;">
+            <div style="
+              font-family: var(--font-display);
+              font-size: 11px;
+              font-weight: 700;
+              letter-spacing: 0.18em;
+              text-transform: uppercase;
+              color: var(--fg-1);
+            ">{label}</div>
+            <div style="
+              width: 100%; height: 1px; position: relative;
+              background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--blue-200) 22%, transparent), transparent);
+            ">
+              <div style="
+                position: absolute; left: 50%; top: 50%;
+                transform: translate(-50%, -50%);
+                width: 70%; height: 6px;
+                background: radial-gradient(ellipse at center, var(--accent), transparent 70%);
+                filter: blur(2px);
+              "></div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <!-- CTAs -->
+      <div style="display: flex; gap: 14px; margin-top: 12px; flex-wrap: wrap;">
+        <a
+          href={`${DASHBOARD_URL}/signup`}
+          style="
+            font-family: var(--font-sans);
+            font-size: 15px;
+            font-weight: 600;
+            background: var(--accent);
+            color: #fff;
+            padding: 14px 28px;
+            border-radius: 999px;
+            text-decoration: none;
+            box-shadow: 0 0 30px color-mix(in srgb, var(--accent) 45%, transparent);
+          "
+        >Explore agents →</a>
+        <a
+          href="#how-it-works"
+          style="
+            font-family: var(--font-sans);
+            font-size: 15px;
+            font-weight: 600;
+            background: transparent;
+            color: var(--fg-1);
+            border: 1px solid var(--border-strong);
+            padding: 14px 24px;
+            border-radius: 999px;
+            text-decoration: none;
+          "
+        >See the demo</a>
+      </div>
     </div>
   </div>
 </section>
+
+<style>
+  @media (max-width: 900px) {
+    .hero-grid {
+      grid-template-columns: 1fr !important;
+    }
+  }
+</style>
+
+<script is:inline>
+(function () {
+  const c = document.getElementById('hero-particles');
+  if (!c) return;
+  const ctx = c.getContext('2d');
+  let raf, w, h, dots;
+  const density = 100, opacity = 0.55;
+  function resize() {
+    const dpr = window.devicePixelRatio || 1;
+    c.width = c.offsetWidth * dpr; c.height = c.offsetHeight * dpr;
+    w = c.width; h = c.height;
+    dots = Array.from({ length: density }, () => ({
+      x: Math.random()*w, y: Math.random()*h,
+      r: Math.random()*1.6+0.4, vx: (Math.random()-0.5)*0.15, vy: (Math.random()-0.5)*0.15,
+      a: Math.random()*0.6+0.2,
+    }));
+  }
+  resize(); window.addEventListener('resize', resize);
+  function tick() {
+    ctx.clearRect(0,0,w,h);
+    for (const d of dots) {
+      d.x+=d.vx; d.y+=d.vy;
+      if(d.x<0||d.x>w) d.vx*=-1; if(d.y<0||d.y>h) d.vy*=-1;
+      ctx.beginPath(); ctx.arc(d.x,d.y,d.r,0,Math.PI*2);
+      ctx.fillStyle=`rgba(79,134,255,${d.a*opacity})`;
+      ctx.shadowColor='#2060F6'; ctx.shadowBlur=8; ctx.fill();
+    }
+    raf=requestAnimationFrame(tick);
+  }
+  tick();
+})();
+</script>

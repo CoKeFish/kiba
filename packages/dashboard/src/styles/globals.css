@@ -1,22 +1,57 @@
+@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap");
 @import "tailwindcss";
 
 @theme {
-  --color-bg: #0a0a0f;
-  --color-bg-soft: #13131a;
-  --color-bg-card: #17171f;
-  --color-fg: #f5f5f7;
-  --color-fg-muted: #a1a1aa;
-  --color-border: #27272a;
-  --color-border-strong: #3f3f46;
-  --color-primary: #9945ff;
+  /* Raw palette */
+  --ink-950: #02050e;
+  --ink-900: #070c1a;
+  --ink-800: #0a1228;
+  --ink-700: #0f1a38;
+  --ink-600: #162247;
+  --blue-600: #1048d4;
+  --blue-500: #2060f6;
+  --blue-400: #4f86ff;
+  --blue-300: #7aaeff;
+  --blue-200: #aeceff;
+  --blue-100: #d6e8ff;
+  --paper-50: #f7f8fb;
+  --paper-100: #eaecf2;
+  --paper-200: #d0d5e4;
+  --green-500: #14f195;
+  --amber-500: #fbbf24;
+  --red-500: #ef4444;
+
+  /* Semantic surface tokens */
+  --color-bg: #02050e;
+  --color-bg-soft: #070c1a;
+  --color-bg-card: #0a1228;
+  --color-bg-elevated: #0f1a38;
+  --color-fg: #f7f8fb;
+  --color-fg-muted: #aeceff;
+  --color-fg-subtle: #7aaeff;
+  --color-border: color-mix(in srgb, #aeceff 12%, transparent);
+  --color-border-strong: color-mix(in srgb, #aeceff 24%, transparent);
+  --color-primary: #2060f6;
   --color-primary-fg: #ffffff;
   --color-success: #14f195;
   --color-warning: #fbbf24;
   --color-danger: #ef4444;
-  --color-accent: #1e1e2a;
-  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --color-accent: color-mix(in srgb, #2060f6 14%, transparent);
+
+  /* Fonts */
+  --font-display: "Outfit", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
+
+  /* Shape */
   --radius: 0.5rem;
+  --radius-sm: 0.375rem;
+  --radius-lg: 0.875rem;
+
+  /* Motion */
+  --dur-fast: 140ms;
+  --dur-base: 220ms;
+  --ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 
 html,
@@ -33,10 +68,9 @@ body,
   color: var(--color-primary-fg);
 }
 
-/* Scrollbar - subtle */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
@@ -48,3 +82,8 @@ body,
 ::-webkit-scrollbar-thumb:hover {
   background: var(--color-border-strong);
 }
+
+/* Glow utilities */
+.glow-sm { box-shadow: 0 0 12px color-mix(in srgb, var(--color-primary) 45%, transparent); }
+.glow-md { box-shadow: 0 0 24px color-mix(in srgb, var(--color-primary) 35%, transparent); }
+.glow-lg { box-shadow: 0 0 48px color-mix(in srgb, var(--color-primary) 25%, transparent); }

@@ -47,8 +47,8 @@ export default function Overview() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Overview</h1>
-        <p className="text-sm text-[var(--color-fg-muted)]">A snapshot of your account.</p>
+        <h1 className="text-2xl font-semibold" style={{ fontFamily: "var(--font-display)", letterSpacing: "-0.015em" }}>Overview</h1>
+        <p className="text-sm" style={{ color: "var(--color-fg-subtle)" }}>A snapshot of your account.</p>
       </div>
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">

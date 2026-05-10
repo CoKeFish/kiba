@@ -45,52 +45,171 @@ export function AppLayout() {
   };
 
   return (
-    <div className="flex h-screen">
-      <aside className="w-60 border-r border-[var(--color-border)] bg-[var(--color-bg-soft)] flex flex-col">
-        <div className="px-5 py-5 border-b border-[var(--color-border)] flex items-center gap-2 font-semibold">
-          <span
-            className="inline-block w-3 h-3 rounded-sm"
+    <div className="flex h-screen" style={{ background: "var(--color-bg)" }}>
+      {/* Sidebar */}
+      <aside
+        className="w-60 flex flex-col"
+        style={{
+          background: "var(--color-bg-soft)",
+          borderRight: "1px solid var(--color-border)",
+        }}
+      >
+        {/* Logo */}
+        <div
+          className="px-5 py-4 flex items-center gap-3"
+          style={{ borderBottom: "1px solid var(--color-border)" }}
+        >
+          <div
             style={{
-              background:
-                "linear-gradient(135deg, var(--color-primary), var(--color-success))",
+              width: 28,
+              height: 28,
+              borderRadius: 7,
+              background: "var(--color-primary)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              boxShadow: "0 0 16px color-mix(in srgb, var(--color-primary) 50%, transparent)",
+              flexShrink: 0,
             }}
-          />
-          Agent Bazaar
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <polygon points="12,3 22,20 2,20" fill="white" opacity="0.95" />
+              <circle cx="12" cy="16" r="2.5" fill="white" opacity="0.6" />
+            </svg>
+          </div>
+          <span
+            style={{
+              fontFamily: "var(--font-display)",
+              fontSize: 16,
+              fontWeight: 400,
+              color: "var(--color-fg)",
+              letterSpacing: "-0.01em",
+              textTransform: "lowercase",
+            }}
+          >
+            agent bazaar
+          </span>
         </div>
-        <nav className="flex-1 p-3 space-y-0.5">
+
+        {/* Nav */}
+        <nav className="flex-1 p-3" style={{ display: "flex", flexDirection: "column", gap: 2 }}>
           {nav.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
               end={item.end}
-              className={({ isActive }) =>
-                cn(
-                  "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors",
-                  isActive
-                    ? "bg-[var(--color-accent)] text-[var(--color-fg)]"
-                    : "text-[var(--color-fg-muted)] hover:bg-[var(--color-accent)]/50 hover:text-[var(--color-fg)]",
-                )
-              }
+              style={({ isActive }: { isActive: boolean }) => ({
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "8px 12px",
+                borderRadius: 8,
+                textDecoration: "none",
+                fontSize: 13,
+                fontFamily: "var(--font-sans)",
+                fontWeight: isActive ? 600 : 400,
+                color: isActive ? "var(--color-fg)" : "var(--color-fg-subtle)",
+                background: isActive
+                  ? "color-mix(in srgb, var(--color-primary) 18%, transparent)"
+                  : "transparent",
+                borderLeft: isActive
+                  ? "2px solid var(--color-primary)"
+                  : "2px solid transparent",
+                transition: "all var(--dur-fast) var(--ease-out)",
+              })}
+              className="nav-item"
             >
-              <item.icon className="w-4 h-4" />
+              <item.icon size={15} />
               {item.label}
             </NavLink>
           ))}
         </nav>
-        <div className="p-3 border-t border-[var(--color-border)]">
-          <Button variant="ghost" size="sm" onClick={handleLogout} className="w-full justify-start">
-            <LogOut className="w-4 h-4" /> Log out
-          </Button>
+
+        {/* Bottom: user + logout */}
+        <div
+          className="p-3"
+          style={{ borderTop: "1px solid var(--color-border)" }}
+        >
+          {user?.email && (
+            <div
+              style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: 11,
+                color: "var(--color-fg-subtle)",
+                marginBottom: 8,
+                paddingLeft: 12,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {user.email}
+            </div>
+          )}
+          <button
+            onClick={handleLogout}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              width: "100%",
+              padding: "8px 12px",
+              borderRadius: 8,
+              border: "none",
+              background: "transparent",
+              color: "var(--color-fg-subtle)",
+              fontFamily: "var(--font-sans)",
+              fontSize: 13,
+              cursor: "pointer",
+              transition: "all var(--dur-fast) var(--ease-out)",
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.background =
+                "color-mix(in srgb, var(--color-danger) 12%, transparent)";
+              (e.currentTarget as HTMLButtonElement).style.color = "var(--color-danger)";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.background = "transparent";
+              (e.currentTarget as HTMLButtonElement).style.color = "var(--color-fg-subtle)";
+            }}
+          >
+            <LogOut size={15} />
+            Log out
+          </button>
         </div>
       </aside>
 
+      {/* Main area */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="h-14 border-b border-[var(--color-border)] flex items-center justify-between px-6">
-          <div className="text-sm text-[var(--color-fg-muted)]">{user?.email}</div>
+        {/* Top bar */}
+        <header
+          className="flex items-center justify-between px-6"
+          style={{
+            height: 56,
+            borderBottom: "1px solid var(--color-border)",
+            background: "var(--color-bg-soft)",
+          }}
+        >
+          <div
+            style={{
+              fontFamily: "var(--font-mono)",
+              fontSize: 11,
+              color: "var(--color-fg-subtle)",
+              letterSpacing: "0.04em",
+            }}
+          >
+            {user?.email}
+          </div>
           <div className="flex items-center gap-3">
-            <div className="text-sm">
-              <span className="text-[var(--color-fg-muted)]">Balance:</span>{" "}
-              <span className="font-mono font-medium">
+            <div
+              style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: 12,
+                color: "var(--color-fg-subtle)",
+              }}
+            >
+              Balance:{" "}
+              <span style={{ color: "var(--color-fg)", fontWeight: 600 }}>
                 {balance ? formatUsd(lamportsToUsd(balance.balance_lamports)) : "—"}
               </span>
             </div>
@@ -99,10 +218,21 @@ export function AppLayout() {
             </Button>
           </div>
         </header>
-        <main className="flex-1 overflow-y-auto p-6">
+
+        <main
+          className="flex-1 overflow-y-auto"
+          style={{ padding: 24, background: "var(--color-bg)" }}
+        >
           <Outlet />
         </main>
       </div>
+
+      <style>{`
+        .nav-item:hover {
+          background: color-mix(in srgb, var(--color-primary) 10%, transparent) !important;
+          color: var(--color-fg) !important;
+        }
+      `}</style>
     </div>
   );
 }
