@@ -28,6 +28,10 @@ import open from 'open';
 const GATEWAY_URL = process.env.AGENT_BAZAAR_URL || 'https://gateway-production-a12f.up.railway.app';
 const TOKEN_PATH = process.env.AGENT_BAZAAR_TOKEN_PATH || join(homedir(), '.config', 'agent-bazaar', 'token.json');
 const CLIENT_NAME = process.env.AGENT_BAZAAR_CLIENT_NAME || 'agent-bazaar-mcp';
+// Headless / CI / server-side: si AGENT_BAZAAR_API_KEY está seteado, lo usamos
+// como bearer y saltamos el OAuth flow entero. El gateway acepta tanto tokens
+// OAuth como API keys (sk_live_…) en el mismo header Authorization.
+const API_KEY = process.env.AGENT_BAZAAR_API_KEY;
 
 // ─── Token persistence ─────────────────────────────────────────
 
@@ -138,6 +142,7 @@ async function authorize(): Promise<string> {
 }
 
 async function getValidToken(): Promise<string> {
+  if (API_KEY) return API_KEY;
   const saved = loadToken();
   if (saved) return saved.access_token;
   return await authorize();
@@ -174,8 +179,17 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: 'list_agents',
         description:
-          'Lista todos los agentes disponibles en el marketplace Agent Bazaar, con su servicio, precio por llamada (USD) y descripción.',
-        inputSchema: { type: 'object', properties: {} },
+          'Descubre agentes del marketplace Agent Bazaar. Si pasas `query` (palabra clave o lenguaje natural en cualquier idioma), corre búsqueda híbrida (FTS5 keyword + semántica) y devuelve los agentes más relevantes ordenados por score. Sin `query` devuelve el catálogo entero. Cada agente trae service, endpoint, descripción, pricePerCall y stats.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            query: {
+              type: 'string',
+              description:
+                'Texto libre. Ejemplos: "translate text to spanish", "auditar smart contract", "yield farming".',
+            },
+          },
+        },
       },
       {
         name: 'call_agent',
@@ -216,7 +230,12 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
   try {
     switch (name) {
       case 'list_agents': {
-        const data = await gatewayGet('/v1/agents');
+        const { query } = (args ?? {}) as { query?: string };
+        const path =
+          typeof query === 'string' && query.trim().length > 0
+            ? `/v1/agents?q=${encodeURIComponent(query.trim())}`
+            : '/v1/agents';
+        const data = await gatewayGet(path);
         return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
       }
       case 'call_agent': {

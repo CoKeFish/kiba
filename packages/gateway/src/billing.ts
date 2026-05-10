@@ -51,11 +51,14 @@ export function debit(args: {
   service: string;
   signature?: string;
   metadata?: object;
-}): { ok: true; newBalance: number } | { ok: false; error: string } {
+}):
+  | { ok: true; newBalance: number; transactionId: number }
+  | { ok: false; error: string } {
   const { userId, lamports, service, signature, metadata } = args;
   const now = Math.floor(Date.now() / 1000);
 
   let newBalance = 0;
+  let transactionId = 0;
   let failed: string | null = null;
 
   const tx = db.transaction(() => {
@@ -74,16 +77,26 @@ export function debit(args: {
       lamports,
       userId,
     );
-    db.prepare(
+    const info = db.prepare(
       `INSERT INTO transactions (user_id, type, amount_lamports, service, signature, metadata, created_at)
        VALUES (?, 'call', ?, ?, ?, ?, ?)`,
     ).run(userId, -lamports, service, signature ?? null, metadata ? JSON.stringify(metadata) : null, now);
     newBalance = cur - lamports;
+    transactionId = Number(info.lastInsertRowid);
   });
   tx();
 
   if (failed) return { ok: false, error: failed };
-  return { ok: true, newBalance };
+  return { ok: true, newBalance, transactionId };
+}
+
+/**
+ * Stamps the on-chain signature on an existing transaction row. Used after
+ * `debit()` runs (before the call) — once the call returns with a real signature
+ * we backfill it so /v1/transactions can render explorer links.
+ */
+export function attachSignature(transactionId: number, signature: string): void {
+  db.prepare('UPDATE transactions SET signature = ? WHERE id = ?').run(signature, transactionId);
 }
 
 export function getTransactions(userId: number, limit = 50): TransactionRow[] {

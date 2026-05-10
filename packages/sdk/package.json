@@ -7,7 +7,8 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "test": "node --import tsx --test --test-reporter=spec test/anchor-helpers.test.ts test/keypair-store.test.ts test/client.test.ts test/provider.test.ts"
   },
   "dependencies": {
     "@solana/web3.js": "^1.95.0",

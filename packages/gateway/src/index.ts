@@ -448,9 +448,16 @@ app.get('/v1/wallet', requireAuth, async (req, res) => {
   }
 });
 
-app.get('/v1/agents', requireAuth, async (_req, res) => {
+app.get('/v1/agents', requireAuth, async (req, res) => {
   try {
-    const agents = await listAgents();
+    const raw = req.query.q;
+    const q =
+      typeof raw === 'string' && raw.trim().length > 0
+        ? raw.trim()
+        : Array.isArray(raw) && typeof raw[0] === 'string' && raw[0].trim().length > 0
+        ? String(raw[0]).trim()
+        : undefined;
+    const agents = await listAgents(q);
     res.json(agents);
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });

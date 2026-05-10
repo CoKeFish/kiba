@@ -35,12 +35,31 @@ From there, your agent gets 4 tools:
 
 ## How auth works
 
-OAuth 2.0 with PKCE. The token is stored at `~/.config/agent-bazaar/token.json` (mode 600). No API keys to copy/paste.
+Two paths, pick one:
+
+**Interactive (default, recommended for IDEs)** — OAuth 2.0 with PKCE. On first call the MCP opens your browser; you sign in and click Authorize; the token gets saved at `~/.config/agent-bazaar/token.json` (mode 600). No copy-paste of secrets.
+
+**Headless (for CI / servers / automation)** — set `AGENT_BAZAAR_API_KEY=sk_live_…` in the env. The MCP skips OAuth entirely and uses the key as the bearer. Generate keys from the dashboard's *Credentials* tab or `POST /v1/api-keys`.
+
+```json
+{
+  "mcpServers": {
+    "agent-bazaar": {
+      "command": "npx",
+      "args": ["-y", "agent-bazaar-mcp"],
+      "env": {
+        "AGENT_BAZAAR_API_KEY": "sk_live_…"
+      }
+    }
+  }
+}
+```
 
 ## Environment variables
 
 - `AGENT_BAZAAR_URL` — gateway URL (default: production gateway on Railway)
-- `AGENT_BAZAAR_TOKEN_PATH` — where to save the token (default: `~/.config/agent-bazaar/token.json`)
+- `AGENT_BAZAAR_API_KEY` — long-lived API key (`sk_live_…`); when set, OAuth is skipped
+- `AGENT_BAZAAR_TOKEN_PATH` — where to save the OAuth token (default: `~/.config/agent-bazaar/token.json`)
 - `AGENT_BAZAAR_CLIENT_NAME` — client identifier shown on the consent page (default: `agent-bazaar-mcp`)
 
 ## Self-hosted gateway

@@ -17,7 +17,7 @@
  */
 import axios from 'axios';
 import { AgentClient, type X402Trace } from '@agent-bazaar/sdk';
-import { debit, getBalance, lamportsToUsd } from './billing';
+import { attachSignature, debit, getBalance, lamportsToUsd } from './billing';
 import { db } from './db';
 import {
   ensureFunded,
@@ -31,9 +31,28 @@ const WALLET_TX_FEE_BUFFER = 5_000_000;
 
 const BACKEND_URL = process.env.BACKEND_URL || 'http://backend:4000';
 
-export async function listAgents(): Promise<unknown[]> {
-  const r = await axios.get(`${BACKEND_URL}/agents`);
+export async function listAgents(query?: string): Promise<unknown[]> {
+  const url = query
+    ? `${BACKEND_URL}/agents?q=${encodeURIComponent(query)}&mode=hybrid`
+    : `${BACKEND_URL}/agents`;
+  const r = await axios.get(url);
   return r.data;
+}
+
+/**
+ * Pulls the on-chain signature out of an x402 trace. Prefers `claimSignature`
+ * (proves the agent received payment); falls back to `escrow_opened.signature`
+ * (proves the user funded the escrow) when claim is missing. Returns undefined
+ * for legacy/no-program responses (signature === 'NO_ONCHAIN_PROGRAM_ID').
+ */
+function pickOnChainSignature(trace: X402Trace): string | undefined {
+  const responded = trace.steps.find((s) => s.type === 'service_responded');
+  const opened = trace.steps.find((s) => s.type === 'escrow_opened');
+  const claim = responded?.type === 'service_responded' ? responded.claimSignature : undefined;
+  const open = opened?.type === 'escrow_opened' ? opened.signature : undefined;
+  const sig = claim ?? open;
+  if (!sig || sig === 'NO_ONCHAIN_PROGRAM_ID') return undefined;
+  return sig;
 }
 
 function refundDebit(userId: number, lamports: number, service: string, reason: string) {
@@ -56,15 +75,17 @@ function recordWalletDirectCall(args: {
   lamports: number;
   service: string;
   floorPricePerCall: number;
+  signature?: string;
 }) {
   const now = Math.floor(Date.now() / 1000);
   db.prepare(
-    `INSERT INTO transactions (user_id, type, amount_lamports, service, metadata, created_at)
-     VALUES (?, 'call', ?, ?, ?, ?)`,
+    `INSERT INTO transactions (user_id, type, amount_lamports, service, signature, metadata, created_at)
+     VALUES (?, 'call', ?, ?, ?, ?, ?)`,
   ).run(
     args.userId,
     -args.lamports,
     args.service,
+    args.signature ?? null,
     JSON.stringify({
       mode: 'wallet-direct',
       floorPricePerCall: args.floorPricePerCall,
@@ -105,7 +126,7 @@ export async function callOnBehalf(args: {
 
   // 2. Cascada — decide modo y prepara fondos antes de la llamada.
   let mode: 'virtual' | 'wallet-direct';
-  let debitResult: { newBalance: number } | null = null;
+  let debitResult: { newBalance: number; transactionId: number } | null = null;
   let refillInfo: RefillResult | null = null;
 
   if (virtualBalance >= lamports) {
@@ -163,13 +184,22 @@ export async function callOnBehalf(args: {
     throw err;
   }
 
-  // 4. Post-pago: registrar tx para wallet-direct (en virtual ya lo hizo debit()).
+  // 4. Post-pago: estampar la signature on-chain.
+  //    - Virtual: el row ya existe (lo creó debit()) — UPDATE para backfill la sig.
+  //    - Wallet-direct: insertamos el row ahora (no había debit) con la sig en el INSERT.
+  //    En ambos casos la sig sale del trace; preferimos el claim (prueba que el agente
+  //    cobró) sobre el escrow (prueba que el cliente fundó).
+  const onChainSig = pickOnChainSignature(trace);
+  if (mode === 'virtual' && debitResult && onChainSig) {
+    attachSignature(debitResult.transactionId, onChainSig);
+  }
   if (mode === 'wallet-direct') {
     recordWalletDirectCall({
       userId: args.userId,
       lamports,
       service: args.service,
       floorPricePerCall: manifest.pricePerCall,
+      signature: onChainSig,
     });
   }
 
