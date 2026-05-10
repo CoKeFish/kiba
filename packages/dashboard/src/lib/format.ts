@@ -5,13 +5,24 @@ export const lamportsToSol = (l: number) => l / LAMPORTS_PER_SOL;
 export const lamportsToUsd = (l: number) => (l / LAMPORTS_PER_SOL) * SOL_USD_RATE;
 export const usdToLamports = (u: number) => Math.round((u / SOL_USD_RATE) * LAMPORTS_PER_SOL);
 
-export function formatUsd(usd: number, fractionDigits = 4) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: fractionDigits,
-    maximumFractionDigits: fractionDigits,
-  }).format(usd);
+// Formatters hoisted a module scope — evita reconstruir Intl.NumberFormat por
+// cada llamada (pesado en listas largas). Cubrimos los nº de decimales que
+// realmente usa el dashboard: 2 (precios "amigables") y 4 (precision fina de USD).
+const USD_2_DEC = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+const USD_4_DEC = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+  minimumFractionDigits: 4,
+  maximumFractionDigits: 4,
+});
+
+export function formatUsd(usd: number, fractionDigits: 2 | 4 = 4) {
+  return (fractionDigits === 2 ? USD_2_DEC : USD_4_DEC).format(usd);
 }
 
 export function formatSol(sol: number) {

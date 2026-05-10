@@ -313,6 +313,7 @@ export default function Agents() {
 // ════════════════════════════════════════════════════════════════
 
 function RegisterAgentForm({ onSuccess }: { onSuccess: () => void }) {
+  const qc = useQueryClient();
   const [service, setService] = useState("");
   const [endpoint, setEndpoint] = useState("");
   const [description, setDescription] = useState("");
@@ -331,6 +332,8 @@ function RegisterAgentForm({ onSuccess }: { onSuccess: () => void }) {
         description: description.trim(),
       }),
     onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: ["my-agents"] });
+      qc.invalidateQueries({ queryKey: ["agents-list"] });
       setSuccess({ signature: res.signature, pda: res.pda });
       setTimeout(() => {
         onSuccess();
@@ -658,9 +661,13 @@ function EditAgentRow({
   onCancel: () => void;
   onSaved: () => void;
 }) {
+  // Snapshot inicial desde el agent — son inputs controlados que el user edita,
+  // no queremos sync continuo con props. Si cambia el agente, EditAgentRow se
+  // re-monta vía un key={} en el padre o conditional render.
   const [endpoint, setEndpoint] = useState(agent.endpoint);
   const [description, setDescription] = useState(agent.description);
-  const [priceUsd, setPriceUsd] = useState(solToUsd(agent.pricePerCallSol));
+  const [priceUsd, setPriceUsd] = useState(() => solToUsd(agent.pricePerCallSol));
+  const qc = useQueryClient();
 
   const mut = useMutation({
     mutationFn: () => {
@@ -671,7 +678,11 @@ function EditAgentRow({
       if (newLamports !== agent.pricePerCallLamports) params.pricePerCallLamports = newLamports;
       return api.updateAgent(agent.service, params);
     },
-    onSuccess: () => onSaved(),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["my-agents"] });
+      qc.invalidateQueries({ queryKey: ["agents-list"] });
+      onSaved();
+    },
   });
 
   return (

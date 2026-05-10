@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type Agent, type X402Trace, type X402Step } from "@/lib/api";
@@ -69,7 +69,9 @@ export default function Playground() {
   const [payloadText, setPayloadText] = useState(SAMPLE_PAYLOADS[initialService] || "{}");
   const [running, setRunning] = useState(false);
   const [history, setHistory] = useState<CallEntry[]>([]);
-  const [counter, setCounter] = useState(1);
+  // Counter solo se usa para asignar IDs a las entries del history — no necesita
+  // re-render del componente cuando incrementa.
+  const counterRef = useRef(1);
 
   // Pre-fill default selection once agents load
   useEffect(() => {
@@ -102,8 +104,8 @@ export default function Playground() {
       return;
     }
 
-    const id = counter;
-    setCounter(id + 1);
+    const id = counterRef.current;
+    counterRef.current += 1;
     setRunning(true);
     const t0 = performance.now();
     try {
@@ -162,10 +164,14 @@ export default function Playground() {
         </CardHeader>
         <CardBody className="space-y-4">
           <div>
-            <label className="text-xs text-[var(--color-fg-muted)] uppercase tracking-wider mb-1 block">
+            <label
+              htmlFor="pg-agent"
+              className="text-xs text-[var(--color-fg-muted)] uppercase tracking-wider mb-1 block"
+            >
               Agent
             </label>
             <select
+              id="pg-agent"
               value={service}
               onChange={(e) => selectService(e.target.value)}
               className="w-full px-3 py-2 rounded-md bg-[var(--color-bg)] border border-[var(--color-border)] text-sm font-mono"
@@ -185,10 +191,14 @@ export default function Playground() {
           </div>
 
           <div>
-            <label className="text-xs text-[var(--color-fg-muted)] uppercase tracking-wider mb-1 block">
+            <label
+              htmlFor="pg-payload"
+              className="text-xs text-[var(--color-fg-muted)] uppercase tracking-wider mb-1 block"
+            >
               Payload (JSON)
             </label>
             <textarea
+              id="pg-payload"
               value={payloadText}
               onChange={(e) => setPayloadText(e.target.value)}
               spellCheck={false}
@@ -314,7 +324,7 @@ function X402TraceView({ trace }: { trace: X402Trace }) {
       {open && (
         <div className="mt-3 space-y-2 pl-1">
           {trace.steps.map((step, i) => (
-            <X402StepCard key={i} step={step} index={i} />
+            <X402StepCard key={`${step.type}-${step.timestamp}`} step={step} index={i} />
           ))}
         </div>
       )}
