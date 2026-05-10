@@ -27,14 +27,14 @@ export function createOAuthSession(args: {
   const sessionId = newRandomId('sess', 16);
   db.prepare(
     `INSERT INTO oauth_sessions (session_id, code_challenge, redirect_uri, client_name, expires_at)
-     VALUES (?, ?, ?, ?, ?)`,
-  ).run(
+     VALUES (@sessionId, @codeChallenge, @redirectUri, @clientName, @expiresAt)`,
+  ).run({
     sessionId,
-    args.codeChallenge,
-    args.redirectUri,
-    args.clientName,
-    Math.floor(Date.now() / 1000) + SESSION_TTL,
-  );
+    codeChallenge: args.codeChallenge,
+    redirectUri: args.redirectUri,
+    clientName: args.clientName,
+    expiresAt: Math.floor(Date.now() / 1000) + SESSION_TTL,
+  });
   return sessionId;
 }
 
@@ -54,8 +54,8 @@ export function authorizeSession(sessionId: string, userId: number): string | nu
 
   const code = newRandomId('code', 24);
   db.prepare(
-    'UPDATE oauth_sessions SET user_id = ?, code = ?, consumed = 1 WHERE session_id = ?',
-  ).run(userId, code, sessionId);
+    'UPDATE oauth_sessions SET user_id = @userId, code = @code, consumed = 1 WHERE session_id = @sessionId',
+  ).run({ userId, code, sessionId });
   return code;
 }
 
@@ -89,8 +89,14 @@ export function exchangeCodeForToken(
   const now = Math.floor(Date.now() / 1000);
   db.prepare(
     `INSERT INTO oauth_tokens (token, user_id, client_name, expires_at, created_at)
-     VALUES (?, ?, ?, ?, ?)`,
-  ).run(token, session.user_id, session.client_name, now + TOKEN_TTL, now);
+     VALUES (@token, @userId, @clientName, @expiresAt, @createdAt)`,
+  ).run({
+    token,
+    userId: session.user_id,
+    clientName: session.client_name,
+    expiresAt: now + TOKEN_TTL,
+    createdAt: now,
+  });
 
   // Borrar el code para que no se pueda reusar
   db.prepare('DELETE FROM oauth_sessions WHERE code = ?').run(code);
