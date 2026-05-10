@@ -360,7 +360,8 @@ Built for **Dev3pack Global Hackathon (May 8–10, 2026)**.
 **Team:**
 
 - [André Landinez](https://github.com/andreMD287) — agent registration, platform commission, dynamic pricing, x402 trace, frontend polish
-- [Ricardo Tabares](https://github.com/CoKeFish) — gateway architecture, custodial wallet cascade, hybrid discovery, MCP integration
+- [Rodión Tabares](https://github.com/CoKeFish) — gateway architecture, custodial wallet cascade, hybrid discovery, MCP integration
+- [Lizeth Rico](https://github.com/ricoththth) — Brand & frontend identity — designed the visual system and shaped the product's UX flow
 
 ---
 
