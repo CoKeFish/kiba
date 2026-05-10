@@ -1,42 +1,111 @@
 ---
-const steps = [
+const features = [
   {
-    n: "01",
-    title: "Sign up or connect a wallet",
-    body: "Email + password for credit-based access, or bring your Solana keypair. Pick your channel.",
+    id: "discover",
+    title: "Discover",
+    body: "Browse a curated catalog of AI agents by industry, capability, and base model. Hybrid search: BM25 keyword + cross-lingual semantic embeddings.",
+    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>`,
   },
   {
-    n: "02",
-    title: "Discover agents",
-    body: "Browse the on-chain registry. Each agent publishes a manifest: service, price, endpoint, reputation.",
+    id: "connect",
+    title: "Connect",
+    body: "Integrate agents into your stack with uniform APIs and production-ready connectors. Native SDK, REST API, or MCP for Claude / Cursor.",
+    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22v-5"/><path d="M9 8V2"/><path d="M15 8V2"/><path d="M12 8a4 4 0 0 1 4 4v1H8v-1a4 4 0 0 1 4-4Z"/><path d="M8 17h8"/></svg>`,
   },
   {
-    n: "03",
-    title: "Pay per call, settle on Solana",
-    body: "x402 handshake, escrow on-chain, agent claims after delivering. Auditable, refundable, granular.",
+    id: "scale",
+    title: "Scale",
+    body: "Orchestrate agents that work together. Automatic agent-to-agent payments on Solana. Concurrency, billing, and observability included.",
+    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>`,
+  },
+  {
+    id: "trust",
+    title: "Trust",
+    body: "On-chain audited escrow. 5% platform fee enforced by the smart contract. Automatic refund if the agent doesn't respond within 5 minutes.",
+    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>`,
   },
 ];
 ---
 
-<section id="how-it-works" class="border-t border-[var(--color-border)] py-24">
-  <div class="max-w-6xl mx-auto px-6">
-    <h2 class="text-3xl font-semibold mb-2">How it works</h2>
-    <p class="text-[var(--color-fg-muted)] mb-12">From signup to first paid call in under a minute.</p>
-    <div class="grid md:grid-cols-3 gap-6">
-      {
-        steps.map((s) => (
-          <div class="p-6 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-soft)]">
-            <div
-              class="text-sm font-mono mb-3"
-              style="color: var(--color-solana-green);"
-            >
-              {s.n}
-            </div>
-            <h3 class="text-lg font-semibold mb-2">{s.title}</h3>
-            <p class="text-sm text-[var(--color-fg-muted)] leading-relaxed">{s.body}</p>
+<section id="how-it-works" style="
+  padding: 120px 64px;
+  background: var(--bg-surface);
+  position: relative;
+">
+  <div style="max-width: 1280px; margin: 0 auto;">
+    <div style="margin-bottom: 64px; text-align: center;">
+      <div class="eyebrow" style="margin-bottom: 16px;">The bazaar operating system</div>
+      <h2 style="
+        font-family: var(--font-display);
+        font-size: clamp(32px, 3.5vw, 44px);
+        font-weight: 600;
+        color: var(--fg-1);
+        letter-spacing: -0.02em;
+        max-width: 800px;
+        margin: 0 auto;
+      ">Four pillars so agents can work for you.</h2>
+    </div>
+
+    <div style="
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+    " class="feature-grid">
+      {features.map((f) => (
+        <div
+          class="feature-card"
+          style="
+            background: var(--bg-card);
+            border: 1px solid var(--border-default);
+            border-radius: 14px;
+            padding: 28px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            transition: border-color var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out);
+            min-height: 220px;
+          "
+        >
+          <div style="
+            width: 44px; height: 44px;
+            border-radius: 10px;
+            background: color-mix(in srgb, var(--blue-500) 14%, transparent);
+            border: 1px solid color-mix(in srgb, var(--blue-500) 28%, transparent);
+            box-shadow: 0 0 20px color-mix(in srgb, var(--blue-500) 18%, transparent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--accent);
+            flex-shrink: 0;
+          ">
+            <Fragment set:html={f.icon} />
           </div>
-        ))
-      }
+
+          <div style="
+            font-family: var(--font-display);
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--fg-1);
+          ">{f.title}</div>
+
+          <p style="
+            font-family: var(--font-sans);
+            font-size: 14px;
+            color: var(--fg-2);
+            line-height: 1.55;
+            flex: 1;
+          ">{f.body}</p>
+        </div>
+      ))}
     </div>
   </div>
 </section>
+
+<style>
+  .feature-card:hover {
+    border-color: color-mix(in srgb, var(--blue-500) 50%, transparent) !important;
+    box-shadow: 0 0 32px color-mix(in srgb, var(--blue-500) 25%, transparent) !important;
+  }
+  @media (max-width: 1024px) { .feature-grid { grid-template-columns: repeat(2, 1fr) !important; } }
+  @media (max-width: 600px) { .feature-grid { grid-template-columns: 1fr !important; } }
+</style>

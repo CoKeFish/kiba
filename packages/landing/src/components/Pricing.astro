@@ -1,66 +1,163 @@
 ---
+const DASHBOARD_URL = import.meta.env.PUBLIC_DASHBOARD_URL || "https://agent-bazaar-dashboard.vercel.app";
+
 const tiers = [
   {
     name: "Free",
     price: "$0",
-    desc: "Try it without a credit card.",
-    features: ["$5 free credit on signup", "Up to 1k calls/month", "All channels (SDK / REST / MCP)", "Community support"],
+    desc: "Try the marketplace without a credit card.",
+    features: [
+      "$5 credit on sign-up",
+      "Up to 1k calls / month",
+      "SDK · REST · MCP included",
+      "Community support",
+    ],
     cta: "Get started",
-    href: "http://localhost:3020/signup",
-    highlight: false,
+    href: `${DASHBOARD_URL}/signup`,
+    featured: false,
   },
   {
     name: "Pay as you go",
     price: "Per call",
     desc: "Top up USD credits, pay only for what you use.",
-    features: ["No monthly fee", "Per-agent pricing visible upfront", "Spending caps & allowlists", "On-chain audit trail"],
-    cta: "Top up",
-    href: "http://localhost:3020/signup",
-    highlight: true,
+    features: [
+      "No monthly fee",
+      "Per-agent pricing shown upfront",
+      "Spending caps & allowlists",
+      "On-chain audit trail",
+    ],
+    cta: "Top up credits",
+    href: `${DASHBOARD_URL}/signup`,
+    featured: true,
   },
   {
     name: "Native Solana",
     price: "Gas only",
     desc: "Bring your own wallet, pay agents directly in SOL.",
-    features: ["No gateway fee", "Self-custodial", "Native SDK access", "Direct on-chain settlement"],
+    features: [
+      "No gateway fee",
+      "Self-custodial",
+      "Full native SDK access",
+      "Direct on-chain settlement",
+    ],
     cta: "Read the SDK",
     href: "https://github.com/CoKeFish/agent-bazaar",
-    highlight: false,
+    featured: false,
   },
 ];
 ---
 
-<section id="pricing" class="border-t border-[var(--color-border)] py-24">
-  <div class="max-w-6xl mx-auto px-6">
-    <h2 class="text-3xl font-semibold mb-2">Pricing</h2>
-    <p class="text-[var(--color-fg-muted)] mb-10">No subscriptions. Pay only for what you use.</p>
-    <div class="grid md:grid-cols-3 gap-6">
-      {
-        tiers.map((t) => (
-          <div
-            class={`p-6 rounded-lg border ${t.highlight ? "border-[var(--color-solana-purple)]" : "border-[var(--color-border)]"} bg-[var(--color-bg-soft)] flex flex-col`}
-          >
-            <div class="text-sm text-[var(--color-fg-muted)] mb-1">{t.name}</div>
-            <div class="text-3xl font-semibold mb-2">{t.price}</div>
-            <p class="text-sm text-[var(--color-fg-muted)] mb-6">{t.desc}</p>
-            <ul class="space-y-2 mb-8 text-sm flex-1">
-              {t.features.map((f) => (
-                <li class="flex items-start gap-2">
-                  <span style="color: var(--color-solana-green);">✓</span>
-                  <span>{f}</span>
-                </li>
-              ))}
-            </ul>
-            <a
-              href={t.href}
-              class={`block text-center px-4 py-2 rounded-md font-medium ${t.highlight ? "" : "border border-[var(--color-border)]"}`}
-              style={t.highlight ? "background: var(--color-solana-purple);" : ""}
-            >
-              {t.cta}
-            </a>
-          </div>
-        ))
-      }
+<section id="pricing" style="
+  padding: 120px 64px;
+  background: var(--bg-canvas);
+  border-top: 1px solid var(--border-subtle);
+">
+  <div style="max-width: 1280px; margin: 0 auto;">
+    <div style="margin-bottom: 64px; text-align: center;">
+      <div class="eyebrow" style="margin-bottom: 16px;">Pricing</div>
+      <h2 style="
+        font-family: var(--font-display);
+        font-size: clamp(32px, 3.5vw, 44px);
+        font-weight: 600;
+        color: var(--fg-1);
+        letter-spacing: -0.02em;
+      ">No subscriptions. Pay only for what you use.</h2>
+    </div>
+
+    <div style="
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    " class="pricing-grid">
+      {tiers.map((t) => (
+        <div style={`
+          background: var(--bg-card);
+          border: 1px solid ${t.featured ? 'var(--accent)' : 'var(--border-default)'};
+          border-radius: 14px;
+          padding: 32px;
+          display: flex;
+          flex-direction: column;
+          position: relative;
+          ${t.featured ? 'box-shadow: 0 0 48px color-mix(in srgb, var(--accent) 22%, transparent);' : ''}
+        `}>
+          {t.featured && (
+            <div style="
+              position: absolute; top: -12px; left: 50%;
+              transform: translateX(-50%);
+              background: var(--accent);
+              color: #fff;
+              font-family: var(--font-display);
+              font-size: 11px; font-weight: 700;
+              letter-spacing: 0.12em; text-transform: uppercase;
+              padding: 4px 16px; border-radius: 999px;
+              box-shadow: 0 0 16px color-mix(in srgb, var(--accent) 50%, transparent);
+              white-space: nowrap;
+            ">Most popular</div>
+          )}
+
+          <div style="
+            font-family: var(--font-display);
+            font-size: 12px; font-weight: 600;
+            letter-spacing: 0.12em; text-transform: uppercase;
+            color: var(--fg-3); margin-bottom: 8px;
+          ">{t.name}</div>
+
+          <div style="
+            font-family: var(--font-display);
+            font-size: 40px; font-weight: 600;
+            color: var(--fg-1); letter-spacing: -0.02em;
+            line-height: 1; margin-bottom: 8px;
+          ">{t.price}</div>
+
+          <p style="
+            font-family: var(--font-sans);
+            font-size: 14px; color: var(--fg-2);
+            margin-bottom: 28px; line-height: 1.5;
+          ">{t.desc}</p>
+
+          <ul style="
+            display: flex; flex-direction: column; gap: 10px;
+            margin-bottom: 32px; flex: 1;
+            list-style: none; padding: 0;
+          ">
+            {t.features.map((f) => (
+              <li style="
+                display: flex; align-items: flex-start; gap: 10px;
+                font-family: var(--font-sans);
+                font-size: 14px; color: var(--fg-2);
+              ">
+                <svg style={`flex-shrink: 0; margin-top: 2px; color: ${t.featured ? 'var(--accent)' : 'var(--success)'};`}
+                  xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                  fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                <span>{f}</span>
+              </li>
+            ))}
+          </ul>
+
+          <a
+            href={t.href}
+            style={`
+              display: block; text-align: center;
+              font-family: var(--font-sans);
+              font-size: 14px; font-weight: 600;
+              padding: 12px 24px; border-radius: 999px;
+              text-decoration: none;
+              transition: all var(--dur-fast) var(--ease-out);
+              ${t.featured
+                ? 'background: var(--accent); color: #fff; box-shadow: 0 0 24px color-mix(in srgb, var(--accent) 40%, transparent);'
+                : 'background: transparent; color: var(--fg-1); border: 1px solid var(--border-strong);'}
+            `}
+          >{t.cta}</a>
+        </div>
+      ))}
     </div>
   </div>
 </section>
+
+<style>
+  @media (max-width: 900px) {
+    .pricing-grid { grid-template-columns: 1fr !important; max-width: 480px; margin: 0 auto; }
+  }
+</style>

@@ -6,10 +6,9 @@ type Agent = {
   service: string;
   description: string;
   endpoint: string;
-  pricePerCall: number; // SOL
+  pricePerCall: number;
   totalCalls?: number;
   source?: string;
-  // Solo presentes cuando hay query
   score?: number;
   matchType?: Mode;
 };
@@ -37,11 +36,23 @@ const FALLBACK: Agent[] = [
 ];
 
 const SUGGESTIONS = [
-  "auditar contrato inteligente",
+  "audit smart contract",
   "best APY DeFi",
-  "ganancias defi",
+  "yield optimizer",
   "rugpull screener",
 ];
+
+const MODE_LABELS: Record<Mode, string> = {
+  keyword: "Keyword",
+  semantic: "Semantic",
+  hybrid: "Hybrid",
+};
+
+const MATCH_COLORS: Record<Mode, string> = {
+  keyword: "var(--success)",
+  semantic: "var(--accent)",
+  hybrid: "var(--blue-300)",
+};
 
 function serviceToName(service: string): string {
   return service
@@ -51,18 +62,6 @@ function serviceToName(service: string): string {
 }
 const solToUsd = (sol: number) => (sol * 150).toFixed(4);
 const fmtSol = (sol: number) => sol.toFixed(6);
-
-const MODE_LABELS: Record<Mode, string> = {
-  keyword: "Keyword",
-  semantic: "Semantic",
-  hybrid: "Hybrid",
-};
-
-const MATCH_COLORS: Record<Mode, string> = {
-  keyword: "var(--color-solana-green)",
-  semantic: "var(--color-solana-purple)",
-  hybrid: "var(--color-solana-cyan, #5cf)",
-};
 
 export default function AgentsCatalog() {
   const [query, setQuery] = useState("");
@@ -78,7 +77,6 @@ export default function AgentsCatalog() {
     return "http://localhost:4000";
   }, []);
 
-  // Carga inicial: lista completa
   useEffect(() => {
     setLoading(true);
     fetch(`${backendUrl}/agents`)
@@ -88,16 +86,13 @@ export default function AgentsCatalog() {
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Búsqueda con debounce
   useEffect(() => {
     if (debounceRef.current) window.clearTimeout(debounceRef.current);
     const trimmed = query.trim();
 
     if (trimmed.length === 0) {
-      // Volver a la lista completa
       debounceRef.current = window.setTimeout(() => {
         setLoading(true);
         fetch(`${backendUrl}/agents`)
@@ -132,34 +127,63 @@ export default function AgentsCatalog() {
 
   return (
     <div>
-      {/* Search bar */}
-      <div className="mb-4 flex flex-col sm:flex-row gap-3 sm:items-center">
-        <div className="relative flex-1">
+      {/* Search + mode toggle */}
+      <div style={{ marginBottom: 16, display: "flex", flexDirection: "row", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+        <div style={{ position: "relative", flex: 1, minWidth: 240 }}>
           <input
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search agents — try 'auditar contrato' or 'best APY'"
-            className="w-full px-4 py-3 rounded-lg bg-[var(--color-bg)] border border-[var(--color-border)] text-sm focus:outline-none focus:border-[var(--color-solana-purple)] transition-colors"
+            placeholder="Search agents — try 'audit contract' or 'best APY'"
+            style={{
+              width: "100%",
+              padding: "12px 16px",
+              borderRadius: "var(--radius-md)",
+              background: "var(--bg-card)",
+              border: "1px solid var(--border-default)",
+              color: "var(--fg-1)",
+              fontFamily: "var(--font-sans)",
+              fontSize: 14,
+              outline: "none",
+              boxSizing: "border-box",
+              transition: "border-color var(--dur-fast) var(--ease-out)",
+            }}
+            onFocus={(e) => (e.currentTarget.style.borderColor = "var(--accent)")}
+            onBlur={(e) => (e.currentTarget.style.borderColor = "var(--border-default)")}
           />
           {loading && (
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[var(--color-fg-muted)]">
-              ⏳
+            <div style={{
+              position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)",
+              fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--fg-3)",
+            }}>
+              …
             </div>
           )}
         </div>
 
-        <div className="inline-flex rounded-lg border border-[var(--color-border)] overflow-hidden text-sm">
+        <div style={{
+          display: "inline-flex",
+          borderRadius: "var(--radius-md)",
+          border: "1px solid var(--border-default)",
+          overflow: "hidden",
+        }}>
           {(Object.keys(MODE_LABELS) as Mode[]).map((m) => (
             <button
               key={m}
               type="button"
               onClick={() => setMode(m)}
-              className={`px-3 py-2 transition-colors ${
-                mode === m
-                  ? "bg-[var(--color-solana-purple)] text-white"
-                  : "bg-[var(--color-bg)] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]"
-              }`}
+              style={{
+                padding: "10px 16px",
+                fontFamily: "var(--font-sans)",
+                fontSize: 13,
+                fontWeight: 600,
+                border: "none",
+                cursor: "pointer",
+                transition: "all var(--dur-fast) var(--ease-out)",
+                background: mode === m ? "var(--accent)" : "var(--bg-card)",
+                color: mode === m ? "#fff" : "var(--fg-3)",
+                boxShadow: mode === m ? "0 0 14px color-mix(in srgb, var(--accent) 40%, transparent)" : "none",
+              }}
             >
               {MODE_LABELS[m]}
             </button>
@@ -167,16 +191,35 @@ export default function AgentsCatalog() {
         </div>
       </div>
 
-      {/* Suggestions */}
+      {/* Suggestion chips */}
       {!hasQuery && (
-        <div className="mb-6 flex flex-wrap gap-2">
-          <span className="text-xs text-[var(--color-fg-muted)] mr-1 self-center">Try:</span>
+        <div style={{ marginBottom: 24, display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+          <span style={{ fontFamily: "var(--font-sans)", fontSize: 12, color: "var(--fg-3)", marginRight: 4 }}>Try:</span>
           {SUGGESTIONS.map((s) => (
             <button
               key={s}
               type="button"
               onClick={() => setQuery(s)}
-              className="px-3 py-1 rounded-full text-xs border border-[var(--color-border)] text-[var(--color-fg-muted)] hover:border-[var(--color-solana-purple)] hover:text-[var(--color-fg)] transition-colors"
+              style={{
+                padding: "5px 14px",
+                borderRadius: "var(--radius-pill)",
+                fontFamily: "var(--font-sans)",
+                fontSize: 12,
+                fontWeight: 500,
+                border: "1px solid var(--border-default)",
+                color: "var(--fg-2)",
+                background: "transparent",
+                cursor: "pointer",
+                transition: "all var(--dur-fast) var(--ease-out)",
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.borderColor = "var(--accent)";
+                e.currentTarget.style.color = "var(--fg-1)";
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.borderColor = "var(--border-default)";
+                e.currentTarget.style.color = "var(--fg-2)";
+              }}
             >
               {s}
             </button>
@@ -186,50 +229,108 @@ export default function AgentsCatalog() {
 
       {/* Results */}
       {agents.length === 0 ? (
-        <div className="py-12 text-center text-sm text-[var(--color-fg-muted)]">
-          {loading ? "Searching…" : `No agents matched "${query}". Try a different phrasing.`}
+        <div style={{
+          padding: "48px 0",
+          textAlign: "center",
+          fontFamily: "var(--font-sans)",
+          fontSize: 14,
+          color: "var(--fg-3)",
+        }}>
+          {loading ? "Searching…" : `No results for "${query}". Try a different query.`}
         </div>
       ) : (
-        <div className="grid md:grid-cols-2 gap-4">
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 16 }}>
           {agents.map((a) => (
-            <div
-              key={a.service}
-              className="p-5 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] hover:border-[var(--color-solana-purple)] transition-colors"
-            >
-              <div className="flex items-start justify-between gap-3 mb-2">
-                <div className="min-w-0">
-                  <h3 className="font-semibold text-base">{serviceToName(a.service)}</h3>
-                  <code className="text-xs text-[var(--color-fg-muted)]">{a.service}</code>
-                </div>
-                <div className="text-right text-sm shrink-0">
-                  <div style={{ color: "var(--color-solana-green)" }} className="font-mono">
-                    ${solToUsd(a.pricePerCall)}
-                  </div>
-                  <div className="text-xs text-[var(--color-fg-muted)] font-mono">
-                    {fmtSol(a.pricePerCall)} SOL
-                  </div>
-                </div>
-              </div>
-              <p className="text-sm text-[var(--color-fg-muted)] leading-relaxed">{a.description}</p>
-
-              {hasQuery && a.matchType && typeof a.score === "number" && (
-                <div className="mt-3 pt-3 border-t border-[var(--color-border)] flex items-center gap-2 text-xs">
-                  <span
-                    className="px-2 py-0.5 rounded-full font-medium"
-                    style={{
-                      backgroundColor: `color-mix(in srgb, ${MATCH_COLORS[a.matchType]} 15%, transparent)`,
-                      color: MATCH_COLORS[a.matchType],
-                    }}
-                  >
-                    {a.matchType}
-                  </span>
-                  <span className="text-[var(--color-fg-muted)] font-mono">
-                    score {(a.score * 100).toFixed(0)}%
-                  </span>
-                </div>
-              )}
-            </div>
+            <AgentCard key={a.service} agent={a} hasQuery={hasQuery} />
           ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AgentCard({ agent: a, hasQuery }: { agent: Agent; hasQuery: boolean }) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <div
+      style={{
+        padding: 22,
+        borderRadius: "var(--radius-lg)",
+        border: `1px solid ${hovered ? "color-mix(in srgb, var(--blue-500) 50%, transparent)" : "var(--border-default)"}`,
+        background: "var(--bg-card)",
+        display: "flex",
+        flexDirection: "column",
+        gap: 10,
+        transition: "border-color var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out)",
+        boxShadow: hovered ? "0 0 28px color-mix(in srgb, var(--blue-500) 18%, transparent)" : "none",
+      }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{
+            fontFamily: "var(--font-display)",
+            fontSize: 16,
+            fontWeight: 600,
+            color: "var(--fg-1)",
+            marginBottom: 2,
+          }}>{serviceToName(a.service)}</div>
+          <code style={{
+            fontFamily: "var(--font-mono)",
+            fontSize: 11,
+            color: "var(--fg-3)",
+          }}>{a.service}</code>
+        </div>
+        <div style={{ textAlign: "right", flexShrink: 0 }}>
+          <div style={{
+            fontFamily: "var(--font-mono)",
+            fontSize: 14,
+            fontWeight: 600,
+            color: "var(--success)",
+          }}>${solToUsd(a.pricePerCall)}</div>
+          <div style={{
+            fontFamily: "var(--font-mono)",
+            fontSize: 11,
+            color: "var(--fg-3)",
+          }}>{fmtSol(a.pricePerCall)} SOL</div>
+        </div>
+      </div>
+
+      <p style={{
+        fontFamily: "var(--font-sans)",
+        fontSize: 13,
+        color: "var(--fg-2)",
+        lineHeight: 1.55,
+        flex: 1,
+      }}>{a.description}</p>
+
+      {hasQuery && a.matchType && typeof a.score === "number" && (
+        <div style={{
+          paddingTop: 10,
+          borderTop: "1px solid var(--border-subtle)",
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+        }}>
+          <span style={{
+            padding: "3px 10px",
+            borderRadius: "var(--radius-pill)",
+            fontFamily: "var(--font-mono)",
+            fontSize: 11,
+            fontWeight: 600,
+            background: `color-mix(in srgb, ${MATCH_COLORS[a.matchType]} 14%, transparent)`,
+            color: MATCH_COLORS[a.matchType],
+          }}>
+            {a.matchType}
+          </span>
+          <span style={{
+            fontFamily: "var(--font-mono)",
+            fontSize: 11,
+            color: "var(--fg-3)",
+          }}>
+            score {(a.score * 100).toFixed(0)}%
+          </span>
         </div>
       )}
     </div>

@@ -1,29 +1,230 @@
 @import "tailwindcss";
+@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Manrope:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap");
 
+/* ============================================================
+   AGENT BAZAAR — DESIGN TOKENS
+   Dark-first, electric-blue brand.
+   ============================================================ */
+
+:root {
+  /* Raw palette */
+  --ink-1000: #000208;
+  --ink-950:  #02050E;
+  --ink-900:  #050B1B;
+  --ink-800:  #0A1228;
+  --ink-700:  #121C3A;
+  --ink-600:  #1B2750;
+  --ink-500:  #2A3868;
+
+  --blue-1000: #011467;
+  --blue-900:  #0A2EAD;
+  --blue-700:  #1A4DE0;
+  --blue-500:  #2060F6;
+  --blue-400:  #4F86FF;
+  --blue-300:  #7AA3FF;
+  --blue-200:  #B5C9FF;
+  --blue-100:  #E6EEFF;
+
+  --paper-50:  #F7F8FB;
+  --paper-100: #ECEFF6;
+  --paper-200: #D6DCEA;
+  --paper-300: #A9B4CC;
+  --paper-400: #7B89A8;
+  --paper-500: #5A688A;
+  --paper-600: #3F4B6A;
+
+  /* Semantic */
+  --success: #2ED39A;
+  --warning: #F5B544;
+  --danger:  #FF5571;
+  --info:    var(--blue-400);
+
+  /* Background */
+  --bg-canvas:   var(--ink-950);
+  --bg-surface:  var(--ink-900);
+  --bg-card:     var(--ink-800);
+  --bg-elevated: var(--ink-700);
+  --bg-inset:    var(--ink-600);
+
+  /* Foreground */
+  --fg-1: var(--paper-50);
+  --fg-2: var(--paper-300);
+  --fg-3: var(--paper-400);
+  --fg-4: var(--paper-500);
+
+  /* Accent */
+  --accent:         var(--blue-500);
+  --accent-hover:   var(--blue-400);
+  --accent-pressed: var(--blue-700);
+  --accent-soft:    color-mix(in srgb, var(--blue-500) 14%, transparent);
+  --accent-on:      var(--paper-50);
+
+  /* Borders */
+  --border-subtle:  color-mix(in srgb, var(--blue-200) 8%, transparent);
+  --border-default: color-mix(in srgb, var(--blue-200) 14%, transparent);
+  --border-strong:  color-mix(in srgb, var(--blue-200) 24%, transparent);
+  --border-accent:  var(--blue-500);
+
+  /* Glow */
+  --glow-sm: 0 0 12px color-mix(in srgb, var(--blue-500) 45%, transparent);
+  --glow-md: 0 0 32px color-mix(in srgb, var(--blue-500) 38%, transparent);
+  --glow-lg: 0 0 64px color-mix(in srgb, var(--blue-500) 32%, transparent);
+  --glow-xl: 0 0 120px color-mix(in srgb, var(--blue-500) 28%, transparent);
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.4), 0 1px 1px rgba(0,0,0,.3);
+  --shadow-md: 0 6px 16px rgba(0,0,0,.5), 0 2px 4px rgba(0,0,0,.4);
+  --shadow-lg: 0 20px 48px rgba(0,0,0,.55), 0 4px 12px rgba(0,0,0,.4);
+
+  /* Typography */
+  --font-display: "Outfit", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-sans:    "Manrope", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono:    "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --text-xs:   12px;
+  --text-sm:   14px;
+  --text-base: 16px;
+  --text-md:   18px;
+  --text-lg:   20px;
+  --text-xl:   24px;
+  --text-2xl:  32px;
+  --text-3xl:  44px;
+  --text-4xl:  56px;
+  --text-5xl:  72px;
+
+  --leading-tight:   1.08;
+  --leading-snug:    1.2;
+  --leading-normal:  1.5;
+  --leading-relaxed: 1.7;
+
+  --tracking-tight:  -0.02em;
+  --tracking-snug:   -0.01em;
+  --tracking-normal: 0;
+  --tracking-wide:   0.04em;
+  --tracking-wider:  0.16em;
+
+  /* Spacing */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 40px;
+  --space-9: 56px;
+  --space-10: 72px;
+  --space-11: 96px;
+
+  /* Radii */
+  --radius-xs:   4px;
+  --radius-sm:   6px;
+  --radius-md:   10px;
+  --radius-lg:   14px;
+  --radius-xl:   20px;
+  --radius-2xl:  28px;
+  --radius-pill: 999px;
+
+  /* Motion */
+  --ease-out:  cubic-bezier(.2, .7, .2, 1);
+  --ease-in:   cubic-bezier(.6, 0, .8, .3);
+  --dur-fast:  140ms;
+  --dur-base:  240ms;
+  --dur-slow:  480ms;
+
+  /* Legacy aliases used by existing components */
+  --color-bg:            var(--bg-canvas);
+  --color-bg-soft:       var(--bg-surface);
+  --color-fg:            var(--fg-1);
+  --color-fg-muted:      var(--fg-2);
+  --color-border:        var(--border-default);
+  --color-solana-purple: var(--blue-500);
+  --color-solana-green:  var(--success);
+}
+
+/* ============================================================
+   TAILWIND THEME OVERRIDES
+   ============================================================ */
 @theme {
-  --color-bg: #0a0a0f;
-  --color-bg-soft: #13131a;
-  --color-fg: #f5f5f7;
-  --color-fg-muted: #a1a1aa;
-  --color-border: #27272a;
-  --color-solana-purple: #9945ff;
-  --color-solana-green: #14f195;
-  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
+  --color-bg: #02050E;
+  --color-bg-soft: #050B1B;
+  --color-fg: #F7F8FB;
+  --color-fg-muted: #A9B4CC;
+  --color-border: #1B2750;
+  --color-accent: #2060F6;
+  --font-sans: "Manrope", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-display: "Outfit", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
 }
 
-html {
-  background: var(--color-bg);
-  color: var(--color-fg);
+/* ============================================================
+   BASE ELEMENT STYLES
+   ============================================================ */
+html, body {
+  background: var(--bg-canvas);
+  color: var(--fg-1);
   font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
   scroll-behavior: smooth;
-}
-
-body {
   min-height: 100vh;
 }
 
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  color: var(--fg-1);
+  letter-spacing: var(--tracking-tight);
+  line-height: var(--leading-tight);
+  font-weight: 600;
+  margin: 0;
+}
+
+p { margin: 0; color: var(--fg-2); line-height: var(--leading-normal); }
+
+.eyebrow {
+  font-family: var(--font-display);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wider);
+  color: var(--accent);
+}
+
+.wordmark {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  text-transform: lowercase;
+}
+
+a { color: var(--accent); text-decoration: none; transition: color var(--dur-fast) var(--ease-out); }
+a:hover { color: var(--accent-hover); }
+
+code, kbd, samp, pre {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+}
+
 ::selection {
-  background: var(--color-solana-purple);
-  color: white;
+  background: color-mix(in srgb, var(--blue-500) 55%, transparent);
+  color: var(--paper-50);
+}
+
+/* Brand hairline with glow */
+.brand-rule {
+  position: relative;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--border-default) 20%, var(--border-default) 80%, transparent);
+}
+.brand-rule::after {
+  content: "";
+  position: absolute;
+  left: 50%; top: 50%;
+  width: 60%; height: 6px;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(ellipse at center, var(--accent) 0%, transparent 70%);
+  filter: blur(2px);
+  opacity: .9;
 }

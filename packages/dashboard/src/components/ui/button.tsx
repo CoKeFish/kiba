@@ -10,18 +10,22 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const variantClasses: Record<Variant, string> = {
-  default: "bg-[var(--color-primary)] text-[var(--color-primary-fg)] hover:opacity-90",
-  outline: "border border-[var(--color-border)] bg-transparent hover:bg-[var(--color-accent)]",
-  ghost: "bg-transparent hover:bg-[var(--color-accent)]",
+  default:
+    "bg-[var(--color-primary)] text-white hover:opacity-90 shadow-[0_0_20px_color-mix(in_srgb,var(--color-primary)_35%,transparent)]",
+  outline:
+    "border border-[var(--color-border)] bg-transparent text-[var(--color-fg)] hover:bg-[var(--color-accent)] hover:border-[var(--color-border-strong)]",
+  ghost:
+    "bg-transparent text-[var(--color-fg-subtle)] hover:bg-[var(--color-accent)] hover:text-[var(--color-fg)]",
   destructive: "bg-[var(--color-danger)] text-white hover:opacity-90",
-  subtle: "bg-[var(--color-accent)] hover:bg-[var(--color-bg-soft)]",
+  subtle:
+    "bg-[var(--color-accent)] text-[var(--color-fg)] hover:bg-[color-mix(in_srgb,var(--color-primary)_20%,transparent)]",
 };
 
 const sizeClasses: Record<Size, string> = {
-  sm: "h-8 px-3 text-xs",
-  md: "h-9 px-4 text-sm",
-  lg: "h-11 px-6 text-base",
-  icon: "h-9 w-9",
+  sm: "h-8 px-3 text-xs rounded-full",
+  md: "h-9 px-4 text-sm rounded-full",
+  lg: "h-11 px-6 text-sm rounded-full",
+  icon: "h-9 w-9 rounded-lg",
 };
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
@@ -29,11 +33,12 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     <button
       ref={ref}
       className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] disabled:pointer-events-none disabled:opacity-50",
+        "inline-flex items-center justify-center gap-2 font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] disabled:pointer-events-none disabled:opacity-40",
         variantClasses[variant],
         sizeClasses[size],
         className,
       )}
+      style={{ fontFamily: "var(--font-sans)" }}
       {...props}
     />
   ),

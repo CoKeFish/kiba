@@ -10,6 +10,8 @@ const {
   title = "Agent Bazaar — Marketplace de agentes IA con pagos x402 en Solana",
   description = "Pay-per-call AI agents. Native SDK, REST API, or MCP. Settle on Solana.",
 } = Astro.props;
+
+const DASHBOARD_URL = import.meta.env.PUBLIC_DASHBOARD_URL || "https://agent-bazaar-dashboard.vercel.app";
 ---
 
 <!doctype html>
@@ -23,43 +25,112 @@ const {
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
-      rel="stylesheet"
-    />
     <title>{title}</title>
   </head>
   <body>
-    <header class="border-b border-[var(--color-border)] bg-[var(--color-bg)]/80 backdrop-blur sticky top-0 z-50">
-      <nav class="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-        <a href="/" class="flex items-center gap-2 font-semibold text-lg">
-          <span
-            class="inline-block w-3 h-3 rounded-sm"
-            style="background: linear-gradient(135deg, var(--color-solana-purple), var(--color-solana-green));"
-          ></span>
-          Agent Bazaar
-        </a>
-        <div class="flex items-center gap-6 text-sm">
-          <a href="#how-it-works" class="hover:text-[var(--color-solana-green)]">How it works</a>
-          <a href="#agents" class="hover:text-[var(--color-solana-green)]">Agents</a>
-          <a href="#pricing" class="hover:text-[var(--color-solana-green)]">Pricing</a>
+    <!-- Fixed translucent header -->
+    <header id="site-header" style="
+      position: fixed; top: 0; left: 0; right: 0; height: 64px; z-index: 50;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 40px;
+      background: color-mix(in srgb, var(--bg-canvas) 70%, transparent);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border-subtle);
+      transition: background var(--dur-base) var(--ease-out);
+    ">
+      <!-- Brand -->
+      <a href="/" style="
+        display: flex; align-items: center; gap: 10px;
+        text-decoration: none; color: inherit;
+      ">
+        <img
+          src="/logomark.png"
+          alt=""
+          width="28"
+          height="28"
+          style="
+            width: 28px; height: 28px; object-fit: contain;
+            filter: drop-shadow(0 0 10px color-mix(in srgb, var(--blue-500) 60%, transparent));
+          "
+        />
+        <span style="
+          font-family: var(--font-display);
+          font-size: 18px;
+          font-weight: 400;
+          letter-spacing: -0.01em;
+          color: var(--fg-1);
+          text-transform: lowercase;
+        ">agent bazaar</span>
+      </a>
+
+      <!-- Nav links -->
+      <nav style="display: flex; gap: 28px; align-items: center;">
+        {["discover", "connect", "scale", "trust"].map((item) => (
           <a
-            href="http://localhost:3020/login"
-            class="hover:text-[var(--color-solana-green)]">Log in</a
-          >
-          <a
-            href="http://localhost:3020/signup"
-            class="px-4 py-2 rounded-md bg-[var(--color-solana-purple)] hover:opacity-90 font-medium"
-          >
-            Get started
-          </a>
-        </div>
+            href={`#${item}`}
+            class="nav-link"
+            style="
+              font-family: var(--font-display);
+              font-size: 12px;
+              font-weight: 600;
+              letter-spacing: 0.16em;
+              text-transform: uppercase;
+              color: var(--fg-2);
+              text-decoration: none;
+              transition: color var(--dur-fast) var(--ease-out);
+            "
+          >{item.toUpperCase()}</a>
+        ))}
       </nav>
+
+      <!-- CTAs -->
+      <div style="display: flex; gap: 10px; align-items: center;">
+        <a
+          href={`${DASHBOARD_URL}/login`}
+          style="
+            font-family: var(--font-sans);
+            font-size: 13px;
+            font-weight: 600;
+            background: transparent;
+            color: var(--fg-2);
+            border: 1px solid var(--border-strong);
+            padding: 8px 16px;
+            border-radius: 999px;
+            text-decoration: none;
+            transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+          "
+          onmouseover="this.style.color='var(--fg-1)';this.style.borderColor='var(--border-accent)'"
+          onmouseout="this.style.color='var(--fg-2)';this.style.borderColor='var(--border-strong)'"
+        >Sign in</a>
+        <a
+          href={`${DASHBOARD_URL}/signup`}
+          style="
+            font-family: var(--font-sans);
+            font-size: 13px;
+            font-weight: 600;
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            padding: 8px 18px;
+            border-radius: 999px;
+            text-decoration: none;
+            box-shadow: 0 0 18px color-mix(in srgb, var(--accent) 40%, transparent);
+            transition: background var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+          "
+          onmouseover="this.style.background='var(--accent-hover)';this.style.boxShadow='0 0 28px color-mix(in srgb, var(--accent) 55%, transparent)'"
+          onmouseout="this.style.background='var(--accent)';this.style.boxShadow='0 0 18px color-mix(in srgb, var(--accent) 40%, transparent)'"
+        >Start free</a>
+      </div>
     </header>
-    <main>
+
+    <!-- Page content — padded for fixed header -->
+    <main style="padding-top: 64px;">
       <slot />
     </main>
+
+    <style>
+      .nav-link:hover { color: var(--accent) !important; }
+    </style>
   </body>
 </html>

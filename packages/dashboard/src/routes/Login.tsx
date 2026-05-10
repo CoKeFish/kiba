@@ -4,7 +4,6 @@ import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardBody, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -29,16 +28,95 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6">
-      <Card className="w-full max-w-sm">
-        <CardHeader>
-          <CardTitle>Welcome back</CardTitle>
-          <CardDescription>Log in to your Agent Bazaar account.</CardDescription>
-        </CardHeader>
-        <CardBody>
-          <form onSubmit={onSubmit} className="space-y-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="email">Email</Label>
+    <div
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 24,
+        background:
+          "radial-gradient(ellipse at 30% 40%, color-mix(in srgb, var(--color-primary) 12%, transparent), transparent 55%), var(--color-bg)",
+      }}
+    >
+      <div style={{ width: "100%", maxWidth: 380 }}>
+        {/* Brand mark */}
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            marginBottom: 40,
+            gap: 12,
+          }}
+        >
+          <img
+            src="/logomark.png"
+            alt="Agent Bazaar"
+            style={{
+              width: 72,
+              height: 72,
+              objectFit: "contain",
+              filter: "drop-shadow(0 0 24px color-mix(in srgb, var(--color-primary) 55%, transparent))",
+            }}
+          />
+          <div
+            style={{
+              fontFamily: "var(--font-display)",
+              fontSize: 22,
+              fontWeight: 400,
+              color: "var(--color-fg)",
+              letterSpacing: "-0.01em",
+              textTransform: "lowercase",
+            }}
+          >
+            agent bazaar
+          </div>
+        </div>
+
+        {/* Card */}
+        <div
+          style={{
+            background: "var(--color-bg-card)",
+            border: "1px solid var(--color-border)",
+            borderRadius: 16,
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              padding: "24px 28px 0",
+            }}
+          >
+            <h1
+              style={{
+                fontFamily: "var(--font-display)",
+                fontSize: 22,
+                fontWeight: 600,
+                color: "var(--color-fg)",
+                marginBottom: 4,
+                letterSpacing: "-0.01em",
+              }}
+            >
+              Welcome back
+            </h1>
+            <p
+              style={{
+                fontFamily: "var(--font-sans)",
+                fontSize: 13,
+                color: "var(--color-fg-subtle)",
+                marginBottom: 24,
+              }}
+            >
+              Log in to your Agent Bazaar account.
+            </p>
+          </div>
+
+          <form onSubmit={onSubmit} style={{ padding: "0 28px 28px", display: "flex", flexDirection: "column", gap: 16 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <Label htmlFor="email" style={{ fontFamily: "var(--font-sans)", fontSize: 12, color: "var(--color-fg-subtle)" }}>
+                Email
+              </Label>
               <Input
                 id="email"
                 type="email"
@@ -46,10 +124,13 @@ export default function Login() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 autoComplete="email"
+                placeholder="you@example.com"
               />
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="password">Password</Label>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <Label htmlFor="password" style={{ fontFamily: "var(--font-sans)", fontSize: 12, color: "var(--color-fg-subtle)" }}>
+                Password
+              </Label>
               <Input
                 id="password"
                 type="password"
@@ -57,21 +138,36 @@ export default function Login() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 autoComplete="current-password"
+                placeholder="••••••••"
               />
             </div>
-            {error && <p className="text-sm text-[var(--color-danger)]">{error}</p>}
-            <Button type="submit" className="w-full" disabled={loading}>
+            {error && (
+              <p style={{ fontFamily: "var(--font-sans)", fontSize: 13, color: "var(--color-danger)" }}>
+                {error}
+              </p>
+            )}
+            <Button type="submit" size="lg" className="w-full" disabled={loading} style={{ marginTop: 4 }}>
               {loading ? "Signing in…" : "Sign in"}
             </Button>
+            <p
+              style={{
+                fontFamily: "var(--font-sans)",
+                fontSize: 12,
+                color: "var(--color-fg-subtle)",
+                textAlign: "center",
+              }}
+            >
+              No account?{" "}
+              <Link
+                to="/signup"
+                style={{ color: "var(--color-primary)", textDecoration: "none", fontWeight: 600 }}
+              >
+                Sign up free
+              </Link>
+            </p>
           </form>
-          <p className="text-xs text-[var(--color-fg-muted)] mt-4 text-center">
-            No account?{" "}
-            <Link to="/signup" className="text-[var(--color-primary)] hover:underline">
-              Sign up
-            </Link>
-          </p>
-        </CardBody>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }

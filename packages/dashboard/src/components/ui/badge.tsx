@@ -8,7 +8,7 @@ interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
 }
 
 const toneClasses: Record<Tone, string> = {
-  neutral: "bg-[var(--color-accent)] text-[var(--color-fg-muted)]",
+  neutral: "bg-[var(--color-accent)] text-[var(--color-fg-subtle)]",
   success: "bg-[var(--color-success)]/15 text-[var(--color-success)]",
   warning: "bg-[var(--color-warning)]/15 text-[var(--color-warning)]",
   danger: "bg-[var(--color-danger)]/15 text-[var(--color-danger)]",
@@ -18,10 +18,11 @@ const toneClasses: Record<Tone, string> = {
 export const Badge = ({ tone = "neutral", className, ...props }: BadgeProps) => (
   <span
     className={cn(
-      "inline-flex items-center rounded px-2 py-0.5 text-xs font-medium",
+      "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium",
       toneClasses[tone],
       className,
     )}
+    style={{ fontFamily: "var(--font-sans)" }}
     {...props}
   />
 );

@@ -1,20 +1,150 @@
 ---
+const cols = [
+  {
+    heading: "Product",
+    links: [
+      { label: "Marketplace", href: "#agents" },
+      { label: "Connectors", href: "#connect" },
+      { label: "Pricing", href: "#pricing" },
+      { label: "Roadmap", href: "#" },
+    ],
+  },
+  {
+    heading: "Resources",
+    links: [
+      { label: "Documentation", href: "https://github.com/CoKeFish/agent-bazaar" },
+      { label: "SDK", href: "https://github.com/CoKeFish/agent-bazaar" },
+      { label: "Blog", href: "#" },
+      { label: "Changelog", href: "#" },
+    ],
+  },
+  {
+    heading: "Company",
+    links: [
+      { label: "About", href: "#" },
+      { label: "GitHub", href: "https://github.com/CoKeFish/agent-bazaar" },
+      { label: "Contact", href: "#" },
+    ],
+  },
+  {
+    heading: "Legal",
+    links: [
+      { label: "Privacy", href: "#" },
+      { label: "Terms", href: "#" },
+      { label: "Security", href: "#" },
+    ],
+  },
+];
 ---
 
-<footer class="border-t border-[var(--color-border)] py-10 text-sm text-[var(--color-fg-muted)]">
-  <div class="max-w-6xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4">
-    <div class="flex items-center gap-2">
-      <span
-        class="inline-block w-2 h-2 rounded-sm"
-        style="background: linear-gradient(135deg, var(--color-solana-purple), var(--color-solana-green));"
-      ></span>
-      Agent Bazaar — built for Dev3pack 2026
+<footer style="
+  padding: 64px 64px 32px;
+  background: var(--bg-canvas);
+  border-top: 1px solid var(--border-subtle);
+">
+  <div style="
+    max-width: 1280px; margin: 0 auto;
+    display: flex; justify-content: space-between; gap: 40px; flex-wrap: wrap;
+    margin-bottom: 48px;
+  ">
+    <!-- Brand -->
+    <div style="min-width: 200px;">
+      <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 14px;">
+        <img
+          src="/logomark.png"
+          alt=""
+          width="28"
+          height="28"
+          style="width: 28px; height: 28px; object-fit: contain;"
+        />
+        <span style="
+          font-family: var(--font-display);
+          font-size: 18px;
+          font-weight: 400;
+          color: var(--fg-1);
+          text-transform: lowercase;
+        ">agent bazaar</span>
+      </div>
+      <p style="
+        font-family: var(--font-sans);
+        font-size: 13px;
+        color: var(--fg-3);
+        line-height: 1.55;
+        max-width: 260px;
+      ">The AI agent marketplace built for agents. Made with trust for Dev3pack 2026.</p>
     </div>
-    <div class="flex items-center gap-6">
-      <a href="https://github.com/CoKeFish/agent-bazaar" class="hover:text-[var(--color-fg)]">GitHub</a>
-      <a href="#" class="hover:text-[var(--color-fg)]">Docs</a>
-      <a href="#" class="hover:text-[var(--color-fg)]">Privacy</a>
-      <a href="#" class="hover:text-[var(--color-fg)]">Terms</a>
+
+    <!-- Link columns -->
+    <div style="
+      display: grid;
+      grid-template-columns: repeat(4, auto);
+      gap: 56px;
+      flex-wrap: wrap;
+    " class="footer-cols">
+      {cols.map((col) => (
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <div style="
+            font-family: var(--font-display);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: var(--fg-3);
+            margin-bottom: 4px;
+          ">{col.heading}</div>
+          {col.links.map((link) => (
+            <a
+              href={link.href}
+              class="footer-link"
+              style="
+                font-family: var(--font-sans);
+                font-size: 13px;
+                color: var(--fg-2);
+                text-decoration: none;
+                transition: color var(--dur-fast) var(--ease-out);
+              "
+            >{link.label}</a>
+          ))}
+        </div>
+      ))}
     </div>
   </div>
+
+  <!-- Bottom bar -->
+  <div style="
+    max-width: 1280px; margin: 0 auto;
+    padding-top: 24px;
+    border-top: 1px solid var(--border-subtle);
+    display: flex; justify-content: space-between; align-items: center;
+    flex-wrap: wrap; gap: 12px;
+  ">
+    <span style="
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--fg-4);
+    ">© 2026 Agent Bazaar · All rights reserved</span>
+    <span style="
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--fg-4);
+    ">
+      Program: <a
+        href="https://explorer.solana.com/address/3CsQnAua3xniuMY5axKUNYtmTyAxh6cG2E257PLjJCmA?cluster=devnet"
+        target="_blank"
+        rel="noopener"
+        style="color: var(--fg-3); text-decoration: none;"
+      >3CsQnAua…jJCmA ↗</a>
+    </span>
+  </div>
 </footer>
+
+<style>
+  .footer-link:hover { color: var(--fg-1) !important; }
+
+  @media (max-width: 768px) {
+    .footer-cols {
+      grid-template-columns: repeat(2, auto) !important;
+      gap: 32px !important;
+    }
+  }
+</style>
