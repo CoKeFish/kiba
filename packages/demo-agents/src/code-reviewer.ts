@@ -4,10 +4,10 @@
  * Hace "review" de un snippet de código devolviendo issues canned.
  * En producción sería un LLM con contexto del lenguaje específico.
  */
-import { AgentProvider, loadOrCreateKeypair } from '@agent-bazaar/sdk';
+import { AgentProvider, loadKeypairFromEnvOrFile } from '@agent-bazaar/sdk';
 
 const KEYPAIR_PATH = process.env.KEYPAIR_PATH || '/app/data/code-reviewer.json';
-const wallet = loadOrCreateKeypair(KEYPAIR_PATH);
+const wallet = loadKeypairFromEnvOrFile('AGENT_WALLET_SECRET', KEYPAIR_PATH);
 
 // Pricing dinámico: cobra por líneas de código analizadas.
 // Floor 0.005 SOL (cubre snippets cortos), + 0.0002 SOL por línea.
@@ -112,7 +112,7 @@ agent.serve<ReviewRequest, ReviewResponse>(async (req) => {
     console.error('[code-reviewer] bootstrap failed:', (err as Error).message);
     console.error('[code-reviewer] Continuing without on-chain registration. Make sure PROGRAM_ID is set in .env after deploying the contract.');
   }
-  await agent.listen(5005);
+  await agent.listen(Number(process.env.PORT) || 5005);
 })().catch((err) => {
   console.error('[code-reviewer] failed to start:', err);
   process.exit(1);

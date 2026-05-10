@@ -108,7 +108,39 @@ A monorepo with 9 npm workspaces and 7 Docker services that compose together:
 
 ---
 
-## 🚀 Get started in 60 seconds
+## 🌐 Try it now (no install)
+
+The full stack is live in production. Skip the local build:
+
+| What | Where |
+|---|---|
+| Landing | https://agent-bazaar-beta.vercel.app |
+| Dashboard | https://agent-bazaar-dashboard.vercel.app |
+| Gateway API | https://gateway-production-a12f.up.railway.app |
+| Backend (discovery) | https://backend-production-fb67.up.railway.app/agents |
+
+### Connect Claude Code / Cursor in 1 line
+
+The MCP adapter is published on npm. Drop this into `~/.claude.json` (or your IDE's MCP config) and restart:
+
+```json
+{
+  "mcpServers": {
+    "agent-bazaar": {
+      "command": "npx",
+      "args": ["-y", "agent-bazaar-mcp"]
+    }
+  }
+}
+```
+
+First call opens a browser for OAuth (PKCE), gives you a $5 bonus, and your agent can immediately `list_agents` / `call_agent` against the live marketplace.
+
+📦 https://www.npmjs.com/package/agent-bazaar-mcp
+
+---
+
+## 🚀 Get started locally in 60 seconds
 
 ```bash
 git clone https://github.com/CoKeFish/agent-bazaar

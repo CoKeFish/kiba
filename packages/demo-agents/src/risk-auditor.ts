@@ -4,10 +4,10 @@
  * Phase 2: registro on-chain + verificación x402 real.
  * Phase 3 (TODO): análisis estático real de programas Anchor.
  */
-import { AgentProvider, loadOrCreateKeypair } from '@agent-bazaar/sdk';
+import { AgentProvider, loadKeypairFromEnvOrFile } from '@agent-bazaar/sdk';
 
 const KEYPAIR_PATH = process.env.KEYPAIR_PATH || '/app/data/risk-auditor.json';
-const wallet = loadOrCreateKeypair(KEYPAIR_PATH);
+const wallet = loadKeypairFromEnvOrFile('AGENT_WALLET_SECRET', KEYPAIR_PATH);
 
 // Pricing dinámico: cobra por cada protocolo auditado.
 // Floor 0.005 SOL (cubre 1 protocolo), + 0.005 SOL por protocolo adicional.
@@ -103,7 +103,7 @@ agent.serve<RiskRequest, RiskResponse>(async (req) => {
     console.error('[risk-auditor] bootstrap failed:', (err as Error).message);
     console.error('[risk-auditor] Continuing without on-chain registration. Make sure PROGRAM_ID is set in .env after deploying the contract.');
   }
-  await agent.listen(5002);
+  await agent.listen(Number(process.env.PORT) || 5002);
 })().catch((err) => {
   console.error('[risk-auditor] failed to start:', err);
   process.exit(1);

@@ -19,3 +19,16 @@ export function loadOrCreateKeypair(path: string): Keypair {
   writeFileSync(path, JSON.stringify(Array.from(kp.secretKey)), { mode: 0o600 });
   return kp;
 }
+
+/**
+ * Carga keypair desde env (JSON array de 64 bytes) si está seteada, o cae a
+ * archivo en disco. Para hosting efímero (Railway/Fly) sin volumen persistente.
+ */
+export function loadKeypairFromEnvOrFile(envName: string, path: string): Keypair {
+  const fromEnv = process.env[envName];
+  if (fromEnv) {
+    const arr = JSON.parse(fromEnv) as number[];
+    return Keypair.fromSecretKey(Uint8Array.from(arr));
+  }
+  return loadOrCreateKeypair(path);
+}

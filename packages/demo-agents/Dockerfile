@@ -26,4 +26,6 @@ WORKDIR /app/packages/demo-agents
 
 EXPOSE 5001 5002 5003 5004 5005
 
-CMD ["npm", "run", "dev"]
+# AGENT_NAME selecciona qué agente correr: yield-hunter|risk-auditor|translator|price-oracle|code-reviewer
+# Si no se pasa, corre todos (modo local docker compose).
+CMD ["sh", "-c", "if [ -n \"$AGENT_NAME\" ]; then npm run dev:${AGENT_NAME%%-*}; else npm run dev; fi"]

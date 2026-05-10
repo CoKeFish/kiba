@@ -32,7 +32,22 @@ const MASTER_KEYPAIR_PATH = process.env.MASTER_KEYPAIR_PATH || '/app/data/master
 const REFILL_TARGET_BUFFER = 10_000_000; // 0.01 SOL
 
 const connection = new Connection(SOLANA_RPC_URL, 'confirmed');
-const masterWallet = loadOrCreateKeypair(MASTER_KEYPAIR_PATH);
+
+/**
+ * Carga master wallet con prioridad: MASTER_WALLET_SECRET (env, JSON array de 64
+ * bytes) > archivo local. Permite deploy a hosting efímero (Railway/Fly) sin
+ * volumen persistente.
+ */
+function loadMasterWallet(): Keypair {
+  const fromEnv = process.env.MASTER_WALLET_SECRET;
+  if (fromEnv) {
+    const arr = JSON.parse(fromEnv) as number[];
+    return Keypair.fromSecretKey(Uint8Array.from(arr));
+  }
+  return loadOrCreateKeypair(MASTER_KEYPAIR_PATH);
+}
+
+const masterWallet = loadMasterWallet();
 
 export function getMasterWallet(): Keypair {
   return masterWallet;

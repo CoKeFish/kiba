@@ -48,3 +48,7 @@ Thumbs.db
 
 # Temp
 .tmp-*
+.vercel
+
+# Test screenshots (root only — keep PNG assets in subdirs)
+/*.png

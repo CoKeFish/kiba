@@ -1,0 +1,12 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "npm run build --workspace=@agent-bazaar/dashboard",
+  "outputDirectory": "packages/dashboard/dist",
+  "installCommand": "npm install",
+  "framework": "vite",
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "https://gateway-production-a12f.up.railway.app/:path*" },
+    { "source": "/backend/:path*", "destination": "https://backend-production-fb67.up.railway.app/:path*" },
+    { "source": "/((?!assets|.*\\.).*)", "destination": "/index.html" }
+  ]
+}

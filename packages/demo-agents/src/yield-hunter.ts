@@ -9,10 +9,10 @@
  *
  * Phase 3 (TODO): consultar APYs reales vía Helius/Birdeye en lugar de mocks.
  */
-import { AgentProvider, loadOrCreateKeypair } from '@agent-bazaar/sdk';
+import { AgentProvider, loadKeypairFromEnvOrFile } from '@agent-bazaar/sdk';
 
 const KEYPAIR_PATH = process.env.KEYPAIR_PATH || '/app/data/yield-hunter.json';
-const wallet = loadOrCreateKeypair(KEYPAIR_PATH);
+const wallet = loadKeypairFromEnvOrFile('AGENT_WALLET_SECRET', KEYPAIR_PATH);
 
 // Pricing dinámico por nivel de análisis solicitado:
 //   low    → solo top 1, snapshot ligero
@@ -75,7 +75,7 @@ agent.serve<YieldRequest, YieldResponse>(async (req) => {
     console.error('[yield-hunter] bootstrap failed:', (err as Error).message);
     console.error('[yield-hunter] Continuing without on-chain registration. Make sure PROGRAM_ID is set in .env after deploying the contract.');
   }
-  await agent.listen(5001);
+  await agent.listen(Number(process.env.PORT) || 5001);
 })().catch((err) => {
   console.error('[yield-hunter] failed to start:', err);
   process.exit(1);

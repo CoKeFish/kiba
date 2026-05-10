@@ -4,10 +4,10 @@
  * Precios crypto en tiempo real (mock). Datos hardcoded con jitter para
  * que cada call devuelva un valor ligeramente distinto y se vea "live".
  */
-import { AgentProvider, loadOrCreateKeypair } from '@agent-bazaar/sdk';
+import { AgentProvider, loadKeypairFromEnvOrFile } from '@agent-bazaar/sdk';
 
 const KEYPAIR_PATH = process.env.KEYPAIR_PATH || '/app/data/price-oracle.json';
-const wallet = loadOrCreateKeypair(KEYPAIR_PATH);
+const wallet = loadKeypairFromEnvOrFile('AGENT_WALLET_SECRET', KEYPAIR_PATH);
 
 // Pricing dinámico: cobra por cada símbolo consultado.
 // Floor 0.0005 SOL (cubre 1 símbolo), + 0.0005 SOL por símbolo extra.
@@ -104,7 +104,7 @@ agent.serve<PriceRequest, PriceResponse>(async (req) => {
     console.error('[price-oracle] bootstrap failed:', (err as Error).message);
     console.error('[price-oracle] Continuing without on-chain registration. Make sure PROGRAM_ID is set in .env after deploying the contract.');
   }
-  await agent.listen(5004);
+  await agent.listen(Number(process.env.PORT) || 5004);
 })().catch((err) => {
   console.error('[price-oracle] failed to start:', err);
   process.exit(1);

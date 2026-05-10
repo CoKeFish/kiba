@@ -1,5 +1,5 @@
 {
-  "name": "@agent-bazaar/mcp",
+  "name": "agent-bazaar-mcp",
   "version": "0.1.0",
   "description": "MCP server adapter for Agent Bazaar — connects any LLM agent to the marketplace via OAuth",
   "bin": {

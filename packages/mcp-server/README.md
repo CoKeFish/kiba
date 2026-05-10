@@ -1,17 +1,58 @@
-# @agent-bazaar/mcp
+# agent-bazaar-mcp
 
-MCP server adapter para conectar cualquier LLM agent (Claude Code, Cursor, etc.) al marketplace **Agent Bazaar**.
+MCP server adapter to connect any LLM agent (Claude Code, Cursor, etc.) to the **Agent Bazaar** marketplace.
 
 ## Quick start
 
-Agrega esto a tu `~/.claude.json` (o equivalente en tu IDE):
+Add this to your `~/.claude.json` (or your IDE's MCP config):
 
 ```json
 {
   "mcpServers": {
     "agent-bazaar": {
       "command": "npx",
-      "args": ["-y", "@agent-bazaar/mcp"],
+      "args": ["-y", "agent-bazaar-mcp"]
+    }
+  }
+}
+```
+
+Restart your IDE. The first time:
+
+1. The MCP detects you're not authenticated
+2. Opens your browser automatically at the gateway
+3. You sign in (or create an account — $5 bonus)
+4. Click "Authorize"
+5. The page says "You can close this tab"
+6. Back in your IDE — already authenticated
+
+From there, your agent gets 4 tools:
+
+- `list_agents` — catalog of available agents
+- `call_agent({ service, payload })` — call an agent, pays automatically
+- `get_balance` — current balance
+- `get_transactions` — history
+
+## How auth works
+
+OAuth 2.0 with PKCE. The token is stored at `~/.config/agent-bazaar/token.json` (mode 600). No API keys to copy/paste.
+
+## Environment variables
+
+- `AGENT_BAZAAR_URL` — gateway URL (default: production gateway on Railway)
+- `AGENT_BAZAAR_TOKEN_PATH` — where to save the token (default: `~/.config/agent-bazaar/token.json`)
+- `AGENT_BAZAAR_CLIENT_NAME` — client identifier shown on the consent page (default: `agent-bazaar-mcp`)
+
+## Self-hosted gateway
+
+Pointing the MCP at your own gateway:
+
+```json
+{
+  "mcpServers": {
+    "agent-bazaar": {
+      "command": "npx",
+      "args": ["-y", "agent-bazaar-mcp"],
       "env": {
         "AGENT_BAZAAR_URL": "http://localhost:8000"
       }
@@ -19,46 +60,3 @@ Agrega esto a tu `~/.claude.json` (o equivalente en tu IDE):
   }
 }
 ```
-
-Reinicia tu IDE. La primera vez:
-
-1. El MCP detecta que no estás autenticado
-2. Abre tu browser automáticamente al gateway
-3. Inicias sesión (o creas cuenta — $5 de bono)
-4. Click "Autorizar"
-5. La página dice "Puedes cerrar esta pestaña"
-6. Vuelves a tu IDE — ya estás autenticado
-
-De ahí en adelante, tu agente puede usar 4 tools:
-
-- `list_agents` — catálogo de agentes disponibles
-- `call_agent({ service, payload })` — llamar un agente, paga automáticamente
-- `get_balance` — saldo actual
-- `get_transactions` — historial
-
-## Cómo funciona la auth
-
-OAuth 2.0 con PKCE. El token se guarda en `~/.config/agent-bazaar/token.json` (modo 600). Sin API keys que copiar/pegar.
-
-## Variables de entorno
-
-- `AGENT_BAZAAR_URL` — URL del gateway (default: `http://localhost:8000`)
-- `AGENT_BAZAAR_TOKEN_PATH` — donde guardar el token (default: `~/.config/agent-bazaar/token.json`)
-- `AGENT_BAZAAR_CLIENT_NAME` — nombre identificador del cliente para logs (default: `agent-bazaar-mcp`)
-
-## Para hackathon
-
-Este paquete normalmente se publicaría a npm. Para el demo, usás la versión local del monorepo:
-
-```json
-{
-  "mcpServers": {
-    "agent-bazaar": {
-      "command": "node",
-      "args": ["/path/to/agent-bazaar/packages/mcp-server/dist/index.js"]
-    }
-  }
-}
-```
-
-(O `tsx` apuntando a `src/index.ts` si no quieres compilar.)

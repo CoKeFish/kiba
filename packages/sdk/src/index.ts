@@ -29,4 +29,4 @@ export {
   BPS_DENOMINATOR,
   computeFeeSplit,
 } from './anchor-helpers';
-export { loadOrCreateKeypair } from './keypair-store';
+export { loadOrCreateKeypair, loadKeypairFromEnvOrFile } from './keypair-store';
