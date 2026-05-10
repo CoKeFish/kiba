@@ -57,16 +57,24 @@ export async function callOnBehalf(args: {
     rpcUrl: process.env.SOLANA_RPC_URL,
   });
 
-  // 1. Discover (precio + endpoint)
-  const manifest = await client.discover(args.service);
-  const lamports = Math.floor(manifest.pricePerCall * 1e9);
+  // 1. Pre-quote (probe sin pago) → conseguimos el precio REAL que el agente
+  //    cobrará por este payload específico (puede ser > floor si el agente usa
+  //    priceFn dinámico). Esto es lo que debitamos del balance USD del user.
+  const { manifest, quote } = await client.getQuote(args.service, args.payload, {
+    timeoutMs: 30_000,
+  });
+  const lamports = Number(quote.amount);
 
-  // 2. Debit USD virtual (atomic)
+  // 2. Debit USD virtual (atomic) — por el monto REAL, no por el floor
   const debitResult = debit({
     userId: args.userId,
     lamports,
     service: args.service,
-    metadata: { mode: 'gateway-custodial-per-user' },
+    metadata: {
+      mode: 'gateway-custodial-per-user',
+      floorPricePerCall: manifest.pricePerCall,
+      dynamicAmountLamports: lamports,
+    },
   });
   if (!debitResult.ok) throw new Error(`debit failed: ${debitResult.error}`);
 
@@ -79,12 +87,16 @@ export async function callOnBehalf(args: {
     throw err;
   }
 
-  // 4. Llamar al servicio vía SDK firmando con la wallet del user
+  // 4. Llamar al servicio vía SDK firmando con la wallet del user.
+  //    El SDK hará su propio probe (nuevo nonce) y abrirá escrow por el monto
+  //    cotizado en ese momento. priceFn es determinista en el payload, así que
+  //    el monto coincidirá con `lamports` (lo que ya debitamos).
   let result: unknown;
   let trace: X402Trace;
   try {
     const traced = await client.callWithTrace(args.service, args.payload, {
-      maxPrice: manifest.pricePerCall + 0.01,
+      // maxPrice como circuit breaker — 2x del cotizado por seguridad
+      maxPrice: (lamports / 1e9) * 2,
       timeoutMs: 30_000,
     });
     result = traced.result;

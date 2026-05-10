@@ -447,7 +447,12 @@ function RegisterAgentForm({ onSuccess }: { onSuccess: () => void }) {
           </div>
 
           <div>
-            <Label>Price per call</Label>
+            <Label>Floor price per call</Label>
+            <p className="text-xs text-[var(--color-fg-muted)] mb-2">
+              Mínimo on-chain. Tu agente puede cobrar más por request si usa{" "}
+              <code className="font-mono">priceFn</code> en el SDK
+              (ej. cobrar por chars traducidos, líneas de código, símbolos cotizados).
+            </p>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-1">
               {PRICING_PRESETS.map((p) => (
                 <button

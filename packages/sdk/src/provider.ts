@@ -51,6 +51,8 @@ export class AgentProvider {
       res.json({
         service: config.service,
         pricePerCall: config.pricePerCall,
+        dynamicPricing: !!config.priceFn,
+        pricingNote: config.pricingNote,
         description: config.description,
         endpoint: config.endpoint,
         ownerWallet: config.wallet.publicKey.toBase58(),
@@ -103,12 +105,35 @@ export class AgentProvider {
       }
     }
 
-    // 2. Registro on-chain
+    // 2. Registro on-chain (o reconcilia config si ya existe)
     const existing = await this.program.fetchAgent(this.config.service);
     if (existing) {
-      console.log(
-        `[${this.config.service}] ya registrado on-chain (owner: ${existing.owner.toBase58()})`,
-      );
+      const expectedPrice = BigInt(Math.floor(this.config.pricePerCall * 1e9));
+      const priceDrift = existing.pricePerCall !== expectedPrice;
+      const descDrift = (existing.description ?? '') !== (this.config.description ?? '');
+      const endpointDrift = (existing.endpoint ?? '') !== (this.config.endpoint ?? '');
+
+      if (priceDrift || descDrift || endpointDrift) {
+        // Importante para pricing dinámico: el contrato valida amount >= price_per_call.
+        // Si el config bajó el floor para usar priceFn, el on-chain debe reflejarlo o
+        // open_escrow rechazará por AmountBelowPrice.
+        console.log(
+          `[${this.config.service}] config drift detected → updating on-chain (price=${priceDrift}, desc=${descDrift}, endpoint=${endpointDrift})`,
+        );
+        const updateIx = this.program.updateAgentInstr({
+          owner: wallet.publicKey,
+          service: this.config.service,
+          pricePerCall: priceDrift ? expectedPrice : null,
+          description: descDrift ? this.config.description ?? '' : null,
+          endpoint: endpointDrift ? this.config.endpoint ?? '' : null,
+        });
+        const sig = await this.program.sendAndConfirm([updateIx], wallet);
+        console.log(`[${this.config.service}] updated on-chain: ${sig}`);
+      } else {
+        console.log(
+          `[${this.config.service}] ya registrado on-chain (owner: ${existing.owner.toBase58()})`,
+        );
+      }
       return;
     }
 
@@ -136,6 +161,29 @@ export class AgentProvider {
 
   // ─── handler con verificación x402 ──────────────────────────
 
+  /**
+   * Computa cuántos lamports cobrar por una request específica.
+   * - Si `priceFn` está definido: lo invoca con el payload, eleva al floor si fuera menor
+   * - Si no: usa siempre `pricePerCall` (modelo flat)
+   *
+   * El piso garantiza que el on-chain `open_escrow` (que valida amount >= price_per_call
+   * del registry) nunca rechace por una mala configuración del priceFn.
+   */
+  private async computeAmountLamports(payload: unknown): Promise<bigint> {
+    const floor = this.config.pricePerCall;
+    let priceSol = floor;
+    if (this.config.priceFn) {
+      try {
+        const computed = await this.config.priceFn(payload);
+        priceSol = Number.isFinite(computed) ? Math.max(floor, computed) : floor;
+      } catch (err) {
+        console.warn(`[${this.config.service}] priceFn threw, falling back to floor:`, err);
+        priceSol = floor;
+      }
+    }
+    return BigInt(Math.floor(priceSol * 1e9));
+  }
+
   private async handleRequest(req: Request, res: Response): Promise<void> {
     if (!this.handler) {
       res.status(500).json({ error: 'service handler not configured' });
@@ -144,10 +192,10 @@ export class AgentProvider {
 
     const paymentHeader = req.header('X-PAYMENT');
 
-    // Sin pago → devolver 402 con quote
+    // Sin pago → devolver 402 con quote (eventualmente dinámico)
     if (!paymentHeader) {
       const nonce = generateNonce();
-      const expectedAmount = BigInt(Math.floor(this.config.pricePerCall * 1e9));
+      const expectedAmount = await this.computeAmountLamports(req.body);
       res.status(402).json({
         amount: expectedAmount.toString(),
         payTo: this.config.wallet.publicKey.toBase58(),
@@ -193,7 +241,10 @@ export class AgentProvider {
         res.status(402).json({ error: `escrow already ${escrow.state.toLowerCase()}` });
         return;
       }
-      const expected = BigInt(Math.floor(this.config.pricePerCall * 1e9));
+      // El precio para esta request — debe coincidir con el que cotizamos en el 402.
+      // priceFn debe ser determinista en el payload para que el doble cálculo
+      // (quote + verify) dé el mismo número.
+      const expected = await this.computeAmountLamports(req.body);
       if (escrow.amount < expected) {
         res.status(402).json({
           error: `escrow amount ${escrow.amount} below price ${expected}`,

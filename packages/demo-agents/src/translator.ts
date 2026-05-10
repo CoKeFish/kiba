@@ -9,12 +9,24 @@ import { AgentProvider, loadOrCreateKeypair } from '@agent-bazaar/sdk';
 const KEYPAIR_PATH = process.env.KEYPAIR_PATH || '/app/data/translator.json';
 const wallet = loadOrCreateKeypair(KEYPAIR_PATH);
 
+// Pricing dinámico: cobra por longitud del texto a traducir.
+// Floor 0.001 SOL (cubre traducciones cortas, header on-chain price_per_call),
+// + 0.000005 SOL por cada char. Una frase de 200 chars ≈ 0.002 SOL,
+// un párrafo de 1000 chars ≈ 0.006 SOL.
+const PRICE_FLOOR_SOL = 0.001;
+const PRICE_PER_CHAR_SOL = 0.000005;
+
 const agent = new AgentProvider({
   wallet,
   service: 'translator-pro',
-  pricePerCall: 0.005,
+  pricePerCall: PRICE_FLOOR_SOL,
+  pricingNote: `Floor ${PRICE_FLOOR_SOL} SOL + ${PRICE_PER_CHAR_SOL} SOL per character translated`,
+  priceFn: (req: unknown) => {
+    const text = (req as { text?: string })?.text ?? '';
+    return PRICE_FLOOR_SOL + text.length * PRICE_PER_CHAR_SOL;
+  },
   description:
-    'Professional translation across English, Spanish, French, German, Japanese and Chinese',
+    'Professional translation across English, Spanish, French, German, Japanese and Chinese. Charges by character count.',
   endpoint: process.env.PUBLIC_ENDPOINT || 'http://demo-agents:5003',
 });
 

@@ -5,8 +5,31 @@ export interface AgentConfig {
   wallet: Keypair;
   /** Identificador del servicio: 'yield-hunter', 'translate-en-es', etc. (max 32) */
   service: string;
-  /** Precio por llamada en SOL (decimal, ej. 0.01) */
+  /**
+   * Precio base por llamada en SOL (decimal, ej. 0.01).
+   * - Si NO se define `priceFn`: cada call cobra exactamente este monto (modelo flat).
+   * - Si se define `priceFn`: este es el FLOOR mínimo on-chain. El agente puede cobrar
+   *   más pero nunca menos (el contrato rechaza con AmountBelowPrice).
+   */
   pricePerCall: number;
+  /**
+   * Función opcional para pricing dinámico.
+   *
+   * Recibe el payload de la request y devuelve cuántos SOL cobrar por ESTA llamada
+   * específica. Permite cobrar según complejidad/tamaño/tipo de la operación
+   * — ej. translator cobra por chars, code-reviewer por líneas, etc.
+   *
+   * El precio devuelto se eleva automáticamente al floor (`pricePerCall`) si fuera menor.
+   * Ejemplo:
+   *   priceFn: (req) => 0.001 + (req?.text?.length ?? 0) * 0.00001
+   */
+  priceFn?: (request: unknown) => number | Promise<number>;
+  /**
+   * Descripción humana opcional del modelo de pricing — solo informativa, va en
+   * el manifest. Útil para que el cliente entienda cómo se cobra.
+   * Ej. "Charges 0.00001 SOL per character translated."
+   */
+  pricingNote?: string;
   /** Descripción libre para el catálogo (max 512) */
   description?: string;
   /** Endpoint público donde otros agentes llaman al servicio (max 256) */
@@ -19,7 +42,12 @@ export interface AgentConfig {
 
 export interface ServiceManifest {
   service: string;
+  /** Precio base / floor en SOL. El precio efectivo de una call puede ser >= esto. */
   pricePerCall: number;
+  /** Si true, el agente computa el precio per-request → la quote del 402 manda. */
+  dynamicPricing?: boolean;
+  /** Descripción humana del modelo de pricing (cuando dynamicPricing=true) */
+  pricingNote?: string;
   description?: string;
   endpoint: string;
   ownerWallet: string;
