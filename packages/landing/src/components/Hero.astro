@@ -165,7 +165,7 @@ const DASHBOARD_URL = import.meta.env.PUBLIC_DASHBOARD_URL || "https://agent-baz
       <!-- CTAs -->
       <div style="display: flex; gap: 14px; margin-top: 12px; flex-wrap: wrap;">
         <a
-          href={`${DASHBOARD_URL}/signup`}
+          href="https://github.com/CoKeFish/agent-bazaar/releases/latest"
           style="
             font-family: var(--font-sans);
             font-size: 15px;
@@ -176,10 +176,18 @@ const DASHBOARD_URL = import.meta.env.PUBLIC_DASHBOARD_URL || "https://agent-baz
             border-radius: 999px;
             text-decoration: none;
             box-shadow: 0 0 30px color-mix(in srgb, var(--accent) 45%, transparent);
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
           "
-        >Explore agents →</a>
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M3 3h8.5v8.5H3V3zm9.5 0H21v8.5h-8.5V3zM3 12.5h8.5V21H3v-8.5zm9.5 0H21V21h-8.5v-8.5z"/>
+          </svg>
+          Download for Windows
+        </a>
         <a
-          href="#how-it-works"
+          href={`${DASHBOARD_URL}/signup`}
           style="
             font-family: var(--font-sans);
             font-size: 15px;
@@ -191,8 +199,18 @@ const DASHBOARD_URL = import.meta.env.PUBLIC_DASHBOARD_URL || "https://agent-baz
             border-radius: 999px;
             text-decoration: none;
           "
-        >See the demo</a>
+        >Explore agents →</a>
       </div>
+      <p style="
+        font-family: var(--font-mono);
+        font-size: 12px;
+        color: var(--fg-3);
+        margin-top: 4px;
+        letter-spacing: 0.02em;
+      ">
+        1.1 MB. Detects Claude Desktop / Cursor / Claude Code.
+        <a href="#connect" style="color: var(--accent);">Other platforms ↓</a>
+      </p>
     </div>
   </div>
 </section>
