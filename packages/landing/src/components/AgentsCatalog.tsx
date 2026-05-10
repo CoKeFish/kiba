@@ -74,7 +74,7 @@ export default function AgentsCatalog() {
     if (typeof window !== "undefined" && (window as any).__BACKEND_URL__) {
       return (window as any).__BACKEND_URL__ as string;
     }
-    return "http://localhost:4000";
+    return "https://backend-production-fb67.up.railway.app";
   }, []);
 
   useEffect(() => {

@@ -214,10 +214,7 @@ export function dashboardView(data: DashboardData): string {
   "mcpServers": {
     "agent-bazaar": {
       "command": "npx",
-      "args": ["-y", "@agent-bazaar/mcp"],
-      "env": {
-        "AGENT_BAZAAR_URL": "${process.env.PUBLIC_URL || 'http://localhost:8000'}"
-      }
+      "args": ["-y", "agent-bazaar-mcp"]
     }
   }
 }</pre>
