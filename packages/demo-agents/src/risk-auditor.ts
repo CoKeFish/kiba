@@ -9,27 +9,50 @@ import { AgentProvider, loadOrCreateKeypair } from '@agent-bazaar/sdk';
 const KEYPAIR_PATH = process.env.KEYPAIR_PATH || '/app/data/risk-auditor.json';
 const wallet = loadOrCreateKeypair(KEYPAIR_PATH);
 
+// Pricing dinámico: cobra por cada protocolo auditado.
+// Floor 0.005 SOL (cubre 1 protocolo), + 0.005 SOL por protocolo adicional.
+// Auditar 1 protocolo ≈ 0.005 SOL, 5 protocolos ≈ 0.025 SOL.
+const PRICE_FLOOR_SOL = 0.005;
+const PRICE_PER_PROTOCOL_SOL = 0.005;
+
+function countProtocols(req: unknown): number {
+  const r = req as { protocol?: string; protocols?: string[] };
+  if (Array.isArray(r?.protocols)) return Math.max(1, r.protocols.length);
+  if (r?.protocol) return 1;
+  return 1; // default
+}
+
 const agent = new AgentProvider({
   wallet,
   service: 'risk-auditor',
-  pricePerCall: 0.02,
-  description: 'Analiza el riesgo de un smart contract / protocolo Solana',
+  pricePerCall: PRICE_FLOOR_SOL,
+  pricingNote: `${PRICE_PER_PROTOCOL_SOL} SOL por protocolo auditado (floor ${PRICE_FLOOR_SOL} SOL)`,
+  priceFn: (req: unknown) => countProtocols(req) * PRICE_PER_PROTOCOL_SOL,
+  description:
+    'Analiza el riesgo de smart contracts / protocolos Solana. Acepta protocolos individuales o batch. Cobra por protocolo auditado.',
   endpoint: process.env.PUBLIC_ENDPOINT || 'http://demo-agents:5002',
 });
 
 interface RiskRequest {
   programId?: string;
   protocol?: string;
+  protocols?: string[];
 }
 
-interface RiskResponse {
+interface RiskReport {
+  protocol: string;
   score: number;
   rating: 'low' | 'medium' | 'high';
   factors: { name: string; impact: 'positive' | 'negative'; weight: number }[];
   summary: string;
 }
 
-const MOCK_RISK: Record<string, RiskResponse> = {
+interface RiskResponse {
+  audits: RiskReport[];
+  count: number;
+}
+
+const MOCK_RISK: Record<string, Omit<RiskReport, 'protocol'>> = {
   Kamino: {
     score: 8.5,
     rating: 'low',
@@ -59,9 +82,18 @@ const MOCK_RISK: Record<string, RiskResponse> = {
   },
 };
 
+function auditOne(name: string): RiskReport {
+  const data = MOCK_RISK[name] ?? MOCK_RISK.default;
+  return { protocol: name, ...data };
+}
+
 agent.serve<RiskRequest, RiskResponse>(async (req) => {
-  const key = req.protocol ?? 'default';
-  return MOCK_RISK[key] ?? MOCK_RISK.default;
+  // Soporta both: 'protocol' (string, legacy) y 'protocols' (array, batch)
+  const list = Array.isArray(req.protocols) && req.protocols.length > 0
+    ? req.protocols
+    : [req.protocol ?? 'default'];
+  const audits = list.map(auditOne);
+  return { audits, count: audits.length };
 });
 
 (async () => {

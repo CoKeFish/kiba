@@ -14,11 +14,28 @@ import { AgentProvider, loadOrCreateKeypair } from '@agent-bazaar/sdk';
 const KEYPAIR_PATH = process.env.KEYPAIR_PATH || '/app/data/yield-hunter.json';
 const wallet = loadOrCreateKeypair(KEYPAIR_PATH);
 
+// Pricing dinámico por nivel de análisis solicitado:
+//   low    → solo top 1, snapshot ligero
+//   medium → top 3 con comparación
+//   high   → análisis completo + alternatives + reasoning extra
+const PRICE_BY_RISK: Record<string, number> = {
+  low: 0.005,
+  medium: 0.01,
+  high: 0.015,
+};
+const PRICE_FLOOR_SOL = Math.min(...Object.values(PRICE_BY_RISK));
+
 const agent = new AgentProvider({
   wallet,
   service: 'yield-hunter',
-  pricePerCall: 0.01, // SOL
-  description: 'Encuentra el mejor APY entre protocolos DeFi en Solana',
+  pricePerCall: PRICE_FLOOR_SOL,
+  pricingNote: 'low risk = 0.005 SOL · medium = 0.01 SOL · high = 0.015 SOL (más análisis cuesta más)',
+  priceFn: (req: unknown) => {
+    const risk = (req as { riskTolerance?: string })?.riskTolerance ?? 'low';
+    return PRICE_BY_RISK[risk] ?? PRICE_BY_RISK.low;
+  },
+  description:
+    'Encuentra el mejor APY entre protocolos DeFi en Solana. Pricing escalado por profundidad de análisis.',
   endpoint: process.env.PUBLIC_ENDPOINT || 'http://demo-agents:5001',
 });
 

@@ -37,6 +37,52 @@ export class AgentClient {
     }
   }
 
+  /**
+   * Pre-quote: hace un probe (POST sin pago) para obtener el precio real
+   * que el agente cobrará por este payload específico.
+   *
+   * Útil para callers que necesitan saber el monto antes del handshake completo
+   * (ej. el gateway debita USD del user antes de mover SOL on-chain).
+   */
+  async getQuote(
+    service: string,
+    payload: unknown,
+    options: { timeoutMs?: number } = {},
+  ): Promise<{ manifest: ServiceManifest; quote: X402Quote }> {
+    const manifest = await this.discover(service);
+    let quote: X402Quote;
+    try {
+      const probe = await axios.post(`${manifest.endpoint}/service`, payload, {
+        timeout: options.timeoutMs ?? 30_000,
+        validateStatus: () => true,
+      });
+      if (probe.status === 402) {
+        quote = probe.data as X402Quote;
+      } else if (probe.status >= 200 && probe.status < 300) {
+        // Modo legacy: el agente respondió 200 directo, sin paywall.
+        // Sintetizamos un quote a partir del manifest.
+        quote = {
+          amount: String(Math.floor(manifest.pricePerCall * 1e9)),
+          payTo: manifest.ownerWallet,
+          asset: 'SOL',
+          service: manifest.service,
+          nonce: '0',
+          expiresAt: 0,
+        };
+      } else {
+        throw new Error(`expected 402, got ${probe.status}: ${JSON.stringify(probe.data)}`);
+      }
+    } catch (err) {
+      const ax = err as AxiosError<X402Quote>;
+      if (ax.response?.status === 402) {
+        quote = ax.response.data as X402Quote;
+      } else {
+        throw err;
+      }
+    }
+    return { manifest, quote };
+  }
+
   async bootstrap(): Promise<void> {
     if (!this.program) {
       console.log('[client] skip bootstrap (PROGRAM_ID no configurado)');

@@ -11,20 +11,22 @@ import { Play, AlertCircle, CheckCircle2, ExternalLink } from "lucide-react";
 const SOL_USD_RATE = 150;
 const solToUsd = (sol: number) => sol * SOL_USD_RATE;
 
+// Cada agente cobra dinámicamente según el payload — prueba editando los
+// valores y observa cómo cambia el quote en el x402 trace.
 const SAMPLE_PAYLOADS: Record<string, string> = {
   "yield-hunter": `{
   "token": "USDC",
-  "riskTolerance": "low"
+  "riskTolerance": "medium"
 }`,
   "risk-auditor": `{
-  "protocol": "Kamino"
+  "protocols": ["Kamino", "Lulo"]
 }`,
   "translator-pro": `{
   "text": "hello world",
   "to": "es"
 }`,
   "price-oracle": `{
-  "symbol": "SOL",
+  "symbols": ["SOL", "BTC", "ETH"],
   "vs": "USD"
 }`,
   "code-reviewer": `{
@@ -184,11 +186,11 @@ export default function Playground() {
 
           <div className="flex items-center justify-between">
             <div className="text-xs text-[var(--color-fg-muted)]">
-              Cost{" "}
+              Floor{" "}
               {selected
                 ? formatUsd(solToUsd(selected.pricePerCall))
                 : "—"}{" "}
-              · debited from your USD balance
+              · actual price quoted by agent based on payload
             </div>
             <Button onClick={runCall} disabled={!service || running}>
               <Play className="w-3 h-3" />

@@ -9,26 +9,47 @@ import { AgentProvider, loadOrCreateKeypair } from '@agent-bazaar/sdk';
 const KEYPAIR_PATH = process.env.KEYPAIR_PATH || '/app/data/price-oracle.json';
 const wallet = loadOrCreateKeypair(KEYPAIR_PATH);
 
+// Pricing dinámico: cobra por cada símbolo consultado.
+// Floor 0.0005 SOL (cubre 1 símbolo), + 0.0005 SOL por símbolo extra.
+// Consulta 1 precio ≈ 0.0005 SOL, 8 precios ≈ 0.004 SOL.
+const PRICE_FLOOR_SOL = 0.0005;
+const PRICE_PER_SYMBOL_SOL = 0.0005;
+
+function countSymbols(req: unknown): number {
+  const r = req as { symbol?: string; symbols?: string[] };
+  if (Array.isArray(r?.symbols)) return Math.max(1, r.symbols.length);
+  if (r?.symbol) return 1;
+  return 1;
+}
+
 const agent = new AgentProvider({
   wallet,
   service: 'price-oracle',
-  pricePerCall: 0.001,
+  pricePerCall: PRICE_FLOOR_SOL,
+  pricingNote: `${PRICE_PER_SYMBOL_SOL} SOL por símbolo cotizado (floor ${PRICE_FLOOR_SOL} SOL)`,
+  priceFn: (req: unknown) => countSymbols(req) * PRICE_PER_SYMBOL_SOL,
   description:
-    'Real-time cryptocurrency prices aggregated from major exchanges (Binance, Coinbase, Kraken)',
+    'Real-time cryptocurrency prices aggregated from major exchanges. Acepta símbolos individuales o batch. Cobra por símbolo cotizado.',
   endpoint: process.env.PUBLIC_ENDPOINT || 'http://demo-agents:5004',
 });
 
 interface PriceRequest {
-  symbol: string;
+  symbol?: string;
+  symbols?: string[];
   vs?: string;
 }
 
-interface PriceResponse {
+interface PricePoint {
   symbol: string;
   vs: string;
   price: number;
   change24h: number;
   sources: { name: string; price: number }[];
+}
+
+interface PriceResponse {
+  prices: PricePoint[];
+  count: number;
   timestamp: number;
 }
 
@@ -47,20 +68,31 @@ function jitter(base: number): number {
   return base * (1 + (Math.random() - 0.5) * 0.005);
 }
 
-agent.serve<PriceRequest, PriceResponse>(async (req) => {
-  const symbol = (req.symbol || 'SOL').toUpperCase();
-  const base = BASE_PRICES[symbol] ?? 1.0;
-  const price = jitter(base);
+function quoteOne(symbol: string, vs: string): PricePoint {
+  const sym = symbol.toUpperCase();
+  const base = BASE_PRICES[sym] ?? 1.0;
   return {
-    symbol,
-    vs: (req.vs ?? 'USD').toUpperCase(),
-    price,
+    symbol: sym,
+    vs: vs.toUpperCase(),
+    price: jitter(base),
     change24h: (Math.random() - 0.4) * 8,
     sources: [
       { name: 'Binance', price: jitter(base) },
       { name: 'Coinbase', price: jitter(base) },
       { name: 'Kraken', price: jitter(base) },
     ],
+  };
+}
+
+agent.serve<PriceRequest, PriceResponse>(async (req) => {
+  const vs = req.vs ?? 'USD';
+  const list = Array.isArray(req.symbols) && req.symbols.length > 0
+    ? req.symbols
+    : [req.symbol ?? 'SOL'];
+  const prices = list.map((s) => quoteOne(s, vs));
+  return {
+    prices,
+    count: prices.length,
     timestamp: Math.floor(Date.now() / 1000),
   };
 });

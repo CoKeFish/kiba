@@ -1,20 +1,25 @@
 /**
  * Proxy de /v1/call al SDK de Agent Bazaar.
  *
- * Modelo de wallet: cascada virtual → on-chain.
+ * Modelo de wallet: cascada virtual → on-chain con pricing dinámico.
  *   1. Cada user tiene su propia keypair (en users.custodial_wallet_secret).
  *      Esa keypair es la que firma open_escrow / claim_payment.
- *   2. Cada call decide modo según `balance_lamports` (USD virtual) vs precio:
+ *   2. Pre-quote: cada call hace un probe HTTP sin pago para obtener el monto
+ *      REAL que el agente cobrará por ESTE payload (puede ser > floor si el
+ *      agente usa priceFn dinámico — translator cobra por chars, oracle por
+ *      símbolos, etc.). Decidimos cascada con ese monto, no con el floor.
+ *   3. Cada call decide modo según `balance_lamports` (USD virtual) vs precio:
  *      - Si virtual cubre el costo → debita virtual y la master rellena la
  *        custodial on-demand (ver wallets.ensureFunded).
  *      - Si virtual no alcanza → modo "pay-from-wallet": no se toca virtual ni
  *        master, la custodial firma directo con su SOL on-chain (lo que el user
  *        haya transferido manualmente desde su Phantom externa).
- *   3. La cascada es por call entera, no parcial — para no fragmentar el escrow.
+ *   4. La cascada es por call entera, no parcial — para no fragmentar el escrow.
  */
 import axios from 'axios';
 import type { Keypair } from '@solana/web3.js';
 import { AgentClient } from '@agent-bazaar/sdk';
+import type { ServiceManifest, X402Quote } from '@agent-bazaar/sdk';
 import { debit, getBalance, lamportsToUsd } from './billing';
 import { db } from './db';
 import {
@@ -53,6 +58,7 @@ function recordWalletDirectCall(args: {
   userId: number;
   lamports: number;
   service: string;
+  floorPricePerCall: number;
 }) {
   const now = Math.floor(Date.now() / 1000);
   db.prepare(
@@ -62,7 +68,11 @@ function recordWalletDirectCall(args: {
     args.userId,
     -args.lamports,
     args.service,
-    JSON.stringify({ mode: 'wallet-direct' }),
+    JSON.stringify({
+      mode: 'wallet-direct',
+      floorPricePerCall: args.floorPricePerCall,
+      dynamicAmountLamports: args.lamports,
+    }),
     now,
   );
 }
@@ -86,19 +96,31 @@ export async function callOnBehalf(args: {
     rpcUrl: process.env.SOLANA_RPC_URL,
   });
 
-  // 1. Discover (precio + endpoint)
-  const manifest = await client.discover(args.service);
-  const lamports = Math.floor(manifest.pricePerCall * 1e9);
+  // 1. Pre-quote (probe sin pago) → conseguimos el precio REAL que el agente
+  //    cobrará por este payload específico (puede ser > floor si el agente usa
+  //    priceFn dinámico). Esto es lo que debitamos y lo que decide la cascada.
+  const { manifest, quote } = await client.getQuote(args.service, args.payload, {
+    timeoutMs: 30_000,
+  });
+  const lamports = Number(quote.amount);
 
-  // 2. Decidir modo: si el saldo virtual cubre el costo, virtual+refill master;
+  // 2. Decidir modo: si el saldo virtual cubre el costo REAL, virtual+refill master;
   //    si no, pay-from-wallet directo desde la custodial on-chain.
   const virtualBalance = getBalance(args.userId);
 
   if (virtualBalance >= lamports) {
-    return await callViaVirtual({ ...args, client, manifest, lamports });
+    return await callViaVirtual({ ...args, client, manifest, quote, lamports });
   }
 
-  return await callViaWallet({ ...args, client, userWallet, manifest, lamports, virtualBalance });
+  return await callViaWallet({
+    ...args,
+    client,
+    userWallet,
+    manifest,
+    quote,
+    lamports,
+    virtualBalance,
+  });
 }
 
 async function callViaVirtual(args: {
@@ -106,14 +128,19 @@ async function callViaVirtual(args: {
   service: string;
   payload: unknown;
   client: AgentClient;
-  manifest: { pricePerCall: number };
+  manifest: ServiceManifest;
+  quote: X402Quote;
   lamports: number;
 }) {
   const debitResult = debit({
     userId: args.userId,
     lamports: args.lamports,
     service: args.service,
-    metadata: { mode: 'virtual' },
+    metadata: {
+      mode: 'virtual',
+      floorPricePerCall: args.manifest.pricePerCall,
+      dynamicAmountLamports: args.lamports,
+    },
   });
   if (!debitResult.ok) throw new Error(`debit failed: ${debitResult.error}`);
 
@@ -125,10 +152,14 @@ async function callViaVirtual(args: {
     throw err;
   }
 
+  // El SDK hará su propio probe (nuevo nonce) y abrirá escrow por el monto
+  // cotizado en ese momento. priceFn es determinista en el payload, así que
+  // el monto coincidirá con `lamports` (lo que ya debitamos).
   let result: unknown;
   try {
     result = await args.client.call(args.service, args.payload, {
-      maxPrice: args.manifest.pricePerCall + 0.01,
+      // maxPrice circuit breaker — 2x del cotizado por seguridad
+      maxPrice: (args.lamports / 1e9) * 2,
       timeoutMs: 30_000,
     });
   } catch (err) {
@@ -161,7 +192,8 @@ async function callViaWallet(args: {
   payload: unknown;
   client: AgentClient;
   userWallet: Keypair;
-  manifest: { pricePerCall: number };
+  manifest: ServiceManifest;
+  quote: X402Quote;
   lamports: number;
   virtualBalance: number;
 }) {
@@ -176,7 +208,8 @@ async function callViaWallet(args: {
 
   // Pay-from-wallet sin debit virtual: si falla, el saldo USD virtual no cambió.
   const result = await args.client.call(args.service, args.payload, {
-    maxPrice: args.manifest.pricePerCall + 0.01,
+    // maxPrice circuit breaker — 2x del cotizado por seguridad
+    maxPrice: (args.lamports / 1e9) * 2,
     timeoutMs: 30_000,
   });
 
@@ -184,6 +217,7 @@ async function callViaWallet(args: {
     userId: args.userId,
     lamports: args.lamports,
     service: args.service,
+    floorPricePerCall: args.manifest.pricePerCall,
   });
 
   return {
