@@ -59,24 +59,17 @@ export function AppLayout() {
           className="px-5 py-4 flex items-center gap-3"
           style={{ borderBottom: "1px solid var(--color-border)" }}
         >
-          <div
+          <img
+            src="/logomark.png"
+            alt="Agent Bazaar"
             style={{
               width: 28,
               height: 28,
-              borderRadius: 7,
-              background: "var(--color-primary)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              boxShadow: "0 0 16px color-mix(in srgb, var(--color-primary) 50%, transparent)",
+              objectFit: "contain",
               flexShrink: 0,
+              filter: "drop-shadow(0 0 8px color-mix(in srgb, var(--color-primary) 50%, transparent))",
             }}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <polygon points="12,3 22,20 2,20" fill="white" opacity="0.95" />
-              <circle cx="12" cy="16" r="2.5" fill="white" opacity="0.6" />
-            </svg>
-          </div>
+          />
           <span
             style={{
               fontFamily: "var(--font-display)",

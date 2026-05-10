@@ -54,23 +54,16 @@ export default function Signup() {
             gap: 12,
           }}
         >
-          <div
+          <img
+            src="/logomark.png"
+            alt="Agent Bazaar"
             style={{
-              width: 48,
-              height: 48,
-              borderRadius: 12,
-              background: "var(--color-primary)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              boxShadow: "0 0 32px color-mix(in srgb, var(--color-primary) 50%, transparent)",
+              width: 72,
+              height: 72,
+              objectFit: "contain",
+              filter: "drop-shadow(0 0 24px color-mix(in srgb, var(--color-primary) 55%, transparent))",
             }}
-          >
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-              <polygon points="12,3 22,20 2,20" fill="white" opacity="0.95" />
-              <circle cx="12" cy="16" r="2.5" fill="white" opacity="0.6" />
-            </svg>
-          </div>
+          />
           <div
             style={{
               fontFamily: "var(--font-display)",
