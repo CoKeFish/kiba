@@ -298,9 +298,15 @@ app.post('/v1/topup', requireAuth, handleTopup);
  * si no, redirige a login con next.
  */
 app.get('/auth/connect', (req, res) => {
-  const codeChallenge = req.query.code_challenge as string;
-  const redirectUri = req.query.redirect_uri as string;
-  const clientName = (req.query.client_name as string) || 'unknown-client';
+  // Normaliza a string: req.query.X puede ser string | string[] | ParsedQs según query parser
+  const toStr = (v: unknown, fallback = ''): string => {
+    if (typeof v === 'string') return v;
+    if (Array.isArray(v) && typeof v[0] === 'string') return v[0];
+    return fallback;
+  };
+  const codeChallenge = toStr(req.query.code_challenge);
+  const redirectUri = toStr(req.query.redirect_uri);
+  const clientName = toStr(req.query.client_name, 'unknown-client');
 
   if (!codeChallenge || !redirectUri) {
     return res.status(400).send('Missing code_challenge or redirect_uri');
