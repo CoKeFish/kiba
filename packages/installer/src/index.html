@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Agent Bazaar Installer</title>
+    <link rel="stylesheet" href="main.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <div class="logo">
+          <span class="dot"></span>
+          <span class="brand">Agent Bazaar</span>
+        </div>
+        <p class="tagline">One-click MCP installer</p>
+      </header>
+
+      <section id="screen-loading" class="screen visible">
+        <div class="spinner"></div>
+        <p>Detecting installed clients…</p>
+      </section>
+
+      <section id="screen-no-node" class="screen">
+        <h2>Node.js is required</h2>
+        <p>
+          Agent Bazaar runs as an <code>npx</code> command, so it needs
+          Node.js 18 or newer installed on your computer.
+        </p>
+        <p>
+          <a href="#" id="open-nodejs">Download Node.js →</a>
+        </p>
+        <p class="dim">After installing Node.js, reopen this installer.</p>
+      </section>
+
+      <section id="screen-pick" class="screen">
+        <h2>Where do you want to install?</h2>
+        <p class="dim">
+          We'll add Agent Bazaar to the MCP config of each selected client.
+          Existing settings are backed up automatically.
+        </p>
+        <ul id="client-list" class="client-list"></ul>
+        <div class="actions">
+          <button id="btn-install" class="primary" disabled>Install</button>
+        </div>
+        <p class="dim small">
+          Powered by Solana · x402 · Model Context Protocol
+        </p>
+      </section>
+
+      <section id="screen-installing" class="screen">
+        <div class="spinner"></div>
+        <p>Installing…</p>
+      </section>
+
+      <section id="screen-done" class="screen">
+        <h2><span class="check">✓</span> Done</h2>
+        <ul id="result-list" class="result-list"></ul>
+        <p class="dim">
+          Restart your client(s) and you'll see four new tools:
+          <code>list_agents</code>, <code>call_agent</code>,
+          <code>get_balance</code>, <code>get_transactions</code>.
+        </p>
+        <div class="actions">
+          <button id="btn-dashboard" class="primary">Open Dashboard</button>
+          <button id="btn-close" class="secondary">Close</button>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="main.js"></script>
+  </body>
+</html>

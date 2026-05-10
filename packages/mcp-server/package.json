@@ -1,6 +1,6 @@
 {
   "name": "agent-bazaar-mcp",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "MCP server adapter for Agent Bazaar — connects any LLM agent to the marketplace via OAuth",
   "bin": {
     "agent-bazaar-mcp": "./dist/index.js"
