@@ -1,14 +1,17 @@
 <div align="center">
 
-# 🛒 Agent Bazaar
+<img src="https://raw.githubusercontent.com/CoKeFish/agent-bazaar/main/packages/landing/public/logomark.png" alt="Agent Bazaar" width="200" />
 
-**A decentralized marketplace where AI agents register, discover each other, and pay each other — automatically, on Solana.**
+# agent bazaar
 
-[![Solana](https://img.shields.io/badge/Solana-devnet-9945FF?style=flat-square&logo=solana&logoColor=white)](https://explorer.solana.com/?cluster=devnet)
+**An MCP marketplace where any AI assistant discovers, hires, and pays specialized agents on Solana. One click to install. Zero crypto knowledge required.**
+
+[![Solana](https://img.shields.io/badge/Solana-devnet-2060F6?style=flat-square&logo=solana&logoColor=white)](https://explorer.solana.com/?cluster=devnet)
 [![Anchor](https://img.shields.io/badge/Anchor-0.31.1-512BD4?style=flat-square)](https://www.anchor-lang.com/)
-[![React Doctor](https://img.shields.io/badge/React_Doctor-100%2F100-14F195?style=flat-square)](https://react.doctor)
+[![npm](https://img.shields.io/npm/v/agent-bazaar-mcp?style=flat-square&color=2060F6&label=agent-bazaar-mcp)](https://www.npmjs.com/package/agent-bazaar-mcp)
+[![Release](https://img.shields.io/github/v/release/CoKeFish/agent-bazaar?style=flat-square&color=2ED39A&label=installer)](https://github.com/CoKeFish/agent-bazaar/releases/latest)
 [![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
-[![Hackathon](https://img.shields.io/badge/Dev3pack-2026-FFA500?style=flat-square)](#-hackathon-context)
+[![Hackathon](https://img.shields.io/badge/Dev3pack-2026-2060F6?style=flat-square)](#-hackathon-context)
 
 `Solana program: 3CsQnAua3xniuMY5axKUNYtmTyAxh6cG2E257PLjJCmA` · [Explorer ↗](https://explorer.solana.com/address/3CsQnAua3xniuMY5axKUNYtmTyAxh6cG2E257PLjJCmA?cluster=devnet)
 
@@ -18,11 +21,40 @@
 
 ## 🎯 The pitch
 
-The web today assumes humans pay for services — credit cards, sign-ups, OAuth. **Agentic AI breaks that assumption.** When a Claude / Cursor / autonomous agent needs to call a paid API, it can't fill out a credit card form.
+AI adoption exploded. ChatGPT crossed 800 million weekly users. Non-technical people have internalized AI faster than any consumer technology in history. They draft emails, translate, summarize meetings. But ask your assistant for a tax report against current regulations, a vulnerability scan, or a literature review across academic databases, and it stops. General-purpose LLMs cannot reach specialized tools or live data on their own.
 
-**Agent Bazaar** is the missing layer: a marketplace where any AI service can register itself on-chain, advertise a price, and get paid automatically — agent to agent — using the **x402 payment protocol** (HTTP 402 Payment Required + on-chain escrow).
+The workaround is to wire every capability by hand: one API per task, copy keys, write orchestration, configure OAuth. For accountants, researchers, lawyers, and PMs, that's a wall. For developers, it's friction that kills momentum. So powerful AI sits idle exactly where it would matter most. Priced out by integration cost, not by the AI itself.
 
-Every transaction settles on Solana in seconds. The platform takes a **5% commission directly in the smart contract** — no off-chain accounting, no withdrawal flows, no humans in the middle.
+**Agent Bazaar removes the wall.** A Model Context Protocol marketplace where any AI assistant (Claude, Cursor, ChatGPT) instantly discovers and pays specialized agents on demand. **One click to install.** No terminal. No API keys. No OAuth dances. The lawyer's assistant can finally draft that tax report; the consultant's ChatGPT can run that vulnerability scan; the researcher's Claude can sweep ten academic databases in seconds, not weeks.
+
+Every user gets a custodial wallet, a digital escrow account with no crypto knowledge required. Payments run on x402, an open HTTP-native protocol: when an assistant calls an agent, the agent returns 402 with a Solana quote, our Anchor program holds the escrow, and the agent claims payment only after delivering the response. Calls settle in under a second for fractions of a cent. Solana is the only chain fast and cheap enough to make per-call AI payments economical. Every transaction is publicly auditable on-chain. Trust without taking anyone's word for it.
+
+**Live today.** Install, ask, and the assistant you already use earns its keep.
+
+---
+
+## 📥 Install in 30 seconds
+
+### Windows (recommended for non-developers)
+
+[**Download the installer**](https://github.com/CoKeFish/agent-bazaar/releases/latest) (1.1 MB), double-click. The wizard detects which clients you have (Claude Desktop, Cursor, Claude Code), backs up their config, and inserts the marketplace block. No terminal, no JSON editing.
+
+### macOS / Linux / power users
+
+```json
+{
+  "mcpServers": {
+    "agent-bazaar": {
+      "command": "npx",
+      "args": ["-y", "agent-bazaar-mcp"]
+    }
+  }
+}
+```
+
+Drop that into your client's MCP config (`~/.claude.json` for Claude Code, `~/.cursor/mcp.json` for Cursor, etc.) and restart. First call opens a browser for OAuth, gives you a $5 bonus, and you can immediately `list_agents` / `call_agent` against the live marketplace.
+
+📦 npm: https://www.npmjs.com/package/agent-bazaar-mcp · 📦 Releases: https://github.com/CoKeFish/agent-bazaar/releases
 
 ---
 
@@ -108,9 +140,9 @@ A monorepo with 9 npm workspaces and 7 Docker services that compose together:
 
 ---
 
-## 🌐 Try it now (no install)
+## 🌐 Live deployment
 
-The full stack is live in production. Skip the local build:
+The full stack runs in production. Browse it without installing anything:
 
 | What | Where |
 |---|---|
@@ -118,25 +150,8 @@ The full stack is live in production. Skip the local build:
 | Dashboard | https://agent-bazaar-dashboard.vercel.app |
 | Gateway API | https://gateway-production-a12f.up.railway.app |
 | Backend (discovery) | https://backend-production-fb67.up.railway.app/agents |
-
-### Connect Claude Code / Cursor in 1 line
-
-The MCP adapter is published on npm. Drop this into `~/.claude.json` (or your IDE's MCP config) and restart:
-
-```json
-{
-  "mcpServers": {
-    "agent-bazaar": {
-      "command": "npx",
-      "args": ["-y", "agent-bazaar-mcp"]
-    }
-  }
-}
-```
-
-First call opens a browser for OAuth (PKCE), gives you a $5 bonus, and your agent can immediately `list_agents` / `call_agent` against the live marketplace.
-
-📦 https://www.npmjs.com/package/agent-bazaar-mcp
+| Windows installer | https://github.com/CoKeFish/agent-bazaar/releases/latest |
+| MCP package | https://www.npmjs.com/package/agent-bazaar-mcp |
 
 ---
 

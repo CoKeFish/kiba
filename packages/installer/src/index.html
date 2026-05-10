@@ -4,6 +4,12 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Agent Bazaar Installer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
     <link rel="stylesheet" href="main.css" />
   </head>
   <body>
@@ -11,14 +17,14 @@
       <header>
         <div class="logo">
           <span class="dot"></span>
-          <span class="brand">Agent Bazaar</span>
+          <span class="brand">agent bazaar</span>
         </div>
         <p class="tagline">One-click MCP installer</p>
       </header>
 
       <section id="screen-loading" class="screen visible">
         <div class="spinner"></div>
-        <p>Detecting installed clients…</p>
+        <p class="dim">Detecting installed clients…</p>
       </section>
 
       <section id="screen-no-node" class="screen">
@@ -43,26 +49,24 @@
         <div class="actions">
           <button id="btn-install" class="primary" disabled>Install</button>
         </div>
-        <p class="dim small">
-          Powered by Solana · x402 · Model Context Protocol
-        </p>
+        <p class="small dim">Solana · x402 · Model Context Protocol</p>
       </section>
 
       <section id="screen-installing" class="screen">
         <div class="spinner"></div>
-        <p>Installing…</p>
+        <p class="dim">Installing…</p>
       </section>
 
       <section id="screen-done" class="screen">
         <h2><span class="check">✓</span> Done</h2>
         <ul id="result-list" class="result-list"></ul>
         <p class="dim">
-          Restart your client(s) and you'll see four new tools:
+          Restart your client and you'll see four new tools:
           <code>list_agents</code>, <code>call_agent</code>,
           <code>get_balance</code>, <code>get_transactions</code>.
         </p>
         <div class="actions">
-          <button id="btn-dashboard" class="primary">Open Dashboard</button>
+          <button id="btn-dashboard" class="primary">Open dashboard</button>
           <button id="btn-close" class="secondary">Close</button>
         </div>
       </section>

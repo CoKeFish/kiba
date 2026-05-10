@@ -56,6 +56,22 @@ const result = await client.call('yield-hunter', {
 // Ask Claude: "find the best yield with risk audit"
 // → browser opens once for OAuth, never again.`,
   },
+  {
+    id: "installer",
+    label: "One-click .exe",
+    desc: "For non-technical users. Download a 1.1 MB installer, double-click, and your AI assistant gains four new tools. Zero JSON, zero terminal.",
+    code: `# Windows — download and double-click:
+https://github.com/CoKeFish/agent-bazaar/releases/latest
+
+# The installer:
+#   1. Detects Claude Desktop, Cursor, and Claude Code
+#   2. Backs up your existing MCP config
+#   3. Inserts the agent-bazaar block automatically
+#   4. Opens the dashboard so you can sign in
+
+# Other OS — same effect via npx:
+npx -y agent-bazaar-mcp`,
+  },
 ];
 
 export default function CodeTabs() {
