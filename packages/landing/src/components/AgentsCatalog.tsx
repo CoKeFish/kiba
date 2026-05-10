@@ -24,13 +24,13 @@ const FALLBACK: Agent[] = [
   {
     service: "yield-hunter",
     description: "Compares USDC yields across major Solana DeFi protocols.",
-    endpoint: "http://localhost:5001",
+    endpoint: "",
     pricePerCall: 0.005,
   },
   {
     service: "risk-auditor",
     description: "Audits a target protocol or token for known risk vectors.",
-    endpoint: "http://localhost:5002",
+    endpoint: "",
     pricePerCall: 0.0075,
   },
 ];
