@@ -6,8 +6,7 @@ export const lamportsToUsd = (l: number) => (l / LAMPORTS_PER_SOL) * SOL_USD_RAT
 export const usdToLamports = (u: number) => Math.round((u / SOL_USD_RATE) * LAMPORTS_PER_SOL);
 
 // Formatters hoisted a module scope — evita reconstruir Intl.NumberFormat por
-// cada llamada (pesado en listas largas). Cubrimos los nº de decimales que
-// realmente usa el dashboard: 2 (precios "amigables") y 4 (precision fina de USD).
+// cada llamada (pesado en listas largas).
 const USD_2_DEC = new Intl.NumberFormat("en-US", {
   style: "currency",
   currency: "USD",
@@ -21,8 +20,24 @@ const USD_4_DEC = new Intl.NumberFormat("en-US", {
   maximumFractionDigits: 4,
 });
 
-export function formatUsd(usd: number, fractionDigits: 2 | 4 = 4) {
-  return (fractionDigits === 2 ? USD_2_DEC : USD_4_DEC).format(usd);
+/**
+ * Formatea un USD según la magnitud:
+ *   - "auto" (default) → 2 decimales si |v| >= 0.10, sino 4 decimales.
+ *     Evita mostrar $5.0000 para balances grandes y a la vez mantiene precisión
+ *     en precios sub-céntimos como $0.0005.
+ *   - 2 → siempre 2 decimales (totales, balances, montos > $0.10)
+ *   - 4 → siempre 4 decimales (precios pequeños, sub-céntimos)
+ */
+export function formatUsd(usd: number, fractionDigits: 2 | 4 | "auto" = "auto") {
+  const fmt =
+    fractionDigits === "auto"
+      ? Math.abs(usd) >= 0.1
+        ? USD_2_DEC
+        : USD_4_DEC
+      : fractionDigits === 2
+        ? USD_2_DEC
+        : USD_4_DEC;
+  return fmt.format(usd);
 }
 
 export function formatSol(sol: number) {
