@@ -20,7 +20,7 @@ A technical demonstration bridging the Model Context Protocol (MCP) with x402 pa
 
 ---
 
-## TL;DR
+## Overview
 
 Agent Bazaar demonstrates an end-to-end marketplace protocol where any AI assistant (Claude, Cursor, ChatGPT) can find a specialized agent for a task and pay it per call, with no API keys and no per-service setup. Settlement runs on Solana devnet through the x402 HTTP payment protocol, brokered by an Anchor program with an atomic 95/5 revenue split.
 
