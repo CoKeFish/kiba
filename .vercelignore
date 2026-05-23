@@ -1,0 +1,35 @@
+# Build artifacts
+**/target/
+**/dist/
+**/build/
+**/node_modules/
+**/.next/
+
+# Other Vercel projects in this monorepo
+packages/landing/
+
+# Heavy assets / unnecessary
+*.png
+!packages/dashboard/public/**
+!packages/landing/public/**
+*.exe
+*.msi
+
+# Tauri installer
+packages/installer/
+
+# Anchor contracts
+packages/contracts/
+
+# Test artifacts
+**/test-ledger/
+**/.anchor/
+
+# Logs / temp
+*.log
+.tmp-*
+
+# IDE
+.idea/
+.vscode/
+.claude/
