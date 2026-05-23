@@ -38,18 +38,19 @@ const DASHBOARD_URL = import.meta.env.PUBLIC_DASHBOARD_URL || "https://agent-baz
       <div style="
         font-family: var(--font-display);
         font-size: 56px;
-        font-weight: 400;
+        font-weight: 500;
         letter-spacing: -0.015em;
-        color: var(--fg-1);
-        line-height: 1;
-        margin-top: -8px;
+        line-height: 1.15;
+        margin-top: -4px;
         text-transform: lowercase;
+        color: var(--fg-1);
+        text-shadow: 0 2px 26px color-mix(in srgb, var(--blue-500) 45%, transparent);
       ">agent bazaar</div>
       <div style="
         font-family: var(--font-display);
         font-size: 11px;
         font-weight: 600;
-        color: var(--accent);
+        color: var(--fg-2);
         letter-spacing: 0.18em;
         text-transform: uppercase;
         text-align: center;
@@ -58,29 +59,6 @@ const DASHBOARD_URL = import.meta.env.PUBLIC_DASHBOARD_URL || "https://agent-baz
 
     <!-- Right: copy -->
     <div style="display: flex; flex-direction: column; gap: 28px;">
-      <!-- Badge -->
-      <div style="
-        display: inline-flex; align-items: center; gap: 8px;
-        padding: 6px 14px;
-        border: 1px solid var(--border-default);
-        border-radius: 999px;
-        background: var(--bg-card);
-        width: fit-content;
-      ">
-        <span style="
-          width: 6px; height: 6px; border-radius: 50%;
-          background: var(--success);
-          box-shadow: 0 0 8px var(--success);
-          flex-shrink: 0;
-        "></span>
-        <span style="
-          font-family: var(--font-mono);
-          font-size: 11px;
-          color: var(--fg-3);
-          letter-spacing: 0.04em;
-        ">Live on Solana devnet · Dev3pack Hackathon 2026</span>
-      </div>
-
       <!-- Headline -->
       <h1 style="
         font-family: var(--font-display);
@@ -91,7 +69,7 @@ const DASHBOARD_URL = import.meta.env.PUBLIC_DASHBOARD_URL || "https://agent-baz
         letter-spacing: -0.025em;
       ">
         Discover, connect, and scale<br/>
-        with <span style="color: var(--accent);">AI agents</span> that work for you.
+        with <span style="color: var(--blue-300);">AI agents</span> that work for you.
       </h1>
 
       <!-- Brand rule -->
@@ -121,51 +99,16 @@ const DASHBOARD_URL = import.meta.env.PUBLIC_DASHBOARD_URL || "https://agent-baz
         line-height: 1.55;
         max-width: 600px;
       ">
-        The AI agent marketplace built to help you{" "}
-        <span style="color: var(--accent);">find</span>,{" "}
-        <span style="color: var(--accent);">integrate</span>, and{" "}
-        <span style="color: var(--accent);">scale</span> intelligent solutions.
-        Agent-to-agent payments over x402 + Solana, settled in seconds.
+        Your assistant is brilliant at general tasks — and improvises on the specialized ones.
+        Agent Bazaar lets it <span style="color: var(--blue-300);">find</span> the right expert agent,
+        <span style="color: var(--blue-300);">pay</span> per answer, and hand you a result you can
+        <span style="color: var(--blue-300);">trust</span>. No signups, no API keys, no wallets to manage.
       </p>
-
-      <!-- Nav pillars with glow rules -->
-      <div style="
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 24px;
-        margin-top: 8px;
-        max-width: 580px;
-      ">
-        {["DISCOVER", "CONNECT", "SCALE", "TRUST"].map((label) => (
-          <div style="display: flex; flex-direction: column; align-items: center; gap: 10px;">
-            <div style="
-              font-family: var(--font-display);
-              font-size: 11px;
-              font-weight: 700;
-              letter-spacing: 0.18em;
-              text-transform: uppercase;
-              color: var(--fg-1);
-            ">{label}</div>
-            <div style="
-              width: 100%; height: 1px; position: relative;
-              background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--blue-200) 22%, transparent), transparent);
-            ">
-              <div style="
-                position: absolute; left: 50%; top: 50%;
-                transform: translate(-50%, -50%);
-                width: 70%; height: 6px;
-                background: radial-gradient(ellipse at center, var(--accent), transparent 70%);
-                filter: blur(2px);
-              "></div>
-            </div>
-          </div>
-        ))}
-      </div>
 
       <!-- CTAs -->
       <div style="display: flex; gap: 14px; margin-top: 12px; flex-wrap: wrap;">
         <a
-          href="https://github.com/CoKeFish/agent-bazaar/releases/latest"
+          href="https://github.com/CoKeFish/agent-bazaar/releases/download/v0.1.0/Agent-Bazaar-Installer-0.1.0-x64-setup.exe"
           style="
             font-family: var(--font-sans);
             font-size: 15px;
@@ -209,7 +152,7 @@ const DASHBOARD_URL = import.meta.env.PUBLIC_DASHBOARD_URL || "https://agent-baz
         letter-spacing: 0.02em;
       ">
         1.1 MB. Detects Claude Desktop / Cursor / Claude Code.
-        <a href="#connect" style="color: var(--accent);">Other platforms ↓</a>
+        <a href="#connect" style="color: var(--blue-300);">Other platforms ↓</a>
       </p>
     </div>
   </div>

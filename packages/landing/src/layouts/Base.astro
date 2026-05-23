@@ -66,7 +66,7 @@ const DASHBOARD_URL = import.meta.env.PUBLIC_DASHBOARD_URL || "https://agent-baz
 
       <!-- Nav links -->
       <nav style="display: flex; gap: 28px; align-items: center;">
-        {["discover", "connect", "scale", "trust"].map((item) => (
+        {["demo", "discover", "connect", "scale", "trust"].map((item) => (
           <a
             href={`#${item}`}
             class="nav-link"
@@ -130,7 +130,7 @@ const DASHBOARD_URL = import.meta.env.PUBLIC_DASHBOARD_URL || "https://agent-baz
     </main>
 
     <style>
-      .nav-link:hover { color: var(--accent) !important; }
+      .nav-link:hover { color: var(--blue-300) !important; }
     </style>
   </body>
 </html>

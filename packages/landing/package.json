@@ -10,19 +10,21 @@
     "astro": "astro"
   },
   "dependencies": {
-    "astro": "^5.0.0",
-    "@astrojs/react": "^4.0.0",
     "@astrojs/check": "^0.9.4",
+    "@astrojs/react": "^4.0.0",
     "@tailwindcss/vite": "^4.0.0",
-    "tailwindcss": "^4.0.0",
+    "astro": "^5.0.0",
+    "framer-motion": "^12.40.0",
+    "lucide-react": "^0.460.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "lucide-react": "^0.460.0",
     "shiki": "^1.24.0",
+    "tailwindcss": "^4.0.0",
     "typescript": "^5.5.0"
   },
   "devDependencies": {
     "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0"
+    "@types/react-dom": "^19.0.0",
+    "serve": "^14.2.4"
   }
 }

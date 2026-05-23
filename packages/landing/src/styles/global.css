@@ -189,7 +189,7 @@ p { margin: 0; color: var(--fg-2); line-height: var(--leading-normal); }
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: var(--tracking-wider);
-  color: var(--accent);
+  color: var(--blue-300);
 }
 
 .wordmark {
@@ -199,8 +199,8 @@ p { margin: 0; color: var(--fg-2); line-height: var(--leading-normal); }
   text-transform: lowercase;
 }
 
-a { color: var(--accent); text-decoration: none; transition: color var(--dur-fast) var(--ease-out); }
-a:hover { color: var(--accent-hover); }
+a { color: var(--blue-300); text-decoration: none; transition: color var(--dur-fast) var(--ease-out); }
+a:hover { color: var(--blue-200); }
 
 code, kbd, samp, pre {
   font-family: var(--font-mono);

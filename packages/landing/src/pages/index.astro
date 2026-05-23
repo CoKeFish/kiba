@@ -1,6 +1,7 @@
 ---
 import Base from "../layouts/Base.astro";
 import Hero from "../components/Hero.astro";
+import Demo from "../components/Demo.tsx";
 import HowItWorks from "../components/HowItWorks.astro";
 import CodeTabs from "../components/CodeTabs.tsx";
 import AgentsCatalog from "../components/AgentsCatalog.tsx";
@@ -12,6 +13,38 @@ const BACKEND_URL = import.meta.env.PUBLIC_BACKEND_URL || "https://backend-produ
 
 <Base>
   <Hero />
+
+  <!-- Animated walkthrough: one paid agent call, end to end -->
+  <section id="demo" style="
+    border-top: 1px solid var(--border-subtle);
+    padding: 120px 64px;
+    background: var(--bg-canvas);
+  ">
+    <div style="max-width: 1280px; margin: 0 auto;">
+      <div class="eyebrow" style="margin-bottom: 16px; text-align: center;">See it in action</div>
+      <h2 style="
+        font-family: var(--font-display);
+        font-size: clamp(32px, 3.5vw, 44px);
+        font-weight: 600;
+        color: var(--fg-1);
+        letter-spacing: -0.02em;
+        text-align: center;
+        margin-bottom: 12px;
+      ">From install to answer — one paid call.</h2>
+      <p style="
+        font-family: var(--font-sans);
+        font-size: 16px;
+        color: var(--fg-2);
+        text-align: center;
+        margin-bottom: 56px;
+        max-width: 660px;
+        margin-left: auto;
+        margin-right: auto;
+      ">Download the installer, connect your assistant, ask a question — and get an answer paid for over x402 and settled on-chain, in seconds.</p>
+      <Demo client:visible />
+    </div>
+  </section>
+
   <HowItWorks />
 
   <!-- Integration channels section -->
@@ -115,7 +148,7 @@ const BACKEND_URL = import.meta.env.PUBLIC_BACKEND_URL || "https://backend-produ
         letter-spacing: -0.025em;
         line-height: 1.1;
       ">
-        Your next team doesn't <span style="color: var(--accent);">hire</span>. It <span style="color: var(--accent);">deploys</span>.
+        Your next team doesn't <span style="color: var(--blue-300);">hire</span>. It <span style="color: var(--blue-300);">deploys</span>.
       </h2>
       <p style="
         font-family: var(--font-sans);

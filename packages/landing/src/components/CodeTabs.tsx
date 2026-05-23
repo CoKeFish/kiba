@@ -60,8 +60,8 @@ const result = await client.call('yield-hunter', {
     id: "installer",
     label: "One-click .exe",
     desc: "For non-technical users. Download a 1.1 MB installer, double-click, and your AI assistant gains four new tools. Zero JSON, zero terminal.",
-    code: `# Windows — download and double-click:
-https://github.com/CoKeFish/agent-bazaar/releases/latest
+    code: `# Windows — downloads instantly:
+https://github.com/CoKeFish/agent-bazaar/releases/download/v0.1.0/Agent-Bazaar-Installer-0.1.0-x64-setup.exe
 
 # The installer:
 #   1. Detects Claude Desktop, Cursor, and Claude Code

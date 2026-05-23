@@ -1,0 +1,65 @@
+name: Deploy to Coolify
+
+# Dispara despliegues a Coolify según qué carpetas cambiaron en el push.
+# Por servicio: 1 job que llama al endpoint /api/v1/deploy de Coolify, que clona
+# el repo y rebuildea con el Dockerfile correspondiente.
+#
+# Para agregar un servicio nuevo:
+#   1. Crear la app en Coolify (UUID).
+#   2. Agregar secret en GitHub: COOLIFY_<SERVICE>_UUID
+#   3. Agregar entrada al filter y un job que use ese secret.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    # Permite disparar manual desde la pestaña Actions, eligiendo qué redeployar.
+    inputs:
+      service:
+        description: "Servicio a forzar (all / landing). Útil cuando el path-filter no detectó cambios."
+        required: false
+        default: "all"
+        type: choice
+        options: [all, landing]
+
+jobs:
+  detect:
+    name: Detectar cambios por carpeta
+    runs-on: ubuntu-latest
+    outputs:
+      landing: ${{ steps.filter.outputs.landing }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            landing:
+              - 'packages/landing/**'
+              - '.github/workflows/coolify-deploy.yml'
+
+  landing:
+    name: Deploy landing
+    needs: detect
+    if: |
+      needs.detect.outputs.landing == 'true' ||
+      (github.event_name == 'workflow_dispatch' && (inputs.service == 'all' || inputs.service == 'landing'))
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Coolify deploy
+        env:
+          COOLIFY_URL: ${{ secrets.COOLIFY_URL }}
+          COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+          UUID: ${{ secrets.COOLIFY_LANDING_UUID }}
+        run: |
+          set -euo pipefail
+          echo "→ Triggering Coolify deploy for 'landing' (uuid: ${UUID:0:8}…)"
+          response=$(curl -fsS -X GET \
+            -H "Authorization: Bearer ${COOLIFY_TOKEN}" \
+            "${COOLIFY_URL}/api/v1/deploy?uuid=${UUID}&force=false")
+          echo "Coolify response: $response"
+          # El response típico es {"deployments":[{"message":"Deployment request queued...","resource_uuid":"...","deployment_uuid":"..."}]}
+          echo "$response" | grep -q "queued\|Deployment\|deployment_uuid" || { echo "✗ Respuesta inesperada"; exit 1; }
+          echo "✓ Deploy queued en Coolify"
