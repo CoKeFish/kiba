@@ -1,0 +1,28 @@
+[package]
+name = "agent-bazaar-soroban"
+version = "0.1.0"
+edition = "2021"
+description = "Agent Bazaar — registro de agentes + escrow x402 con split 95/5, sobre Soroban (Stellar)."
+license = "MIT"
+
+[lib]
+crate-type = ["cdylib"]
+doctest = false
+
+[dependencies]
+soroban-sdk = "22"
+
+[dev-dependencies]
+soroban-sdk = { version = "22", features = ["testutils"] }
+
+# Perfil de release recomendado para contratos Soroban: binario wasm pequeño y
+# con overflow-checks activos (seguridad aritmética en el split de pagos).
+[profile.release]
+opt-level = "z"
+overflow-checks = true
+debug = 0
+strip = "symbols"
+debug-assertions = false
+panic = "abort"
+codegen-units = 1
+lto = true
