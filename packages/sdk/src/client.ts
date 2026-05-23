@@ -1,9 +1,7 @@
 import axios, { type AxiosError } from 'axios';
-import { Connection, PublicKey, type Keypair } from '@solana/web3.js';
+import { type Keypair } from '@solana/web3.js';
 import type { AgentConfig, CallOptions, ServiceManifest, X402Quote } from './types';
-import { AgentBazaarProgram } from './program';
-
-const RPC_DEFAULT = process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com';
+import { createChainClient, type ChainClient } from './chain';
 
 /**
  * Trace de cada paso del handshake x402.
@@ -63,27 +61,17 @@ export interface X402Trace {
  */
 export class AgentClient {
   readonly wallet: Keypair;
-  readonly connection: Connection;
-  readonly program: AgentBazaarProgram | null;
+  /** Cadena de liquidación. null en modo degradado (sin cadena configurada). */
+  readonly chain: ChainClient | null;
 
   constructor(config: Pick<AgentConfig, 'wallet' | 'rpcUrl' | 'programId'>) {
     this.wallet = config.wallet;
-    this.connection = new Connection(config.rpcUrl ?? RPC_DEFAULT, 'confirmed');
-
-    const programIdStr =
-      (typeof config.programId === 'string' ? config.programId : config.programId?.toBase58()) ??
-      process.env.PROGRAM_ID;
-    if (programIdStr && programIdStr.length >= 32) {
-      try {
-        this.program = new AgentBazaarProgram(new PublicKey(programIdStr), this.connection);
-      } catch (e) {
-        console.warn('[client] PROGRAM_ID inválido, modo degradado:', (e as Error).message);
-        this.program = null;
-      }
-    } else {
-      console.warn('[client] PROGRAM_ID no configurado — modo degradado');
-      this.program = null;
-    }
+    this.chain = createChainClient({
+      wallet: config.wallet,
+      rpcUrl: config.rpcUrl,
+      programId: config.programId,
+      label: 'client',
+    });
   }
 
   /**
@@ -109,11 +97,13 @@ export class AgentClient {
         quote = probe.data as X402Quote;
       } else if (probe.status >= 200 && probe.status < 300) {
         // Modo legacy: el agente respondió 200 directo, sin paywall.
-        // Sintetizamos un quote a partir del manifest.
+        // Sintetizamos un quote a partir del manifest, en las unidades de la cadena.
         quote = {
-          amount: String(Math.floor(manifest.pricePerCall * 1e9)),
+          amount: String(
+            Math.floor(manifest.pricePerCall * (this.chain?.baseUnitsPerToken ?? 1e9)),
+          ),
           payTo: manifest.ownerWallet,
-          asset: 'SOL',
+          asset: manifest.acceptedToken,
           service: manifest.service,
           nonce: '0',
           expiresAt: 0,
@@ -133,28 +123,11 @@ export class AgentClient {
   }
 
   async bootstrap(): Promise<void> {
-    if (!this.program) {
+    if (!this.chain) {
       console.log('[client] skip bootstrap (PROGRAM_ID no configurado)');
       return;
     }
-    const balance = await this.connection.getBalance(this.wallet.publicKey);
-    if (balance < 0.5 * 1e9) {
-      try {
-        const sig = await this.connection.requestAirdrop(this.wallet.publicKey, 2 * 1e9);
-        const { blockhash, lastValidBlockHeight } = await this.connection.getLatestBlockhash();
-        await Promise.race([
-          this.connection.confirmTransaction(
-            { signature: sig, blockhash, lastValidBlockHeight },
-            'confirmed',
-          ),
-          new Promise((_, rej) => setTimeout(() => rej(new Error('airdrop timeout')), 15_000)),
-        ]);
-        console.log(`[client] airdropped 2 SOL → ${this.wallet.publicKey.toBase58()}`);
-      } catch (e) {
-        console.warn('[client] airdrop failed (rate limit?):', (e as Error).message);
-        console.warn(`[client] funda manualmente: solana airdrop 2 ${this.wallet.publicKey.toBase58()}`);
-      }
-    }
+    await this.chain.ensureFunds(0.5, 2);
   }
 
   /**
@@ -256,20 +229,13 @@ export class AgentClient {
     // 2) Abrir escrow on-chain
     const tEscrow = performance.now();
     let escrowSig = 'NO_ONCHAIN_PROGRAM_ID';
-    if (this.program) {
-      const agentOwner = new PublicKey(quote.payTo);
-      const [agentPda] = (
-        await import('./anchor-helpers')
-      ).getAgentPda(this.program.programId, manifest.service);
-
-      const ix = this.program.openEscrowInstr({
-        client: this.wallet.publicKey,
-        agent: agentPda,
-        agentOwner,
+    if (this.chain) {
+      escrowSig = await this.chain.openEscrow({
+        service: manifest.service,
+        payToAddress: quote.payTo,
         nonce: BigInt(quote.nonce),
-        amount: BigInt(quote.amount),
+        amountBaseUnits: BigInt(quote.amount),
       });
-      escrowSig = await this.program.sendAndConfirm([ix], this.wallet);
     }
     steps.push({
       type: 'escrow_opened',
@@ -280,12 +246,14 @@ export class AgentClient {
       timestamp: Date.now(),
     });
 
-    // 3) Construir X-PAYMENT header
+    // 3) Construir X-PAYMENT header. clientWallet debe ser la dirección NATIVA de
+    //    la cadena (G... en Stellar, base58 en Solana): el agente la usa para
+    //    localizar el escrow on-chain. En modo degradado cae al pubkey de Solana.
     const paymentHeader = Buffer.from(
       JSON.stringify({
         signature: escrowSig,
         nonce: quote.nonce,
-        clientWallet: this.wallet.publicKey.toBase58(),
+        clientWallet: this.chain?.ownerAddress ?? this.wallet.publicKey.toBase58(),
       }),
       'utf8',
     ).toString('base64');
@@ -323,17 +291,17 @@ export class AgentClient {
    * con fallback al backend de descubrimiento.
    */
   async discover(service: string): Promise<ServiceManifest> {
-    // Primero intenta on-chain (si hay program)
-    if (this.program) {
-      const onChain = await this.program.fetchAgent(service);
+    // Primero intenta on-chain (si hay cadena configurada)
+    if (this.chain) {
+      const onChain = await this.chain.fetchAgent(service);
       if (onChain) {
         return {
           service: onChain.service,
-          pricePerCall: Number(onChain.pricePerCall) / 1e9,
+          pricePerCall: Number(onChain.pricePerCallBaseUnits) / this.chain.baseUnitsPerToken,
           description: onChain.description,
           endpoint: onChain.endpoint,
-          ownerWallet: onChain.owner.toBase58(),
-          acceptedToken: 'SOL',
+          ownerWallet: onChain.ownerAddress,
+          acceptedToken: this.chain.asset,
         };
       }
     }

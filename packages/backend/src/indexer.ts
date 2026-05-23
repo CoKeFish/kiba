@@ -12,9 +12,6 @@
  *   - On-chain es source of truth. Si un agente desaparece de la cadena, se marca deleted=1 aquí.
  *   - Cada upsert dispara generación de embedding (best-effort, no bloquea).
  */
-import type { Connection } from '@solana/web3.js';
-import { PublicKey } from '@solana/web3.js';
-import { type AgentBazaarProgram, type AgentAccount } from '@agent-bazaar/sdk';
 import {
   type AgentRecord,
   upsertAgent,
@@ -23,6 +20,7 @@ import {
   listAgents,
   getDb,
 } from './db';
+import type { RegistryReader } from './registry';
 import { embed, isEnabled as semanticEnabled } from './embeddings';
 
 export interface IndexerEvent {
@@ -35,8 +33,6 @@ export interface IndexerEvent {
 export type EventListener = (e: IndexerEvent) => void;
 
 const HEARTBEAT_MS = 5 * 60 * 1000;
-const PROGRAM_INSTR_REGEX =
-  /Program log: Instruction: (RegisterAgent|UpdateAgent|DeregisterAgent|ClaimPayment|RefundEscrow)/i;
 
 /**
  * Catálogo de demo agents — espejo de los 5 agents reales que corre el container
@@ -122,23 +118,6 @@ const FALLBACK_AGENTS: AgentRecord[] = [
   },
 ];
 
-function chainAgentToRecord(pda: PublicKey, a: AgentAccount, now: number): AgentRecord {
-  return {
-    pda: pda.toBase58(),
-    service: a.service,
-    owner_wallet: a.owner.toBase58(),
-    price_per_call: Number(a.pricePerCall),
-    endpoint: a.endpoint,
-    description: a.description,
-    total_calls: Number(a.totalCalls),
-    total_earned: Number(a.totalEarned),
-    created_at: Number(a.createdAt),
-    updated_at: now,
-    source: 'chain',
-    deleted: 0,
-  };
-}
-
 function embedTextFor(a: { service: string; description: string }): string {
   return `${a.service}\n${a.description}`;
 }
@@ -158,15 +137,13 @@ async function embedAgent(service: string, description: string): Promise<void> {
 }
 
 export class Indexer {
-  private program: AgentBazaarProgram | null;
-  private connection: Connection | null;
+  private reader: RegistryReader | null;
   private listeners = new Set<EventListener>();
-  private logsSubId: number | null = null;
+  private unsubscribe: (() => void) | null = null;
   private heartbeatTimer: NodeJS.Timeout | null = null;
 
-  constructor(program: AgentBazaarProgram | null, connection: Connection | null) {
-    this.program = program;
-    this.connection = connection;
+  constructor(reader: RegistryReader | null) {
+    this.reader = reader;
   }
 
   on(listener: EventListener): () => void {
@@ -191,8 +168,8 @@ export class Indexer {
     const db = getDb();
     const now = Math.floor(Date.now() / 1000);
 
-    if (!this.program) {
-      console.log('[indexer] sin PROGRAM_ID — sembrando FALLBACK_AGENTS');
+    if (!this.reader) {
+      console.log('[indexer] sin cadena configurada — sembrando FALLBACK_AGENTS');
       for (const a of FALLBACK_AGENTS) {
         upsertAgent(db, { ...a, updated_at: now });
         void embedAgent(a.service, a.description);
@@ -201,11 +178,10 @@ export class Indexer {
     }
 
     try {
-      const onChain = await this.program.fetchAllAgents();
-      console.log(`[indexer] bootstrap: ${onChain.length} agentes on-chain`);
+      const onChain = await this.reader.listAgents();
+      console.log(`[indexer] bootstrap (${this.reader.label}): ${onChain.length} agentes on-chain`);
       const seen = new Set<string>();
-      for (const { pda, data } of onChain) {
-        const rec = chainAgentToRecord(pda, data, now);
+      for (const rec of onChain) {
         upsertAgent(db, rec);
         seen.add(rec.service);
         void embedAgent(rec.service, rec.description);
@@ -232,24 +208,13 @@ export class Indexer {
    * Para escala, migrar a Helius webhooks que sí parsea args.
    */
   subscribeToChain(): void {
-    if (!this.program || !this.connection) return;
+    if (!this.reader?.subscribe) return;
     try {
-      this.logsSubId = this.connection.onLogs(
-        this.program.programId,
-        (logs) => {
-          const interesting = logs.logs.some((l) => PROGRAM_INSTR_REGEX.test(l));
-          if (!interesting) return;
-          this.emit({
-            type: 'program_event',
-            signature: logs.signature,
-            logs: logs.logs.slice(0, 10),
-          });
-          // Re-snapshot async
-          void this.bootstrap();
-        },
-        'confirmed',
-      );
-      console.log(`[indexer] suscrito a logs del programa`);
+      this.unsubscribe = this.reader.subscribe(() => {
+        this.emit({ type: 'program_event' });
+        void this.bootstrap();
+      });
+      console.log('[indexer] suscrito a cambios del registro');
     } catch (err) {
       console.error('[indexer] subscribe falló:', (err as Error).message);
     }
@@ -267,13 +232,13 @@ export class Indexer {
       clearInterval(this.heartbeatTimer);
       this.heartbeatTimer = null;
     }
-    if (this.logsSubId !== null && this.connection) {
+    if (this.unsubscribe) {
       try {
-        await this.connection.removeOnLogsListener(this.logsSubId);
+        this.unsubscribe();
       } catch {
         /* ignore */
       }
-      this.logsSubId = null;
+      this.unsubscribe = null;
     }
   }
 }

@@ -51,7 +51,7 @@ export interface ServiceManifest {
   description?: string;
   endpoint: string;
   ownerWallet: string;
-  acceptedToken: 'SOL' | 'USDC';
+  acceptedToken: 'SOL' | 'USDC' | 'XLM';
 }
 
 export interface X402Quote {
@@ -60,7 +60,7 @@ export interface X402Quote {
   /** Wallet destino para el pago */
   payTo: string;
   /** Token usado */
-  asset: 'SOL' | 'USDC';
+  asset: 'SOL' | 'USDC' | 'XLM';
   /** Servicio al que aplica este quote */
   service: string;
   /** Nonce u64 — único por solicitud, evita replays */

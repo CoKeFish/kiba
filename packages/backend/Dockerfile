@@ -7,23 +7,22 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# Configs raíz
-COPY package.json ./
-COPY tsconfig.base.json ./
+# Root configs + lockfile (para install determinista)
+COPY package.json package-lock.json tsconfig.base.json ./
 
-# package.json de cada workspace (resolución de deps)
+# Solo los workspaces que el backend usa. sdk es dep transitiva del backend
+# (a través de @agent-bazaar/sdk). No copiamos los otros 6 workspaces
+# (landing, dashboard, demo-agents, orchestrator-agent, gateway, mcp-server)
+# → npm no enumera sus deps → ni Astro, ni Vite, ni framer-motion, ni
+# react-router, etc. terminan en node_modules.
 COPY packages/sdk/package.json ./packages/sdk/
 COPY packages/backend/package.json ./packages/backend/
-COPY packages/landing/package.json ./packages/landing/
-COPY packages/dashboard/package.json ./packages/dashboard/
-COPY packages/demo-agents/package.json ./packages/demo-agents/
-COPY packages/orchestrator-agent/package.json ./packages/orchestrator-agent/
-COPY packages/gateway/package.json ./packages/gateway/
-COPY packages/mcp-server/package.json ./packages/mcp-server/
 
-RUN npm install
+# Install scopeado al backend (incluye sdk transitivamente y root deps).
+# Reduce node_modules ~50% y RAM de build ~50% vs `npm install` plano.
+RUN npm install --workspace=@agent-bazaar/backend --include-workspace-root
 
-# Código fuente
+# Código fuente (solo lo que necesita el backend en runtime)
 COPY packages/sdk ./packages/sdk
 COPY packages/backend ./packages/backend
 

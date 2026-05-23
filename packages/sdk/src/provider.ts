@@ -1,9 +1,6 @@
 import express, { type Express, type Request, type Response } from 'express';
-import { Connection, PublicKey, type Keypair } from '@solana/web3.js';
 import type { AgentConfig, ProviderHandler } from './types';
-import { AgentBazaarProgram } from './program';
-
-const RPC_DEFAULT = process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com';
+import { createChainClient, type ChainClient } from './chain';
 
 /**
  * AgentProvider — para agentes que OFRECEN un servicio.
@@ -16,31 +13,18 @@ const RPC_DEFAULT = process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com
 export class AgentProvider {
   readonly config: AgentConfig;
   readonly app: Express;
-  readonly connection: Connection;
-  /** null si PROGRAM_ID no está configurado — el agente sigue sirviendo en modo degradado */
-  readonly program: AgentBazaarProgram | null;
+  /** null si no hay cadena configurada — el agente sigue sirviendo en modo degradado */
+  readonly chain: ChainClient | null;
   private handler: ProviderHandler | null = null;
 
   constructor(config: AgentConfig) {
     this.config = config;
-    this.connection = new Connection(config.rpcUrl ?? RPC_DEFAULT, 'confirmed');
-
-    const programIdStr =
-      (typeof config.programId === 'string' ? config.programId : config.programId?.toBase58()) ??
-      process.env.PROGRAM_ID;
-    if (programIdStr && programIdStr.length >= 32) {
-      try {
-        this.program = new AgentBazaarProgram(new PublicKey(programIdStr), this.connection);
-      } catch (e) {
-        console.warn(`[${config.service}] PROGRAM_ID inválido, modo degradado:`, (e as Error).message);
-        this.program = null;
-      }
-    } else {
-      console.warn(
-        `[${config.service}] PROGRAM_ID no configurado — modo degradado (sin verificación on-chain)`,
-      );
-      this.program = null;
-    }
+    this.chain = createChainClient({
+      wallet: config.wallet,
+      rpcUrl: config.rpcUrl,
+      programId: config.programId,
+      label: config.service,
+    });
 
     this.app = express();
     this.app.use(express.json());
@@ -56,7 +40,7 @@ export class AgentProvider {
         description: config.description,
         endpoint: config.endpoint,
         ownerWallet: config.wallet.publicKey.toBase58(),
-        acceptedToken: 'SOL', // Phase 2: SOL en hackathon, USDC en prod
+        acceptedToken: this.asset,
       });
     });
 
@@ -71,45 +55,42 @@ export class AgentProvider {
   }
 
   /**
+   * Unidades base por token de la cadena activa (lamports/SOL, stroops/XLM…).
+   * En modo degradado (sin cadena) cae a 1e9 (SOL), preservando el comportamiento
+   * histórico. Toda conversión de precio decimal → on-chain pasa por aquí.
+   */
+  private get baseUnitsPerToken(): number {
+    return this.chain?.baseUnitsPerToken ?? 1e9;
+  }
+
+  /** Símbolo del activo de la cadena activa. 'SOL' por defecto en modo degradado. */
+  private get asset(): 'SOL' | 'USDC' | 'XLM' {
+    return this.chain?.asset ?? 'SOL';
+  }
+
+  /**
    * Asegura que el agente:
    *  1. Tiene SOL para pagar gas (auto-airdrop si balance < 0.5 SOL)
    *  2. Está registrado on-chain (registra si no existe)
    */
   async bootstrap(): Promise<void> {
-    const wallet = this.config.wallet;
-
-    // Sin program → no necesitamos SOL ni registro on-chain
-    if (!this.program) {
+    // Sin cadena → no necesitamos fondos ni registro on-chain
+    if (!this.chain) {
       console.log(`[${this.config.service}] skip bootstrap (PROGRAM_ID no configurado)`);
       return;
     }
 
-    // 1. Balance check + airdrop (single attempt, fail-fast)
-    const balance = await this.connection.getBalance(wallet.publicKey);
-    const minBalance = 0.5 * 1e9;
-    if (balance < minBalance) {
-      try {
-        const sig = await this.connection.requestAirdrop(wallet.publicKey, 2 * 1e9);
-        const { blockhash, lastValidBlockHeight } = await this.connection.getLatestBlockhash();
-        await Promise.race([
-          this.connection.confirmTransaction(
-            { signature: sig, blockhash, lastValidBlockHeight },
-            'confirmed',
-          ),
-          new Promise((_, rej) => setTimeout(() => rej(new Error('airdrop timeout')), 15_000)),
-        ]);
-        console.log(`[${this.config.service}] airdropped 2 SOL → ${wallet.publicKey.toBase58()}`);
-      } catch (e) {
-        console.warn(`[${this.config.service}] airdrop failed (rate limit?):`, (e as Error).message);
-        console.warn(`[${this.config.service}] funda manualmente: solana airdrop 2 ${wallet.publicKey.toBase58()}`);
-      }
-    }
+    // 1. Asegurar fondos para fees (recarga si el saldo < 0.5)
+    await this.chain.ensureFunds(0.5, 2);
+
+    const expectedPrice = BigInt(
+      Math.floor(this.config.pricePerCall * this.chain.baseUnitsPerToken),
+    );
 
     // 2. Registro on-chain (o reconcilia config si ya existe)
-    const existing = await this.program.fetchAgent(this.config.service);
+    const existing = await this.chain.fetchAgent(this.config.service);
     if (existing) {
-      const expectedPrice = BigInt(Math.floor(this.config.pricePerCall * 1e9));
-      const priceDrift = existing.pricePerCall !== expectedPrice;
+      const priceDrift = existing.pricePerCallBaseUnits !== expectedPrice;
       const descDrift = (existing.description ?? '') !== (this.config.description ?? '');
       const endpointDrift = (existing.endpoint ?? '') !== (this.config.endpoint ?? '');
 
@@ -120,31 +101,27 @@ export class AgentProvider {
         console.log(
           `[${this.config.service}] config drift detected → updating on-chain (price=${priceDrift}, desc=${descDrift}, endpoint=${endpointDrift})`,
         );
-        const updateIx = this.program.updateAgentInstr({
-          owner: wallet.publicKey,
+        const sig = await this.chain.updateAgent({
           service: this.config.service,
-          pricePerCall: priceDrift ? expectedPrice : null,
+          pricePerCallBaseUnits: priceDrift ? expectedPrice : null,
           description: descDrift ? this.config.description ?? '' : null,
           endpoint: endpointDrift ? this.config.endpoint ?? '' : null,
         });
-        const sig = await this.program.sendAndConfirm([updateIx], wallet);
         console.log(`[${this.config.service}] updated on-chain: ${sig}`);
       } else {
         console.log(
-          `[${this.config.service}] ya registrado on-chain (owner: ${existing.owner.toBase58()})`,
+          `[${this.config.service}] ya registrado on-chain (owner: ${existing.ownerAddress})`,
         );
       }
       return;
     }
 
-    const ix = this.program.registerAgentInstr({
-      owner: wallet.publicKey,
+    const sig = await this.chain.registerAgent({
       service: this.config.service,
-      pricePerCall: BigInt(Math.floor(this.config.pricePerCall * 1e9)),
+      pricePerCallBaseUnits: expectedPrice,
       endpoint: this.config.endpoint ?? '',
       description: this.config.description ?? '',
     });
-    const sig = await this.program.sendAndConfirm([ix], wallet);
     console.log(`[${this.config.service}] registrado on-chain: ${sig}`);
   }
 
@@ -152,7 +129,7 @@ export class AgentProvider {
     return new Promise((resolve) => {
       this.app.listen(port, '0.0.0.0', () => {
         console.log(
-          `[${this.config.service}] live on :${port} (${this.config.pricePerCall} SOL/call)`,
+          `[${this.config.service}] live on :${port} (${this.config.pricePerCall} ${this.asset}/call)`,
         );
         resolve();
       });
@@ -162,26 +139,29 @@ export class AgentProvider {
   // ─── handler con verificación x402 ──────────────────────────
 
   /**
-   * Computa cuántos lamports cobrar por una request específica.
+   * Computa cuántas unidades base del activo cobrar por una request específica.
    * - Si `priceFn` está definido: lo invoca con el payload, eleva al floor si fuera menor
    * - Si no: usa siempre `pricePerCall` (modelo flat)
+   *
+   * El precio decimal se convierte a unidades base según la cadena activa
+   * (`baseUnitsPerToken`): lamports en Solana, stroops en Stellar.
    *
    * El piso garantiza que el on-chain `open_escrow` (que valida amount >= price_per_call
    * del registry) nunca rechace por una mala configuración del priceFn.
    */
-  private async computeAmountLamports(payload: unknown): Promise<bigint> {
+  private async computeAmountBaseUnits(payload: unknown): Promise<bigint> {
     const floor = this.config.pricePerCall;
-    let priceSol = floor;
+    let priceToken = floor;
     if (this.config.priceFn) {
       try {
         const computed = await this.config.priceFn(payload);
-        priceSol = Number.isFinite(computed) ? Math.max(floor, computed) : floor;
+        priceToken = Number.isFinite(computed) ? Math.max(floor, computed) : floor;
       } catch (err) {
         console.warn(`[${this.config.service}] priceFn threw, falling back to floor:`, err);
-        priceSol = floor;
+        priceToken = floor;
       }
     }
-    return BigInt(Math.floor(priceSol * 1e9));
+    return BigInt(Math.floor(priceToken * this.baseUnitsPerToken));
   }
 
   private async handleRequest(req: Request, res: Response): Promise<void> {
@@ -195,11 +175,11 @@ export class AgentProvider {
     // Sin pago → devolver 402 con quote (eventualmente dinámico)
     if (!paymentHeader) {
       const nonce = generateNonce();
-      const expectedAmount = await this.computeAmountLamports(req.body);
+      const expectedAmount = await this.computeAmountBaseUnits(req.body);
       res.status(402).json({
         amount: expectedAmount.toString(),
-        payTo: this.config.wallet.publicKey.toBase58(),
-        asset: 'SOL',
+        payTo: this.chain?.ownerAddress ?? this.config.wallet.publicKey.toBase58(),
+        asset: this.asset,
         service: this.config.service,
         nonce: nonce.toString(),
         expiresAt: Math.floor(Date.now() / 1000) + 60,
@@ -217,8 +197,8 @@ export class AgentProvider {
     }
 
     try {
-      // Sin program → modo degradado: aceptar el pago sin verificar on-chain (Phase 1)
-      if (!this.program) {
+      // Sin cadena → modo degradado: aceptar el pago sin verificar on-chain (Phase 1)
+      if (!this.chain) {
         const result = await this.handler(req.body);
         res.json({
           ...((typeof result === 'object' && result !== null) ? result : { result }),
@@ -228,11 +208,10 @@ export class AgentProvider {
       }
 
       // Verifica que el escrow existe on-chain con el monto esperado
-      const escrow = await this.program.fetchEscrow(
-        new PublicKey(parsed.clientWallet),
-        this.config.wallet.publicKey,
-        BigInt(parsed.nonce),
-      );
+      const escrow = await this.chain.fetchEscrow({
+        clientAddress: parsed.clientWallet,
+        nonce: BigInt(parsed.nonce),
+      });
       if (!escrow) {
         res.status(402).json({ error: 'escrow not found on-chain' });
         return;
@@ -244,10 +223,10 @@ export class AgentProvider {
       // El precio para esta request — debe coincidir con el que cotizamos en el 402.
       // priceFn debe ser determinista en el payload para que el doble cálculo
       // (quote + verify) dé el mismo número.
-      const expected = await this.computeAmountLamports(req.body);
-      if (escrow.amount < expected) {
+      const expected = await this.computeAmountBaseUnits(req.body);
+      if (escrow.amountBaseUnits < expected) {
         res.status(402).json({
-          error: `escrow amount ${escrow.amount} below price ${expected}`,
+          error: `escrow amount ${escrow.amountBaseUnits} below price ${expected}`,
         });
         return;
       }
@@ -256,20 +235,18 @@ export class AgentProvider {
       const result = await this.handler(req.body);
 
       // Después de servir → claim del pago
-      const claimIx = this.program.claimPaymentInstr({
-        client: new PublicKey(parsed.clientWallet),
-        agentOwner: this.config.wallet.publicKey,
+      const claimSig = await this.chain.claimPayment({
+        clientAddress: parsed.clientWallet,
         nonce: BigInt(parsed.nonce),
         service: this.config.service,
       });
-      const claimSig = await this.program.sendAndConfirm([claimIx], this.config.wallet);
 
       res.json({
         ...((typeof result === 'object' && result !== null) ? result : { result }),
         _payment: {
           claimed: true,
           signature: claimSig,
-          amount: escrow.amount.toString(),
+          amount: escrow.amountBaseUnits.toString(),
         },
       });
     } catch (err) {

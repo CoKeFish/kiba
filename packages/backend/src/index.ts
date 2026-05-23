@@ -9,45 +9,39 @@ import express from 'express';
 import cors from 'cors';
 import { WebSocketServer } from 'ws';
 import { createServer } from 'node:http';
-import { Connection, PublicKey } from '@solana/web3.js';
-import { AgentBazaarProgram } from '@agent-bazaar/sdk';
 
 import { getDb, listAgents, type AgentRecord } from './db';
 import { Indexer } from './indexer';
+import { createRegistryReader } from './registry';
 import { search, searchStatus, type SearchMode } from './search';
 import { warmup as warmupEmbeddings, status as embeddingsStatus } from './embeddings';
 
 const PORT = Number(process.env.PORT) || 4000;
-const SOLANA_RPC = process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com';
-const PROGRAM_ID = process.env.PROGRAM_ID;
+const CHAIN = (process.env.CHAIN || 'solana').toLowerCase();
 
-const connection = new Connection(SOLANA_RPC, 'confirmed');
-let program: AgentBazaarProgram | null = null;
-if (PROGRAM_ID) {
-  try {
-    program = new AgentBazaarProgram(new PublicKey(PROGRAM_ID), connection);
-  } catch (err) {
-    console.error('[backend] PROGRAM_ID inválido:', (err as Error).message);
-  }
-} else {
-  console.warn('[backend] PROGRAM_ID no configurado — modo demo con FALLBACK_AGENTS');
-}
-
-// ─── DB + Indexer ────────────────────────────────────────────────
+// ─── DB + Indexer (fuente de registro elegida por CHAIN) ─────────
 getDb(); // toca el singleton para que cree el archivo y aplique el schema
-const indexer = new Indexer(program, program ? connection : null);
+const reader = createRegistryReader();
+if (!reader) {
+  console.warn('[backend] sin cadena configurada — modo demo con FALLBACK_AGENTS');
+}
+const indexer = new Indexer(reader);
+
+// Unidades/activo del registro activo (para serializar precios correctamente).
+const BASE_UNITS_PER_TOKEN = reader?.baseUnitsPerToken ?? 1e9;
+const ASSET = (reader?.asset ?? 'SOL') as 'SOL' | 'USDC' | 'XLM';
 
 // ─── Serializador ────────────────────────────────────────────────
 function toManifest(a: AgentRecord) {
   return {
     service: a.service,
-    pricePerCall: a.price_per_call / 1e9,
+    pricePerCall: a.price_per_call / BASE_UNITS_PER_TOKEN,
     description: a.description,
     endpoint: a.endpoint,
     ownerWallet: a.owner_wallet,
-    acceptedToken: 'SOL' as const,
+    acceptedToken: ASSET,
     totalCalls: a.total_calls,
-    totalEarned: a.total_earned / 1e9,
+    totalEarned: a.total_earned / BASE_UNITS_PER_TOKEN,
     createdAt: a.created_at,
     source: a.source,
   };
@@ -63,8 +57,9 @@ app.get('/health', (_req, res) => {
   res.json({
     ok: true,
     service: 'agent-bazaar-backend',
-    network: SOLANA_RPC,
-    programId: PROGRAM_ID ?? '(not deployed)',
+    chain: CHAIN,
+    asset: ASSET,
+    registry: reader?.label ?? '(demo/fallback)',
     indexedAgents: listAgents(db, { limit: 1000 }).length,
     embeddings: embeddingsStatus(),
     search: searchStatus(),
@@ -161,8 +156,7 @@ async function main(): Promise<void> {
     console.log(`  http://localhost:${PORT}/agents`);
     console.log(`  http://localhost:${PORT}/agents?q=yield&mode=hybrid`);
     console.log(`  ws://localhost:${PORT}/ws`);
-    console.log(`  network: ${SOLANA_RPC}`);
-    console.log(`  programId: ${PROGRAM_ID ?? '(not deployed)'}`);
+    console.log(`  chain: ${CHAIN} (${reader?.label ?? 'demo'}, ${ASSET})`);
   });
 }
 
