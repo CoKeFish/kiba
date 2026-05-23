@@ -12,8 +12,11 @@ export default defineConfig({
   },
   server: {
     host: "0.0.0.0",
-    port: 5173,
+    port: Number(process.env.PORT) || 5173,
     strictPort: true,
+    // Permite que el dev server responda tras el dominio público de Railway
+    // (Vite 6 bloquea hosts desconocidos por defecto).
+    allowedHosts: true,
     watch: {
       usePolling: true,
     },

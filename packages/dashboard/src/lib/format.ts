@@ -1,9 +1,10 @@
-const SOL_USD_RATE = 150;
-const LAMPORTS_PER_SOL = 1_000_000_000;
+import { chain } from "./chain";
 
-export const lamportsToSol = (l: number) => l / LAMPORTS_PER_SOL;
-export const lamportsToUsd = (l: number) => (l / LAMPORTS_PER_SOL) * SOL_USD_RATE;
-export const usdToLamports = (u: number) => Math.round((u / SOL_USD_RATE) * LAMPORTS_PER_SOL);
+// "lamports" = unidades base del activo activo (lamports/SOL o stroops/XLM).
+export const lamportsToSol = (l: number) => l / chain.baseUnitsPerToken;
+export const lamportsToUsd = (l: number) => (l / chain.baseUnitsPerToken) * chain.usdRate;
+export const usdToLamports = (u: number) =>
+  Math.round((u / chain.usdRate) * chain.baseUnitsPerToken);
 
 // Formatters hoisted a module scope — evita reconstruir Intl.NumberFormat por
 // cada llamada (pesado en listas largas).
@@ -41,7 +42,7 @@ export function formatUsd(usd: number, fractionDigits: 2 | 4 | "auto" = "auto") 
 }
 
 export function formatSol(sol: number) {
-  return `${sol.toFixed(6)} SOL`;
+  return `${sol.toFixed(6)} ${chain.asset}`;
 }
 
 export function shortSig(sig: string, chars = 4) {
@@ -50,6 +51,6 @@ export function shortSig(sig: string, chars = 4) {
   return `${sig.slice(0, chars)}…${sig.slice(-chars)}`;
 }
 
-export function explorerUrl(sig: string, network = "devnet") {
-  return `https://explorer.solana.com/tx/${sig}?cluster=${network}`;
+export function explorerUrl(sig: string) {
+  return chain.explorerTx(sig);
 }

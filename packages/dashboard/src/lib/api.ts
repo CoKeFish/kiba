@@ -153,9 +153,9 @@ export type Agent = {
   service: string;
   description: string;
   endpoint: string;
-  pricePerCall: number; // SOL
+  pricePerCall: number; // en unidades del token de la cadena (SOL/XLM)
   ownerWallet: string;
-  acceptedToken: "SOL";
+  acceptedToken: "SOL" | "XLM" | "USDC";
   totalCalls: number;
   totalEarned: number;
   createdAt: number;

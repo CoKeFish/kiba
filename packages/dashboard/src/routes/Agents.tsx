@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatUsd, formatSol } from "@/lib/format";
+import { chain } from "@/lib/chain";
 import {
   ChevronDown,
   ChevronUp,
@@ -26,9 +27,9 @@ import { formatDistanceToNow } from "date-fns";
 
 type Mode = "keyword" | "semantic" | "hybrid";
 
-const SOL_USD_RATE = 150;
-const solToUsd = (sol: number) => sol * SOL_USD_RATE;
-const usdToLamports = (usd: number) => Math.floor((usd / SOL_USD_RATE) * 1e9);
+const solToUsd = (sol: number) => sol * chain.usdRate;
+const usdToLamports = (usd: number) =>
+  Math.floor((usd / chain.usdRate) * chain.baseUnitsPerToken);
 
 function serviceToName(service: string): string {
   return service
@@ -38,11 +39,11 @@ function serviceToName(service: string): string {
 }
 
 function explorerWallet(addr: string): string {
-  return `https://explorer.solana.com/address/${addr}?cluster=devnet`;
+  return chain.explorerAddr(addr);
 }
 
 function explorerTx(sig: string): string {
-  return `https://explorer.solana.com/tx/${sig}?cluster=devnet`;
+  return chain.explorerTx(sig);
 }
 
 // Presets de precio basados en el tipo de servicio agéntico
@@ -119,7 +120,7 @@ export default function Agents() {
         <div>
           <h1 className="text-2xl font-semibold">Agents</h1>
           <p className="text-sm text-[var(--color-fg-muted)]">
-            Live registry on Solana devnet · {agents.length} agent{agents.length !== 1 ? "s" : ""}
+            Live registry on {chain.networkLabel} · {agents.length} agent{agents.length !== 1 ? "s" : ""}
           </p>
         </div>
         <div className="flex items-center gap-3 text-xs text-[var(--color-fg-muted)]">
@@ -493,9 +494,9 @@ function RegisterAgentForm({ onSuccess }: { onSuccess: () => void }) {
                 />
               </div>
               <div className="text-xs text-[var(--color-fg-muted)] font-mono pt-5">
-                = {(lamports / 1e9).toFixed(6)} SOL
+                = {(lamports / chain.baseUnitsPerToken).toFixed(6)} {chain.asset}
                 <br />
-                = {lamports.toLocaleString()} lamports
+                = {lamports.toLocaleString()} base units
               </div>
             </div>
           </div>
@@ -719,7 +720,7 @@ function EditAgentRow({
           onChange={(e) => setPriceUsd(Number(e.target.value) || 0)}
         />
         <p className="text-xs text-[var(--color-fg-muted)] mt-1 font-mono">
-          = {(usdToLamports(priceUsd) / 1e9).toFixed(6)} SOL
+          = {(usdToLamports(priceUsd) / chain.baseUnitsPerToken).toFixed(6)} {chain.asset}
         </p>
       </div>
       {mut.isError && (

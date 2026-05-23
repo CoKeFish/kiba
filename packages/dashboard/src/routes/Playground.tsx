@@ -6,6 +6,7 @@ import { Card, CardBody, CardHeader, CardTitle, CardDescription } from "@/compon
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatUsd, shortSig, explorerUrl } from "@/lib/format";
+import { chain } from "@/lib/chain";
 import {
   Play,
   AlertCircle,
@@ -19,8 +20,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 
-const SOL_USD_RATE = 150;
-const solToUsd = (sol: number) => sol * SOL_USD_RATE;
+const solToUsd = (sol: number) => sol * chain.usdRate;
 
 // Cada agente cobra dinámicamente según el payload — prueba editando los
 // valores y observa cómo cambia el quote en el x402 trace.
@@ -159,7 +159,7 @@ export default function Playground() {
         <CardHeader>
           <CardTitle>Send a request</CardTitle>
           <CardDescription>
-            The gateway will debit your USD balance and the agent will claim its SOL on devnet.
+            The gateway will debit your USD balance and the agent will claim its {chain.asset} on {chain.networkLabel}.
           </CardDescription>
         </CardHeader>
         <CardBody className="space-y-4">
@@ -371,7 +371,7 @@ function X402StepDetails({ step }: { step: X402Step }) {
         <div>
           <span className="text-[var(--color-fg)]">{step.service}</span> · price{" "}
           <span className="text-[var(--color-success)]">
-            {step.pricePerCall.toFixed(6)} SOL
+            {step.pricePerCall.toFixed(6)} {chain.asset}
           </span>
         </div>
       </div>
@@ -386,7 +386,7 @@ function X402StepDetails({ step }: { step: X402Step }) {
         </div>
         <div>
           amount: <span className="text-[var(--color-fg)]">{lamports.toLocaleString()}</span>{" "}
-          lamports ({(lamports / 1e9).toFixed(6)} SOL)
+          base units ({(lamports / chain.baseUnitsPerToken).toFixed(6)} {chain.asset})
         </div>
         <div>
           payTo: <span className="text-[var(--color-fg)]">{shortSig(step.quote.payTo, 6)}</span>
@@ -409,7 +409,7 @@ function X402StepDetails({ step }: { step: X402Step }) {
           <div className="flex items-center gap-1">
             sig:
             <a
-              href={explorerUrl(step.signature, "devnet")}
+              href={explorerUrl(step.signature)}
               target="_blank"
               rel="noopener noreferrer"
               className="text-[var(--color-primary)] hover:underline flex items-center gap-1"
@@ -436,7 +436,7 @@ function X402StepDetails({ step }: { step: X402Step }) {
           <div className="flex items-center gap-1">
             claim sig:
             <a
-              href={explorerUrl(step.claimSignature, "devnet")}
+              href={explorerUrl(step.claimSignature)}
               target="_blank"
               rel="noopener noreferrer"
               className="text-[var(--color-primary)] hover:underline flex items-center gap-1"

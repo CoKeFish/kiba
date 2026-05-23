@@ -4,6 +4,7 @@ import { Card, CardBody, CardHeader, CardTitle, CardDescription } from "@/compon
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatUsd } from "@/lib/format";
+import { chain } from "@/lib/chain";
 import {
   Coins,
   ExternalLink,
@@ -14,7 +15,7 @@ import {
 } from "lucide-react";
 
 function explorerWallet(addr: string): string {
-  return `https://explorer.solana.com/address/${addr}?cluster=devnet`;
+  return chain.explorerAddr(addr);
 }
 
 function StatCard({
@@ -107,7 +108,7 @@ export default function Platform() {
               {formatUsd(treasury.usd, 2)}
             </span>
             <span className="font-mono text-[var(--color-fg-muted)]">
-              ({treasury.sol.toFixed(4)} SOL)
+              ({treasury.sol.toFixed(4)} {chain.asset})
             </span>
           </div>
           <div className="flex items-center justify-between pt-3 border-t border-[var(--color-border)] text-xs">
@@ -151,13 +152,13 @@ export default function Platform() {
             icon={TrendingUp}
             label="Lifetime volume"
             value={formatUsd(lifetime.total_volume_usd, 2)}
-            hint={`${lifetime.total_volume_sol.toFixed(4)} SOL gross`}
+            hint={`${lifetime.total_volume_sol.toFixed(4)} ${chain.asset} gross`}
           />
           <StatCard
             icon={Coins}
             label="Lifetime fees"
             value={formatUsd(lifetime.estimated_fees_usd, 2)}
-            hint={`${lifetime.estimated_fees_sol.toFixed(6)} SOL @ ${fee.pct}%`}
+            hint={`${lifetime.estimated_fees_sol.toFixed(6)} ${chain.asset} @ ${fee.pct}%`}
             highlight
           />
         </div>
@@ -187,8 +188,8 @@ export default function Platform() {
                 2
               </span>
               <div>
-                Client signs <code className="font-mono">open_escrow</code>, locking SOL in the
-                escrow PDA.
+                Client signs <code className="font-mono">open_escrow</code>, locking {chain.asset} in the
+                escrow.
               </div>
             </li>
             <li className="flex items-start gap-3">
