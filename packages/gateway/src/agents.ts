@@ -193,7 +193,7 @@ export async function deregisterAgent(
 
   await ensureFunded(userId, UPDATE_FUND_LAMPORTS);
 
-  const balanceBefore = await getOnChainBalance(userWallet.publicKey);
+  const balanceBefore = await getOnChainBalance(userWallet);
 
   const ix = program.deregisterAgentInstr({
     owner: userWallet.publicKey,
@@ -201,7 +201,7 @@ export async function deregisterAgent(
   });
   const signature = await program.sendAndConfirm([ix], userWallet);
 
-  const balanceAfter = await getOnChainBalance(userWallet.publicKey);
+  const balanceAfter = await getOnChainBalance(userWallet);
   const rentRecovered = Math.max(0, balanceAfter - balanceBefore);
 
   return { signature, service, rentRecovered };

@@ -5,6 +5,10 @@ import bcrypt from 'bcryptjs';
 import { Keypair } from '@solana/web3.js';
 import { createHmac, randomBytes } from 'node:crypto';
 import { db, type UserRow } from './db';
+import { usdToLamports } from './billing';
+
+/** Bono de bienvenida en USD, convertido a unidades base de la cadena activa. */
+const SIGNUP_BONUS_USD = 5;
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-prod';
 
@@ -55,8 +59,8 @@ export function createUser(email: string, password: string): UserRow | { error: 
   const custodial_wallet_secret = JSON.stringify(Array.from(wallet.secretKey));
   const custodial_wallet_pubkey = wallet.publicKey.toBase58();
 
-  // $5 USD bono inicial = 5/150 SOL = 33333333 lamports (rate fijo demo)
-  const bonusLamports = Math.floor((5 / 150) * 1e9);
+  // Bono inicial en USD → unidades base del activo activo (chain-aware).
+  const bonusLamports = usdToLamports(SIGNUP_BONUS_USD);
 
   const result = db
     .prepare(

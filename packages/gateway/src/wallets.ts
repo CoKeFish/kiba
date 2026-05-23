@@ -1,43 +1,39 @@
 /**
- * Per-user custodial wallets + master treasury.
+ * Per-user custodial wallets + master treasury, agnóstico a la cadena.
  *
- * Cada user tiene una keypair Solana (creada en signup, secret en
- * users.custodial_wallet_secret). Esa keypair es la que firma open_escrow /
- * claim_payment cuando llega una llamada.
+ * Cada user tiene una keypair ed25519 (creada en signup, secret en
+ * users.custodial_wallet_secret). Esa misma keypair firma open_escrow /
+ * claim_payment en Solana y, derivando del mismo seed, en Stellar.
  *
- * Como esa wallet no recibe SOL real desde fuera (el user paga en USD via topup),
- * el gateway mantiene una master wallet que actúa como "treasury": cuando una
- * call requiere más SOL del que la wallet del user tiene on-chain, transferimos
- * lo que falta desde la master de forma transparente. Es un refill on-demand.
+ * Fondeo on-demand:
+ *   - Solana: la wallet del user no recibe SOL desde fuera; una master wallet
+ *     ("treasury") le transfiere lo que falte antes de cada call.
+ *   - Stellar (testnet): se fondea la cuenta del user con friendbot la primera
+ *     vez (10.000 XLM), suficiente para la demo.
+ *
+ * Las cantidades se manejan en "unidades base" del activo activo (lamports en
+ * Solana, stroops en Stellar) — ver chain.ts / billing.ts.
  */
 import {
   Connection,
   Keypair,
   LAMPORTS_PER_SOL,
-  PublicKey,
   SystemProgram,
   Transaction,
 } from '@solana/web3.js';
 import { loadOrCreateKeypair } from '@agent-bazaar/sdk';
 import { getBalance, lamportsToSol, lamportsToUsd } from './billing';
+import { BASE_UNITS_PER_TOKEN, IS_STELLAR, chainClientFor } from './chain';
 import { db } from './db';
 
 const SOLANA_RPC_URL = process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com';
 const MASTER_KEYPAIR_PATH = process.env.MASTER_KEYPAIR_PATH || '/app/data/master-wallet.json';
 
-/**
- * Buffer extra que dejamos en la wallet del user después de un refill: cubre
- * tx fees + rent-exempt minimum (~0.00089 SOL) sin tener que recalcular cada call.
- */
+/** Buffer extra tras un refill en Solana (tx fees + rent-exempt). */
 const REFILL_TARGET_BUFFER = 10_000_000; // 0.01 SOL
 
 const connection = new Connection(SOLANA_RPC_URL, 'confirmed');
 
-/**
- * Carga master wallet con prioridad: MASTER_WALLET_SECRET (env, JSON array de 64
- * bytes) > archivo local. Permite deploy a hosting efímero (Railway/Fly) sin
- * volumen persistente.
- */
 function loadMasterWallet(): Keypair {
   const fromEnv = process.env.MASTER_WALLET_SECRET;
   if (fromEnv) {
@@ -54,7 +50,9 @@ export function getMasterWallet(): Keypair {
 }
 
 export function masterWalletPubkey(): string {
-  return masterWallet.publicKey.toBase58();
+  // Dirección nativa de la cadena activa (Stellar deriva del seed).
+  const cc = chainClientFor(masterWallet, 'master');
+  return cc?.ownerAddress ?? masterWallet.publicKey.toBase58();
 }
 
 export function loadUserWallet(userId: number): Keypair {
@@ -66,8 +64,16 @@ export function loadUserWallet(userId: number): Keypair {
   return Keypair.fromSecretKey(new Uint8Array(secret));
 }
 
-export async function getOnChainBalance(pubkey: PublicKey): Promise<number> {
-  return connection.getBalance(pubkey, 'confirmed');
+/** Saldo on-chain de una custodial, en unidades base del activo activo. */
+export async function getOnChainBalance(wallet: Keypair): Promise<number> {
+  const cc = chainClientFor(wallet);
+  if (!cc) return 0;
+  try {
+    return Number(await cc.getBalanceBaseUnits());
+  } catch (err) {
+    console.warn('[wallets] balance query failed:', (err as Error).message);
+    return 0;
+  }
 }
 
 export interface UserBalances {
@@ -81,19 +87,14 @@ export interface UserBalances {
   totalSol: number;
 }
 
-/**
- * Suma del crédito USD virtual y el SOL on-chain de la custodial del user.
- * Si la query on-chain falla, walletLamports = 0 y se loggea — el dashboard
- * sigue siendo usable sin RPC.
- */
 export async function getUserBalances(userId: number): Promise<UserBalances> {
   const creditLamports = getBalance(userId);
   let walletLamports = 0;
   try {
     const wallet = loadUserWallet(userId);
-    walletLamports = await getOnChainBalance(wallet.publicKey);
+    walletLamports = await getOnChainBalance(wallet);
   } catch (err) {
-    console.warn(`[wallets] on-chain balance query failed for user ${userId}:`, (err as Error).message);
+    console.warn(`[wallets] on-chain balance failed for user ${userId}:`, (err as Error).message);
   }
   const totalLamports = creditLamports + walletLamports;
   return {
@@ -116,26 +117,36 @@ export interface RefillResult {
 }
 
 /**
- * Asegura que la wallet del user tenga al menos `requiredLamports + REFILL_TARGET_BUFFER`.
- * Si no, transfiere desde la master wallet. Idempotente — múltiples llamadas concurrentes
- * pueden disparar refills paralelos: el resultado es overshoot inofensivo.
+ * Asegura que la custodial del user tenga fondos on-chain para operar.
+ *   - Stellar: friendbot fondea la cuenta (una vez; idempotente si ya existe).
+ *   - Solana: transfiere desde la master lo que falte para `required + buffer`.
  */
 export async function ensureFunded(
   userId: number,
   requiredLamports: number,
 ): Promise<RefillResult> {
   const userWallet = loadUserWallet(userId);
-  const beforeLamports = await getOnChainBalance(userWallet.publicKey);
-  const target = requiredLamports + REFILL_TARGET_BUFFER;
 
+  if (IS_STELLAR) {
+    const cc = chainClientFor(userWallet, `user:${userId}`);
+    const beforeLamports = cc ? Number(await cc.getBalanceBaseUnits()) : 0;
+    if (cc && beforeLamports < requiredLamports + 1_000_000) {
+      // ensureFunds usa friendbot si la cuenta no existe (crea + fondea 10k XLM).
+      await cc.ensureFunds(0, 0);
+    }
+    const afterLamports = cc ? Number(await cc.getBalanceBaseUnits()) : beforeLamports;
+    return { refilled: afterLamports > beforeLamports, beforeLamports, afterLamports };
+  }
+
+  // ── Solana: refill desde la master ──
+  const beforeLamports = await getOnChainBalance(userWallet);
+  const target = requiredLamports + REFILL_TARGET_BUFFER;
   if (beforeLamports >= target) {
     return { refilled: false, beforeLamports, afterLamports: beforeLamports };
   }
-
   const refillAmount = target - beforeLamports;
 
-  // Verifica que la master tenga lo suficiente
-  const masterBalance = await getOnChainBalance(masterWallet.publicKey);
+  const masterBalance = await getOnChainBalance(masterWallet);
   if (masterBalance < refillAmount + 5_000_000) {
     throw new Error(
       `master wallet low (${masterBalance / LAMPORTS_PER_SOL} SOL) — cannot refill ${refillAmount / LAMPORTS_PER_SOL} SOL`,
@@ -155,10 +166,9 @@ export async function ensureFunded(
   const signature = await connection.sendRawTransaction(tx.serialize(), { skipPreflight: false });
   await connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, 'confirmed');
 
-  const afterLamports = await getOnChainBalance(userWallet.publicKey);
+  const afterLamports = await getOnChainBalance(userWallet);
   console.log(
-    `[wallets] refilled user ${userId}: ${(refillAmount / LAMPORTS_PER_SOL).toFixed(4)} SOL → ${userWallet.publicKey.toBase58().slice(0, 8)}... (sig ${signature.slice(0, 8)}...)`,
+    `[wallets] refilled user ${userId}: ${(refillAmount / LAMPORTS_PER_SOL).toFixed(4)} SOL (sig ${signature.slice(0, 8)}...)`,
   );
-
   return { refilled: true, signature, beforeLamports, afterLamports };
 }

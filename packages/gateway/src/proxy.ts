@@ -26,6 +26,7 @@ import {
   masterWalletPubkey,
   type RefillResult,
 } from './wallets';
+import { BASE_UNITS_PER_TOKEN } from './chain';
 
 const WALLET_TX_FEE_BUFFER = 5_000_000;
 
@@ -154,7 +155,7 @@ export async function callOnBehalf(args: {
   } else {
     mode = 'wallet-direct';
 
-    const onChain = await getOnChainBalance(userWallet.publicKey);
+    const onChain = await getOnChainBalance(userWallet);
     const required = lamports + WALLET_TX_FEE_BUFFER;
     if (onChain < required) {
       throw new Error(
@@ -171,8 +172,8 @@ export async function callOnBehalf(args: {
   let trace: X402Trace;
   try {
     const traced = await client.callWithTrace(args.service, args.payload, {
-      // maxPrice circuit breaker — 2x del cotizado por seguridad
-      maxPrice: (lamports / 1e9) * 2,
+      // maxPrice circuit breaker — 2x del cotizado por seguridad (en unidades del token)
+      maxPrice: (lamports / BASE_UNITS_PER_TOKEN) * 2,
       timeoutMs: 30_000,
     });
     result = traced.result;

@@ -2,19 +2,20 @@
  * Billing helpers: balance, topup (fake), debit, transactions.
  */
 import { db, type TransactionRow } from './db';
+import { ASSET_USD_RATE, BASE_UNITS_PER_TOKEN } from './chain';
 
-const SOL_USD_RATE = Number(process.env.SOL_USD_RATE) || 150; // demo rate fijo
-
+// "lamports" aquí significa "unidades base del activo activo": lamports en Solana,
+// stroops en Stellar. Los nombres se conservan para no romper el resto del código.
 export function usdToLamports(usd: number): number {
-  return Math.floor((usd / SOL_USD_RATE) * 1e9);
+  return Math.floor((usd / ASSET_USD_RATE) * BASE_UNITS_PER_TOKEN);
 }
 
 export function lamportsToUsd(lamports: number): number {
-  return (lamports / 1e9) * SOL_USD_RATE;
+  return (lamports / BASE_UNITS_PER_TOKEN) * ASSET_USD_RATE;
 }
 
 export function lamportsToSol(lamports: number): number {
-  return lamports / 1e9;
+  return lamports / BASE_UNITS_PER_TOKEN;
 }
 
 export function getBalance(userId: number): number {
@@ -35,7 +36,7 @@ export function topup(userId: number, amountUsd: number): { newBalance: number }
     db.prepare(
       `INSERT INTO transactions (user_id, type, amount_lamports, service, metadata, created_at)
        VALUES (?, 'topup', ?, 'fake-stripe', ?, ?)`,
-    ).run(userId, lamports, JSON.stringify({ usd: amountUsd, rate: SOL_USD_RATE }), now);
+    ).run(userId, lamports, JSON.stringify({ usd: amountUsd, rate: ASSET_USD_RATE }), now);
   });
   tx();
   return { newBalance: getBalance(userId) };

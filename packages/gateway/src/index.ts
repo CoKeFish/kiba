@@ -436,7 +436,7 @@ app.get('/v1/wallet', requireAuth, async (req, res) => {
   if (!user) return res.status(404).json({ error: 'user not found' });
   try {
     const wallet = loadUserWallet(user.id);
-    const lamports = await getOnChainBalance(wallet.publicKey);
+    const lamports = await getOnChainBalance(wallet);
     res.json({
       pubkey: user.custodial_wallet_pubkey,
       lamports,
@@ -472,9 +472,8 @@ app.get('/v1/agents', requireAuth, async (req, res) => {
  */
 app.get('/v1/platform/stats', requireAuth, async (_req, res) => {
   try {
-    const treasuryPk = getMasterWallet().publicKey;
     const [treasuryLamports, agents] = await Promise.all([
-      getOnChainBalance(treasuryPk),
+      getOnChainBalance(getMasterWallet()),
       listAgents() as Promise<Array<{
         service: string;
         ownerWallet: string;
@@ -496,7 +495,7 @@ app.get('/v1/platform/stats', requireAuth, async (_req, res) => {
 
     res.json({
       treasury: {
-        pubkey: treasuryPk.toBase58(),
+        pubkey: masterWalletPubkey(),
         lamports: treasuryLamports,
         sol: treasuryLamports / 1e9,
         usd: lamportsToUsd(treasuryLamports),
