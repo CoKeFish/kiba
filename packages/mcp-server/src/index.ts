@@ -25,7 +25,7 @@ import { dirname, join } from 'node:path';
 import { homedir } from 'node:os';
 import open from 'open';
 
-const GATEWAY_URL = process.env.AGENT_BAZAAR_URL || 'https://gateway-production-a12f.up.railway.app';
+const GATEWAY_URL = process.env.AGENT_BAZAAR_URL || 'https://agent-bazaar-api.rodion.com.co';
 const TOKEN_PATH = process.env.AGENT_BAZAAR_TOKEN_PATH || join(homedir(), '.config', 'agent-bazaar', 'token.json');
 const CLIENT_NAME = process.env.AGENT_BAZAAR_CLIENT_NAME || 'agent-bazaar-mcp';
 // Headless / CI / server-side: si AGENT_BAZAAR_API_KEY está seteado, lo usamos

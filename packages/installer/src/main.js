@@ -3,7 +3,7 @@
 const { invoke } = window.__TAURI__.core;
 const { openUrl } = window.__TAURI__.opener;
 
-const DASHBOARD_URL = "https://agent-bazaar-dashboard.vercel.app";
+const DASHBOARD_URL = "https://agent-bazaar-app.rodion.com.co";
 const NODEJS_URL = "https://nodejs.org/en/download";
 
 let detectedClients = [];

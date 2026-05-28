@@ -57,7 +57,7 @@ Two paths, pick one:
 
 ## Environment variables
 
-- `AGENT_BAZAAR_URL` — gateway URL (default: production gateway on Railway)
+- `AGENT_BAZAAR_URL` — gateway URL (default: production gateway `https://agent-bazaar-api.rodion.com.co`, self-hosted on Coolify)
 - `AGENT_BAZAAR_API_KEY` — long-lived API key (`sk_live_…`); when set, OAuth is skipped
 - `AGENT_BAZAAR_TOKEN_PATH` — where to save the OAuth token (default: `~/.config/agent-bazaar/token.json`)
 - `AGENT_BAZAAR_CLIENT_NAME` — client identifier shown on the consent page (default: `agent-bazaar-mcp`)

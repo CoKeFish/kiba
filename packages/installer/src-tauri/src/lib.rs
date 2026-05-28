@@ -119,10 +119,19 @@ pub struct InstallResult {
     pub backup_path: Option<String>,
 }
 
+/// URL del gateway de producción inyectada en la config del cliente. Aunque el
+/// MCP server tiene este mismo default hardcoded (`packages/mcp-server/src/index.ts`),
+/// lo declaramos explícito acá para que el config sea autodescriptivo y para
+/// que el usuario pueda apuntar a un gateway propio editando solo este campo.
+const PROD_GATEWAY_URL: &str = "https://agent-bazaar-api.rodion.com.co";
+
 fn mcp_block() -> Value {
     json!({
         "command": "npx",
-        "args": ["-y", "agent-bazaar-mcp"]
+        "args": ["-y", "agent-bazaar-mcp"],
+        "env": {
+            "AGENT_BAZAAR_URL": PROD_GATEWAY_URL
+        }
     })
 }
 
