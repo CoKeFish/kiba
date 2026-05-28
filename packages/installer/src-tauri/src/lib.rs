@@ -126,13 +126,31 @@ pub struct InstallResult {
 const PROD_GATEWAY_URL: &str = "https://agent-bazaar-api.rodion.com.co";
 
 fn mcp_block() -> Value {
-    json!({
-        "command": "npx",
-        "args": ["-y", "agent-bazaar-mcp"],
-        "env": {
-            "AGENT_BAZAAR_URL": PROD_GATEWAY_URL
-        }
-    })
+    // En Windows, `npx` no es un ejecutable directo (es `npx.cmd`). Los clientes
+    // MCP que usan `child_process.spawn` sin shell (Claude Code, Cursor) fallan
+    // con ENOENT al buscar `npx` literal. Workaround validado por chrome-devtools
+    // MCP: spawn `cmd /c npx ...` que Windows sí resuelve. En macOS/Linux `npx`
+    // sirve directo.
+    #[cfg(target_os = "windows")]
+    {
+        json!({
+            "command": "cmd",
+            "args": ["/c", "npx", "-y", "agent-bazaar-mcp"],
+            "env": {
+                "AGENT_BAZAAR_URL": PROD_GATEWAY_URL
+            }
+        })
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        json!({
+            "command": "npx",
+            "args": ["-y", "agent-bazaar-mcp"],
+            "env": {
+                "AGENT_BAZAAR_URL": PROD_GATEWAY_URL
+            }
+        })
+    }
 }
 
 fn install_one(client: &McpClient) -> InstallResult {
