@@ -54,6 +54,12 @@ services:
     build:
       context: .
       dockerfile: packages/landing/Dockerfile
+      # Astro hornea PUBLIC_* en build time, así que tienen que ser build args
+      # (no env runtime). Default a localhost para uso local con docker compose.
+      args:
+        PUBLIC_BACKEND_URL: ${PUBLIC_BACKEND_URL:-http://localhost:4000}
+        PUBLIC_GATEWAY_URL: ${PUBLIC_GATEWAY_URL:-http://localhost:8000}
+        PUBLIC_DASHBOARD_URL: ${PUBLIC_DASHBOARD_URL:-http://localhost:3020}
     container_name: ab-landing
     volumes:
       - ./packages/landing/src:/app/src
@@ -63,9 +69,6 @@ services:
       - "3010:4321"
     environment:
       - NODE_ENV=development
-      - PUBLIC_BACKEND_URL=${PUBLIC_BACKEND_URL:-http://localhost:4000}
-      - PUBLIC_GATEWAY_URL=${PUBLIC_GATEWAY_URL:-http://localhost:8000}
-      - PUBLIC_DASHBOARD_URL=${PUBLIC_DASHBOARD_URL:-http://localhost:3020}
     depends_on:
       - backend
 

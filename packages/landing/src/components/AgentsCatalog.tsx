@@ -7,6 +7,7 @@ type Agent = {
   description: string;
   endpoint: string;
   pricePerCall: number;
+  acceptedToken?: string;
   totalCalls?: number;
   source?: string;
   score?: number;
@@ -60,8 +61,12 @@ function serviceToName(service: string): string {
     .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
     .join(" ");
 }
-const solToUsd = (sol: number) => (sol * 150).toFixed(4);
-const fmtSol = (sol: number) => sol.toFixed(6);
+// Defaults coherentes con los del gateway (SOL_USD_RATE=150, XLM_USD_RATE=0.12).
+// Si llega un token desconocido on-chain, asume SOL como antes para no romper.
+const RATES: Record<string, number> = { SOL: 150, XLM: 0.12 };
+const priceToUsd = (price: number, token?: string) =>
+  (price * (RATES[token ?? "SOL"] ?? RATES.SOL)).toFixed(4);
+const fmtPrice = (price: number) => price.toFixed(6);
 
 export default function AgentsCatalog() {
   const [query, setQuery] = useState("");
@@ -288,12 +293,12 @@ function AgentCard({ agent: a, hasQuery }: { agent: Agent; hasQuery: boolean }) 
             fontSize: 14,
             fontWeight: 600,
             color: "var(--success)",
-          }}>${solToUsd(a.pricePerCall)}</div>
+          }}>${priceToUsd(a.pricePerCall, a.acceptedToken)}</div>
           <div style={{
             fontFamily: "var(--font-mono)",
             fontSize: 11,
             color: "var(--fg-3)",
-          }}>{fmtSol(a.pricePerCall)} SOL</div>
+          }}>{fmtPrice(a.pricePerCall)} {a.acceptedToken ?? "SOL"}</div>
         </div>
       </div>
 
