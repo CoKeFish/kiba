@@ -23,7 +23,10 @@ import {
 } from '@solana/web3.js';
 import { loadOrCreateKeypair } from '@agent-bazaar/sdk';
 import { getBalance, lamportsToSol, lamportsToUsd } from './billing';
-import { BASE_UNITS_PER_TOKEN, IS_STELLAR, chainClientFor } from './chain';
+import { ASSET, BASE_UNITS_PER_TOKEN, IS_STELLAR, chainClientFor } from './chain';
+
+/** Nombre de la unidad base de la cadena activa (lamports/stroops). */
+export const BASE_UNIT_NAME: 'lamports' | 'stroops' = IS_STELLAR ? 'stroops' : 'lamports';
 import { db } from './db';
 
 const SOLANA_RPC_URL = process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com';
@@ -76,15 +79,33 @@ export async function getOnChainBalance(wallet: Keypair): Promise<number> {
   }
 }
 
+/**
+ * Balances de un user, en USD + unidades base + activo nativo (chain-agnostic).
+ *
+ * `*_lamports` y `*_sol` se conservan como aliases legacy: aunque cuando
+ * CHAIN=stellar la unidad base son stroops y el activo es XLM, los valores
+ * numéricos son los mismos que los nuevos `*_base_units` y `*_asset_amount`
+ * — para no romper integraciones existentes que aún leen los nombres viejos.
+ */
 export interface UserBalances {
-  creditLamports: number;
+  // Chain-agnostic (preferido).
+  asset: 'SOL' | 'XLM';
+  baseUnitName: 'lamports' | 'stroops';
+  creditBaseUnits: number;
   creditUsd: number;
-  walletLamports: number;
-  walletSol: number;
+  walletBaseUnits: number;
+  walletAssetAmount: number;
   walletUsd: number;
-  totalLamports: number;
+  totalBaseUnits: number;
+  totalAssetAmount: number;
   totalUsd: number;
-  totalSol: number;
+
+  // Legacy (deprecated): mismos números que los *_base_units/*_asset_amount.
+  /** @deprecated use creditBaseUnits */ creditLamports: number;
+  /** @deprecated use walletBaseUnits */ walletLamports: number;
+  /** @deprecated use walletAssetAmount */ walletSol: number;
+  /** @deprecated use totalBaseUnits */ totalLamports: number;
+  /** @deprecated use totalAssetAmount */ totalSol: number;
 }
 
 export async function getUserBalances(userId: number): Promise<UserBalances> {
@@ -97,15 +118,25 @@ export async function getUserBalances(userId: number): Promise<UserBalances> {
     console.warn(`[wallets] on-chain balance failed for user ${userId}:`, (err as Error).message);
   }
   const totalLamports = creditLamports + walletLamports;
+  const walletSol = lamportsToSol(walletLamports);
+  const totalSol = lamportsToSol(totalLamports);
   return {
-    creditLamports,
+    asset: ASSET,
+    baseUnitName: BASE_UNIT_NAME,
+    creditBaseUnits: creditLamports,
     creditUsd: lamportsToUsd(creditLamports),
-    walletLamports,
-    walletSol: lamportsToSol(walletLamports),
+    walletBaseUnits: walletLamports,
+    walletAssetAmount: walletSol,
     walletUsd: lamportsToUsd(walletLamports),
-    totalLamports,
+    totalBaseUnits: totalLamports,
+    totalAssetAmount: totalSol,
     totalUsd: lamportsToUsd(totalLamports),
-    totalSol: lamportsToSol(totalLamports),
+    // Legacy aliases.
+    creditLamports,
+    walletLamports,
+    walletSol,
+    totalLamports,
+    totalSol,
   };
 }
 

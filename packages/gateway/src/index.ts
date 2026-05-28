@@ -29,6 +29,8 @@ import {
 import { getBalance, getTransactions, lamportsToUsd, topup } from './billing';
 import { callOnBehalf, listAgents, masterWalletPubkey } from './proxy';
 import { getMasterWallet, getOnChainBalance, getUserBalances, loadUserWallet } from './wallets';
+import { ASSET, BASE_UNITS_PER_TOKEN } from './chain';
+import { BASE_UNIT_NAME } from './wallets';
 import { PLATFORM_FEE_BPS, BPS_DENOMINATOR } from '@agent-bazaar/sdk';
 import {
   deregisterAgent,
@@ -401,13 +403,22 @@ app.get('/v1/me', requireAuth, async (req, res) => {
     id: String(user.id),
     email: user.email,
     custodial_wallet: user.custodial_wallet_pubkey,
-    balance_lamports: balances.creditLamports,
+    // Chain context (preferido para integraciones nuevas).
+    asset: balances.asset,
+    base_unit_name: balances.baseUnitName,
+    balance_base_units: balances.creditBaseUnits,
     balance_usd: balances.creditUsd,
+    wallet_base_units: balances.walletBaseUnits,
+    wallet_asset_amount: balances.walletAssetAmount,
+    wallet_usd: balances.walletUsd,
+    total_base_units: balances.totalBaseUnits,
+    total_asset_amount: balances.totalAssetAmount,
+    total_usd: balances.totalUsd,
+    // Legacy (deprecated): mismos valores que los *_base_units / *_asset_amount.
+    balance_lamports: balances.creditLamports,
     wallet_lamports: balances.walletLamports,
     wallet_sol: balances.walletSol,
-    wallet_usd: balances.walletUsd,
     total_lamports: balances.totalLamports,
-    total_usd: balances.totalUsd,
     total_sol: balances.totalSol,
     created_at: user.created_at,
   });
@@ -416,13 +427,21 @@ app.get('/v1/me', requireAuth, async (req, res) => {
 app.get('/v1/balance', requireAuth, async (req, res) => {
   const balances = await getUserBalances(req.bearerUser!.id);
   res.json({
-    balance_lamports: balances.creditLamports,
+    asset: balances.asset,
+    base_unit_name: balances.baseUnitName,
+    balance_base_units: balances.creditBaseUnits,
     balance_usd: balances.creditUsd,
+    wallet_base_units: balances.walletBaseUnits,
+    wallet_asset_amount: balances.walletAssetAmount,
+    wallet_usd: balances.walletUsd,
+    total_base_units: balances.totalBaseUnits,
+    total_asset_amount: balances.totalAssetAmount,
+    total_usd: balances.totalUsd,
+    // Legacy (deprecated).
+    balance_lamports: balances.creditLamports,
     wallet_lamports: balances.walletLamports,
     wallet_sol: balances.walletSol,
-    wallet_usd: balances.walletUsd,
     total_lamports: balances.totalLamports,
-    total_usd: balances.totalUsd,
     total_sol: balances.totalSol,
   });
 });
@@ -436,12 +455,17 @@ app.get('/v1/wallet', requireAuth, async (req, res) => {
   if (!user) return res.status(404).json({ error: 'user not found' });
   try {
     const wallet = loadUserWallet(user.id);
-    const lamports = await getOnChainBalance(wallet);
+    const baseUnits = await getOnChainBalance(wallet);
     res.json({
       pubkey: user.custodial_wallet_pubkey,
-      lamports,
-      sol: lamports / 1e9,
+      asset: ASSET,
+      base_unit_name: BASE_UNIT_NAME,
+      base_units: baseUnits,
+      asset_amount: baseUnits / BASE_UNITS_PER_TOKEN,
       master_wallet: masterWalletPubkey(),
+      // Legacy (deprecated): mismos valores que base_units / asset_amount.
+      lamports: baseUnits,
+      sol: baseUnits / BASE_UNITS_PER_TOKEN,
     });
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
