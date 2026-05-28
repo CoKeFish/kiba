@@ -17,11 +17,11 @@ class: text-left
 <div class="flex flex-col items-center gap-4 text-center">
   <LogoMark :size="128" />
   <div class="wordmark" style="font-size: 4rem; line-height: 1; margin-top: -0.25rem;">agent bazaar</div>
-  <div class="eyebrow">AI agent marketplace · liquidado en Stellar</div>
+  <div class="eyebrow">AI agent marketplace · pago por llamada</div>
 
   <p class="text-fg2" style="max-width: 40rem; font-size: 1.05rem; margin-top: 0.25rem;">
     Donde los asistentes de IA <em>descubren</em> y <em>pagan</em> a agentes
-    especializados bajo demanda — liquidado en <strong>Stellar</strong>.
+    especializados <strong>bajo demanda</strong>.
   </p>
 
   <div class="brand-rule" style="width: 360px; margin: 0.6rem 0;"></div>
@@ -37,6 +37,42 @@ class: text-left
     Pitch de concepto · Bogotá, Colombia · 2026
   </div>
 </div>
+
+---
+layout: default
+---
+
+<div class="eyebrow accent-amber">Por qué ahora</div>
+
+# La gente ya no visita la web — pasa por la IA
+
+<p class="text-fg2 mt-3" style="max-width: 52rem;">
+Para buscar, comparar o resolver, cada vez más personas le preguntan a su asistente
+en vez de abrir páginas y navegar resultados. El valor lo crean las webs y los servicios,
+pero la interacción —y el tráfico que la sostenía— se queda en la IA.
+</p>
+
+<div class="grid grid-cols-3 gap-4 mt-7">
+  <div class="card">
+    <div class="accent-blue font-semibold mb-1">El tráfico migra a la IA</div>
+    <div class="card-q">La gente resuelve dentro del chat; las webs que crean el valor reciben cada vez menos visitas.</div>
+  </div>
+  <div class="card">
+    <div class="accent-amber font-semibold mb-1">Sin visitas, no hay ingreso</div>
+    <div class="card-q">El modelo de anuncios y clics que sostuvo la web abierta deja de funcionar para quien aporta el contenido.</div>
+  </div>
+  <div class="card">
+    <div class="accent-red font-semibold mb-1">El acceso se empieza a cerrar</div>
+    <div class="card-q">Para protegerse, cada vez más sitios ya restringen o bloquean el acceso de las IA a su contenido.</div>
+  </div>
+</div>
+
+<p class="text-fg3 mt-6" style="font-size: 0.85rem; font-style: italic;">
+La salida no es cerrar la puerta, es poder cobrar: que cada web, servicio o agente
+monetice lo que aporta cada vez que una IA lo usa. Esa es la razón de ser de Agent Bazaar.
+</p>
+
+<Foot :n="2" />
 
 ---
 layout: default
@@ -69,7 +105,7 @@ Los asistentes se quedan genéricos, los expertos invisibles, y la capacidad út
 nunca encuentra a quien la necesita.
 </p>
 
-<Foot :n="2" />
+<Foot :n="3" />
 
 ---
 layout: default
@@ -104,7 +140,7 @@ Dos lados, un protocolo: los usuarios acceden a expertos sin fricción;
 los publishers cobran sin construir infraestructura.
 </p>
 
-<Foot :n="3" />
+<Foot :n="4" />
 
 ---
 layout: default
@@ -154,7 +190,7 @@ El protocolo <strong>x402</strong> (HTTP-nativo) maneja el ciclo
 <em>402 → quote → pago → entrega</em> sin sacar al usuario de la conversación.
 </p>
 
-<Foot :n="4" />
+<Foot :n="5" />
 
 ---
 layout: default
@@ -191,7 +227,7 @@ layout: default
   </div>
 </div>
 
-<Foot :n="5" />
+<Foot :n="6" />
 
 ---
 layout: default
@@ -242,7 +278,7 @@ pub fn settle(env: Env, id: BytesN<32>) {
 Aplicado dentro del contrato — nadie puede desviar ingresos fuera de cadena.
 </p>
 
-<Foot :n="6" />
+<Foot :n="7" />
 
 ---
 layout: default
@@ -285,7 +321,7 @@ El asistente recibe sus herramientas:
 <code>list_agents</code> · <code>call_agent</code> · <code>get_balance</code> · <code>get_transactions</code>
 </p>
 
-<Foot :n="7" />
+<Foot :n="8" />
 
 ---
 layout: default
@@ -321,7 +357,7 @@ El efecto de red: más agentes hacen al marketplace más útil,
 y más usuarios lo hacen más atractivo para publicar.
 </p>
 
-<Foot :n="8" />
+<Foot :n="9" />
 
 ---
 layout: default
@@ -355,7 +391,7 @@ layout: default
   </div>
 </div>
 
-<Foot :n="9" />
+<Foot :n="10" />
 
 ---
 layout: center
@@ -393,4 +429,4 @@ class: text-center
   </div>
 </div>
 
-<Foot :n="10" />
+<Foot :n="11" />
