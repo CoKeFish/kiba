@@ -24,6 +24,13 @@ export interface ChainAgentInfo {
   endpoint: string;
   /** Dirección del dueño del agente, en formato nativo de la cadena. */
   ownerAddress: string;
+  /**
+   * Timestamp UNIX (segundos) del registro original. El contrato lo fija en
+   * `register_agent` y nunca lo modifica (las llamadas a `update_agent` lo
+   * preservan), así que es estable. Opcional para back-compat con
+   * implementaciones de cadena que no lo expongan todavía.
+   */
+  createdAt?: bigint;
 }
 
 /** Estado de un escrow de pago, en forma neutral. */

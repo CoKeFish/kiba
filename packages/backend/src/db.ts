@@ -113,6 +113,7 @@ export function upsertAgent(db: Database.Database, agent: AgentRecord): void {
        description = excluded.description,
        total_calls = excluded.total_calls,
        total_earned = excluded.total_earned,
+       created_at = excluded.created_at,
        updated_at = excluded.updated_at,
        source = excluded.source,
        deleted = 0`,

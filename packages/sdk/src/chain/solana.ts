@@ -84,6 +84,7 @@ export class SolanaChainClient implements ChainClient {
       description: onChain.description,
       endpoint: onChain.endpoint,
       ownerAddress: onChain.owner.toBase58(),
+      createdAt: BigInt(onChain.createdAt),
     };
   }
 

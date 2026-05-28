@@ -111,7 +111,10 @@ class StellarRegistryReader implements RegistryReader {
           description: a.description,
           total_calls: 0,
           total_earned: 0,
-          created_at: now,
+          // `createdAt` viene del contrato (register_agent lo fija una vez;
+          // update_agent lo preserva). Fallback al timestamp del indexer si el
+          // cliente de cadena no lo expone — preserva el comportamiento previo.
+          created_at: a.createdAt != null ? Number(a.createdAt) : now,
           updated_at: now,
           source: 'chain',
           deleted: 0,

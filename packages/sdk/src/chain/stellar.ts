@@ -207,6 +207,7 @@ export class StellarChainClient implements ChainClient {
           description: string;
           endpoint: string;
           owner: string;
+          created_at?: bigint | number;
         }
       | null
       | undefined;
@@ -217,6 +218,7 @@ export class StellarChainClient implements ChainClient {
       description: a.description,
       endpoint: a.endpoint,
       ownerAddress: a.owner,
+      createdAt: a.created_at != null ? BigInt(a.created_at) : undefined,
     };
   }
 
