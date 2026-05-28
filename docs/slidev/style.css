@@ -1,0 +1,274 @@
+@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Manrope:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap");
+
+/* ============================================================
+   AGENT BAZAAR — bi-theme tokens.
+   LIGHT = :root (default).  DARK = html.dark (Slidev adds .dark).
+   Brand is dark-first; light is a high-contrast fallback —
+   NO faint grays: secondary/tertiary text is dark navy on light.
+   ============================================================ */
+:root {
+  /* surfaces */
+  --bg-canvas:   #FFFFFF;
+  --bg-surface:  #F4F6FB;
+  --bg-card:     #EEF2FA;
+  --bg-elevated: #E4EAF6;
+
+  /* text — all clearly readable on white (no light gray) */
+  --fg-1: #0B1530;   /* near-black navy */
+  --fg-2: #2A3656;   /* dark slate (~9:1 on white) */
+  --fg-3: #3C4870;   /* medium-dark (footer/captions, ~7.5:1) */
+
+  /* accent text (semantic), darkened for AA on white + card surface */
+  --at-blue:  #1A4FCC;
+  --at-green: #0B6E4D;
+  --at-amber: #6E4A0A;
+  --at-red:   #B82844;
+
+  --accent:         #1A4FCC;
+  --blue-emphasis:  #1A4FCC;   /* em / links */
+  --eyebrow:        #1A4FCC;
+
+  --danger:  #B82844;
+  --warning: #6E4A0A;
+  --success: #0B6E4D;
+
+  --border-subtle:  rgba(26, 79, 204, 0.12);
+  --border-default: rgba(26, 79, 204, 0.20);
+  --border-strong:  rgba(26, 79, 204, 0.34);
+
+  /* inline code = light chip; block code = dark editor panel (see below) */
+  --code-bg:     #0B1426;
+  --code-fg:     #14338C;   /* darker blue for small mono chips (~8:1) */
+  --code-chip:   rgba(26, 79, 204, 0.12);
+
+  /* background layer (global-bottom.vue) */
+  --ab-bg:               #FFFFFF;
+  --ab-particle:         "26, 79, 204";
+  --ab-particle-opacity: 0.22;
+  --ab-glow-1:           rgba(32, 96, 246, 0.10);
+  --ab-glow-2:           rgba(32, 96, 246, 0.06);
+  --ab-blend:            multiply;
+  --logo-glow:           rgba(26, 79, 204, 0.28);
+  --rule-line:           rgba(26, 79, 204, 0.28);
+
+  --font-display: "Outfit", ui-sans-serif, system-ui, sans-serif;
+  --font-sans:    "Manrope", ui-sans-serif, system-ui, sans-serif;
+  --font-mono:    "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --tracking-wider: 0.16em;
+
+  --slidev-code-background: var(--code-chip);  /* inline chips; block <pre> overrides to --code-bg */
+  --slidev-code-radius: 10px;
+}
+
+html.dark {
+  --bg-canvas:   #02050E;
+  --bg-surface:  #050B1B;
+  --bg-card:     #0A1228;
+  --bg-elevated: #121C3A;
+
+  --fg-1: #F7F8FB;
+  --fg-2: #A9B4CC;
+  --fg-3: #7B89A8;
+
+  --at-blue:  #7AA3FF;
+  --at-green: #2ED39A;
+  --at-amber: #F5B544;
+  --at-red:   #FF5571;
+
+  --accent:        #2060F6;
+  --blue-emphasis: #7AA3FF;
+  --eyebrow:       #7AA3FF;
+
+  --danger:  #FF5571;
+  --warning: #F5B544;
+  --success: #2ED39A;
+
+  --border-subtle:  color-mix(in srgb, #B5C9FF 8%, transparent);
+  --border-default: color-mix(in srgb, #B5C9FF 14%, transparent);
+  --border-strong:  color-mix(in srgb, #B5C9FF 24%, transparent);
+
+  --code-bg:   #02050E;
+  --code-fg:   #B5C9FF;
+  --code-chip: color-mix(in srgb, #2060F6 12%, transparent);
+
+  --ab-bg:               #02050E;
+  --ab-particle:         "79, 134, 255";
+  --ab-particle-opacity: 0.50;
+  --ab-glow-1:           rgba(32, 96, 246, 0.16);
+  --ab-glow-2:           rgba(32, 96, 246, 0.10);
+  --ab-blend:            screen;
+  --logo-glow:           rgba(32, 96, 246, 0.55);
+  --rule-line:           color-mix(in srgb, #B5C9FF 22%, transparent);
+}
+
+/* ============================================================
+   Base canvas + typography
+   ============================================================ */
+html, body, #app {
+  background: var(--ab-bg);
+  color: var(--fg-1);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+.slidev-layout {
+  background: transparent !important;
+  color: var(--fg-1);
+  position: relative;
+  z-index: 1;
+  padding: 56px 64px;
+}
+.slidev-layout.cover,
+.slidev-layout.center {
+  background: radial-gradient(ellipse at 50% 60%,
+    var(--ab-glow-1), transparent 60%) !important;
+}
+
+.slidev-layout h1,
+.slidev-layout h2,
+.slidev-layout h3 {
+  font-family: var(--font-display);
+  color: var(--fg-1);
+  letter-spacing: -0.022em;
+  line-height: 1.06;
+  font-weight: 600;
+}
+.slidev-layout h1 { font-size: 2.6rem; }
+.slidev-layout h2 { font-size: 2.0rem; margin-bottom: 0.4rem; }
+.slidev-layout p  { color: var(--fg-2); line-height: 1.55; }
+/* Slidev's default theme dims the first paragraph after a heading
+   (.slidev-layout h1+p { opacity:.5 }), which washes out to sub-AA on
+   the light theme. Keep full opacity and rely on the token color instead. */
+.slidev-layout h1 + p,
+.slidev-layout h2 + p { opacity: 1 !important; }
+.slidev-layout strong { color: var(--fg-1); font-weight: 700; }
+.slidev-layout em { color: var(--blue-emphasis); font-style: normal; font-weight: 600; }
+.slidev-layout a { color: var(--blue-emphasis); }
+
+/* Inline code + code blocks */
+.slidev-layout code {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  color: var(--code-fg);
+  background: var(--code-chip);
+  border: 1px solid var(--border-subtle);
+  border-radius: 5px;
+  padding: 1px 6px;
+}
+.slidev-layout pre {
+  font-family: var(--font-mono);
+  background: var(--code-bg) !important;
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
+  box-shadow: 0 0 32px var(--ab-glow-1);
+}
+.slidev-layout pre code {
+  background: transparent;
+  border: none;
+  padding: 0;
+  color: inherit;
+  font-size: 0.78rem;
+}
+/* Block code uses a DARK editor panel in BOTH themes (light slides keep a
+   dark code block — like an editor on a light page). On the light theme,
+   Shiki defaults to its pale light tokens, so force the dark (vitesse-dark)
+   syntax colors there for high contrast. Inline code chips are unaffected. */
+html:not(.dark) .slidev-layout pre.shiki span {
+  color: var(--shiki-dark) !important;
+}
+
+/* ============================================================
+   Brand utility classes
+   ============================================================ */
+.eyebrow {
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wider);
+  color: var(--eyebrow);
+  display: inline-block;
+}
+
+.wordmark {
+  font-family: var(--font-display);
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  text-transform: lowercase;
+  color: var(--fg-1);
+  text-shadow: 0 2px 26px var(--logo-glow);
+}
+
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-default);
+  border-radius: 14px;
+  padding: 1.1rem 1.25rem;
+  transition: border-color .24s, box-shadow .24s;
+}
+.card:hover {
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+  box-shadow: 0 0 32px var(--ab-glow-1);
+}
+.card-q { color: var(--fg-2); font-size: 0.82rem; line-height: 1.5; }
+
+.chip-icon {
+  width: 42px; height: 42px;
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-display); font-weight: 700; font-size: 1.15rem;
+  color: var(--at-blue);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  box-shadow: 0 0 20px var(--ab-glow-1);
+}
+
+.pill {
+  padding: 6px 16px;
+  border-radius: 999px;
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: var(--bg-card);
+  border: 1px solid var(--border-strong);
+}
+
+.brand-rule {
+  position: relative;
+  height: 1px;
+  background: linear-gradient(90deg, transparent,
+    var(--rule-line) 25%, var(--rule-line) 75%, transparent);
+}
+.brand-rule::after {
+  content: "";
+  position: absolute; left: 50%; top: 50%;
+  width: 55%; height: 6px;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(ellipse at center, var(--accent), transparent 70%);
+  filter: blur(2px); opacity: .85;
+}
+
+.slide-footer {
+  position: absolute;
+  bottom: 22px; left: 64px; right: 64px;
+  display: flex; justify-content: space-between; align-items: center;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.04em;
+  color: var(--fg-3);
+}
+
+.accent-blue  { color: var(--at-blue); }
+.accent-green { color: var(--at-green); }
+.accent-amber { color: var(--at-amber); }
+.accent-red   { color: var(--at-red); }
+.text-fg2     { color: var(--fg-2); }
+.text-fg3     { color: var(--fg-3); }
+
+/* ============================================================
+   Keep the bottom Slidev nav menu; hide the top-right jump search
+   ============================================================ */
+.autocomplete-list,
+div:has(> .autocomplete-list) {
+  display: none !important;
+}

@@ -1,0 +1,12 @@
+node_modules
+dist
+.slidev-cache
+*.log
+shots/
+shots-light/
+shots-dark/
+debug-current.png
+# scratch crops left by review tooling
+z_*.png
+_z_*.png
+crop_*.png

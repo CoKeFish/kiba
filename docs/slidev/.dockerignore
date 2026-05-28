@@ -1,0 +1,8 @@
+node_modules
+dist
+shots
+shots-light
+shots-dark
+.slidev-cache
+*.log
+debug-current.png
