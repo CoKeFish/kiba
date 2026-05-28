@@ -1,10 +1,18 @@
 import { chain } from "./chain";
 
-// "lamports" = unidades base del activo activo (lamports/SOL o stroops/XLM).
-export const lamportsToSol = (l: number) => l / chain.baseUnitsPerToken;
-export const lamportsToUsd = (l: number) => (l / chain.baseUnitsPerToken) * chain.usdRate;
-export const usdToLamports = (u: number) =>
+// Conversiones chain-agnostic entre unidades base (lamports/stroops), el activo
+// nativo (SOL/XLM) y USD según `chain.baseUnitsPerToken` y `chain.usdRate`.
+export const baseUnitsToAsset = (b: number) => b / chain.baseUnitsPerToken;
+export const baseUnitsToUsd = (b: number) => (b / chain.baseUnitsPerToken) * chain.usdRate;
+export const usdToBaseUnits = (u: number) =>
   Math.round((u / chain.usdRate) * chain.baseUnitsPerToken);
+
+/** @deprecated use baseUnitsToAsset */
+export const lamportsToSol = baseUnitsToAsset;
+/** @deprecated use baseUnitsToUsd */
+export const lamportsToUsd = baseUnitsToUsd;
+/** @deprecated use usdToBaseUnits */
+export const usdToLamports = usdToBaseUnits;
 
 // Formatters hoisted a module scope — evita reconstruir Intl.NumberFormat por
 // cada llamada (pesado en listas largas).
@@ -41,9 +49,11 @@ export function formatUsd(usd: number, fractionDigits: 2 | 4 | "auto" = "auto") 
   return fmt.format(usd);
 }
 
-export function formatSol(sol: number) {
-  return `${sol.toFixed(6)} ${chain.asset}`;
+export function formatAssetAmount(amount: number) {
+  return `${amount.toFixed(6)} ${chain.asset}`;
 }
+/** @deprecated use formatAssetAmount */
+export const formatSol = formatAssetAmount;
 
 export function shortSig(sig: string, chars = 4) {
   if (!sig) return "";

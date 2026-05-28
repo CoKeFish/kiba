@@ -29,7 +29,7 @@ import {
 import { getBalance, getTransactions, lamportsToUsd, topup } from './billing';
 import { callOnBehalf, listAgents, masterWalletPubkey } from './proxy';
 import { getMasterWallet, getOnChainBalance, getUserBalances, loadUserWallet } from './wallets';
-import { ASSET, BASE_UNITS_PER_TOKEN } from './chain';
+import { ASSET, ASSET_USD_RATE, BASE_UNITS_PER_TOKEN } from './chain';
 import { BASE_UNIT_NAME } from './wallets';
 import { PLATFORM_FEE_BPS, BPS_DENOMINATOR } from '@agent-bazaar/sdk';
 import {
@@ -510,19 +510,25 @@ app.get('/v1/platform/stats', requireAuth, async (_req, res) => {
 
     const onChainAgents = agents.filter((a) => a.source === 'chain');
     const totalCalls = onChainAgents.reduce((sum, a) => sum + (a.totalCalls || 0), 0);
-    // total_earned está en SOL en la respuesta del backend (decoded de lamports)
-    const totalOwnerEarnedSol = onChainAgents.reduce((sum, a) => sum + (a.totalEarned || 0), 0);
+    // total_earned ya viene del backend en unidades del activo (SOL o XLM),
+    // decoded desde unidades base.
+    const totalOwnerEarnedAsset = onChainAgents.reduce((sum, a) => sum + (a.totalEarned || 0), 0);
     // Si owner_amount = amount * (1 - fee_bps/10000), entonces fee = owner_amount * fee_bps / (10000 - fee_bps)
-    const estimatedFeesSol =
-      totalOwnerEarnedSol * (PLATFORM_FEE_BPS / (BPS_DENOMINATOR - PLATFORM_FEE_BPS));
-    const totalVolumeSol = totalOwnerEarnedSol + estimatedFeesSol;
+    const estimatedFeesAsset =
+      totalOwnerEarnedAsset * (PLATFORM_FEE_BPS / (BPS_DENOMINATOR - PLATFORM_FEE_BPS));
+    const totalVolumeAsset = totalOwnerEarnedAsset + estimatedFeesAsset;
 
     res.json({
+      asset: ASSET,
+      base_unit_name: BASE_UNIT_NAME,
       treasury: {
         pubkey: masterWalletPubkey(),
-        lamports: treasuryLamports,
-        sol: treasuryLamports / 1e9,
+        base_units: treasuryLamports,
+        asset_amount: treasuryLamports / BASE_UNITS_PER_TOKEN,
         usd: lamportsToUsd(treasuryLamports),
+        // Legacy (deprecated): mismos valores que base_units / asset_amount.
+        lamports: treasuryLamports,
+        sol: treasuryLamports / BASE_UNITS_PER_TOKEN,
       },
       fee: {
         bps: PLATFORM_FEE_BPS,
@@ -534,13 +540,17 @@ app.get('/v1/platform/stats', requireAuth, async (_req, res) => {
         total_calls: totalCalls,
       },
       lifetime: {
-        total_volume_sol: totalVolumeSol,
-        total_volume_usd: totalVolumeSol * Number(process.env.SOL_USD_RATE || 150),
-        owner_earnings_sol: totalOwnerEarnedSol,
-        owner_earnings_usd:
-          totalOwnerEarnedSol * Number(process.env.SOL_USD_RATE || 150),
-        estimated_fees_sol: estimatedFeesSol,
-        estimated_fees_usd: estimatedFeesSol * Number(process.env.SOL_USD_RATE || 150),
+        // USD conversion usa ASSET_USD_RATE chain-aware (XLM_USD_RATE o SOL_USD_RATE).
+        total_volume_asset: totalVolumeAsset,
+        total_volume_usd: totalVolumeAsset * ASSET_USD_RATE,
+        owner_earnings_asset: totalOwnerEarnedAsset,
+        owner_earnings_usd: totalOwnerEarnedAsset * ASSET_USD_RATE,
+        estimated_fees_asset: estimatedFeesAsset,
+        estimated_fees_usd: estimatedFeesAsset * ASSET_USD_RATE,
+        // Legacy (deprecated): mismos valores que *_asset.
+        total_volume_sol: totalVolumeAsset,
+        owner_earnings_sol: totalOwnerEarnedAsset,
+        estimated_fees_sol: estimatedFeesAsset,
       },
     });
   } catch (err) {

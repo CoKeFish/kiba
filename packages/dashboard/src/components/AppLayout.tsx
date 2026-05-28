@@ -203,7 +203,7 @@ export function AppLayout() {
             >
               Balance:{" "}
               <span style={{ color: "var(--color-fg)", fontWeight: 600 }}>
-                {balance ? formatUsd(lamportsToUsd(balance.balance_lamports)) : "—"}
+                {balance ? formatUsd(balance.balance_usd) : "—"}
               </span>
             </div>
             <Button size="sm" onClick={() => navigate("/app/billing")}>

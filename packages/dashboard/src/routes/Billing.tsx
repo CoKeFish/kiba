@@ -28,7 +28,7 @@ export default function Billing() {
     mutationFn: (n: number) => api.topup(n),
     onSuccess: (data) => {
       setSuccess(
-        `+ ${formatUsd(amount)} added · new balance ${formatUsd(lamportsToUsd(data.new_balance_lamports))}`,
+        `+ ${formatUsd(amount)} added · new balance ${formatUsd(baseUnitsToUsd(data.new_balance_base_units ?? data.new_balance_lamports))}`,
       );
       setError(null);
       qc.invalidateQueries({ queryKey: ["balance"] });
@@ -70,7 +70,7 @@ export default function Billing() {
               Available balance
             </p>
             <p className="text-3xl font-semibold font-mono">
-              {balance ? formatUsd(lamportsToUsd(balance.balance_lamports)) : "—"}
+              {balance ? formatUsd(balance.balance_usd) : "—"}
             </p>
             <p className="text-xs text-[var(--color-fg-muted)] mt-1">USD credits, used for agent calls</p>
           </div>

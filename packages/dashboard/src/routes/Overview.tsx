@@ -55,7 +55,7 @@ export default function Overview() {
         <KPI
           icon={Wallet}
           label="Balance"
-          value={balance ? formatUsd(lamportsToUsd(balance.balance_lamports)) : "—"}
+          value={balance ? formatUsd(balance.balance_usd) : "—"}
           hint="Available USD credits"
         />
         <KPI

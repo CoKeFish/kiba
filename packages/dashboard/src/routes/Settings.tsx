@@ -7,9 +7,10 @@ import { Card, CardBody, CardHeader, CardTitle, CardDescription } from "@/compon
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { Copy, Check, ExternalLink, LogOut, AlertTriangle, RefreshCw } from "lucide-react";
+import { chain } from "@/lib/chain";
 
 function explorerWallet(addr: string): string {
-  return `https://explorer.solana.com/address/${addr}?cluster=devnet`;
+  return chain.explorerAddr(addr);
 }
 
 function CopyButton({ value }: { value: string }) {
@@ -144,20 +145,20 @@ export default function Settings() {
           {wallet ? (
             <>
               <Field
-                label="Public key (devnet)"
+                label={`Public key (${chain.networkLabel})`}
                 value={wallet.pubkey}
                 copyable
                 link={explorerWallet(wallet.pubkey)}
               />
               <Field
                 label="On-chain balance"
-                value={`${wallet.sol.toFixed(6)} SOL`}
-                hint={`${wallet.lamports.toLocaleString()} lamports — refilled on-demand from the gateway treasury when you make a call`}
+                value={`${wallet.asset_amount.toFixed(6)} ${wallet.asset}`}
+                hint={`${wallet.base_units.toLocaleString()} ${wallet.base_unit_name} — refilled on-demand from the gateway treasury when you make a call`}
               />
               <Field
                 label="Treasury wallet (refill source)"
                 value={wallet.master_wallet}
-                hint="When your custodial runs low, the gateway transfers SOL from this master wallet to yours. Operated by the platform."
+                hint={`When your custodial runs low, the gateway transfers ${wallet.asset} from this master wallet to yours. Operated by the platform.`}
                 copyable
                 link={explorerWallet(wallet.master_wallet)}
               />

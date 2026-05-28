@@ -108,7 +108,7 @@ export default function Platform() {
               {formatUsd(treasury.usd, 2)}
             </span>
             <span className="font-mono text-[var(--color-fg-muted)]">
-              ({treasury.sol.toFixed(4)} {chain.asset})
+              ({treasury.asset_amount.toFixed(4)} {chain.asset})
             </span>
           </div>
           <div className="flex items-center justify-between pt-3 border-t border-[var(--color-border)] text-xs">
@@ -152,13 +152,13 @@ export default function Platform() {
             icon={TrendingUp}
             label="Lifetime volume"
             value={formatUsd(lifetime.total_volume_usd, 2)}
-            hint={`${lifetime.total_volume_sol.toFixed(4)} ${chain.asset} gross`}
+            hint={`${lifetime.total_volume_asset.toFixed(4)} ${chain.asset} gross`}
           />
           <StatCard
             icon={Coins}
             label="Lifetime fees"
             value={formatUsd(lifetime.estimated_fees_usd, 2)}
-            hint={`${lifetime.estimated_fees_sol.toFixed(6)} ${chain.asset} @ ${fee.pct}%`}
+            hint={`${lifetime.estimated_fees_asset.toFixed(6)} ${chain.asset} @ ${fee.pct}%`}
             highlight
           />
         </div>

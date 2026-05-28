@@ -42,16 +42,10 @@ export const api = {
   me: () => request<User>("/v1/me"),
 
   // Balance & billing
-  balance: () => request<{ balance_lamports: number; balance_usd: number }>("/v1/balance"),
-  wallet: () =>
-    request<{
-      pubkey: string;
-      lamports: number;
-      sol: number;
-      master_wallet: string;
-    }>("/v1/wallet"),
+  balance: () => request<BalanceResponse>("/v1/balance"),
+  wallet: () => request<WalletResponse>("/v1/wallet"),
   topup: (amount_usd: number) =>
-    request<{ ok: boolean; new_balance_lamports: number }>("/v1/topup", {
+    request<TopupResponse>("/v1/topup", {
       method: "POST",
       body: JSON.stringify({ amount_usd }),
     }),
@@ -133,8 +127,61 @@ export type User = {
   id: string;
   email: string;
   custodial_wallet: string;
-  balance_lamports: number;
+  /** Símbolo del activo de liquidación de la cadena activa. */
+  asset: "SOL" | "XLM";
+  /** Nombre de la unidad base (lamports/stroops). */
+  base_unit_name: "lamports" | "stroops";
+  /** Crédito USD del user, en unidades base del activo (chain-agnostic). */
+  balance_base_units: number;
+  balance_usd: number;
   created_at: number;
+  /** @deprecated use balance_base_units (mismo valor numérico) */
+  balance_lamports: number;
+};
+
+/** Respuesta de `/v1/balance` — chain-agnostic, con aliases legacy. */
+export type BalanceResponse = {
+  asset: "SOL" | "XLM";
+  base_unit_name: "lamports" | "stroops";
+  balance_base_units: number;
+  balance_usd: number;
+  wallet_base_units: number;
+  wallet_asset_amount: number;
+  wallet_usd: number;
+  total_base_units: number;
+  total_asset_amount: number;
+  total_usd: number;
+  /** @deprecated use balance_base_units */
+  balance_lamports: number;
+  /** @deprecated use wallet_base_units */
+  wallet_lamports: number;
+  /** @deprecated use wallet_asset_amount */
+  wallet_sol: number;
+  /** @deprecated use total_base_units */
+  total_lamports: number;
+  /** @deprecated use total_asset_amount */
+  total_sol: number;
+};
+
+/** Respuesta de `/v1/wallet` — chain-agnostic, con aliases legacy. */
+export type WalletResponse = {
+  pubkey: string;
+  asset: "SOL" | "XLM";
+  base_unit_name: "lamports" | "stroops";
+  base_units: number;
+  asset_amount: number;
+  master_wallet: string;
+  /** @deprecated use base_units */
+  lamports: number;
+  /** @deprecated use asset_amount */
+  sol: number;
+};
+
+export type TopupResponse = {
+  ok: boolean;
+  new_balance_base_units?: number;
+  /** @deprecated use new_balance_base_units */
+  new_balance_lamports: number;
 };
 
 export type Transaction = {
@@ -237,11 +284,17 @@ export type X402Trace = {
 };
 
 export type PlatformStats = {
+  asset: "SOL" | "XLM";
+  base_unit_name: "lamports" | "stroops";
   treasury: {
     pubkey: string;
-    lamports: number;
-    sol: number;
+    base_units: number;
+    asset_amount: number;
     usd: number;
+    /** @deprecated use base_units */
+    lamports: number;
+    /** @deprecated use asset_amount */
+    sol: number;
   };
   fee: { bps: number; pct: number };
   marketplace: {
@@ -250,11 +303,17 @@ export type PlatformStats = {
     total_calls: number;
   };
   lifetime: {
-    total_volume_sol: number;
+    total_volume_asset: number;
     total_volume_usd: number;
-    owner_earnings_sol: number;
+    owner_earnings_asset: number;
     owner_earnings_usd: number;
-    estimated_fees_sol: number;
+    estimated_fees_asset: number;
     estimated_fees_usd: number;
+    /** @deprecated use total_volume_asset */
+    total_volume_sol: number;
+    /** @deprecated use owner_earnings_asset */
+    owner_earnings_sol: number;
+    /** @deprecated use estimated_fees_asset */
+    estimated_fees_sol: number;
   };
 };
