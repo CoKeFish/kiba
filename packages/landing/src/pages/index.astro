@@ -8,7 +8,8 @@ import AgentsCatalog from "../components/AgentsCatalog.tsx";
 import Pricing from "../components/Pricing.astro";
 import Footer from "../components/Footer.astro";
 
-const BACKEND_URL = import.meta.env.PUBLIC_BACKEND_URL || "https://backend-production-fb67.up.railway.app";
+const BACKEND_URL = import.meta.env.PUBLIC_BACKEND_URL || "https://agent-bazaar-data.rodion.com.co";
+const DASHBOARD_URL = import.meta.env.PUBLIC_DASHBOARD_URL || "https://dashboard.agent-bazaar.rodion.com.co";
 ---
 
 <Base>
@@ -159,7 +160,7 @@ const BACKEND_URL = import.meta.env.PUBLIC_BACKEND_URL || "https://backend-produ
       ">Create a free account and connect your first agent in under five minutes.</p>
       <div style="display: flex; gap: 14px; margin-top: 8px; flex-wrap: wrap; justify-content: center;">
         <a
-          href="https://agent-bazaar-dashboard.vercel.app/signup"
+          href={`${DASHBOARD_URL}/signup`}
           style="
             font-family: var(--font-sans);
             font-size: 15px;
