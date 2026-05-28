@@ -233,50 +233,44 @@ layout: default
 layout: default
 ---
 
-<div class="eyebrow">Arquitectura</div>
+<div class="eyebrow">Mercado</div>
 
-# Tres capas, un contrato que reparte solo
+# Herramientas de IA: <span class="accent-blue">$200B</span> para 2030
 
-<div class="grid grid-cols-2 gap-6 mt-5 items-start">
-  <div class="flex flex-col gap-3">
-    <div class="card" style="padding: 0.8rem 1rem;">
-      <div class="accent-blue font-semibold" style="font-size: 0.92rem;">Clientes</div>
-      <div class="card-q mt-1">Instalador de 1 clic o <code>npx</code> — MCP en Claude Desktop, Cursor y Claude Code; SDK y dashboard web.</div>
-    </div>
-    <div class="card" style="padding: 0.8rem 1rem;">
-      <div class="accent-green font-semibold" style="font-size: 0.92rem;">Plataforma</div>
-      <div class="card-q mt-1">Descubrimiento por intención, billeteras custodiadas y créditos en USDC.</div>
-    </div>
-    <div class="card" style="padding: 0.8rem 1rem;">
-      <div class="accent-amber font-semibold" style="font-size: 0.92rem;">Stellar / Soroban</div>
-      <div class="card-q mt-1">Registro de agentes y escrow; el contrato libera el pago al entregar.</div>
-    </div>
-  </div>
-
-<div style="font-size: 0.68rem;">
-
-```rust
-// soroban: reparto atómico al confirmar entrega
-const PUBLISHER_BPS: u32 = 9_500;  // 95%
-const PLATFORM_BPS:  u32 = 500;    // 5%
-
-pub fn settle(env: Env, id: BytesN<32>) {
-    let e = Escrow::load(&env, &id);
-    require_delivered(&e);
-    let pub_ = e.amount * PUBLISHER_BPS / 10_000;
-    transfer(&env, &e.publisher, pub_);
-    transfer(&env, &PLATFORM, e.amount - pub_);
-    e.mark_settled(&env);
-}
-```
-
-</div>
-</div>
-
-<p class="text-fg3 mt-4" style="font-size: 0.82rem;">
-<strong class="accent-green">95 %</strong> al publisher · <strong>5 %</strong> a la plataforma.
-Aplicado dentro del contrato — nadie puede desviar ingresos fuera de cadena.
+<p class="text-fg2 mt-3" style="max-width: 52rem;">
+Cada vez que un asistente choca con una tarea especializada, es demanda para el
+marketplace. Entramos por donde ya hay tracción —los usuarios de MCP— y escalamos a
+cualquier IA que necesite capacidades externas.
 </p>
+
+<div class="grid grid-cols-3 gap-4 mt-7">
+  <div class="card">
+    <div class="text-fg3" style="font-size: 0.6rem; letter-spacing: 0.16em; text-transform: uppercase;">TAM</div>
+    <div class="accent-blue font-semibold mt-1">Cualquier asistente de IA</div>
+    <div class="card-q mt-1">…que necesite capacidades externas. <strong>800M</strong> usuarios semanales de ChatGPT como señal de escala.</div>
+  </div>
+  <div class="card">
+    <div class="text-fg3" style="font-size: 0.6rem; letter-spacing: 0.16em; text-transform: uppercase;">SAM</div>
+    <div class="accent-green font-semibold mt-1">Usuarios activos de MCP</div>
+    <div class="card-q mt-1">Claude Desktop, Cursor y Claude Code — donde el producto ya corre hoy.</div>
+  </div>
+  <div class="card">
+    <div class="text-fg3" style="font-size: 0.6rem; letter-spacing: 0.16em; text-transform: uppercase;">Beachhead</div>
+    <div class="accent-amber font-semibold mt-1">Primeros pagos reales</div>
+    <div class="card-q mt-1">El 1% de los usuarios de MCP que paga por llamada — nuestro punto de entrada.</div>
+  </div>
+</div>
+
+<div class="card mt-5" style="display: flex; align-items: center; justify-content: center; gap: 0.4rem 0.7rem; flex-wrap: wrap; font-family: var(--font-mono); font-size: 0.9rem;">
+  <span class="accent-blue">1% usuarios MCP</span>
+  <span class="text-fg3">×</span>
+  <span class="accent-green">10 llamadas/día</span>
+  <span class="text-fg3">×</span>
+  <span class="accent-amber">$0.10</span>
+  <span class="text-fg3">=</span>
+  <strong>millones en volumen mensual</strong>
+  <span class="text-fg3">· 5% de comisión</span>
+</div>
 
 <Foot :n="7" />
 
