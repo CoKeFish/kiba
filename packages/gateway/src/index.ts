@@ -66,6 +66,15 @@ const ALLOWED_ORIGINS = (process.env.CORS_ORIGINS ?? 'http://localhost:3020,http
   .split(',')
   .map((s) => s.trim())
   .filter(Boolean);
+// Self-origin: cuando el gateway sirve HTML (consent page, login page) el form
+// hace POST al propio gateway. El browser manda Origin = el propio dominio,
+// pero no es cross-origin de verdad — los browsers nativamente lo permiten.
+// Express cors() no distingue, así que añadimos PUBLIC_URL a la allowlist si
+// está seteada para que no se rechace.
+const PUBLIC_URL = process.env.PUBLIC_URL;
+if (PUBLIC_URL && !ALLOWED_ORIGINS.includes(PUBLIC_URL)) {
+  ALLOWED_ORIGINS.push(PUBLIC_URL);
+}
 app.use(
   cors({
     origin: (origin, cb) => {
