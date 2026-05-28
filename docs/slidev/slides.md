@@ -357,6 +357,119 @@ y más usuarios lo hacen más atractivo para publicar.
 layout: default
 ---
 
+<div class="eyebrow">Diferenciación</div>
+
+# Ya hay MCPs en Claude — falta la capa de pago
+
+<p class="text-fg2 mt-3" style="max-width: 54rem;">
+Los catálogos de MCP (Smithery, la galería de Claude) ayudan a <em>encontrar</em> agentes;
+los protocolos de pago resuelven el <em>cobro</em>. Ninguno cierra el ciclo completo —
+Agent Bazaar une <strong>descubrir, pagar y entregar en una sola llamada</strong>.
+</p>
+
+<table class="cmp">
+  <thead>
+    <tr>
+      <th></th>
+      <th>Catálogos MCP<br><span>Smithery · galería de Claude</span></th>
+      <th>Protocolos de pago<br><span>x402</span></th>
+      <th class="abz">Agent Bazaar</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Descubrimiento de agentes</td>
+      <td class="y">✓</td>
+      <td class="n">—</td>
+      <td class="abz y">✓</td>
+    </tr>
+    <tr>
+      <td>Pago on-chain por llamada</td>
+      <td class="n">—</td>
+      <td class="y">✓</td>
+      <td class="abz y">✓</td>
+    </tr>
+    <tr>
+      <td>Reparto atómico · marketplace</td>
+      <td class="n">—</td>
+      <td class="n">—</td>
+      <td class="abz y">✓</td>
+    </tr>
+    <tr>
+      <td>Descubrir + pagar + entregar en una llamada</td>
+      <td class="n">—</td>
+      <td class="n">—</td>
+      <td class="abz y">✓</td>
+    </tr>
+  </tbody>
+</table>
+
+<p class="text-fg3 mt-5" style="font-size: 0.82rem; font-style: italic;">
+No competimos con los MCP: les ponemos la capa de comercio que les falta.
+</p>
+
+<Foot :n="10" />
+
+<style>
+.cmp {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1.3rem;
+  font-family: var(--font-sans);
+  font-size: 0.84rem;
+}
+.cmp th, .cmp td {
+  padding: 0.55rem 0.9rem;
+  text-align: center;
+  border-bottom: 1px solid var(--border-default);
+}
+.cmp thead th {
+  font-family: var(--font-display);
+  font-weight: 600;
+  color: var(--fg-1);
+  border-bottom: 1px solid var(--border-strong);
+  vertical-align: bottom;
+}
+.cmp thead th span {
+  display: block;
+  font-family: var(--font-mono);
+  font-weight: 400;
+  font-size: 0.58rem;
+  color: var(--fg-3);
+  letter-spacing: 0.02em;
+  margin-top: 3px;
+}
+.cmp td:first-child, .cmp th:first-child {
+  text-align: left;
+  color: var(--fg-2);
+  width: 34%;
+}
+.cmp .y { color: var(--at-green); font-weight: 700; }
+.cmp .n { color: var(--fg-3); }
+.cmp .abz { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.cmp thead th.abz {
+  color: var(--at-blue);
+  border-top: 2px solid var(--accent);
+  border-left: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  border-right: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+}
+.cmp td.abz {
+  border-left: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  border-right: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.cmp tbody tr:last-child td.abz {
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
+}
+</style>
+
+---
+layout: default
+---
+
 <div class="eyebrow">Estado</div>
 
 # Qué existe hoy y qué sigue
@@ -385,7 +498,7 @@ layout: default
   </div>
 </div>
 
-<Foot :n="10" />
+<Foot :n="11" />
 
 ---
 layout: center
@@ -423,4 +536,4 @@ class: text-center
   </div>
 </div>
 
-<Foot :n="11" />
+<Foot :n="12" />
