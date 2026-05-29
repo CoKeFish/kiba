@@ -164,70 +164,21 @@ layout: default
   <div class="card" style="padding: 0.85rem 1rem;">
     <div class="chip-icon mb-2">3</div>
     <div class="font-semibold" style="font-size: 0.92rem;">Pago</div>
-    <div class="card-q">Se abre un escrow en Stellar y se paga en USDC al confirmar.</div>
+    <div class="card-q">El pago queda reservado y se libera en USDC al confirmar la entrega.</div>
   </div>
   <div class="card" style="padding: 0.85rem 1rem;">
     <div class="chip-icon mb-2">4</div>
     <div class="font-semibold" style="font-size: 0.92rem;">Entrega</div>
-    <div class="card-q">El agente responde y cobra; el reparto se liquida en cadena.</div>
+    <div class="card-q">El agente responde y cobra; el reparto es automático e instantáneo.</div>
   </div>
 </div>
 
-<div class="mt-4" style="font-size: 0.7rem;">
-
-```http
-GET /agents/translator-es/run        → 402 Payment Required
-   X-Quote: 0.02 USDC   X-Pay-To: GA…SOROBAN_ESCROW
-
-POST /agents/translator-es/run       ← 200 OK
-   X-Payment: <signed XDR>           X-Payment-Receipt: <tx hash>
-```
-
-</div>
-
-<p class="text-fg3 mt-3" style="font-size: 0.82rem;">
-El protocolo <strong>x402</strong> (HTTP-nativo) maneja el ciclo
-<em>402 → quote → pago → entrega</em> sin sacar al usuario de la conversación.
+<p class="text-fg2 mt-8" style="max-width: 56rem;">
+Todo ocurre <strong>dentro de la misma conversación, en segundos</strong>: el pago viaja
+en la propia llamada y la persona nunca ve claves, billeteras ni transacciones.
 </p>
 
 <Foot :n="5" />
-
----
-layout: default
----
-
-<div class="eyebrow">Por qué Stellar</div>
-
-# La red hecha para pagos es la red para agentes
-
-<div class="grid grid-cols-3 gap-4 mt-6">
-  <div class="card">
-    <div class="accent-green font-semibold">USDC nativo</div>
-    <div class="card-q mt-1">Stablecoin de primera clase: micropagos sin volatilidad, contabilidad en dólares.</div>
-  </div>
-  <div class="card">
-    <div class="accent-blue font-semibold">Fees mínimas</div>
-    <div class="card-q mt-1">Fracciones de centavo por operación — viable cobrar por llamada, no por suscripción.</div>
-  </div>
-  <div class="card">
-    <div class="accent-amber font-semibold">Finalidad rápida</div>
-    <div class="card-q mt-1">Liquidación en ~5 segundos: el pago no interrumpe la conversación.</div>
-  </div>
-  <div class="card">
-    <div class="accent-blue font-semibold">Anchors / fiat</div>
-    <div class="card-q mt-1">Rampa de entrada y salida a moneda local para usuarios y publishers.</div>
-  </div>
-  <div class="card">
-    <div class="accent-green font-semibold">Soroban</div>
-    <div class="card-q mt-1">Contratos en Rust para el escrow y el reparto de ingresos atómico.</div>
-  </div>
-  <div class="card">
-    <div class="accent-red font-semibold">Agentic commerce</div>
-    <div class="card-q mt-1">Foco estratégico de Stellar (y de Jed McCaleb) en comercio entre agentes.</div>
-  </div>
-</div>
-
-<Foot :n="6" />
 
 ---
 layout: default
@@ -272,7 +223,7 @@ cualquier IA que necesite capacidades externas.
   <span class="text-fg3">· 5% de comisión</span>
 </div>
 
-<Foot :n="7" />
+<Foot :n="6" />
 
 ---
 layout: default
@@ -291,17 +242,12 @@ Tres caminos al mismo marketplace; la autenticación es por <em>OAuth en el nave
   <div class="card">
     <div class="eyebrow accent-green" style="font-size: 0.62rem;">1 clic</div>
     <div class="font-semibold mt-1">Instalador de escritorio</div>
-    <div class="card-q mt-2">Un <code>.exe</code> que detecta Claude Desktop, Cursor y Claude Code, respalda tu config e instala el MCP por ti.</div>
+    <div class="card-q mt-2">Un instalador que detecta Claude Desktop, Cursor y Claude Code y los conecta por ti — sin tocar configuración.</div>
   </div>
   <div class="card">
     <div class="eyebrow accent-blue" style="font-size: 0.62rem;">1 línea</div>
     <div class="font-semibold mt-1">npx / npm</div>
-    <div class="card-q mt-2">Para quien ya vive en la terminal.</div>
-
-```bash
-npx -y agent-bazaar-mcp
-```
-
+    <div class="card-q mt-2">Una línea para quien ya trabaja en la terminal.</div>
   </div>
   <div class="card">
     <div class="eyebrow accent-amber" style="font-size: 0.62rem;">Publishers</div>
@@ -311,11 +257,11 @@ npx -y agent-bazaar-mcp
 </div>
 
 <p class="text-fg3 mt-5" style="font-size: 0.82rem;">
-El asistente recibe sus herramientas:
-<code>list_agents</code> · <code>call_agent</code> · <code>get_balance</code> · <code>get_transactions</code>
+Hecho esto, el asistente gana cuatro capacidades nuevas: buscar agentes, llamarlos,
+ver su saldo y su historial de pagos.
 </p>
 
-<Foot :n="8" />
+<Foot :n="7" />
 
 ---
 layout: default
@@ -351,7 +297,7 @@ El efecto de red: más agentes hacen al marketplace más útil,
 y más usuarios lo hacen más atractivo para publicar.
 </p>
 
-<Foot :n="9" />
+<Foot :n="8" />
 
 ---
 layout: default
@@ -408,7 +354,7 @@ Agent Bazaar une <strong>descubrir, pagar y entregar en una sola llamada</strong
 No competimos con los MCP: les ponemos la capa de comercio que les falta.
 </p>
 
-<Foot :n="10" />
+<Foot :n="9" />
 
 <style>
 .cmp {
@@ -480,25 +426,25 @@ layout: default
     <ul class="card-q" style="line-height: 1.85; list-style: none; padding: 0;">
       <li><span class="accent-green">✓</span> Marketplace funcional de punta a punta.</li>
       <li><span class="accent-green">✓</span> Descubrimiento por intención (keyword + semántico).</li>
-      <li><span class="accent-green">✓</span> Pago por llamada vía x402 con escrow on-chain.</li>
-      <li><span class="accent-green">✓</span> Reparto atómico aplicado por el contrato.</li>
-      <li><span class="accent-green">✓</span> Acceso por MCP en Claude Desktop, Cursor y Claude Code.</li>
-      <li><span class="accent-green">✓</span> Instalador de 1 clic + paquete npm publicado.</li>
+      <li><span class="accent-green">✓</span> Pago por llamada con liquidación on-chain en segundos.</li>
+      <li><span class="accent-green">✓</span> Reparto automático 95/5 por contrato.</li>
+      <li><span class="accent-green">✓</span> Funciona en Claude Desktop, Cursor y Claude Code.</li>
+      <li><span class="accent-green">✓</span> Instalador de 1 clic, listo para usar.</li>
     </ul>
   </div>
   <div class="card" style="display: flex; flex-direction: column; justify-content: center;">
     <div class="accent-blue font-semibold mb-2">Lo que sigue</div>
     <ul class="card-q" style="line-height: 1.85; list-style: none; padding: 0;">
       <li><span class="accent-blue">→</span> Onboarding de publishers externos.</li>
-      <li><span class="accent-blue">→</span> Rampa fiat con anchors de Stellar.</li>
-      <li><span class="accent-blue">→</span> Salida a mainnet y auditoría del contrato Soroban.</li>
+      <li><span class="accent-blue">→</span> Entrada y salida a moneda local (fiat).</li>
+      <li><span class="accent-blue">→</span> Salida a producción (mainnet) y auditoría de seguridad.</li>
       <li><span class="accent-blue">→</span> Catálogo de agentes verticales.</li>
       <li><span class="accent-blue">→</span> Primeros usuarios pagos reales.</li>
     </ul>
   </div>
 </div>
 
-<Foot :n="11" />
+<Foot :n="10" />
 
 ---
 layout: center
@@ -536,4 +482,4 @@ class: text-center
   </div>
 </div>
 
-<Foot :n="12" />
+<Foot :n="11" />
