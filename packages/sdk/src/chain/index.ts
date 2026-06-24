@@ -10,7 +10,7 @@
  */
 import { Connection, PublicKey, type Keypair } from '@solana/web3.js';
 import { Keypair as StellarKeypair, Networks } from '@stellar/stellar-sdk';
-import { AgentBazaarProgram } from '../program';
+import { KibaProgram } from '../program';
 import { SolanaChainClient } from './solana';
 import { StellarChainClient } from './stellar';
 import type { ChainClient } from './types';
@@ -55,7 +55,7 @@ function createSolanaChainClient(
   }
 
   try {
-    const program = new AgentBazaarProgram(new PublicKey(programIdStr), connection);
+    const program = new KibaProgram(new PublicKey(programIdStr), connection);
     return new SolanaChainClient({ connection, program, wallet: config.wallet, label });
   } catch (e) {
     console.warn(`[${label}] PROGRAM_ID inválido, modo degradado:`, (e as Error).message);

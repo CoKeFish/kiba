@@ -4,7 +4,7 @@
  * Las llamadas son paralelas por default (los specialists no dependen
  * entre sí en este demo).
  */
-import type { AgentClient } from '@agent-bazaar/sdk';
+import type { AgentClient } from '@kiba/sdk';
 import type { Task } from './planner';
 
 export interface TaskResult {

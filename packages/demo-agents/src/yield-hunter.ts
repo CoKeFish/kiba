@@ -9,7 +9,7 @@
  *
  * Phase 3 (TODO): consultar APYs reales vía Helius/Birdeye en lugar de mocks.
  */
-import { AgentProvider, loadKeypairFromEnvOrFile } from '@agent-bazaar/sdk';
+import { AgentProvider, loadKeypairFromEnvOrFile } from '@kiba/sdk';
 
 const KEYPAIR_PATH = process.env.KEYPAIR_PATH || '/app/data/yield-hunter.json';
 const wallet = loadKeypairFromEnvOrFile('AGENT_WALLET_SECRET', KEYPAIR_PATH);

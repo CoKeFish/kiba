@@ -7,7 +7,7 @@
  * cubre el resto: balances de las custodiales y refill/fondeo.
  */
 import type { Keypair } from '@solana/web3.js';
-import { createChainClient, type ChainClient } from '@agent-bazaar/sdk';
+import { createChainClient, type ChainClient } from '@kiba/sdk';
 
 export const CHAIN = (process.env.CHAIN || 'solana').toLowerCase();
 export const IS_STELLAR = CHAIN === 'stellar';

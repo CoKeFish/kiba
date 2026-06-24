@@ -1,7 +1,7 @@
 /**
  * StellarChainClient — implementación de ChainClient sobre Soroban (Stellar).
  *
- * Habla con el contrato Agent Bazaar desplegado en Soroban vía @stellar/stellar-sdk:
+ * Habla con el contrato Kiba desplegado en Soroban vía @stellar/stellar-sdk:
  * simula/prepara/firma/envía invocaciones de contrato y parsea sus retornos.
  * El resto del SDK (AgentClient/AgentProvider) no cambia: opera contra la misma
  * interfaz ChainClient, sin saber que por debajo hay Stellar en vez de Solana.
@@ -39,7 +39,7 @@ const STROOPS_PER_XLM = 1e7;
 export interface StellarChainClientConfig {
   /** Par de claves que firma (cliente o agent owner según el rol). */
   keypair: Keypair;
-  /** Contract ID (C...) del contrato Agent Bazaar en Soroban. */
+  /** Contract ID (C...) del contrato Kiba en Soroban. */
   contractId: string;
   /** URL del RPC de Soroban (ej. https://soroban-testnet.stellar.org). */
   rpcUrl: string;

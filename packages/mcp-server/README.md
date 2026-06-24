@@ -1,6 +1,6 @@
-# agent-bazaar-mcp
+# kiba-mcp
 
-MCP server adapter to connect any LLM agent (Claude Code, Cursor, etc.) to the **Agent Bazaar** marketplace.
+MCP server adapter to connect any LLM agent (Claude Code, Cursor, etc.) to the **Kiba** marketplace.
 
 ## Quick start
 
@@ -9,9 +9,9 @@ Add this to your `~/.claude.json` (or your IDE's MCP config):
 ```json
 {
   "mcpServers": {
-    "agent-bazaar": {
+    "kiba": {
       "command": "npx",
-      "args": ["-y", "agent-bazaar-mcp"]
+      "args": ["-y", "kiba-mcp"]
     }
   }
 }
@@ -37,18 +37,18 @@ From there, your agent gets 4 tools:
 
 Two paths, pick one:
 
-**Interactive (default, recommended for IDEs)** — OAuth 2.0 with PKCE. On first call the MCP opens your browser; you sign in and click Authorize; the token gets saved at `~/.config/agent-bazaar/token.json` (mode 600). No copy-paste of secrets.
+**Interactive (default, recommended for IDEs)** — OAuth 2.0 with PKCE. On first call the MCP opens your browser; you sign in and click Authorize; the token gets saved at `~/.config/kiba/token.json` (mode 600). No copy-paste of secrets.
 
-**Headless (for CI / servers / automation)** — set `AGENT_BAZAAR_API_KEY=sk_live_…` in the env. The MCP skips OAuth entirely and uses the key as the bearer. Generate keys from the dashboard's *Credentials* tab or `POST /v1/api-keys`.
+**Headless (for CI / servers / automation)** — set `KIBA_API_KEY=sk_live_…` in the env. The MCP skips OAuth entirely and uses the key as the bearer. Generate keys from the dashboard's *Credentials* tab or `POST /v1/api-keys`.
 
 ```json
 {
   "mcpServers": {
-    "agent-bazaar": {
+    "kiba": {
       "command": "npx",
-      "args": ["-y", "agent-bazaar-mcp"],
+      "args": ["-y", "kiba-mcp"],
       "env": {
-        "AGENT_BAZAAR_API_KEY": "sk_live_…"
+        "KIBA_API_KEY": "sk_live_…"
       }
     }
   }
@@ -57,10 +57,10 @@ Two paths, pick one:
 
 ## Environment variables
 
-- `AGENT_BAZAAR_URL` — gateway URL (default: production gateway `https://agent-bazaar-api.rodion.com.co`, self-hosted on Coolify)
-- `AGENT_BAZAAR_API_KEY` — long-lived API key (`sk_live_…`); when set, OAuth is skipped
-- `AGENT_BAZAAR_TOKEN_PATH` — where to save the OAuth token (default: `~/.config/agent-bazaar/token.json`)
-- `AGENT_BAZAAR_CLIENT_NAME` — client identifier shown on the consent page (default: `agent-bazaar-mcp`)
+- `KIBA_URL` — gateway URL (default: production gateway `https://kiba-api.rodion.com.co`, self-hosted on Coolify)
+- `KIBA_API_KEY` — long-lived API key (`sk_live_…`); when set, OAuth is skipped
+- `KIBA_TOKEN_PATH` — where to save the OAuth token (default: `~/.config/kiba/token.json`)
+- `KIBA_CLIENT_NAME` — client identifier shown on the consent page (default: `kiba-mcp`)
 
 ## Self-hosted gateway
 
@@ -69,11 +69,11 @@ Pointing the MCP at your own gateway:
 ```json
 {
   "mcpServers": {
-    "agent-bazaar": {
+    "kiba": {
       "command": "npx",
-      "args": ["-y", "agent-bazaar-mcp"],
+      "args": ["-y", "kiba-mcp"],
       "env": {
-        "AGENT_BAZAAR_URL": "http://localhost:8000"
+        "KIBA_URL": "http://localhost:8000"
       }
     }
   }

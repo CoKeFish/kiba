@@ -104,7 +104,7 @@ export default function Settings() {
       <Card>
         <CardHeader>
           <CardTitle>Profile</CardTitle>
-          <CardDescription>Your account on Agent Bazaar.</CardDescription>
+          <CardDescription>Your account on Kiba.</CardDescription>
         </CardHeader>
         <CardBody className="px-6 py-0">
           {me ? (

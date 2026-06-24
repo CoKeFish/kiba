@@ -1,6 +1,6 @@
 <template>
   <!-- Brand background: scheme-aware canvas + radial glow + drifting particles.
-       Colors come from CSS vars (--ab-bg / --ab-particle / --ab-glow-*),
+       Colors come from CSS vars (--kiba-bg / --kiba-particle / --kiba-glow-*),
        so it flips automatically between the light and dark themes. -->
   <div class="ab-bg">
     <div class="ab-glow" />
@@ -41,8 +41,8 @@ onMounted(() => {
   function tick() {
     // Read theme-driven particle color once per frame.
     const cs = getComputedStyle(document.documentElement)
-    const rgb = (cs.getPropertyValue('--ab-particle') || '79,134,255').replace(/"/g, '').trim()
-    const op = parseFloat(cs.getPropertyValue('--ab-particle-opacity') || '0.5')
+    const rgb = (cs.getPropertyValue('--kiba-particle') || '79,134,255').replace(/"/g, '').trim()
+    const op = parseFloat(cs.getPropertyValue('--kiba-particle-opacity') || '0.5')
 
     ctx.clearRect(0, 0, w, h)
     ctx.shadowColor = `rgb(${rgb})`
@@ -73,21 +73,21 @@ onBeforeUnmount(() => {
   inset: 0;
   z-index: 0;
   overflow: hidden;
-  background: var(--ab-bg);
+  background: var(--kiba-bg);
   pointer-events: none;
 }
 .ab-glow {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(ellipse 60% 50% at 16% 38%, var(--ab-glow-1), transparent 60%),
-    radial-gradient(ellipse 50% 45% at 88% 88%, var(--ab-glow-2), transparent 60%);
+    radial-gradient(ellipse 60% 50% at 16% 38%, var(--kiba-glow-1), transparent 60%),
+    radial-gradient(ellipse 50% 45% at 88% 88%, var(--kiba-glow-2), transparent 60%);
 }
 .ab-particles {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
-  mix-blend-mode: var(--ab-blend);
+  mix-blend-mode: var(--kiba-blend);
 }
 </style>

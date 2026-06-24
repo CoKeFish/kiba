@@ -1,5 +1,5 @@
 #![no_std]
-//! Agent Bazaar — registry + x402 escrow sobre Soroban (Stellar).
+//! Kiba — registry + x402 escrow sobre Soroban (Stellar).
 //!
 //! Port idiomático del programa Anchor de Solana. Misma lógica de protocolo:
 //!   - Registro de agentes (uno por `service`).
@@ -128,10 +128,10 @@ pub enum Error {
 // ═══════════════════════════════════════════════════════════════
 
 #[contract]
-pub struct AgentBazaar;
+pub struct Kiba;
 
 #[contractimpl]
-impl AgentBazaar {
+impl Kiba {
     /// Fija el token de liquidación y la treasury. Solo una vez.
     pub fn initialize(env: Env, token: Address, treasury: Address) -> Result<(), Error> {
         if env.storage().instance().has(&DataKey::Config) {

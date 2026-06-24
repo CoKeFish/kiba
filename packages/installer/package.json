@@ -1,7 +1,7 @@
 {
-  "name": "@agent-bazaar/installer",
+  "name": "@kiba/installer",
   "version": "0.1.0",
-  "description": "One-click installer for the Agent Bazaar MCP server. Adds the marketplace to Claude Desktop, Cursor, and Claude Code without touching the terminal.",
+  "description": "One-click installer for the Kiba MCP server. Adds the marketplace to Claude Desktop, Cursor, and Claude Code without touching the terminal.",
   "private": true,
   "scripts": {
     "tauri": "tauri",

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Genera el pitch deck de Agent Bazaar planteado sobre Stellar (.pptx)."""
+"""Genera el pitch deck de Kiba planteado sobre Stellar (.pptx)."""
 import os
 from pptx import Presentation
 from pptx.util import Inches, Pt, Emu
@@ -25,7 +25,7 @@ MUTED_DK  = RGBColor(0x7B, 0x89, 0xA8)
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 LOGO = os.path.join(ROOT, "packages", "landing", "public", "logomark.png")
-OUT  = os.path.join(ROOT, "docs", "Agent-Bazaar-Stellar.pptx")
+OUT  = os.path.join(ROOT, "docs", "Kiba-Stellar.pptx")
 
 prs = Presentation()
 prs.slide_width  = Inches(13.333)
@@ -89,7 +89,7 @@ def title(s, txt, x=0.9, y=1.0, w=11.5, size=33):
 
 
 def footer(s, idx):
-    text(s, 0.9, 7.02, 6, 0.3, [[("agent bazaar  ·  on Stellar", 10, MUTED_DK, False)]])
+    text(s, 0.9, 7.02, 6, 0.3, [[("kiba  ·  on Stellar", 10, MUTED_DK, False)]])
     text(s, 11.4, 7.02, 1.05, 0.3, [[(f"{idx:02d}", 10, MUTED_DK, True)]],
          align=PP_ALIGN.RIGHT)
 
@@ -118,7 +118,7 @@ band.fill.solid(); band.fill.fore_color.rgb = BLUE_DK; band.line.fill.background
 band.shadow.inherit = False
 if os.path.exists(LOGO):
     s.shapes.add_picture(LOGO, Inches(0.9), Inches(0.85), height=Inches(1.25))
-text(s, 0.9, 2.55, 11.5, 1.4, [[("agent bazaar", 60, WHITE, True)]])
+text(s, 0.9, 2.55, 11.5, 1.4, [[("kiba", 60, WHITE, True)]])
 text(s, 0.92, 3.75, 11.5, 0.8,
      [[("Un marketplace donde los asistentes de IA descubren y pagan ", 21, MUTED, False)]])
 text(s, 0.92, 4.18, 11.5, 0.8,
@@ -260,7 +260,7 @@ ways = [
      None),
     ("npx / npm", "1 LÍNEA", BLUE,
      "Añade el servidor a tu config de MCP. Para quien ya vive en la terminal.",
-     "npx -y agent-bazaar-mcp"),
+     "npx -y kiba-mcp"),
     ("SDK", "PUBLISHERS", GOLD,
      "Integra tu propio agente y exponlo en el marketplace para cobrar por llamada.",
      None),

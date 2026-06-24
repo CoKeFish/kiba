@@ -7,7 +7,7 @@
  * `Server.prototype.connect` ANTES de que se importe el módulo, capturando
  * la instancia para invocar sus handlers directamente.
  *
- * También seteamos `AGENT_BAZAAR_TOKEN_PATH` a un archivo temporal con un
+ * También seteamos `KIBA_TOKEN_PATH` a un archivo temporal con un
  * token válido pre-grabado, así los helpers de auth no abren el browser.
  */
 import { tmpdir } from 'node:os';
@@ -29,9 +29,9 @@ writeFileSync(
     saved_at: now,
   }),
 );
-process.env.AGENT_BAZAAR_TOKEN_PATH = TEST_TOKEN_PATH;
-process.env.AGENT_BAZAAR_URL = 'http://mock-gateway.test';
-process.env.AGENT_BAZAAR_CLIENT_NAME = 'test-mcp-client';
+process.env.KIBA_TOKEN_PATH = TEST_TOKEN_PATH;
+process.env.KIBA_URL = 'http://mock-gateway.test';
+process.env.KIBA_CLIENT_NAME = 'test-mcp-client';
 
 // Capturar la instancia de Server interceptando connect()
 let _captured: unknown = null;

@@ -1,7 +1,7 @@
 {
-  "name": "@agent-bazaar/sdk",
+  "name": "@kiba/sdk",
   "version": "0.1.0",
-  "description": "SDK para integrar agentes IA al Agent Bazaar marketplace",
+  "description": "SDK para integrar agentes IA al Kiba marketplace",
   "main": "src/index.ts",
   "types": "src/index.ts",
   "scripts": {

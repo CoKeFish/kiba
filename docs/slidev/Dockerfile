@@ -1,4 +1,4 @@
-# Slidev pitch deck → static SPA, deployed like the other Agent Bazaar apps.
+# Slidev pitch deck → static SPA, deployed like the other Kiba apps.
 # Coolify builds with base_directory=/ (repo root) as context and
 # dockerfile_location=/docs/slidev/Dockerfile, so COPY paths are repo-root-relative.
 FROM node:20-alpine

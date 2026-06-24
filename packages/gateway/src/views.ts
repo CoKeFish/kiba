@@ -62,15 +62,15 @@ const layout = (title: string, body: string) => `<!DOCTYPE html>
 <html lang="es"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${title} · Agent Bazaar</title>
+<title>${title} · Kiba</title>
 <style>${css}</style>
 </head><body>${body}</body></html>`;
 
 export function landingView(loggedIn: boolean): string {
   return layout(
-    'Agent Bazaar',
+    'Kiba',
     `<div class="wrap-wide">
-      <h1>Agent <span>Bazaar</span></h1>
+      <h1>Kiba</h1>
       <p class="muted">Marketplace descentralizado de agentes IA con pagos x402 en Solana</p>
 
       <div class="panel">
@@ -212,9 +212,9 @@ export function dashboardView(data: DashboardData): string {
         <p class="muted">Para Claude Code, Cursor, o cualquier IDE con MCP support, agrega:</p>
         <pre class="code">{
   "mcpServers": {
-    "agent-bazaar": {
+    "kiba": {
       "command": "npx",
-      "args": ["-y", "agent-bazaar-mcp"]
+      "args": ["-y", "kiba-mcp"]
     }
   }
 }</pre>
@@ -269,7 +269,7 @@ export function authorizedView(): string {
     'Autorizado',
     `<div class="wrap">
       <h1>✓ Autorizado</h1>
-      <p class="muted">Tu agente IA ahora tiene acceso a Agent Bazaar.</p>
+      <p class="muted">Tu agente IA ahora tiene acceso a Kiba.</p>
       <div class="panel">
         <p>Puedes cerrar esta pestaña.</p>
         <a href="/dashboard"><button class="secondary">Ir al dashboard</button></a>

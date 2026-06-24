@@ -21,7 +21,7 @@ import {
   SystemProgram,
   Transaction,
 } from '@solana/web3.js';
-import { loadOrCreateKeypair } from '@agent-bazaar/sdk';
+import { loadOrCreateKeypair } from '@kiba/sdk';
 import { getBalance, lamportsToSol, lamportsToUsd } from './billing';
 import { ASSET, BASE_UNITS_PER_TOKEN, IS_STELLAR, chainClientFor } from './chain';
 

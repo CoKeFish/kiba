@@ -1,8 +1,8 @@
 [package]
-name = "agent-bazaar-soroban"
+name = "kiba-soroban"
 version = "0.1.0"
 edition = "2021"
-description = "Agent Bazaar — registro de agentes + escrow x402 con split 95/5, sobre Soroban (Stellar)."
+description = "Kiba — registro de agentes + escrow x402 con split 95/5, sobre Soroban (Stellar)."
 license = "MIT"
 
 [lib]

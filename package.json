@@ -1,5 +1,5 @@
 {
-  "name": "agent-bazaar",
+  "name": "kiba",
   "version": "0.1.0",
   "private": true,
   "description": "Marketplace de agentes IA con pagos x402 en Solana",
@@ -20,12 +20,12 @@
     "reset": "docker compose down -v && docker compose up --build",
     "logs": "docker compose logs -f",
     "contracts:shell": "docker compose exec contracts bash",
-    "build:sdk": "npm run build --workspace=@agent-bazaar/sdk",
-    "build:backend": "npm run build --workspace=@agent-bazaar/backend",
-    "build:landing": "npm run build --workspace=@agent-bazaar/landing",
-    "build:dashboard": "npm run build --workspace=@agent-bazaar/dashboard",
-    "build:agents": "npm run build --workspace=@agent-bazaar/demo-agents",
-    "build:orchestrator": "npm run build --workspace=@agent-bazaar/orchestrator-agent",
+    "build:sdk": "npm run build --workspace=@kiba/sdk",
+    "build:backend": "npm run build --workspace=@kiba/backend",
+    "build:landing": "npm run build --workspace=@kiba/landing",
+    "build:dashboard": "npm run build --workspace=@kiba/dashboard",
+    "build:agents": "npm run build --workspace=@kiba/demo-agents",
+    "build:orchestrator": "npm run build --workspace=@kiba/orchestrator-agent",
     "build:all": "npm run build:sdk && npm run build:backend && npm run build:landing && npm run build:dashboard && npm run build:agents && npm run build:orchestrator"
   },
   "devDependencies": {

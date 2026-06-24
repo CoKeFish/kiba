@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 /**
- * @agent-bazaar/mcp
+ * kiba-mcp
  *
  * MCP server que conecta cualquier LLM agent (Claude Code, Cursor, etc.) al
- * marketplace Agent Bazaar.
+ * marketplace Kiba.
  *
  * En el primer arranque, dispara OAuth 2.0 con PKCE — abre el browser del
  * usuario, recibe el token cuando autoriza, lo persiste en disco. De ahí en
@@ -25,13 +25,13 @@ import { dirname, join } from 'node:path';
 import { homedir } from 'node:os';
 import open from 'open';
 
-const GATEWAY_URL = process.env.AGENT_BAZAAR_URL || 'https://agent-bazaar-api.rodion.com.co';
-const TOKEN_PATH = process.env.AGENT_BAZAAR_TOKEN_PATH || join(homedir(), '.config', 'agent-bazaar', 'token.json');
-const CLIENT_NAME = process.env.AGENT_BAZAAR_CLIENT_NAME || 'agent-bazaar-mcp';
-// Headless / CI / server-side: si AGENT_BAZAAR_API_KEY está seteado, lo usamos
+const GATEWAY_URL = process.env.KIBA_URL || 'https://kiba-api.rodion.com.co';
+const TOKEN_PATH = process.env.KIBA_TOKEN_PATH || join(homedir(), '.config', 'kiba', 'token.json');
+const CLIENT_NAME = process.env.KIBA_CLIENT_NAME || 'kiba-mcp';
+// Headless / CI / server-side: si KIBA_API_KEY está seteado, lo usamos
 // como bearer y saltamos el OAuth flow entero. El gateway acepta tanto tokens
 // OAuth como API keys (sk_live_…) en el mismo header Authorization.
-const API_KEY = process.env.AGENT_BAZAAR_API_KEY;
+const API_KEY = process.env.KIBA_API_KEY;
 
 // ─── Token persistence ─────────────────────────────────────────
 
@@ -95,7 +95,7 @@ async function authorize(): Promise<string> {
           <style>body{background:#0a0a0a;color:#f5f5f5;font-family:system-ui;text-align:center;padding:80px 20px}h1{color:#14F195}</style>
           </head><body>
           <h1>✓ Autorizado</h1>
-          <p>Tu agente IA ahora puede usar Agent Bazaar.</p>
+          <p>Tu agente IA ahora puede usar Kiba.</p>
           <p style="color:#888">Puedes cerrar esta pestaña.</p>
           </body></html>`);
         server.close();
@@ -114,9 +114,9 @@ async function authorize(): Promise<string> {
       authUrl.searchParams.set('redirect_uri', redirectUri);
       authUrl.searchParams.set('client_name', CLIENT_NAME);
 
-      console.error(`\n[agent-bazaar] Autorización requerida.`);
-      console.error(`[agent-bazaar] Abriendo browser: ${authUrl.toString()}\n`);
-      console.error(`[agent-bazaar] Si no abre automáticamente, copia el link a tu browser.\n`);
+      console.error(`\n[kiba] Autorización requerida.`);
+      console.error(`[kiba] Abriendo browser: ${authUrl.toString()}\n`);
+      console.error(`[kiba] Si no abre automáticamente, copia el link a tu browser.\n`);
 
       open(authUrl.toString()).catch(() => {/* user opens manually */});
     });
@@ -137,7 +137,7 @@ async function authorize(): Promise<string> {
   });
 
   saveToken(tokenResp.data);
-  console.error('[agent-bazaar] ✓ Token guardado en', TOKEN_PATH, '\n');
+  console.error('[kiba] ✓ Token guardado en', TOKEN_PATH, '\n');
   return tokenResp.data.access_token;
 }
 
@@ -169,7 +169,7 @@ async function gatewayPost(path: string, body: unknown): Promise<unknown> {
 // ─── MCP server ────────────────────────────────────────────────
 
 const server = new Server(
-  { name: 'agent-bazaar', version: '0.1.0' },
+  { name: 'kiba', version: '0.1.0' },
   { capabilities: { tools: {} } },
 );
 
@@ -179,7 +179,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: 'list_agents',
         description:
-          'Descubre agentes del marketplace Agent Bazaar. Si pasas `query` (palabra clave o lenguaje natural en cualquier idioma), corre búsqueda híbrida (FTS5 keyword + semántica) y devuelve los agentes más relevantes ordenados por score. Sin `query` devuelve el catálogo entero. Cada agente trae service, endpoint, descripción, pricePerCall y stats.',
+          'Descubre agentes del marketplace Kiba. Si pasas `query` (palabra clave o lenguaje natural en cualquier idioma), corre búsqueda híbrida (FTS5 keyword + semántica) y devuelve los agentes más relevantes ordenados por score. Sin `query` devuelve el catálogo entero. Cada agente trae service, endpoint, descripción, pricePerCall y stats.',
         inputSchema: {
           type: 'object',
           properties: {
@@ -268,5 +268,5 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
 
 const transport = new StdioServerTransport();
 server.connect(transport).then(() => {
-  console.error(`[agent-bazaar-mcp] connected to ${GATEWAY_URL}`);
+  console.error(`[kiba-mcp] connected to ${GATEWAY_URL}`);
 });

@@ -36,7 +36,7 @@ export interface AgentConfig {
   endpoint?: string;
   /** RPC de Solana — default: env SOLANA_RPC_URL o devnet */
   rpcUrl?: string;
-  /** Program ID del Agent Bazaar registry — default: env PROGRAM_ID */
+  /** Program ID del Kiba registry — default: env PROGRAM_ID */
   programId?: PublicKey | string;
 }
 

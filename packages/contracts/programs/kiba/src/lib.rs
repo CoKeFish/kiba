@@ -1,4 +1,4 @@
-//! Agent Bazaar — registry + x402 escrow on Solana
+//! Kiba — registry + x402 escrow on Solana
 //!
 //! Para simplicidad de implementación en hackathon, este programa usa **SOL nativo (lamports)**
 //! como medio de pago en lugar de USDC. La lógica del protocolo x402 es idéntica;
@@ -16,6 +16,9 @@ use anchor_lang::prelude::*;
 use anchor_lang::solana_program::pubkey;
 use anchor_lang::system_program;
 
+// TODO(kiba-redeploy): este Program ID es heredado del proyecto original.
+// Tras el rebrand, regenerar el keypair y sincronizar con `anchor keys sync`
+// (o generar uno nuevo y `anchor deploy`), luego actualizar este valor + Anchor.toml + .env.
 declare_id!("3CsQnAua3xniuMY5axKUNYtmTyAxh6cG2E257PLjJCmA");
 
 /// Tiempo mínimo (segundos) que un escrow debe estar abierto antes de poder ser refunded.
@@ -41,7 +44,7 @@ pub const BPS_DENOMINATOR: u64 = 10_000;
 pub const PLATFORM_TREASURY: Pubkey = pubkey!("3JcShJD9boEZQhXb515MDfMwX34muLzyQj8QyysKXuEF");
 
 #[program]
-pub mod agent_bazaar {
+pub mod kiba {
     use super::*;
 
     // ─── Registry ─────────────────────────────────────────────

@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 
 /* ──────────────────────────────────────────────────────────────
-   Agent Bazaar — animated walkthrough of one paid agent call.
+   Kiba — animated walkthrough of one paid agent call.
    Download → Install → Ask → Pay (on-chain 95/5) → Answer.
    Auto-plays when scrolled into view; pauses on hover.
    ────────────────────────────────────────────────────────────── */
@@ -30,8 +30,8 @@ const STEPS = [
 ];
 
 const WINDOW_TITLES = [
-  "agent-bazaar.com  ·  download",
-  "Agent Bazaar  ·  installer",
+  "kiba.com  ·  download",
+  "Kiba  ·  installer",
   "Claude Desktop",
   "x402 settlement  ·  Solana devnet",
   "Claude Desktop",
@@ -161,7 +161,7 @@ function SceneDownload() {
         </div>
         <div>
           <div style={{ fontFamily: "var(--font-mono)", fontSize: 14, color: "var(--fg-1)" }}>
-            agent-bazaar-installer.exe
+            kiba-installer.exe
           </div>
           <div style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--fg-3)" }}>
             1.1 MB · Windows

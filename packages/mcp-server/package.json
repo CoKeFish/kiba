@@ -1,9 +1,9 @@
 {
-  "name": "agent-bazaar-mcp",
+  "name": "kiba-mcp",
   "version": "0.1.1",
-  "description": "MCP server adapter for Agent Bazaar — connects any LLM agent to the marketplace via OAuth",
+  "description": "MCP server adapter for Kiba — connects any LLM agent to the marketplace via OAuth",
   "bin": {
-    "agent-bazaar-mcp": "./dist/index.js"
+    "kiba-mcp": "./dist/index.js"
   },
   "main": "dist/index.js",
   "scripts": {

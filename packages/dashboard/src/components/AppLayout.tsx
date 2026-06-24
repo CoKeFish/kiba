@@ -61,7 +61,7 @@ export function AppLayout() {
         >
           <img
             src="/logomark.png"
-            alt="Agent Bazaar"
+            alt="Kiba"
             style={{
               width: 28,
               height: 28,
@@ -80,7 +80,7 @@ export function AppLayout() {
               textTransform: "lowercase",
             }}
           >
-            agent bazaar
+            kiba
           </span>
         </div>
 

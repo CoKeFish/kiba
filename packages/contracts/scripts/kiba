@@ -1,6 +1,6 @@
 #!/bin/bash
-# Agent Bazaar CLI helper
-# Usage: bazaar <command> [args]
+# Kiba CLI helper
+# Usage: kiba <command> [args]
 
 set -e
 
@@ -8,23 +8,23 @@ CMD=$1
 shift || true
 
 WORKDIR=/workspace
-LIB_RS=$WORKDIR/programs/agent-bazaar/src/lib.rs
+LIB_RS=$WORKDIR/programs/kiba/src/lib.rs
 ANCHOR_TOML=$WORKDIR/Anchor.toml
 
 case $CMD in
   status)
-    echo "═════════ Agent Bazaar Status ═════════"
+    echo "═════════ Kiba Status ═════════"
     solana config get
     echo ""
     if WALLET=$(solana address 2>/dev/null); then
       echo "Wallet:  $WALLET"
       echo "Balance: $(solana balance 2>/dev/null)"
     else
-      echo "Wallet:  ⚠ no wallet — corre 'bazaar init-wallet'"
+      echo "Wallet:  ⚠ no wallet — corre 'kiba init-wallet'"
     fi
     echo "Program ID env: ${PROGRAM_ID:-(not set)}"
-    if [ -f $WORKDIR/target/deploy/agent_bazaar-keypair.json ]; then
-      echo "Program keypair address: $(solana address -k $WORKDIR/target/deploy/agent_bazaar-keypair.json)"
+    if [ -f $WORKDIR/target/deploy/kiba-keypair.json ]; then
+      echo "Program keypair address: $(solana address -k $WORKDIR/target/deploy/kiba-keypair.json)"
     fi
     echo "═══════════════════════════════════════"
     ;;
@@ -67,17 +67,17 @@ case $CMD in
     fi
 
     # Primer build genera el keypair del programa
-    if [ ! -f target/deploy/agent_bazaar-keypair.json ]; then
+    if [ ! -f target/deploy/kiba-keypair.json ]; then
       echo "→ build inicial (genera keypair del programa)..."
       anchor build
     fi
 
-    PID=$(solana address -k target/deploy/agent_bazaar-keypair.json)
+    PID=$(solana address -k target/deploy/kiba-keypair.json)
     echo "→ Program ID: $PID"
 
     # Sincronizar declare_id! y Anchor.toml
     sed -i.bak "s/declare_id!(\"[^\"]*\")/declare_id!(\"$PID\")/" $LIB_RS
-    sed -i.bak "s|agent_bazaar = \"[^\"]*\"|agent_bazaar = \"$PID\"|g" $ANCHOR_TOML
+    sed -i.bak "s|kiba = \"[^\"]*\"|kiba = \"$PID\"|g" $ANCHOR_TOML
     rm -f $LIB_RS.bak $ANCHOR_TOML.bak
 
     echo "→ rebuild con declare_id! correcto..."
@@ -133,7 +133,7 @@ case $CMD in
     # Asegurar que el validator está corriendo
     if ! curl -sf http://localhost:8899/health > /dev/null 2>&1; then
       echo "→ validator no está corriendo, iniciando..."
-      bazaar localnet-up
+      kiba localnet-up
     fi
 
     # Asegurar wallet
@@ -149,17 +149,17 @@ case $CMD in
     solana airdrop 10 || true
 
     # Primer build
-    if [ ! -f target/deploy/agent_bazaar-keypair.json ]; then
+    if [ ! -f target/deploy/kiba-keypair.json ]; then
       echo "→ build inicial..."
       anchor build
     fi
 
-    PID=$(solana address -k target/deploy/agent_bazaar-keypair.json)
+    PID=$(solana address -k target/deploy/kiba-keypair.json)
     echo "→ Program ID: $PID"
 
     # Sincronizar declare_id! y Anchor.toml
     sed -i.bak "s/declare_id!(\"[^\"]*\")/declare_id!(\"$PID\")/" $LIB_RS
-    sed -i.bak "s|agent_bazaar = \"[^\"]*\"|agent_bazaar = \"$PID\"|g" $ANCHOR_TOML
+    sed -i.bak "s|kiba = \"[^\"]*\"|kiba = \"$PID\"|g" $ANCHOR_TOML
     rm -f $LIB_RS.bak $ANCHOR_TOML.bak
 
     echo "→ rebuild con declare_id! correcto..."
@@ -220,9 +220,9 @@ case $CMD in
 
   help|"")
     cat <<EOF
-Agent Bazaar CLI
+Kiba CLI
 
-Usage: bazaar <command> [args]
+Usage: kiba <command> [args]
 
 Commands:
   status                Estado actual: red, wallet, balance, program ID
@@ -239,22 +239,22 @@ Commands:
   help                  Esta ayuda
 
 Flujo desarrollo (localnet — recomendado):
-  bazaar localnet-up
-  bazaar localnet-deploy
+  kiba localnet-up
+  kiba localnet-deploy
   # → editar .env: SOLANA_RPC_URL=http://contracts:8899  PROGRAM_ID=<nuevo>
   # → docker compose restart backend demo-agents orchestrator-agent gateway
 
 Flujo deploy final a devnet (solo cuando esté listo):
-  bazaar init-wallet
-  bazaar airdrop 5
-  bazaar deploy
+  kiba init-wallet
+  kiba airdrop 5
+  kiba deploy
   # → copiar Program ID al .env, reiniciar containers
 EOF
     ;;
 
   *)
     echo "Comando desconocido: $CMD"
-    echo "Corre: bazaar help"
+    echo "Corre: kiba help"
     exit 1
     ;;
 esac

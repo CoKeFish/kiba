@@ -3,23 +3,23 @@
 
 cat <<'EOF'
 ╔═══════════════════════════════════════════╗
-║  Agent Bazaar — Contracts Container       ║
+║  Kiba — Contracts Container       ║
 ╚═══════════════════════════════════════════╝
 
 Comandos disponibles:
-  bazaar help             → ver todos los comandos del proyecto
+  kiba help             → ver todos los comandos del proyecto
   solana <cmd>            → CLI de Solana
   anchor <cmd>            → CLI de Anchor
   solana-keygen <cmd>     → manejo de wallets
 
 Si es la primera vez:
-  1. bazaar init-wallet   (crea wallet)
-  2. bazaar airdrop 5     (consigue SOL falso)
-  3. bazaar deploy        (deploy del programa a devnet)
+  1. kiba init-wallet   (crea wallet)
+  2. kiba airdrop 5     (consigue SOL falso)
+  3. kiba deploy        (deploy del programa a devnet)
 
 EOF
 
 # Mostrar estado si hay wallet
 if [ -f /root/.config/solana/id.json ]; then
-  bazaar status 2>/dev/null || true
+  kiba status 2>/dev/null || true
 fi

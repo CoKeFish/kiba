@@ -1,5 +1,5 @@
 /**
- * Agent Bazaar Gateway — UX layer encima del SDK + smart contract.
+ * Kiba Gateway — UX layer encima del SDK + smart contract.
  *
  *  - Sign-up + login (email + password)
  *  - Custodial wallet por usuario (transparente)
@@ -31,7 +31,7 @@ import { callOnBehalf, listAgents, masterWalletPubkey } from './proxy';
 import { getMasterWallet, getOnChainBalance, getUserBalances, loadUserWallet } from './wallets';
 import { ASSET, ASSET_USD_RATE, BASE_UNITS_PER_TOKEN } from './chain';
 import { BASE_UNIT_NAME } from './wallets';
-import { PLATFORM_FEE_BPS, BPS_DENOMINATOR } from '@agent-bazaar/sdk';
+import { PLATFORM_FEE_BPS, BPS_DENOMINATOR } from '@kiba/sdk';
 import {
   deregisterAgent,
   listMyAgents,
@@ -167,7 +167,7 @@ app.get('/', (req, res) => {
 });
 
 app.get('/health', (_req, res) => {
-  res.json({ ok: true, service: 'agent-bazaar-gateway' });
+  res.json({ ok: true, service: 'kiba-gateway' });
 });
 
 // ─── Signup ────────────────────────────────────────────────────
@@ -363,7 +363,7 @@ app.post('/auth/authorize', requireSession, (req, res) => {
   // Para que el MCP confirme y pida el token, mostramos página intermedia que
   // automáticamente hace fetch al redirect_uri (el MCP local server lo recibe).
   res.send(`<!DOCTYPE html><html><head>
-    <title>Autorizado · Agent Bazaar</title>
+    <title>Autorizado · Kiba</title>
     <meta http-equiv="refresh" content="0;url=${url.toString()}">
     <style>body{background:#0a0a0a;color:#f5f5f5;font-family:system-ui;text-align:center;padding:80px 20px}h1{color:#14F195}</style>
   </head><body>
@@ -723,7 +723,7 @@ app.delete('/v1/oauth/connections/:id', requireAuth, (req, res) => {
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log('╔══════════════════════════════════════════╗');
-  console.log('║  Agent Bazaar — Gateway                  ║');
+  console.log('║  Kiba — Gateway                          ║');
   console.log('╚══════════════════════════════════════════╝');
   console.log(`  http://localhost:${PORT}`);
   console.log(`  Master wallet: ${masterWalletPubkey()}`);

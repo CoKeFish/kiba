@@ -5,11 +5,13 @@ anchor_version = "0.31.1"
 resolution = true
 skip-lint = false
 
+# TODO(kiba-redeploy): Program IDs heredados del proyecto original. Regenerar con
+# `anchor keys sync` tras el rebrand y redeploy a devnet con el nuevo keypair.
 [programs.devnet]
-agent_bazaar = "3CsQnAua3xniuMY5axKUNYtmTyAxh6cG2E257PLjJCmA"
+kiba = "3CsQnAua3xniuMY5axKUNYtmTyAxh6cG2E257PLjJCmA"
 
 [programs.localnet]
-agent_bazaar = "3CsQnAua3xniuMY5axKUNYtmTyAxh6cG2E257PLjJCmA"
+kiba = "3CsQnAua3xniuMY5axKUNYtmTyAxh6cG2E257PLjJCmA"
 
 [registry]
 url = "https://api.apr.dev"

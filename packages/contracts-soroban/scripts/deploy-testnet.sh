@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
-# Despliega e inicializa el contrato Agent Bazaar en testnet de Stellar.
-# Pensado para correr DENTRO de la imagen agent-bazaar/stellar-cli, con el repo
+# Despliega e inicializa el contrato Kiba en testnet de Stellar.
+# Pensado para correr DENTRO de la imagen kiba/stellar-cli, con el repo
 # montado en /workspace. Desde packages/contracts-soroban:
 #
 #   bash scripts/deploy-testnet.sh
@@ -31,7 +31,7 @@ stellar contract build
 
 # stellar-cli 26+ compila para wasm32v1-none.
 TARGET_DIR="${CARGO_TARGET_DIR:-target}"
-WASM="$TARGET_DIR/wasm32v1-none/release/agent_bazaar_soroban.wasm"
+WASM="$TARGET_DIR/wasm32v1-none/release/kiba_soroban.wasm"
 
 # 3. Desplegar.
 echo "→ desplegando a $NETWORK"

@@ -2,7 +2,7 @@
 # evita "cannot execute: required file not found" cuando autocrlf de git en Windows
 # convierte los \n a \r\n y el shebang queda como "#!/bin/bash\r".
 *.sh              text eol=lf
-packages/contracts/scripts/bazaar     text eol=lf
+packages/contracts/scripts/kiba     text eol=lf
 packages/contracts/scripts/init.sh    text eol=lf
 Dockerfile        text eol=lf
 *.dockerfile      text eol=lf

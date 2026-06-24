@@ -4,7 +4,7 @@
  * Precios crypto en tiempo real (mock). Datos hardcoded con jitter para
  * que cada call devuelva un valor ligeramente distinto y se vea "live".
  */
-import { AgentProvider, loadKeypairFromEnvOrFile } from '@agent-bazaar/sdk';
+import { AgentProvider, loadKeypairFromEnvOrFile } from '@kiba/sdk';
 
 const KEYPAIR_PATH = process.env.KEYPAIR_PATH || '/app/data/price-oracle.json';
 const wallet = loadKeypairFromEnvOrFile('AGENT_WALLET_SECRET', KEYPAIR_PATH);

@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: packages/contracts/Dockerfile
-    container_name: ab-contracts
+    container_name: kiba-contracts
     volumes:
       - ./packages/contracts:/workspace
       - solana-keys:/root/.config/solana
@@ -24,7 +24,7 @@ services:
     build:
       context: .
       dockerfile: packages/backend/Dockerfile
-    container_name: ab-backend
+    container_name: kiba-backend
     volumes:
       - ./packages/backend/src:/app/packages/backend/src
       - ./packages/backend/test:/app/packages/backend/test
@@ -60,7 +60,7 @@ services:
         PUBLIC_BACKEND_URL: ${PUBLIC_BACKEND_URL:-http://localhost:4000}
         PUBLIC_GATEWAY_URL: ${PUBLIC_GATEWAY_URL:-http://localhost:8000}
         PUBLIC_DASHBOARD_URL: ${PUBLIC_DASHBOARD_URL:-http://localhost:3020}
-    container_name: ab-landing
+    container_name: kiba-landing
     volumes:
       - ./packages/landing/src:/app/src
       - ./packages/landing/public:/app/public
@@ -76,7 +76,7 @@ services:
     build:
       context: .
       dockerfile: packages/dashboard/Dockerfile
-    container_name: ab-dashboard
+    container_name: kiba-dashboard
     volumes:
       - ./packages/dashboard/src:/app/src
       - ./packages/dashboard/index.html:/app/index.html
@@ -98,7 +98,7 @@ services:
     build:
       context: .
       dockerfile: packages/demo-agents/Dockerfile
-    container_name: ab-agents
+    container_name: kiba-agents
     volumes:
       - ./packages/demo-agents/src:/app/packages/demo-agents/src
       - ./packages/sdk/src:/app/packages/sdk/src
@@ -128,7 +128,7 @@ services:
     build:
       context: .
       dockerfile: packages/gateway/Dockerfile
-    container_name: ab-gateway
+    container_name: kiba-gateway
     volumes:
       - ./packages/gateway/src:/app/packages/gateway/src
       - ./packages/sdk/src:/app/packages/sdk/src
@@ -160,7 +160,7 @@ services:
     build:
       context: .
       dockerfile: packages/orchestrator-agent/Dockerfile
-    container_name: ab-orchestrator
+    container_name: kiba-orchestrator
     volumes:
       - ./packages/orchestrator-agent/src:/app/packages/orchestrator-agent/src
       - ./packages/sdk/src:/app/packages/sdk/src

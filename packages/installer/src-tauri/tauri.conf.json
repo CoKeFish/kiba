@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Agent Bazaar Installer",
+  "productName": "Kiba Installer",
   "version": "0.1.0",
-  "identifier": "xyz.agentbazaar.installer",
+  "identifier": "xyz.kiba.installer",
   "build": {
     "frontendDist": "../src",
     "devUrl": "http://localhost:1420",
@@ -13,7 +13,7 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "Agent Bazaar Installer",
+        "title": "Kiba Installer",
         "width": 640,
         "height": 540,
         "resizable": false,
@@ -45,8 +45,8 @@
       }
     },
     "category": "DeveloperTool",
-    "shortDescription": "Install Agent Bazaar MCP",
-    "longDescription": "One-click installer that adds the Agent Bazaar MCP server to Claude Desktop, Cursor, and Claude Code."
+    "shortDescription": "Install Kiba MCP",
+    "longDescription": "One-click installer that adds the Kiba MCP server to Claude Desktop, Cursor, and Claude Code."
   },
   "plugins": {}
 }

@@ -42,11 +42,11 @@ RUN cargo install --git https://github.com/coral-xyz/anchor --tag v0.31.1 anchor
 RUN solana config set --url https://api.devnet.solana.com
 
 # CLI helper para el equipo
-COPY packages/contracts/scripts/bazaar /usr/local/bin/bazaar
+COPY packages/contracts/scripts/kiba /usr/local/bin/kiba
 COPY packages/contracts/scripts/init.sh /usr/local/bin/init-contracts
 # Strip CRLF si los scripts vienen con line endings de Windows (autocrlf en git, editor, etc.)
-RUN sed -i 's/\r$//' /usr/local/bin/bazaar /usr/local/bin/init-contracts \
-    && chmod +x /usr/local/bin/bazaar /usr/local/bin/init-contracts
+RUN sed -i 's/\r$//' /usr/local/bin/kiba /usr/local/bin/init-contracts \
+    && chmod +x /usr/local/bin/kiba /usr/local/bin/init-contracts
 
 WORKDIR /workspace
 

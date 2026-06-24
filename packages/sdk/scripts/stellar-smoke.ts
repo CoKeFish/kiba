@@ -1,6 +1,6 @@
 /**
  * Smoke test de integración del StellarChainClient contra el contrato Agent
- * Bazaar desplegado en testnet de Stellar. Ejercita el flujo completo a través
+ * Kiba desplegado en testnet de Stellar. Ejercita el flujo completo a través
  * del cliente TypeScript (no del CLI): registerAgent → openEscrow → claimPayment,
  * verificando la transición de estado del escrow Pending → Completed.
  *

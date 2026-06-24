@@ -1,5 +1,5 @@
 /**
- * Proxy de /v1/call al SDK de Agent Bazaar.
+ * Proxy de /v1/call al SDK de Kiba.
  *
  * Modelo: cascada virtual → on-chain con pricing dinámico y x402 trace.
  *   1. Pre-quote: probe HTTP sin pago para obtener el monto REAL que el agente
@@ -16,7 +16,7 @@
  *   4. La cascada es por call entera, no parcial — para no fragmentar el escrow.
  */
 import axios from 'axios';
-import { AgentClient, type X402Trace } from '@agent-bazaar/sdk';
+import { AgentClient, type X402Trace } from '@kiba/sdk';
 import { attachSignature, debit, getBalance, lamportsToUsd } from './billing';
 import { db } from './db';
 import {

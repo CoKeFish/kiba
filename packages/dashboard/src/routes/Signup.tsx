@@ -56,7 +56,7 @@ export default function Signup() {
         >
           <img
             src="/logomark.png"
-            alt="Agent Bazaar"
+            alt="Kiba"
             style={{
               width: 72,
               height: 72,
@@ -74,7 +74,7 @@ export default function Signup() {
               textTransform: "lowercase",
             }}
           >
-            agent bazaar
+            kiba
           </div>
         </div>
 

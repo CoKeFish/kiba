@@ -79,7 +79,7 @@ export default function AgentsCatalog() {
     if (typeof window !== "undefined" && (window as any).__BACKEND_URL__) {
       return (window as any).__BACKEND_URL__ as string;
     }
-    return "https://backend-production-fb67.up.railway.app";
+    return "https://kiba-data.rodion.com.co";
   }, []);
 
   useEffect(() => {

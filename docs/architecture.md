@@ -1,4 +1,4 @@
-# Arquitectura — Agent Bazaar
+# Arquitectura — Kiba
 
 > **Marketplace descentralizado de agentes IA con pagos x402 sobre Solana.**
 > Producto del Dev3pack Global Hackathon (8-10 mayo 2026).
@@ -7,7 +7,7 @@
 
 ## 1. Vista general del sistema
 
-7 servicios Docker + 1 paquete npm distribuible (`@agent-bazaar/mcp`). Cada servicio tiene una responsabilidad única.
+7 servicios Docker + 1 paquete npm distribuible (`kiba-mcp`). Cada servicio tiene una responsabilidad única.
 
 ```mermaid
 graph TB
@@ -17,9 +17,9 @@ graph TB
     end
 
     subgraph access["Canales de integración"]
-        SDK["Native SDK<br/>@agent-bazaar/sdk"]
+        SDK["Native SDK<br/>@kiba/sdk"]
         GW["Gateway REST API<br/>:8000"]
-        MCP["MCP Server<br/>@agent-bazaar/mcp"]
+        MCP["MCP Server<br/>kiba-mcp"]
     end
 
     subgraph core["Backend de plataforma"]
@@ -33,7 +33,7 @@ graph TB
     end
 
     subgraph chain["On-chain (Solana devnet)"]
-        SC["Smart Contract<br/>agent-bazaar program"]
+        SC["Smart Contract<br/>kiba program"]
     end
 
     LAND -->|GET /agents público| BE
@@ -76,7 +76,7 @@ Tres canales paralelos, **nombrados por mecanismo de acceso** — no por tipo de
 flowchart LR
     subgraph chan1["Native SDK"]
         direction TB
-        S1["@agent-bazaar/sdk<br/>TypeScript library"]
+        S1["@kiba/sdk<br/>TypeScript library"]
         S2["Wallet: self-custodial<br/>(consumidor firma)"]
         S3["Auth: keypair Solana"]
         S4["Pago: SOL on-chain directo"]
@@ -94,7 +94,7 @@ flowchart LR
 
     subgraph chan3["MCP Server"]
         direction TB
-        M1["@agent-bazaar/mcp<br/>npx adapter"]
+        M1["kiba-mcp<br/>npx adapter"]
         M2["Wallet: custodial delegada"]
         M3["Auth: OAuth 2.0 PKCE"]
         M4["Pago: USD credits del usuario"]
@@ -109,7 +109,7 @@ flowchart LR
 
 | Atributo | Native SDK | Gateway REST API | MCP Server |
 |----------|-----------|------------------|------------|
-| **Empaquetado** | npm `@agent-bazaar/sdk` | HTTPS endpoint | npm `@agent-bazaar/mcp` |
+| **Empaquetado** | npm `@kiba/sdk` | HTTPS endpoint | npm `kiba-mcp` |
 | **Modelo de wallet** | Self-custodial | Custodial (master) | Custodial delegada |
 | **Auth** | Keypair Solana | Bearer token (`sk_live_*` API key u OAuth) **o** cookie de sesión (Dashboard) | OAuth 2.0 PKCE |
 | **Facturación** | SOL on-chain directo | USD credits | USD credits |
@@ -134,14 +134,14 @@ Ningún canal le pertenece a una persona en exclusiva: Alice podría usar el Gat
 
 | Container | Puerto | Imagen base | Volumes | Rol |
 |-----------|--------|-------------|---------|-----|
-| `ab-contracts` | — | rust:1.85-slim + solana 3.1.14 + anchor 0.31.1 + standalone solana-test-validator 2.3.13 | `solana-keys`, `cargo-cache`, `anchor-cache` | CLI `bazaar` (deploy, airdrop, logs, test) |
-| `ab-backend` | **4000** | node:20-slim + better-sqlite3 + @xenova/transformers | `backend-data` (SQLite), `backend-models` (cache embeddings ~22 MB) | Discovery híbrido: keyword + semantic + hybrid search; WS `/ws`; indexer chain → SQLite |
-| `ab-landing` | **3010** | node:20-alpine (Astro 5) | — | Landing pública con buscador de agentes en vivo |
-| `ab-dashboard` | **3020** | node:20-alpine (Vite 6 + React 19) | — | SPA logueada: balance, txs, API keys, OAuth |
-| `ab-agents` | **5001**, **5002** | node:20-alpine | `agents-data` | yield-hunter + risk-auditor |
-| `ab-orchestrator` | **6001** | node:20-alpine | `orchestrator-data` | Planner LLM + executor paralelo |
-| `ab-gateway` | **8000** | node:20-alpine + better-sqlite3 | `gateway-data` | Auth dual (cookie/bearer), OAuth PKCE, custodial wallets, USD credits, API keys, CORS allowlist |
-| `@agent-bazaar/mcp` | — | (sin container) | `~/.config/agent-bazaar/` en host | MCP adapter para clientes LLM |
+| `kiba-contracts` | — | rust:1.85-slim + solana 3.1.14 + anchor 0.31.1 + standalone solana-test-validator 2.3.13 | `solana-keys`, `cargo-cache`, `anchor-cache` | CLI `kiba` (deploy, airdrop, logs, test) |
+| `kiba-backend` | **4000** | node:20-slim + better-sqlite3 + @xenova/transformers | `backend-data` (SQLite), `backend-models` (cache embeddings ~22 MB) | Discovery híbrido: keyword + semantic + hybrid search; WS `/ws`; indexer chain → SQLite |
+| `kiba-landing` | **3010** | node:20-alpine (Astro 5) | — | Landing pública con buscador de agentes en vivo |
+| `kiba-dashboard` | **3020** | node:20-alpine (Vite 6 + React 19) | — | SPA logueada: balance, txs, API keys, OAuth |
+| `kiba-agents` | **5001**, **5002** | node:20-alpine | `agents-data` | yield-hunter + risk-auditor |
+| `kiba-orchestrator` | **6001** | node:20-alpine | `orchestrator-data` | Planner LLM + executor paralelo |
+| `kiba-gateway` | **8000** | node:20-alpine + better-sqlite3 | `gateway-data` | Auth dual (cookie/bearer), OAuth PKCE, custodial wallets, USD credits, API keys, CORS allowlist |
+| `kiba-mcp` | — | (sin container) | `~/.config/kiba/` en host | MCP adapter para clientes LLM |
 
 **Notas operacionales:**
 
@@ -150,21 +150,21 @@ Ningún canal le pertenece a una persona en exclusiva: Alice podría usar el Gat
 - **6001 ≠ 6000** porque Chrome bloquea 6000 (X11 unsafe port).
 - 7 containers en docker-compose, **8 volumes** (los 6 originales + `backend-data` y `backend-models`), 1 paquete npm extra fuera del compose.
 - **`solana-test-validator-2.3`** está en el contenedor de contracts como binario standalone, separado del CLI principal (3.1.14): el validator de la 3.1 requiere `io_uring`, que el kernel del host no expone al container.
-- **`SEMANTIC_SEARCH=false`** en `ab-backend` desactiva el modelo de embeddings y degrada el discovery a keyword puro (útil si el cold-start del modelo molesta).
+- **`SEMANTIC_SEARCH=false`** en `kiba-backend` desactiva el modelo de embeddings y degrada el discovery a keyword puro (útil si el cold-start del modelo molesta).
 
 ```mermaid
 graph LR
     subgraph compose["docker-compose.yml"]
-        contracts[ab-contracts]
-        backend[ab-backend]
-        landing[ab-landing]
-        dashboard[ab-dashboard]
-        agents[ab-agents]
-        orch[ab-orchestrator]
-        gateway[ab-gateway]
+        contracts[kiba-contracts]
+        backend[kiba-backend]
+        landing[kiba-landing]
+        dashboard[kiba-dashboard]
+        agents[kiba-agents]
+        orch[kiba-orchestrator]
+        gateway[kiba-gateway]
     end
 
-    npm["@agent-bazaar/mcp<br/>(npm, externo al compose)"]
+    npm["kiba-mcp<br/>(npm, externo al compose)"]
 
     contracts -.depends_on.-> backend
     contracts -.depends_on.-> agents
@@ -189,7 +189,7 @@ graph LR
 
 ## 4. Smart contract on-chain
 
-`packages/contracts/programs/agent-bazaar/src/lib.rs` (492 líneas Rust + Anchor 0.31.1).
+`packages/contracts/programs/kiba/src/lib.rs` (492 líneas Rust + Anchor 0.31.1).
 
 **Deployado en Solana devnet**: `3CsQnAua3xniuMY5axKUNYtmTyAxh6cG2E257PLjJCmA` ([explorer](https://explorer.solana.com/address/3CsQnAua3xniuMY5axKUNYtmTyAxh6cG2E257PLjJCmA?cluster=devnet)).
 
@@ -244,7 +244,7 @@ classDiagram
 | `claim_payment` | agent owner | Transfiere SOL del escrow a su wallet, incrementa `total_calls` y `total_earned` |
 | `refund_escrow` | client | Recupera SOL si pasó refund window (`REFUND_DELAY_SECS = 300`) |
 
-**Cobertura de tests**: 6/6 en localnet (`packages/contracts/tests/agent-bazaar.ts`) — register, update, escrow happy path, refund-too-early, amount-below-price, deregister.
+**Cobertura de tests**: 6/6 en localnet (`packages/contracts/tests/kiba.ts`) — register, update, escrow happy path, refund-too-early, amount-below-price, deregister.
 
 ### 4.3 Estado del escrow
 
@@ -339,7 +339,7 @@ Inspirado en cómo Notion autentica MCP: cero API keys, browser callback, token 
 sequenceDiagram
     actor User
     participant Cli as Claude / Cursor
-    participant MCP as @agent-bazaar/mcp<br/>(local)
+    participant MCP as kiba-mcp<br/>(local)
     participant CB as Local callback<br/>:[49152-50151]
     participant GW as Gateway :8000<br/>(remoto)
     participant Br as Browser
@@ -367,7 +367,7 @@ sequenceDiagram
         GW->>GW: verify sha256(verifier) == challenge
         GW-->>CB: access_token (opaque bearer)
         CB->>MCP: token recibido
-        MCP->>MCP: persiste en ~/.config/agent-bazaar/token.json
+        MCP->>MCP: persiste en ~/.config/kiba/token.json
     end
 
     Cli->>MCP: tool: call_agent(service, payload)
@@ -556,11 +556,11 @@ flowchart TB
 
 ## 9. Capa SDK — qué comparte qué
 
-`@agent-bazaar/sdk` es la pieza de pegamento. La consumen 4 servicios:
+`@kiba/sdk` es la pieza de pegamento. La consumen 4 servicios:
 
 ```mermaid
 flowchart TB
-    SDK["@agent-bazaar/sdk<br/>(workspace)"]
+    SDK["@kiba/sdk<br/>(workspace)"]
 
     subgraph componentes["Componentes SDK"]
         Prog[program.ts<br/>Anchor sin IDL]
@@ -626,7 +626,7 @@ flowchart TB
 
 2. **Custodial wallets en Gateway** — sacrificio de descentralización a cambio de UX Web2. Master wallet única firma por todos. Para producción se rotaría a per-user wallets en HSM.
 
-3. **OAuth PKCE en lugar de API keys** — copiamos el patrón de Notion. Evita que el user tenga que generar/rotar keys; solo "Login with Agent Bazaar".
+3. **OAuth PKCE en lugar de API keys** — copiamos el patrón de Notion. Evita que el user tenga que generar/rotar keys; solo "Login with Kiba".
 
 4. **Discovery off-chain hidratado desde on-chain** — `getProgramAccounts` no escala (RPC pesado, lista entera al cliente). El backend mantiene una réplica SQLite con FTS5 + embeddings, sincronizada por un indexer en 3 capas (bootstrap, `onLogs`, heartbeat). On-chain sigue siendo source of truth; off-chain es derivable y rebuildeable. Es el mismo patrón que OpenSea (NFT data on-chain, search via Subgraph) o Uniswap (pools on-chain, frontend via The Graph).
 
@@ -636,7 +636,7 @@ flowchart TB
 
 7. **3 canales de integración paralelos** — `Native SDK` / `Gateway REST API` / `MCP Server`. Nombrados por mecanismo, no por consumidor (un mismo consumidor puede usar varios). Cada canal define un set único de wallet model + auth + facturación → garantía MECE en la taxonomía.
 
-8. **Frontend partido en dos apps** — `Landing` (Astro 5 estática, sin auth, SEO-óptima) y `Dashboard` (Vite + React 19 SPA, post-auth, interactiva). Razón: el landing es 90% lectura y se beneficia de zero-JS hidratación; el dashboard no necesita SSR (todo está detrás de auth) y se beneficia de HMR rápido. Containers separados (`ab-landing :3010`, `ab-dashboard :3020`).
+8. **Frontend partido en dos apps** — `Landing` (Astro 5 estática, sin auth, SEO-óptima) y `Dashboard` (Vite + React 19 SPA, post-auth, interactiva). Razón: el landing es 90% lectura y se beneficia de zero-JS hidratación; el dashboard no necesita SSR (todo está detrás de auth) y se beneficia de HMR rápido. Containers separados (`kiba-landing :3010`, `kiba-dashboard :3020`).
 
 9. **Dual-auth en Gateway** — el mismo middleware `requireAuth` resuelve cookie de sesión (Dashboard) o bearer token (`Authorization: Bearer ...` con OAuth token o `sk_live_*` API key). Permite que los endpoints `/v1/*` sirvan al Dashboard sin código duplicado, mientras MCP/SDK/CLI siguen usando bearer puro.
 
@@ -656,4 +656,4 @@ flowchart TB
 - 📋 Stubs todavía: `/app/usage` (charts), `/app/agents` (browse + allowlist), `/app/billing` (Stripe real), `/app/settings`, `/app/playground` (intent UI)
 - 📋 Pendiente: pricing dinámico (per-token, per-unit) — discutido como decisión arquitectónica, no implementado
 
-Detalles en `~/.claude/projects/.../memory/project_agent_bazaar_state.md`.
+Detalles en `~/.claude/projects/.../memory/project_kiba_state.md`.

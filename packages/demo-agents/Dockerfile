@@ -10,7 +10,7 @@ COPY package.json package-lock.json tsconfig.base.json ./
 COPY packages/sdk/package.json ./packages/sdk/
 COPY packages/demo-agents/package.json ./packages/demo-agents/
 
-RUN npm install --workspace=@agent-bazaar/demo-agents --include-workspace-root
+RUN npm install --workspace=@kiba/demo-agents --include-workspace-root
 
 # Código fuente (solo lo que necesitan los agentes en runtime)
 COPY packages/sdk ./packages/sdk

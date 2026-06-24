@@ -1,7 +1,7 @@
-// Agent Bazaar MCP Installer
+// Kiba MCP Installer
 //
 // One-shot job: detect Claude Desktop / Cursor / Claude Code configs on the
-// host machine, then surgically inject the agent-bazaar MCP server entry
+// host machine, then surgically inject the kiba MCP server entry
 // into each. Backs up existing files before touching them.
 
 use serde::{Deserialize, Serialize};
@@ -17,7 +17,7 @@ pub struct McpClient {
     pub name: String,         // human label
     pub config_path: String,  // absolute path
     pub exists: bool,         // does the directory we'd write to exist?
-    pub already_installed: bool, // is agent-bazaar already configured?
+    pub already_installed: bool, // is kiba already configured?
 }
 
 fn home() -> Option<PathBuf> {
@@ -71,7 +71,7 @@ fn detect_client(id: &str, name: &str, path: PathBuf) -> McpClient {
             Ok(content) => match serde_json::from_str::<Value>(&content) {
                 Ok(v) => v
                     .get("mcpServers")
-                    .and_then(|m| m.get("agent-bazaar"))
+                    .and_then(|m| m.get("kiba"))
                     .is_some(),
                 Err(_) => false,
             },
@@ -123,7 +123,7 @@ pub struct InstallResult {
 /// MCP server tiene este mismo default hardcoded (`packages/mcp-server/src/index.ts`),
 /// lo declaramos explícito acá para que el config sea autodescriptivo y para
 /// que el usuario pueda apuntar a un gateway propio editando solo este campo.
-const PROD_GATEWAY_URL: &str = "https://agent-bazaar-api.rodion.com.co";
+const PROD_GATEWAY_URL: &str = "https://kiba-api.rodion.com.co";
 
 fn mcp_block() -> Value {
     // En Windows, `npx` no es un ejecutable directo (es `npx.cmd`). Los clientes
@@ -135,9 +135,9 @@ fn mcp_block() -> Value {
     {
         json!({
             "command": "cmd",
-            "args": ["/c", "npx", "-y", "agent-bazaar-mcp"],
+            "args": ["/c", "npx", "-y", "kiba-mcp"],
             "env": {
-                "AGENT_BAZAAR_URL": PROD_GATEWAY_URL
+                "KIBA_URL": PROD_GATEWAY_URL
             }
         })
     }
@@ -145,9 +145,9 @@ fn mcp_block() -> Value {
     {
         json!({
             "command": "npx",
-            "args": ["-y", "agent-bazaar-mcp"],
+            "args": ["-y", "kiba-mcp"],
             "env": {
-                "AGENT_BAZAAR_URL": PROD_GATEWAY_URL
+                "KIBA_URL": PROD_GATEWAY_URL
             }
         })
     }
@@ -206,13 +206,13 @@ fn install_one(client: &McpClient) -> InstallResult {
         None
     };
 
-    // Inject mcpServers.agent-bazaar
+    // Inject mcpServers.kiba
     let obj = config.as_object_mut().unwrap_or_else(|| unreachable!());
     let mcp_servers = obj
         .entry("mcpServers".to_string())
         .or_insert_with(|| json!({}));
     if let Some(map) = mcp_servers.as_object_mut() {
-        map.insert("agent-bazaar".to_string(), mcp_block());
+        map.insert("kiba".to_string(), mcp_block());
     } else {
         return InstallResult {
             client_id: client.id.clone(),

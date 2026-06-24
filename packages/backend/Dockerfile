@@ -11,7 +11,7 @@ WORKDIR /app
 COPY package.json package-lock.json tsconfig.base.json ./
 
 # Solo los workspaces que el backend usa. sdk es dep transitiva del backend
-# (a través de @agent-bazaar/sdk). No copiamos los otros 6 workspaces
+# (a través de @kiba/sdk). No copiamos los otros 6 workspaces
 # (landing, dashboard, demo-agents, orchestrator-agent, gateway, mcp-server)
 # → npm no enumera sus deps → ni Astro, ni Vite, ni framer-motion, ni
 # react-router, etc. terminan en node_modules.
@@ -20,7 +20,7 @@ COPY packages/backend/package.json ./packages/backend/
 
 # Install scopeado al backend (incluye sdk transitivamente y root deps).
 # Reduce node_modules ~50% y RAM de build ~50% vs `npm install` plano.
-RUN npm install --workspace=@agent-bazaar/backend --include-workspace-root
+RUN npm install --workspace=@kiba/backend --include-workspace-root
 
 # Código fuente (solo lo que necesita el backend en runtime)
 COPY packages/sdk ./packages/sdk

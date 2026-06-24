@@ -1,5 +1,5 @@
 /**
- * Orchestrator Agent — consumer de ejemplo del Agent Bazaar.
+ * Orchestrator Agent — consumer de ejemplo del Kiba.
  *
  * Phase 2:
  *  - Wallet persistente en disco
@@ -9,7 +9,7 @@
  */
 import express from 'express';
 import cors from 'cors';
-import { AgentClient, loadOrCreateKeypair } from '@agent-bazaar/sdk';
+import { AgentClient, loadOrCreateKeypair } from '@kiba/sdk';
 import { plan } from './planner';
 import { execute } from './executor';
 
@@ -78,7 +78,7 @@ app.post('/intent', async (req, res) => {
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log('╔══════════════════════════════════════════╗');
-    console.log('║  Agent Bazaar — Orchestrator Agent       ║');
+    console.log('║  Kiba — Orchestrator Agent       ║');
     console.log('╚══════════════════════════════════════════╝');
     console.log(`  http://localhost:${PORT}/health`);
     console.log(`  POST http://localhost:${PORT}/intent`);

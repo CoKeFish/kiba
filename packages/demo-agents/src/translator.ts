@@ -4,7 +4,7 @@
  * Traducción mock entre ES/EN/DE/FR/JA. Para hackathon usa un diccionario
  * pequeño de frases comunes; en producción sería DeepL o un LLM.
  */
-import { AgentProvider, loadKeypairFromEnvOrFile } from '@agent-bazaar/sdk';
+import { AgentProvider, loadKeypairFromEnvOrFile } from '@kiba/sdk';
 
 const KEYPAIR_PATH = process.env.KEYPAIR_PATH || '/app/data/translator.json';
 const wallet = loadKeypairFromEnvOrFile('AGENT_WALLET_SECRET', KEYPAIR_PATH);

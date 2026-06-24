@@ -1,13 +1,13 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Program, BN } from "@coral-xyz/anchor";
-import { AgentBazaar } from "../target/types/agent_bazaar";
+import { Kiba } from "../target/types/kiba";
 import { PublicKey, Keypair, SystemProgram, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { expect } from "chai";
 
-describe("agent-bazaar", () => {
+describe("kiba", () => {
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
-  const program = anchor.workspace.AgentBazaar as Program<AgentBazaar>;
+  const program = anchor.workspace.Kiba as Program<Kiba>;
 
   // Wallets
   const agentOwner = Keypair.generate();

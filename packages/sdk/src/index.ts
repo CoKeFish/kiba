@@ -1,18 +1,18 @@
 /**
- * @agent-bazaar/sdk
+ * @kiba/sdk
  *
- * SDK público para integrar agentes IA al marketplace Agent Bazaar.
+ * SDK público para integrar agentes IA al marketplace Kiba.
  *
  * APIs:
  *   - AgentProvider: para agentes que OFRECEN un servicio (handshake x402)
  *   - AgentClient:   para agentes que CONSUMEN un servicio (descubrimiento + pago automático)
- *   - AgentBazaarProgram: cliente low-level del programa Anchor (PDAs, instr builders)
+ *   - KibaProgram: cliente low-level del programa Anchor (PDAs, instr builders)
  */
 
 export { AgentProvider } from './provider';
 export { AgentClient } from './client';
 export type { X402Step, X402Trace } from './client';
-export { AgentBazaarProgram } from './program';
+export { KibaProgram } from './program';
 export type {
   AgentConfig,
   ServiceManifest,

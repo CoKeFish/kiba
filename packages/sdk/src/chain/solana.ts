@@ -7,7 +7,7 @@
  * la cadena — habla con la interfaz ChainClient.
  */
 import { Connection, PublicKey, type Keypair } from '@solana/web3.js';
-import { AgentBazaarProgram } from '../program';
+import { KibaProgram } from '../program';
 import { getAgentPda } from '../anchor-helpers';
 import type {
   ChainClient,
@@ -27,13 +27,13 @@ export class SolanaChainClient implements ChainClient {
   readonly baseUnitsPerToken = LAMPORTS_PER_SOL;
 
   private readonly connection: Connection;
-  private readonly program: AgentBazaarProgram;
+  private readonly program: KibaProgram;
   private readonly wallet: Keypair;
   private readonly label: string;
 
   constructor(args: {
     connection: Connection;
-    program: AgentBazaarProgram;
+    program: KibaProgram;
     wallet: Keypair;
     /** Prefijo para los logs (ej. 'client' o el nombre del servicio). */
     label?: string;

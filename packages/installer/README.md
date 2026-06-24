@@ -1,6 +1,6 @@
-# Agent Bazaar Installer
+# Kiba Installer
 
-A double-clickable `.exe` that installs the Agent Bazaar MCP server into Claude
+A double-clickable `.exe` that installs the Kiba MCP server into Claude
 Desktop, Cursor, and/or Claude Code — without the user ever opening a terminal.
 
 Solves the friction that today blocks non-technical users from giving their
@@ -11,15 +11,15 @@ right path on their OS.
 
 1. Detects which MCP clients you have installed (Claude Desktop, Cursor,
    Claude Code) by looking for their config files in the standard locations.
-2. Lets you pick which to install in (clients already having Agent Bazaar
+2. Lets you pick which to install in (clients already having Kiba
    are shown as "Already installed" and disabled).
 3. Backs up your existing config (`*.json.bak`) before touching anything.
-4. Surgically inserts the `mcpServers.agent-bazaar` block, preserving every
+4. Surgically inserts the `mcpServers.kiba` block, preserving every
    other setting you had.
 5. Closes with a "Open Dashboard" button so the user lands at signup.
 
 If Node.js isn't installed, the installer detects that up front and offers
-to open `nodejs.org` — `npx -y agent-bazaar-mcp` won't run without it.
+to open `nodejs.org` — `npx -y kiba-mcp` won't run without it.
 
 ## Stack
 
@@ -65,8 +65,8 @@ npm run build
 The Windows bundle lives at:
 
 ```
-src-tauri/target/release/bundle/nsis/Agent Bazaar Installer_0.1.0_x64-setup.exe
-src-tauri/target/release/bundle/msi/Agent Bazaar Installer_0.1.0_x64_en-US.msi
+src-tauri/target/release/bundle/nsis/Kiba Installer_0.1.0_x64-setup.exe
+src-tauri/target/release/bundle/msi/Kiba Installer_0.1.0_x64_en-US.msi
 ```
 
 Either is double-clickable.
@@ -84,17 +84,17 @@ For each client config it touches, the installer:
 
 1. Reads the existing JSON (or creates `{}` if missing).
 2. Copies the file to `<path>.bak`.
-3. Sets `mcpServers["agent-bazaar"]` to:
+3. Sets `mcpServers["kiba"]` to:
    ```json
    {
      "command": "npx",
-     "args": ["-y", "agent-bazaar-mcp"]
+     "args": ["-y", "kiba-mcp"]
    }
    ```
 4. Writes back, pretty-printed (2-space indent).
 
 It does NOT touch any other key in the file. If `mcpServers` already exists,
-only the `agent-bazaar` entry inside it is overwritten.
+only the `kiba` entry inside it is overwritten.
 
 ## Config paths inspected
 

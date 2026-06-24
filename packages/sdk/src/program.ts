@@ -1,5 +1,5 @@
 /**
- * AgentBazaarProgram — cliente high-level del programa Anchor.
+ * KibaProgram — cliente high-level del programa Anchor.
  *
  * Construye instrucciones, deriva PDAs, decodifica accounts.
  * No depende del IDL — encoders manuales en anchor-helpers.ts.
@@ -29,7 +29,7 @@ import {
   type EscrowAccount,
 } from './anchor-helpers';
 
-export class AgentBazaarProgram {
+export class KibaProgram {
   readonly programId: PublicKey;
   readonly connection: Connection;
 

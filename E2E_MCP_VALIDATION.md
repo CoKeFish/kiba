@@ -1,8 +1,8 @@
-# E2E MCP Validation Report — Agent Bazaar (Production)
+# E2E MCP Validation Report — Kiba (Production)
 
 **Date:** 2026-05-10
-**Stack:** Gateway `https://gateway-production-a12f.up.railway.app` · Backend `https://backend-production-fb67.up.railway.app` · Dashboard `https://agent-bazaar-dashboard.vercel.app` · Solana **devnet** (program `3CsQnAua3xniuMY5axKUNYtmTyAxh6cG2E257PLjJCmA`)
-**MCP package under test:** `agent-bazaar-mcp` (npm, public) — driven via `npx -y agent-bazaar-mcp` over JSON-RPC stdio
+**Stack:** Gateway `https://kiba-api.rodion.com.co` · Backend `https://kiba-data.rodion.com.co` · Dashboard `https://kiba-dashboard.vercel.app` · Solana **devnet** (program `3CsQnAua3xniuMY5axKUNYtmTyAxh6cG2E257PLjJCmA`)
+**MCP package under test:** `kiba-mcp` (npm, public) — driven via `npx -y kiba-mcp` over JSON-RPC stdio
 **Test user:** `e2e-mcp-validator@test.dev3pack` (id=3, custodial wallet `CDu9kyueSaxTzFDUdHsBqys1MHd9CiNyQBtWvymCBVAS`)
 
 ---
@@ -18,7 +18,7 @@
 | **A5** | "yield" keyword → yield-hunter | **BLOCKED via MCP / PASS via backend** | Backend keyword: yield-hunter only, score 1.0, matchType `keyword`. FTS5 path confirmed. |
 | **A6** | "asdfqwerty" garbage | **BLOCKED via MCP / SOFT-PASS via backend** | Backend hybrid returns 3 nearest semantic neighbors (scores ~0.55-0.57, all matchType `semantic`). No false-positive keyword hits. There is no score threshold filter — any garbage query still returns up-to-N semantic neighbors. Minor concern (not a regression). |
 | **B-OAuth** | OAuth flow via MCP | **PARTIAL** | MCP only supports interactive-browser OAuth. I emulated it manually with curl: `POST /signup` → cookie, `GET /auth/connect?code_challenge=…` → 302 to `/login?next=/auth/consent?session=…`, `POST /auth/authorize {session_id}` (with cookie) → HTML containing `code=…`, `POST /oauth/token {grant_type, code, code_verifier}` → `access_token`. Saved at the path the MCP expects (`token.json` schema with `access_token`, `expires_at`). MCP then made authenticated calls successfully. |
-| **B-API key** | MCP supports API key env var | **FAIL — finding** | Source review (`packages/mcp-server/src/index.ts`) shows the MCP only reads `AGENT_BAZAAR_TOKEN_PATH`. There is no `AGENT_BAZAAR_API_KEY` (or similar) env var. **Workaround:** dropping the API key into the `token.json` schema works because the gateway's `requireAuth` falls back to the API-key table on bearer tokens — but this is undocumented and brittle. |
+| **B-API key** | MCP supports API key env var | **FAIL — finding** | Source review (`packages/mcp-server/src/index.ts`) shows the MCP only reads `KIBA_TOKEN_PATH`. There is no `KIBA_API_KEY` (or similar) env var. **Workaround:** dropping the API key into the `token.json` schema works because the gateway's `requireAuth` falls back to the API-key table on bearer tokens — but this is undocumented and brittle. |
 | **C1** | Pick cheapest agent | PASS | price-oracle at 0.0005 SOL/call ≈ $0.075 (floor); translator-pro at 0.001 SOL + per-char (used to drain in 1 big call). |
 | **C2** | Drain via repeated calls | PASS | Called via MCP `call_agent`. After signup ($5 = 33,333,333 lamports): 1× price-oracle ($0.075) → $4.92; 1× translator-pro 5544 chars ($4.38) → $0.54; 1× price-oracle ($0.075) → $0.46. |
 | **C3** | balance decreases, transactions accrue, mode=virtual | PASS | `get_transactions` shows ids 15, 16, 17 type=`call`, all virtual mode (refill signatures present in `call_agent` trace responses). |
@@ -26,7 +26,7 @@
 | **C5** | Trace includes Solana signature, mode switched | PASS | Trace steps: `discover` → `402_received` (amount=3150000, payTo=`5ZyJCa…sveqqB5m` translator owner) → `escrow_opened` (sig `4upH4xgFwosfCU3t7mbHPuMScfDYx2sCu8j654AknbhQZz2AAe2kuHT4ouv1x6jWeWwGGkPP6qy5KUwZ8vLkPUBs`) → `service_responded` (claim sig `5MXEhscNustpkicDXGm8xpuqsNkbfVqaFVa4C7TuwdW8wdeihwB9LMiwPJQhCAgZVLNj4BHnYR7REnWnKzrKCdYu`). |
 | **C6** | On-chain verification on devnet | PASS | `getTransaction` for both signatures returns success: `Program 3CsQnAua… invoke [1] Program log: Instruction: ClaimPayment` confirmed for both virtual-mode and wallet-direct claims. Pre/post balances show 95/5 owner/treasury split on the virtual-mode tx (e.g., agent +495,000 / treasury +5,000 for a 500k claim). |
 | **C7** | Dashboard shows the on-chain tx in user history | **FAIL — finding** | `get_transactions` (both via MCP and gateway curl) for ALL `call`-type rows omits the `tx_signature` field entirely. The DB column `signature` is null for both virtual AND wallet-direct calls; signatures live only inside the `metadata` JSON column which is never returned. Result: a user looking at `/v1/transactions` (or the Dashboard's transactions page that consumes it) **cannot click through to Solana Explorer** for any call. Only `topup` rows have `tx_signature` populated (for refill txs). |
-| **D** | x402 protocol compliance | **PASS (with one nit)** | All 4 trace steps present, ordered, monotonic timestamps. Direct unauth `POST /service` to `https://price-oracle-production-4d76.up.railway.app/service` → HTTP **402 Payment Required** with body `{amount, payTo, asset, service, nonce, expiresAt}`. **Nit:** no `WWW-Authenticate` header on the 402 response (x402 spec recommends it). |
+| **D** | x402 protocol compliance | **PASS (with one nit)** | All 4 trace steps present, ordered, monotonic timestamps. Direct unauth `POST /service` to `https://kiba-price-oracle.rodion.com.co/service` → HTTP **402 Payment Required** with body `{amount, payTo, asset, service, nonce, expiresAt}`. **Nit:** no `WWW-Authenticate` header on the 402 response (x402 spec recommends it). |
 | **E** | MCP exposes logs / state observation | **FAIL — finding** | Source review of `packages/mcp-server/src/index.ts` confirms only 4 tools. No `view_trace`, no `view_logs`, no `view_on_chain_tx`. Logs/traces are reachable only via Railway CLI (gateway/agent logs) or via gateway HTTP endpoints that are not surfaced as MCP tools (`/v1/wallet`, `/v1/platform/stats`, etc.). |
 
 ---
@@ -73,9 +73,9 @@
 **Fix:** In `packages/gateway/src/billing.ts` `debit()` and `packages/gateway/src/proxy.ts` `recordWalletDirectCall()`, populate the dedicated `signature` column with the claim signature returned by `callWithTrace`. Then the existing `tx_signature: t.signature ?? undefined` in `index.ts:626` will start returning it.
 
 ### F-3 (Major) — MCP forces interactive-browser OAuth; no API key path
-**What:** `mcp-server/src/index.ts` only reads `AGENT_BAZAAR_TOKEN_PATH` (OAuth-shaped JSON). For non-interactive contexts (CI, automated agents, headless servers), this is a hard block. Workaround: hand-craft a token.json with `access_token: <sk_live_…>` works because the gateway's `requireAuth` falls back to API key validation on any bearer token, but this is undocumented and not the published UX.
+**What:** `mcp-server/src/index.ts` only reads `KIBA_TOKEN_PATH` (OAuth-shaped JSON). For non-interactive contexts (CI, automated agents, headless servers), this is a hard block. Workaround: hand-craft a token.json with `access_token: <sk_live_…>` works because the gateway's `requireAuth` falls back to API key validation on any bearer token, but this is undocumented and not the published UX.
 **Why it matters:** Limits adoption for headless/server-side automation, which is exactly the agentic-AI use case the project pitches.
-**Fix:** Add `AGENT_BAZAAR_API_KEY` env var support. If set, skip OAuth entirely and use the key as the bearer token. Document in README.
+**Fix:** Add `KIBA_API_KEY` env var support. If set, skip OAuth entirely and use the key as the bearer token. Document in README.
 
 ### F-4 (Major) — Coverage gaps: ~15 of ~18 user-facing operations are MCP-invisible
 **What:** No tools for: top-up, agent CRUD, API key CRUD, OAuth connection management, platform stats, wallet pubkey lookup, log retrieval, persistent trace lookup. See coverage table.
@@ -95,7 +95,7 @@
 ### F-7 (Low) — 402 response missing `WWW-Authenticate` header
 **What:** Direct unauth `POST /service` to any agent returns HTTP 402 with the quote in the JSON body but no `WWW-Authenticate: x402` header.
 **Why it matters:** x402 spec convention; not blocking but a portability/standards nit.
-**Fix:** In the SDK provider's 402 path, set `res.setHeader('WWW-Authenticate', 'x402 realm="agent-bazaar"')`.
+**Fix:** In the SDK provider's 402 path, set `res.setHeader('WWW-Authenticate', 'x402 realm="kiba"')`.
 
 ### F-8 (Low) — Empty / garbage queries always return semantic neighbors
 **What:** Backend `/agents?q=asdfqwerty&mode=hybrid` returns 3 results with semantic scores 0.5–0.6. There is no score floor.
@@ -117,12 +117,12 @@
 
 ## 5. Reproduction commands
 
-All run from a temp dir `C:\Users\rrtc2\AppData\Local\Temp\mcp-e2e`. The driver script `drive-mcp.mjs` spawns `npx -y agent-bazaar-mcp` and pipes JSON-RPC messages via stdio.
+All run from a temp dir `C:\Users\rrtc2\AppData\Local\Temp\mcp-e2e`. The driver script `drive-mcp.mjs` spawns `npx -y kiba-mcp` and pipes JSON-RPC messages via stdio.
 
 ### 5.1 Signup + OAuth token (manual emulation)
 ```bash
 # Signup → cookie + bonus
-curl -i -X POST https://gateway-production-a12f.up.railway.app/signup \
+curl -i -X POST https://kiba-api.rodion.com.co/signup \
   -H "Content-Type: application/json" \
   -d '{"email":"e2e-mcp-validator@test.dev3pack","password":"validatePass123"}'
 # Capture session cookie from Set-Cookie header.
@@ -131,26 +131,26 @@ curl -i -X POST https://gateway-production-a12f.up.railway.app/signup \
 node -e 'const c=require("node:crypto");const b=b=>b.toString("base64").replace(/=+$/,"").replace(/\+/g,"-").replace(/\//g,"_");const v=b(c.randomBytes(32));const ch=b(c.createHash("sha256").update(v).digest());console.log(JSON.stringify({v,ch}))'
 
 # Start OAuth → returns redirect URL with sessionId
-curl -i -G "https://gateway-production-a12f.up.railway.app/auth/connect" \
+curl -i -G "https://kiba-api.rodion.com.co/auth/connect" \
   --data-urlencode "code_challenge=<challenge>" \
   --data-urlencode "redirect_uri=http://localhost:49500/callback" \
   --data-urlencode "client_name=e2e-mcp-validator"
 
 # Authorize (with session cookie) → returns HTML containing code=…
-curl -i -X POST "https://gateway-production-a12f.up.railway.app/auth/authorize" \
+curl -i -X POST "https://kiba-api.rodion.com.co/auth/authorize" \
   -H "Cookie: session=<cookie-value>" \
   -d "session_id=<sess_…>"
 
 # Exchange code for token
-curl -X POST https://gateway-production-a12f.up.railway.app/oauth/token \
+curl -X POST https://kiba-api.rodion.com.co/oauth/token \
   -H "Content-Type: application/json" \
   -d '{"grant_type":"authorization_code","code":"code_…","code_verifier":"<verifier>"}'
 ```
 
 ### 5.2 Persist token where the MCP looks
 ```bash
-mkdir -p $HOME/.config/agent-bazaar
-# Or set AGENT_BAZAAR_TOKEN_PATH to a custom location.
+mkdir -p $HOME/.config/kiba
+# Or set KIBA_TOKEN_PATH to a custom location.
 node -e 'require("node:fs").writeFileSync(process.env.P, JSON.stringify({access_token:"tok_…",expires_at:Math.floor(Date.now()/1000)+2592000,saved_at:Math.floor(Date.now()/1000)},null,2))' P=/path/to/token.json
 ```
 
@@ -183,7 +183,7 @@ curl -X POST https://api.devnet.solana.com -H "Content-Type: application/json" -
 
 ### 5.5 Backend semantic search (what MCP can't do)
 ```bash
-curl -G https://backend-production-fb67.up.railway.app/agents \
+curl -G https://kiba-data.rodion.com.co/agents \
   --data-urlencode "q=traducción" \
   --data-urlencode "mode=semantic" \
   --data-urlencode "limit=3"
@@ -192,7 +192,7 @@ curl -G https://backend-production-fb67.up.railway.app/agents \
 ### 5.6 API key path (workaround)
 ```bash
 # Create key (needs OAuth bearer or session)
-curl -X POST https://gateway-production-a12f.up.railway.app/v1/api-keys \
+curl -X POST https://kiba-api.rodion.com.co/v1/api-keys \
   -H "Authorization: Bearer <oauth_token>" \
   -H "Content-Type: application/json" -d '{"name":"e2e-test"}'
 # Drop the sk_live_… into token.json with the OAuth schema; the MCP will use it.

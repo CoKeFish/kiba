@@ -12,7 +12,7 @@
  *   3. Construye la instrucción con el SDK low-level y firma con la wallet del user
  */
 import { Connection, PublicKey } from '@solana/web3.js';
-import { AgentBazaarProgram } from '@agent-bazaar/sdk';
+import { KibaProgram } from '@kiba/sdk';
 import { ensureFunded, getOnChainBalance, loadUserWallet } from './wallets';
 
 const SOLANA_RPC_URL = process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com';
@@ -28,10 +28,10 @@ const REGISTER_FUND_LAMPORTS = 10_000_000; // 0.01 SOL
 /** Sólo necesita cubrir el tx fee (~5000 lamports). */
 const UPDATE_FUND_LAMPORTS = 100_000; // 0.0001 SOL
 
-function getProgram(): AgentBazaarProgram {
+function getProgram(): KibaProgram {
   if (!PROGRAM_ID) throw new Error('PROGRAM_ID env not set');
   const conn = new Connection(SOLANA_RPC_URL, 'confirmed');
-  return new AgentBazaarProgram(PROGRAM_ID, conn);
+  return new KibaProgram(PROGRAM_ID, conn);
 }
 
 const SERVICE_RE = /^[a-z0-9](?:[a-z0-9-_]{0,30}[a-z0-9])?$/;
@@ -114,7 +114,7 @@ export async function registerAgent(
   });
 
   const signature = await program.sendAndConfirm([ix], userWallet);
-  const [pda] = await import('@agent-bazaar/sdk').then((m) =>
+  const [pda] = await import('@kiba/sdk').then((m) =>
     m.getAgentPda(new PublicKey(PROGRAM_ID!), input.service),
   );
 
@@ -164,7 +164,7 @@ export async function updateAgent(
   });
 
   const signature = await program.sendAndConfirm([ix], userWallet);
-  const [pda] = await import('@agent-bazaar/sdk').then((m) =>
+  const [pda] = await import('@kiba/sdk').then((m) =>
     m.getAgentPda(new PublicKey(PROGRAM_ID!), service),
   );
 

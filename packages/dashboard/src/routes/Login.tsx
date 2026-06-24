@@ -52,7 +52,7 @@ export default function Login() {
         >
           <img
             src="/logomark.png"
-            alt="Agent Bazaar"
+            alt="Kiba"
             style={{
               width: 72,
               height: 72,
@@ -70,7 +70,7 @@ export default function Login() {
               textTransform: "lowercase",
             }}
           >
-            agent bazaar
+            kiba
           </div>
         </div>
 
@@ -108,7 +108,7 @@ export default function Login() {
                 marginBottom: 24,
               }}
             >
-              Log in to your Agent Bazaar account.
+              Log in to your Kiba account.
             </p>
           </div>
 

@@ -177,7 +177,7 @@ function OAuthSection() {
           <p className="p-6 text-sm text-[var(--color-fg-muted)]">Loading…</p>
         ) : conns.length === 0 ? (
           <p className="p-10 text-sm text-[var(--color-fg-muted)] text-center">
-            No connected apps yet. Install <code>@agent-bazaar/mcp</code> in Claude or Cursor to see
+            No connected apps yet. Install <code>kiba-mcp</code> in Claude or Cursor to see
             them here.
           </p>
         ) : (

@@ -1,7 +1,7 @@
 @import url("https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Manrope:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap");
 
 /* ============================================================
-   AGENT BAZAAR — bi-theme tokens.
+   KIBA — bi-theme tokens.
    LIGHT = :root (default).  DARK = html.dark (Slidev adds .dark).
    Brand is dark-first; light is a high-contrast fallback —
    NO faint grays: secondary/tertiary text is dark navy on light.
@@ -42,12 +42,12 @@
   --code-chip:   rgba(26, 79, 204, 0.12);
 
   /* background layer (global-bottom.vue) */
-  --ab-bg:               #FFFFFF;
-  --ab-particle:         "26, 79, 204";
-  --ab-particle-opacity: 0.22;
-  --ab-glow-1:           rgba(32, 96, 246, 0.10);
-  --ab-glow-2:           rgba(32, 96, 246, 0.06);
-  --ab-blend:            multiply;
+  --kiba-bg:               #FFFFFF;
+  --kiba-particle:         "26, 79, 204";
+  --kiba-particle-opacity: 0.22;
+  --kiba-glow-1:           rgba(32, 96, 246, 0.10);
+  --kiba-glow-2:           rgba(32, 96, 246, 0.06);
+  --kiba-blend:            multiply;
   --logo-glow:           rgba(26, 79, 204, 0.28);
   --rule-line:           rgba(26, 79, 204, 0.28);
 
@@ -91,12 +91,12 @@ html.dark {
   --code-fg:   #B5C9FF;
   --code-chip: color-mix(in srgb, #2060F6 12%, transparent);
 
-  --ab-bg:               #02050E;
-  --ab-particle:         "79, 134, 255";
-  --ab-particle-opacity: 0.50;
-  --ab-glow-1:           rgba(32, 96, 246, 0.16);
-  --ab-glow-2:           rgba(32, 96, 246, 0.10);
-  --ab-blend:            screen;
+  --kiba-bg:               #02050E;
+  --kiba-particle:         "79, 134, 255";
+  --kiba-particle-opacity: 0.50;
+  --kiba-glow-1:           rgba(32, 96, 246, 0.16);
+  --kiba-glow-2:           rgba(32, 96, 246, 0.10);
+  --kiba-blend:            screen;
   --logo-glow:           rgba(32, 96, 246, 0.55);
   --rule-line:           color-mix(in srgb, #B5C9FF 22%, transparent);
 }
@@ -105,7 +105,7 @@ html.dark {
    Base canvas + typography
    ============================================================ */
 html, body, #app {
-  background: var(--ab-bg);
+  background: var(--kiba-bg);
   color: var(--fg-1);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
@@ -121,7 +121,7 @@ html, body, #app {
 .slidev-layout.cover,
 .slidev-layout.center {
   background: radial-gradient(ellipse at 50% 60%,
-    var(--ab-glow-1), transparent 60%) !important;
+    var(--kiba-glow-1), transparent 60%) !important;
 }
 
 .slidev-layout h1,
@@ -160,7 +160,7 @@ html, body, #app {
   background: var(--code-bg) !important;
   border: 1px solid var(--border-default);
   border-radius: 10px;
-  box-shadow: 0 0 32px var(--ab-glow-1);
+  box-shadow: 0 0 32px var(--kiba-glow-1);
 }
 .slidev-layout pre code {
   background: transparent;
@@ -208,7 +208,7 @@ html:not(.dark) .slidev-layout pre.shiki span {
 }
 .card:hover {
   border-color: color-mix(in srgb, var(--accent) 50%, transparent);
-  box-shadow: 0 0 32px var(--ab-glow-1);
+  box-shadow: 0 0 32px var(--kiba-glow-1);
 }
 .card-q { color: var(--fg-2); font-size: 0.82rem; line-height: 1.5; }
 
@@ -220,7 +220,7 @@ html:not(.dark) .slidev-layout pre.shiki span {
   color: var(--at-blue);
   background: color-mix(in srgb, var(--accent) 14%, transparent);
   border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
-  box-shadow: 0 0 20px var(--ab-glow-1);
+  box-shadow: 0 0 20px var(--kiba-glow-1);
 }
 
 .pill {

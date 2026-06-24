@@ -1,5 +1,5 @@
 {
-  "name": "@agent-bazaar/demo-agents",
+  "name": "@kiba/demo-agents",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -12,7 +12,7 @@
     "build": "tsc"
   },
   "dependencies": {
-    "@agent-bazaar/sdk": "*",
+    "@kiba/sdk": "*",
     "@solana/web3.js": "^1.95.0",
     "express": "^4.19.0",
     "dotenv": "^16.4.5"

@@ -11,10 +11,10 @@
  */
 import { Connection, PublicKey, Keypair } from '@solana/web3.js';
 import {
-  AgentBazaarProgram,
+  KibaProgram,
   createChainClient,
   type ChainClient,
-} from '@agent-bazaar/sdk';
+} from '@kiba/sdk';
 import type { AgentRecord } from './db';
 
 export interface RegistryReader {
@@ -45,7 +45,7 @@ class SolanaRegistryReader implements RegistryReader {
   readonly label = 'solana';
 
   constructor(
-    private readonly program: AgentBazaarProgram,
+    private readonly program: KibaProgram,
     private readonly connection: Connection,
   ) {}
 
@@ -158,7 +158,7 @@ export function createRegistryReader(): RegistryReader | null {
     'confirmed',
   );
   try {
-    const program = new AgentBazaarProgram(new PublicKey(programId), connection);
+    const program = new KibaProgram(new PublicKey(programId), connection);
     return new SolanaRegistryReader(program, connection);
   } catch (err) {
     console.error('[registry] PROGRAM_ID inválido:', (err as Error).message);

@@ -56,7 +56,7 @@ app.get('/health', (_req, res) => {
   const db = getDb();
   res.json({
     ok: true,
-    service: 'agent-bazaar-backend',
+    service: 'kiba-backend',
     chain: CHAIN,
     asset: ASSET,
     registry: reader?.label ?? '(demo/fallback)',
@@ -150,7 +150,7 @@ async function main(): Promise<void> {
 
   server.listen(PORT, () => {
     console.log('╔══════════════════════════════════════════╗');
-    console.log('║  Agent Bazaar — Backend (Phase 3)        ║');
+    console.log('║  Kiba — Backend (Phase 3)                ║');
     console.log('╚══════════════════════════════════════════╝');
     console.log(`  http://localhost:${PORT}/health`);
     console.log(`  http://localhost:${PORT}/agents`);

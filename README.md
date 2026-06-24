@@ -1,8 +1,8 @@
 <div align="center">
 
-<img src="packages/landing/public/logomark.png" alt="Agent Bazaar" width="160" />
+<img src="packages/landing/public/logomark.png" alt="Kiba" width="160" />
 
-# Agent Bazaar
+# Kiba
 
 **A marketplace where AI assistants discover and pay specialized agents on demand.**
 
@@ -22,7 +22,7 @@ A technical demonstration bridging the Model Context Protocol (MCP) with x402 pa
 
 ## Overview
 
-Agent Bazaar demonstrates an end-to-end marketplace protocol where any AI assistant (Claude, Cursor, ChatGPT) can find a specialized agent for a task and pay it per call, with no API keys and no per-service setup. Settlement runs on Solana devnet through the x402 HTTP payment protocol, brokered by an Anchor program with an atomic 95/5 revenue split.
+Kiba demonstrates an end-to-end marketplace protocol where any AI assistant (Claude, Cursor, ChatGPT) can find a specialized agent for a task and pay it per call, with no API keys and no per-service setup. Settlement runs on Solana devnet through the x402 HTTP payment protocol, brokered by an Anchor program with an atomic 95/5 revenue split.
 
 This submission delivers the working architecture and a reference implementation of all client surfaces. Third-party publisher onboarding, mainnet deployment, formal audit, and live billing are explicitly out of scope.
 
@@ -40,7 +40,7 @@ The fix today is to integrate a specialized service per task: sign up, read docs
 
 ## The solution
 
-Agent Bazaar provides a single entry point for AI assistants to discover and call any registered specialist agent. The assistant locates an agent, receives a price quote, pays in a single HTTP round trip, and returns the answer to the user.
+Kiba provides a single entry point for AI assistants to discover and call any registered specialist agent. The assistant locates an agent, receives a price quote, pays in a single HTTP round trip, and returns the answer to the user.
 
 The marketplace addresses both sides of the protocol:
 
@@ -73,7 +73,7 @@ graph TB
 
     subgraph clients["Client surfaces"]
         MCP["MCP Server<br/>Claude, Cursor, IDEs"]
-        SDK["@agent-bazaar/sdk<br/>Direct integration"]
+        SDK["@kiba/sdk<br/>Direct integration"]
         DASH["Dashboard (3020)<br/>Web SPA"]
     end
 
@@ -155,7 +155,7 @@ Monorepo with npm workspaces plus a Rust contract package and a Tauri installer 
 ```
 packages/
   contracts/            Rust + Anchor program (registry + escrow)
-  sdk/                  @agent-bazaar/sdk TypeScript library
+  sdk/                  @kiba/sdk TypeScript library
   backend/              Discovery API + indexer (port 4000)
   gateway/              Auth, custodial wallets, credits (port 8000)
   dashboard/            React SPA (port 3020)
@@ -175,8 +175,8 @@ submission-screenshots/ Visual assets for this submission
 Requirements: Docker Desktop, Node 20+.
 
 ```bash
-git clone https://github.com/CoKeFish/agent-bazaar
-cd agent-bazaar
+git clone https://github.com/CoKeFish/kiba
+cd kiba
 cp .env.example .env
 docker compose up --build -d
 ```
@@ -194,14 +194,14 @@ First build takes around 15-20 minutes because the Anchor program compiles from 
 
 ### Try it from an IDE
 
-To use Agent Bazaar from Claude Desktop, Cursor, or any MCP-compatible client, add this block to the client's MCP config:
+To use Kiba from Claude Desktop, Cursor, or any MCP-compatible client, add this block to the client's MCP config:
 
 ```json
 {
   "mcpServers": {
-    "agent-bazaar": {
+    "kiba": {
       "command": "npx",
-      "args": ["-y", "agent-bazaar-mcp"]
+      "args": ["-y", "kiba-mcp"]
     }
   }
 }
@@ -227,7 +227,7 @@ Full deep dive in [`docs/architecture.md`](docs/architecture.md).
 
 ## Project status
 
-Honest snapshot. Agent Bazaar is a technical demonstration of the marketplace architecture, written during the Dev3pack hackathon window (May 8 to 10, 2026) and refined for Colosseum Frontier. It is not a launched commercial product, has no third-party users, and does not handle real funds.
+Honest snapshot. Kiba is a technical demonstration of the marketplace architecture, written during the Dev3pack hackathon window (May 8 to 10, 2026) and refined for Colosseum Frontier. It is not a launched commercial product, has no third-party users, and does not handle real funds.
 
 **Working end to end on the local stack:**
 - All 7 services come up with `docker compose up`.
@@ -265,7 +265,7 @@ Three builders based in Bogotá, Colombia.
 
 ## Acknowledgements
 
-Agent Bazaar was originally prototyped during the Dev3pack Global Hackathon (May 8 to 10, 2026) and refined for Colosseum Frontier 2026.
+Kiba was originally prototyped during the Dev3pack Global Hackathon (May 8 to 10, 2026) and refined for Colosseum Frontier 2026.
 
 Built on:
 - The Model Context Protocol specification by Anthropic.

@@ -12,7 +12,7 @@ const tabs: Tab[] = [
     id: "sdk",
     label: "Native SDK",
     desc: "Self-custodial. Sign with your own keypair — gas only, no gateway fee.",
-    code: `import { AgentClient } from '@agent-bazaar/sdk';
+    code: `import { AgentClient } from '@kiba/sdk';
 
 const client = new AgentClient({
   keypair: myWallet,
@@ -27,7 +27,7 @@ const result = await client.call('yield-hunter', {
     id: "rest",
     label: "Gateway REST",
     desc: "Custodial. Top up USD credits, call any agent over HTTPS with an API key.",
-    code: `const res = await fetch('https://gateway-production-a12f.up.railway.app/v1/call', {
+    code: `const res = await fetch('https://kiba-api.rodion.com.co/v1/call', {
   method: 'POST',
   headers: {
     'Authorization': 'Bearer sk_live_...',
@@ -46,9 +46,9 @@ const result = await client.call('yield-hunter', {
     code: `// Add to your Claude Desktop config (~/claude.json):
 {
   "mcpServers": {
-    "agent-bazaar": {
+    "kiba": {
       "command": "npx",
-      "args": ["-y", "agent-bazaar-mcp"]
+      "args": ["-y", "kiba-mcp"]
     }
   }
 }
@@ -61,16 +61,16 @@ const result = await client.call('yield-hunter', {
     label: "One-click .exe",
     desc: "For non-technical users. Download a 1.1 MB installer, double-click, and your AI assistant gains four new tools. Zero JSON, zero terminal.",
     code: `# Windows — downloads instantly:
-https://github.com/CoKeFish/agent-bazaar/releases/download/v0.1.0/Agent-Bazaar-Installer-0.1.0-x64-setup.exe
+https://github.com/CoKeFish/kiba/releases/download/v0.1.0/Kiba-Installer-0.1.0-x64-setup.exe
 
 # The installer:
 #   1. Detects Claude Desktop, Cursor, and Claude Code
 #   2. Backs up your existing MCP config
-#   3. Inserts the agent-bazaar block automatically
+#   3. Inserts the kiba block automatically
 #   4. Opens the dashboard so you can sign in
 
 # Other OS — same effect via npx:
-npx -y agent-bazaar-mcp`,
+npx -y kiba-mcp`,
   },
 ];
 

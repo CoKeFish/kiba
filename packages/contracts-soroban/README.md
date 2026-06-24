@@ -1,4 +1,4 @@
-# Agent Bazaar — contrato Soroban (Stellar)
+# Kiba — contrato Soroban (Stellar)
 
 Port idiomático del programa Anchor de Solana a **Soroban**. Misma lógica de
 protocolo: registro de agentes, escrow x402 y **split atómico 95/5**.
@@ -50,7 +50,7 @@ Usa la imagen de herramientas en [`docker/stellar-cli`](../../docker/stellar-cli
 
 ```bash
 # Construir la imagen (una vez)
-docker build -t agent-bazaar/stellar-cli docker/stellar-cli
+docker build -t kiba/stellar-cli docker/stellar-cli
 
 # Desplegar e inicializar en testnet (genera y fondea identidad la 1ª vez)
 docker run --rm \
@@ -58,7 +58,7 @@ docker run --rm \
   -v stellar-config:/root/.config/stellar \
   -e CARGO_TARGET_DIR=/tmp/sttarget \
   -w /workspace/packages/contracts-soroban \
-  agent-bazaar/stellar-cli \
+  kiba/stellar-cli \
   bash -c "tr -d '\r' < scripts/deploy-testnet.sh | bash"
 ```
 
@@ -94,7 +94,7 @@ docker run --rm \
   -v "${PWD}:/workspace" \
   -v stellar-config:/root/.config/stellar \
   -w /workspace/packages/contracts-soroban \
-  agent-bazaar/stellar-cli \
+  kiba/stellar-cli \
   bash -c "tr -d '\r' < scripts/smoke-testnet.sh | bash"
 ```
 

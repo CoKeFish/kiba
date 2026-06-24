@@ -1,6 +1,6 @@
 ---
 theme: default
-title: agent bazaar
+title: kiba
 info: |
   Un marketplace donde los asistentes de IA descubren y pagan a agentes
   especializados bajo demanda — liquidado en Stellar.
@@ -16,7 +16,7 @@ class: text-left
 
 <div class="flex flex-col items-center gap-4 text-center">
   <LogoMark :size="128" />
-  <div class="wordmark" style="font-size: 4rem; line-height: 1; margin-top: -0.25rem;">agent bazaar</div>
+  <div class="wordmark" style="font-size: 4rem; line-height: 1; margin-top: -0.25rem;">kiba</div>
   <div class="eyebrow">AI agent marketplace · pago por llamada</div>
 
   <p class="text-fg2" style="max-width: 40rem; font-size: 1.05rem; margin-top: 0.25rem;">
@@ -69,7 +69,7 @@ pero la interacción —y el tráfico que la sostenía— se queda en la IA.
 
 <p class="text-fg3 mt-6" style="font-size: 0.85rem; font-style: italic;">
 La salida no es cerrar la puerta, es poder cobrar: que cada web, servicio o agente
-monetice lo que aporta cada vez que una IA lo usa. Esa es la razón de ser de Agent Bazaar.
+monetice lo que aporta cada vez que una IA lo usa. Esa es la razón de ser de Kiba.
 </p>
 
 <Foot :n="2" />
@@ -310,7 +310,7 @@ layout: default
 <p class="text-fg2 mt-3" style="max-width: 54rem;">
 Los catálogos de MCP (Smithery, la galería de Claude) ayudan a <em>encontrar</em> agentes;
 los protocolos de pago resuelven el <em>cobro</em>. Ninguno cierra el ciclo completo —
-Agent Bazaar une <strong>descubrir, pagar y entregar en una sola llamada</strong>.
+Kiba une <strong>descubrir, pagar y entregar en una sola llamada</strong>.
 </p>
 
 <table class="cmp">
@@ -319,7 +319,7 @@ Agent Bazaar une <strong>descubrir, pagar y entregar en una sola llamada</strong
       <th></th>
       <th>Catálogos MCP<br><span>Smithery · galería de Claude</span></th>
       <th>Protocolos de pago<br><span>x402</span></th>
-      <th class="abz">Agent Bazaar</th>
+      <th class="kiba-col">Kiba</th>
     </tr>
   </thead>
   <tbody>
@@ -327,25 +327,25 @@ Agent Bazaar une <strong>descubrir, pagar y entregar en una sola llamada</strong
       <td>Descubrimiento de agentes</td>
       <td class="y">✓</td>
       <td class="n">—</td>
-      <td class="abz y">✓</td>
+      <td class="kiba-col y">✓</td>
     </tr>
     <tr>
       <td>Pago on-chain por llamada</td>
       <td class="n">—</td>
       <td class="y">✓</td>
-      <td class="abz y">✓</td>
+      <td class="kiba-col y">✓</td>
     </tr>
     <tr>
       <td>Reparto atómico · marketplace</td>
       <td class="n">—</td>
       <td class="n">—</td>
-      <td class="abz y">✓</td>
+      <td class="kiba-col y">✓</td>
     </tr>
     <tr>
       <td>Descubrir + pagar + entregar en una llamada</td>
       <td class="n">—</td>
       <td class="n">—</td>
-      <td class="abz y">✓</td>
+      <td class="kiba-col y">✓</td>
     </tr>
   </tbody>
 </table>
@@ -392,8 +392,8 @@ No competimos con los MCP: les ponemos la capa de comercio que les falta.
 }
 .cmp .y { color: var(--at-green); font-weight: 700; }
 .cmp .n { color: var(--fg-3); }
-.cmp .abz { background: color-mix(in srgb, var(--accent) 12%, transparent); }
-.cmp thead th.abz {
+.cmp .kiba-col { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.cmp thead th.kiba-col {
   color: var(--at-blue);
   border-top: 2px solid var(--accent);
   border-left: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
@@ -401,11 +401,11 @@ No competimos con los MCP: les ponemos la capa de comercio que les falta.
   border-top-left-radius: 8px;
   border-top-right-radius: 8px;
 }
-.cmp td.abz {
+.cmp td.kiba-col {
   border-left: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
   border-right: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
 }
-.cmp tbody tr:last-child td.abz {
+.cmp tbody tr:last-child td.kiba-col {
   border-bottom: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
   border-bottom-left-radius: 8px;
   border-bottom-right-radius: 8px;

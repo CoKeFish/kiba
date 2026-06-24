@@ -1,4 +1,4 @@
-# agent bazaar — Slidev deck
+# kiba — Slidev deck
 
 Versión web/Markdown del pitch, hecha con [Slidev](https://sli.dev),
 con la estética y el brand de la web (electric-blue, Outfit/Manrope/JetBrains Mono,
@@ -44,7 +44,7 @@ npm run export:light -- --format png
 - `style.css` — tokens de marca **bi-tema** (`:root` = claro, `html.dark` = oscuro)
 - `global-bottom.vue` — fondo de partículas + glow (se adapta al tema)
 - `components/LogoMark.vue` — logomark real (recortado de `public/logomark-mark.png`)
-- `components/Foot.vue` — pie con "agent bazaar · on Stellar" + número de slide
+- `components/Foot.vue` — pie con "kiba · on Stellar" + número de slide
 
 ## Atajos en presentación
 

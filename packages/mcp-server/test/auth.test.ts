@@ -113,8 +113,8 @@ test('token file: saved_at <= expires_at por construcción', () => {
 
 // ─── Default URL & paths ───────────────────────────────────────
 
-test('AGENT_BAZAAR_URL puede ser overrideado por env (ya verificado por el otro suite)', () => {
-  // Este test es un cheap sanity: en _setup-env seteamos AGENT_BAZAAR_URL.
+test('KIBA_URL puede ser overrideado por env (ya verificado por el otro suite)', () => {
+  // Este test es un cheap sanity: en _setup-env seteamos KIBA_URL.
   // El módulo lo lee al cargar y todas las llamadas axios apuntan ahí.
   // Sin manera de testear "override" sin un segundo proceso, sirve como
   // confirmación documental.
@@ -125,7 +125,7 @@ test('AGENT_BAZAAR_URL puede ser overrideado por env (ya verificado por el otro 
 // Validamos en sub-process porque API_KEY se lee al cargar el módulo y
 // ya cargamos uno con OAuth en este test process.
 
-test('AGENT_BAZAAR_API_KEY: cuando está set, el módulo arranca sin requerir token.json', async () => {
+test('KIBA_API_KEY: cuando está set, el módulo arranca sin requerir token.json', async () => {
   const { spawn } = await import('node:child_process');
   const { fileURLToPath } = await import('node:url');
   const path = await import('node:path');
@@ -143,15 +143,15 @@ test('AGENT_BAZAAR_API_KEY: cuando está set, el módulo arranca sin requerir to
   );
 
   // Sin token.json — si el código intentara cargar OAuth, fallaría.
-  // Con AGENT_BAZAAR_API_KEY seteado, el módulo debe arrancar limpio.
+  // Con KIBA_API_KEY seteado, el módulo debe arrancar limpio.
   const proc = spawn(process.execPath, [tsxBin, entry], {
     env: {
       ...process.env,
-      AGENT_BAZAAR_API_KEY: 'sk_live_test_xyz',
-      AGENT_BAZAAR_URL: 'http://no-network.test',
-      AGENT_BAZAAR_TOKEN_PATH: '/tmp/definitely-does-not-exist.json',
+      KIBA_API_KEY: 'sk_live_test_xyz',
+      KIBA_URL: 'http://no-network.test',
+      KIBA_TOKEN_PATH: '/tmp/definitely-does-not-exist.json',
       // Quitar cualquier setup previo
-      AGENT_BAZAAR_CLIENT_NAME: 'apikey-test',
+      KIBA_CLIENT_NAME: 'apikey-test',
     },
     stdio: ['pipe', 'pipe', 'pipe'],
   });

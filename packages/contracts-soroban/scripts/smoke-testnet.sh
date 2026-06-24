@@ -4,7 +4,7 @@
 # en testnet: register_agent → open_escrow → claim_payment, verificando el split
 # 95/5 por balances del token (XLM SAC).
 #
-# Correr DENTRO de la imagen agent-bazaar/stellar-cli con el volumen de config:
+# Correr DENTRO de la imagen kiba/stellar-cli con el volumen de config:
 #   bash scripts/smoke-testnet.sh
 set -euo pipefail
 

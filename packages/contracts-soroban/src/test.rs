@@ -17,9 +17,9 @@ fn setup() -> (Env, Address, Address, Address) {
     let token_id = sac.address();
 
     let treasury = Address::generate(&env);
-    let contract_id = env.register(AgentBazaar, ());
+    let contract_id = env.register(Kiba, ());
 
-    let app = AgentBazaarClient::new(&env, &contract_id);
+    let app = KibaClient::new(&env, &contract_id);
     app.initialize(&token_id, &treasury);
 
     (env, contract_id, token_id, treasury)
@@ -34,7 +34,7 @@ fn s(env: &Env, v: &str) -> String {
 #[test]
 fn initialize_sets_config() {
     let (env, contract_id, token_id, treasury) = setup();
-    let app = AgentBazaarClient::new(&env, &contract_id);
+    let app = KibaClient::new(&env, &contract_id);
 
     let config = app.get_config().unwrap();
     assert_eq!(config.token, token_id);
@@ -44,7 +44,7 @@ fn initialize_sets_config() {
 #[test]
 fn initialize_twice_fails() {
     let (env, contract_id, token_id, treasury) = setup();
-    let app = AgentBazaarClient::new(&env, &contract_id);
+    let app = KibaClient::new(&env, &contract_id);
 
     assert_eq!(
         app.try_initialize(&token_id, &treasury),
@@ -57,7 +57,7 @@ fn initialize_twice_fails() {
 #[test]
 fn register_and_read_agent() {
     let (env, contract_id, _token, _treasury) = setup();
-    let app = AgentBazaarClient::new(&env, &contract_id);
+    let app = KibaClient::new(&env, &contract_id);
     let owner = Address::generate(&env);
 
     app.register_agent(
@@ -78,7 +78,7 @@ fn register_and_read_agent() {
 #[test]
 fn register_duplicate_fails() {
     let (env, contract_id, _token, _treasury) = setup();
-    let app = AgentBazaarClient::new(&env, &contract_id);
+    let app = KibaClient::new(&env, &contract_id);
     let owner = Address::generate(&env);
     let svc = s(&env, "dup");
 
@@ -92,7 +92,7 @@ fn register_duplicate_fails() {
 #[test]
 fn register_empty_service_fails() {
     let (env, contract_id, _token, _treasury) = setup();
-    let app = AgentBazaarClient::new(&env, &contract_id);
+    let app = KibaClient::new(&env, &contract_id);
     let owner = Address::generate(&env);
 
     assert_eq!(
@@ -104,7 +104,7 @@ fn register_empty_service_fails() {
 #[test]
 fn register_nonpositive_price_fails() {
     let (env, contract_id, _token, _treasury) = setup();
-    let app = AgentBazaarClient::new(&env, &contract_id);
+    let app = KibaClient::new(&env, &contract_id);
     let owner = Address::generate(&env);
 
     assert_eq!(
@@ -116,7 +116,7 @@ fn register_nonpositive_price_fails() {
 #[test]
 fn update_agent_changes_fields() {
     let (env, contract_id, _token, _treasury) = setup();
-    let app = AgentBazaarClient::new(&env, &contract_id);
+    let app = KibaClient::new(&env, &contract_id);
     let owner = Address::generate(&env);
     let svc = s(&env, "translator");
 
@@ -137,7 +137,7 @@ fn update_agent_changes_fields() {
 #[test]
 fn deregister_removes_agent() {
     let (env, contract_id, _token, _treasury) = setup();
-    let app = AgentBazaarClient::new(&env, &contract_id);
+    let app = KibaClient::new(&env, &contract_id);
     let owner = Address::generate(&env);
     let svc = s(&env, "temp");
 
@@ -151,7 +151,7 @@ fn deregister_removes_agent() {
 #[test]
 fn full_payment_flow_splits_95_5() {
     let (env, contract_id, token_id, treasury) = setup();
-    let app = AgentBazaarClient::new(&env, &contract_id);
+    let app = KibaClient::new(&env, &contract_id);
     let token = token::Client::new(&env, &token_id);
     let token_admin = token::StellarAssetClient::new(&env, &token_id);
 
@@ -191,7 +191,7 @@ fn full_payment_flow_splits_95_5() {
 fn split_rounds_fee_down() {
     // amount = 1 → fee = 1*500/10000 = 0 → owner se queda con todo (1).
     let (env, contract_id, token_id, treasury) = setup();
-    let app = AgentBazaarClient::new(&env, &contract_id);
+    let app = KibaClient::new(&env, &contract_id);
     let token = token::Client::new(&env, &token_id);
     let token_admin = token::StellarAssetClient::new(&env, &token_id);
 
@@ -211,7 +211,7 @@ fn split_rounds_fee_down() {
 #[test]
 fn open_escrow_below_price_fails() {
     let (env, contract_id, _token, _treasury) = setup();
-    let app = AgentBazaarClient::new(&env, &contract_id);
+    let app = KibaClient::new(&env, &contract_id);
     let owner = Address::generate(&env);
     let client = Address::generate(&env);
     let svc = s(&env, "pricey");
@@ -226,7 +226,7 @@ fn open_escrow_below_price_fails() {
 #[test]
 fn claim_twice_fails() {
     let (env, contract_id, token_id, _treasury) = setup();
-    let app = AgentBazaarClient::new(&env, &contract_id);
+    let app = KibaClient::new(&env, &contract_id);
     let token_admin = token::StellarAssetClient::new(&env, &token_id);
 
     let owner = Address::generate(&env);
@@ -249,7 +249,7 @@ fn claim_twice_fails() {
 #[test]
 fn refund_after_delay_returns_funds() {
     let (env, contract_id, token_id, _treasury) = setup();
-    let app = AgentBazaarClient::new(&env, &contract_id);
+    let app = KibaClient::new(&env, &contract_id);
     let token = token::Client::new(&env, &token_id);
     let token_admin = token::StellarAssetClient::new(&env, &token_id);
 
@@ -274,7 +274,7 @@ fn refund_after_delay_returns_funds() {
 #[test]
 fn refund_too_early_fails() {
     let (env, contract_id, token_id, _treasury) = setup();
-    let app = AgentBazaarClient::new(&env, &contract_id);
+    let app = KibaClient::new(&env, &contract_id);
     let token_admin = token::StellarAssetClient::new(&env, &token_id);
 
     let owner = Address::generate(&env);
