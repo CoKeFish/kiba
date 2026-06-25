@@ -1,6 +1,6 @@
 # Arquitectura — Kiba
 
-> **Marketplace descentralizado de agentes IA con pagos x402 sobre Solana.**
+> **Marketplace descentralizado de agentes IA con pagos x402 sobre Stellar (Soroban).**
 > Producto del Dev3pack Global Hackathon (8-10 mayo 2026).
 
 ---
@@ -32,8 +32,8 @@ graph TB
         A2["risk-auditor :5002"]
     end
 
-    subgraph chain["On-chain (Solana devnet)"]
-        SC["Smart Contract<br/>kiba program"]
+    subgraph chain["On-chain (Stellar testnet)"]
+        SC["Smart Contract<br/>kiba (Soroban)"]
     end
 
     LAND -->|GET /agents público| BE
@@ -47,7 +47,7 @@ graph TB
     SDK -->|HTTP 402| A2
     SDK -->|open_escrow / claim_payment| SC
     BE -->|read registry| SC
-    BE -->|WS subscribe logs| SC
+    BE -->|poll/read registry| SC
     A1 -->|register_agent| SC
     A2 -->|register_agent| SC
 
@@ -78,8 +78,8 @@ flowchart LR
         direction TB
         S1["@kiba/sdk<br/>TypeScript library"]
         S2["Wallet: self-custodial<br/>(consumidor firma)"]
-        S3["Auth: keypair Solana"]
-        S4["Pago: SOL on-chain directo"]
+        S3["Auth: keypair Stellar"]
+        S4["Pago: XLM on-chain directo"]
         S1 --> S2 --> S3 --> S4
     end
 
@@ -111,8 +111,8 @@ flowchart LR
 |----------|-----------|------------------|------------|
 | **Empaquetado** | npm `@kiba/sdk` | HTTPS endpoint | npm `kiba-mcp` |
 | **Modelo de wallet** | Self-custodial | Custodial (master) | Custodial delegada |
-| **Auth** | Keypair Solana | Bearer token (`sk_live_*` API key u OAuth) **o** cookie de sesión (Dashboard) | OAuth 2.0 PKCE |
-| **Facturación** | SOL on-chain directo | USD credits | USD credits |
+| **Auth** | Keypair Stellar | Bearer token (`sk_live_*` API key u OAuth) **o** cookie de sesión (Dashboard) | OAuth 2.0 PKCE |
+| **Facturación** | XLM on-chain directo | USD credits | USD credits |
 | **Setup del consumidor** | `npm install` + wallet | signup email + topup | `npx` + browser login |
 | **Latencia típica** | ~3-5s (2 confirmaciones) | ~200ms sync + on-chain async | igual a Gateway |
 
@@ -122,7 +122,7 @@ flowchart LR
 
 Útiles para conversaciones de pitch o UX, **no son nombres de canales** — son ejemplos:
 
-- **Alice** — backend dev de un protocolo DeFi, ya tiene wallet con SOL → camino natural: **Native SDK**.
+- **Alice** — backend dev de un protocolo DeFi, ya tiene wallet con XLM → camino natural: **Native SDK**.
 - **Bob** — full-stack de un SaaS sin crypto → camino natural: **Gateway REST API**.
 - **Carla** — usuaria de Claude Desktop, sin código → camino natural: **MCP Server**.
 
@@ -134,7 +134,7 @@ Ningún canal le pertenece a una persona en exclusiva: Alice podría usar el Gat
 
 | Container | Puerto | Imagen base | Volumes | Rol |
 |-----------|--------|-------------|---------|-----|
-| `kiba-contracts` | — | rust:1.85-slim + solana 3.1.14 + anchor 0.31.1 + standalone solana-test-validator 2.3.13 | `solana-keys`, `cargo-cache`, `anchor-cache` | CLI `kiba` (deploy, airdrop, logs, test) |
+| `kiba-contracts` | — | rust:1.85-slim + stellar-cli + Soroban SDK | `stellar-keys`, `cargo-cache`, `soroban-cache` | CLI `kiba` (build, deploy, friendbot fund, logs, test) |
 | `kiba-backend` | **4000** | node:20-slim + better-sqlite3 + @xenova/transformers | `backend-data` (SQLite), `backend-models` (cache embeddings ~22 MB) | Discovery híbrido: keyword + semantic + hybrid search; WS `/ws`; indexer chain → SQLite |
 | `kiba-landing` | **3010** | node:20-alpine (Astro 5) | — | Landing pública con buscador de agentes en vivo |
 | `kiba-dashboard` | **3020** | node:20-alpine (Vite 6 + React 19) | — | SPA logueada: balance, txs, API keys, OAuth |
@@ -149,7 +149,7 @@ Ningún canal le pertenece a una persona en exclusiva: Alice podría usar el Gat
 - **3020** = Dashboard (SPA). El proxy de Vite expone `/api/*` → `gateway:8000` y `/backend/*` → `backend:4000` para evitar CORS.
 - **6001 ≠ 6000** porque Chrome bloquea 6000 (X11 unsafe port).
 - 7 containers en docker-compose, **8 volumes** (los 6 originales + `backend-data` y `backend-models`), 1 paquete npm extra fuera del compose.
-- **`solana-test-validator-2.3`** está en el contenedor de contracts como binario standalone, separado del CLI principal (3.1.14): el validator de la 3.1 requiere `io_uring`, que el kernel del host no expone al container.
+- El contenedor de contracts compila el contrato Soroban con `stellar-cli` y lo despliega a **Stellar testnet** (no hay validator local: los tests corren con `cargo test` contra el entorno de pruebas de Soroban, y el fondeo de cuentas usa **friendbot**).
 - **`SEMANTIC_SEARCH=false`** en `kiba-backend` desactiva el modelo de embeddings y degrada el discovery a keyword puro (útil si el cold-start del modelo molesta).
 
 ```mermaid
@@ -189,16 +189,16 @@ graph LR
 
 ## 4. Smart contract on-chain
 
-`packages/contracts/programs/kiba/src/lib.rs` (492 líneas Rust + Anchor 0.31.1).
+`packages/contracts-soroban/src/lib.rs` (Rust + Soroban SDK). El paquete Anchor en `packages/contracts` (Solana) es **legacy**, no desplegado.
 
-**Deployado en Solana devnet**: `3CsQnAua3xniuMY5axKUNYtmTyAxh6cG2E257PLjJCmA` ([explorer](https://explorer.solana.com/address/3CsQnAua3xniuMY5axKUNYtmTyAxh6cG2E257PLjJCmA?cluster=devnet)).
+**Deployado en Stellar testnet**: `CDYLMRS2UTBHNTWS67NC2OPQIH2HXGS36WZYC4JUMLKZWT7XXVUUX7XF` ([stellar.expert](https://stellar.expert/explorer/testnet/contract/CDYLMRS2UTBHNTWS67NC2OPQIH2HXGS36WZYC4JUMLKZWT7XXVUUX7XF)).
 
-### 4.1 Cuentas (PDAs)
+### 4.1 Storage del contrato
 
 ```mermaid
 classDiagram
     class Agent {
-        +Pubkey owner
+        +Address owner
         +String service
         +u64 price_per_call
         +String endpoint
@@ -206,20 +206,18 @@ classDiagram
         +u64 total_calls
         +u64 total_earned
         +i64 created_at
-        +u8 bump
-        seeds: ["agent", service]
+        storage: keyed by service
     }
 
     class Escrow {
-        +Pubkey client
-        +Pubkey agent_owner
+        +Address client
+        +Address agent_owner
         +String service
         +u64 amount
         +u64 nonce
         +i64 created_at
         +EscrowState state
-        +u8 bump
-        seeds: ["escrow", client, agent_owner, nonce]
+        storage: keyed by [client, agent_owner, nonce]
     }
 
     class EscrowState {
@@ -233,33 +231,34 @@ classDiagram
     Agent "1" --> "*" Escrow : agent_owner
 ```
 
-### 4.2 Instrucciones
+### 4.2 Funciones del contrato
 
-| Instrucción | Quién la firma | Efecto |
+| Función | Quién autoriza (`require_auth`) | Efecto |
 |-------------|----------------|--------|
-| `register_agent(service, price_per_call, endpoint, description)` | agent owner | Crea Agent PDA con metadata, contadores en 0 |
+| `initialize(token, treasury)` | deployer | Fija el token de liquidación (XLM) y la treasury que cobra el fee. Se llama una sola vez |
+| `register_agent(service, price_per_call, endpoint, description)` | agent owner | Crea la entry `Agent` en storage (clave `service`), contadores en 0 |
 | `update_agent(price_per_call?, endpoint?, description?)` | agent owner | Modifica los campos opcionales que vengan |
-| `deregister_agent` | agent owner | Cierra PDA, devuelve rent |
-| `open_escrow(nonce, amount)` | client | Bloquea `amount` SOL en Escrow PDA. `amount >= price_per_call` |
-| `claim_payment` | agent owner | Transfiere SOL del escrow a su wallet, incrementa `total_calls` y `total_earned` |
-| `refund_escrow` | client | Recupera SOL si pasó refund window (`REFUND_DELAY_SECS = 300`) |
+| `deregister_agent` | agent owner | Elimina la entry `Agent` del storage |
+| `open_escrow(nonce, amount)` | client | Bloquea `amount` XLM (stroops) en el contrato. `amount >= price_per_call` |
+| `claim_payment` | agent owner | Transfiere el escrow: 95% al agent, 5% (500 bps) a la treasury; incrementa `total_calls` y `total_earned` |
+| `refund_escrow` | client | Recupera el XLM si pasó refund window (`REFUND_DELAY_SECS = 300`) |
 
-**Cobertura de tests**: 6/6 en localnet (`packages/contracts/tests/kiba.ts`) — register, update, escrow happy path, refund-too-early, amount-below-price, deregister.
+**Cobertura de tests**: 18/18 cargo tests (`packages/contracts-soroban/src/test.rs`) — cubren initialize, register/update/deregister, escrow happy path, refund-too-early, amount-below-price y autorización (`require_auth`).
 
 ### 4.3 Estado del escrow
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Pending : open_escrow<br/>(client firma)
+    [*] --> Pending : open_escrow<br/>(client require_auth)
 
-    Pending --> Completed : claim_payment<br/>(agent firma)
+    Pending --> Completed : claim_payment<br/>(agent require_auth)
     Pending --> Refunded : refund_escrow<br/>(client, post 5min)
 
-    Completed --> [*] : SOL al agent
-    Refunded --> [*] : SOL al client
+    Completed --> [*] : XLM al agent (95%) + fee a treasury
+    Refunded --> [*] : XLM al client
 
     note right of Pending
-        SOL bloqueado en PDA.
+        XLM bloqueado en el contrato.
         Agent ve nonce en
         X-PAYMENT header HTTP.
     end note
@@ -291,7 +290,7 @@ sequenceDiagram
     DASH->>ORCH: POST /intent
     ORCH->>BE: GET /agents?q=...&mode=hybrid
     BE->>BE: SQLite FTS5 + cosine sobre embeddings
-    Note over BE,SC: catálogo se mantiene fresco por el<br/>indexer que escucha onLogs del programa
+    Note over BE,SC: catálogo se mantiene fresco por el<br/>indexer que lee los servicios configurados (get_agent)
     BE-->>ORCH: JSON manifests con score + matchType
 
     ORCH->>LLM: prompt + tool defs
@@ -322,10 +321,10 @@ sequenceDiagram
     DASH-->>User: render + live tx feed (WS)
 ```
 
-**Tiempos medidos** (on-chain real, devnet, post-deploy):
+**Tiempos medidos** (on-chain real, testnet, post-deploy):
 - discovery search (hybrid): ~3 ms (FTS5 + cosine en memoria)
 - una llamada `/v1/call` end-to-end por el Gateway: 4-7s (open_escrow + claim_payment confirmadas)
-- ejemplo de claim real: [`3nsyq77...`](https://explorer.solana.com/tx/3nsyq77SFkKpPjAvJixrsu25sqbkLxcaQZnu4SQXJHfJzH4W4ca2SGK5YrfK7k8o4vF87S5HSfvSq62yvgL4dfbH?cluster=devnet)
+- ejemplo de claim real: [`4eefd47...`](https://stellar.expert/explorer/testnet/tx/4eefd477cf3eb2d062bbbcaae376a72b705e2ab59bba9de05b8c6ccf09c7994e)
 
 > **Nota**: el playground en el Dashboard (`/app/playground`) está pendiente de UI. La ruta `POST /intent` del Orchestrator ya funciona y se puede invocar por curl. La sección sigue documentando el flujo target.
 
@@ -398,7 +397,7 @@ erDiagram
         TEXT password_hash "bcrypt"
         TEXT custodial_wallet_secret "JSON keypair"
         TEXT custodial_wallet_pubkey
-        INTEGER balance_lamports
+        INTEGER balance_stroops
         INTEGER created_at
     }
 
@@ -437,7 +436,7 @@ erDiagram
         INTEGER id PK
         INTEGER user_id FK
         TEXT type "topup | call | fee | refund"
-        INTEGER amount_lamports "negative for debit"
+        INTEGER amount_stroops "negative for debit"
         TEXT service
         TEXT signature "nullable"
         TEXT metadata "JSON"
@@ -456,20 +455,19 @@ erDiagram
 | Expiración | 30 días con `expires_at` | Sin expiración hasta revocar |
 | Revocación | `POST /oauth/revoke` o `DELETE /v1/oauth/connections/:id` | `DELETE /v1/api-keys/:id` |
 
-### 7.2 On-chain (Solana program accounts)
+### 7.2 On-chain (storage del contrato Soroban)
 
-Ver §4. Cuentas: `Agent` (1 por servicio), `Escrow` (1 por pago).
+Ver §4. Entries de storage: `Agent` (1 por servicio), `Escrow` (1 por pago).
 
 ### 7.3 Backend (SQLite, volume `backend-data`)
 
-Réplica off-chain del registry on-chain. Source of truth sigue siendo on-chain — esta DB es derivable y se reconstruye desde `getProgramAccounts` si se borra.
+Réplica off-chain del registry on-chain. Source of truth sigue siendo on-chain — esta DB es derivable y se reconstruye leyendo los servicios configurados (`get_agent` por cada `service` en `STELLAR_SERVICES`) si se borra.
 
 ```mermaid
 erDiagram
     AGENTS ||--o{ AGENTS_FTS : indexed
     AGENTS {
-        TEXT pda PK
-        TEXT service UK
+        TEXT service PK
         TEXT owner_wallet
         INTEGER price_per_call
         TEXT endpoint
@@ -540,11 +538,10 @@ flowchart TB
 | Semantic | `@xenova/transformers` con **Xenova/all-MiniLM-L6-v2** (384-d) | corre en proceso, sin API key, ~22 MB modelo cacheado en `backend-models` volume |
 | Distancia | cosine en memoria (brute-force) | Trivial hasta ~10K agentes; para escala migrar a `pgvector` o `faiss` |
 
-**Sincronización chain ↔ off-chain (indexer)** — tres capas redundantes en `packages/backend/src/indexer.ts`:
+**Sincronización chain ↔ off-chain (indexer)** — Soroban no permite enumerar contratos ni suscribirse a un stream de eventos, así que el registry se sincroniza leyendo una **lista configurada de servicios** (`STELLAR_SERVICES`). Dos capas en `packages/backend/src/indexer.ts`:
 
-1. **Bootstrap** al arrancar — `program.fetchAllAgents()` → upsert SQLite → genera embedding de cada uno
-2. **Live** — `connection.onLogs(programId)` detecta `RegisterAgent`/`UpdateAgent`/`DeregisterAgent`/`ClaimPayment` y dispara re-snapshot
-3. **Heartbeat** — cada 5 min, re-snapshot completo y reconcilia drift por logs perdidos
+1. **Bootstrap** al arrancar — por cada `service` en `STELLAR_SERVICES`, `get_agent(service)` → upsert SQLite → genera embedding de cada uno
+2. **Heartbeat** — cada 5 min, re-lee los servicios configurados (`get_agent`), re-snapshot completo y reconcilia drift
 
 **Fail-soft del semántico**: si el modelo no carga (sin red, error transitorio), `embed()` devuelve `null`, el módulo entra en disabled, y el server sigue sirviendo solo con keyword. La env `SEMANTIC_SEARCH=false` desactiva el modelo a propósito.
 
@@ -563,23 +560,24 @@ flowchart TB
     SDK["@kiba/sdk<br/>(workspace)"]
 
     subgraph componentes["Componentes SDK"]
-        Prog[program.ts<br/>Anchor sin IDL]
+        Chain[chain/types.ts<br/>ChainClient abstraction]
+        Stellar[chain/stellar.ts<br/>Soroban · XDR/ScVal]
+        Legacy[chain/solana.ts + program.ts<br/>+ anchor-helpers.ts · legacy]
         Prov[provider.ts<br/>server-side x402]
         Cli[client.ts<br/>consumer-side x402]
-        Helpers[anchor-helpers.ts<br/>borsh + PDAs]
         KS[keypair-store.ts]
     end
 
-    SDK --> Prog
+    SDK --> Chain
     SDK --> Prov
     SDK --> Cli
-    SDK --> Helpers
     SDK --> KS
 
-    Prog --> Helpers
-    Prov --> Prog
+    Chain --> Stellar
+    Chain --> Legacy
+    Prov --> Chain
     Prov --> KS
-    Cli --> Prog
+    Cli --> Chain
 
     A1[demo-agents<br/>yield-hunter] --> Prov
     A2[demo-agents<br/>risk-auditor] --> Prov
@@ -589,11 +587,11 @@ flowchart TB
     classDef sdk fill:#9945FF20,stroke:#9945FF
     classDef consumer fill:#14F19520,stroke:#14F195
 
-    class SDK,Prog,Prov,Cli,Helpers,KS sdk
+    class SDK,Chain,Stellar,Legacy,Prov,Cli,KS sdk
     class A1,A2,ORCH,GW consumer
 ```
 
-**Modo degradado**: si `PROGRAM_ID` no está en el `.env`, `program.ts` queda en `null` y `provider`/`client` operan sin verificar on-chain. Permite demo end-to-end aunque el contract no esté deployado. Hoy `PROGRAM_ID=3CsQnAua...` está set y todo el flujo opera contra devnet real.
+**Modo degradado**: si no hay `CHAIN`/`STELLAR_CONTRACT_ID` en el `.env`, el `ChainClient` queda en `null` y `provider`/`client` operan sin verificar on-chain. Permite demo end-to-end aunque el contrato no esté deployado. Hoy `CHAIN=stellar` y `STELLAR_CONTRACT_ID=CDYLMRS2...` están set y todo el flujo opera contra testnet real.
 
 ---
 
@@ -601,8 +599,8 @@ flowchart TB
 
 | Capa | Tecnología | Versión |
 |------|-----------|---------|
-| Smart contract | Rust + Anchor | 1.85 + 0.31.1 |
-| Solana CLI | solana-cli | 3.1.14 (+ `solana-test-validator-2.3` standalone para localnet) |
+| Smart contract | Rust + Soroban SDK | 1.85 |
+| Stellar CLI | stellar-cli (soroban) | testnet + friendbot |
 | Backend services | Node.js + TypeScript + Express | 20 + 5.x |
 | Backend discovery | SQLite FTS5 + `@xenova/transformers` (all-MiniLM-L6-v2, 384-d) | — |
 | Landing | Astro + Tailwind v4 + Shiki | 5.x + 4.x |
@@ -614,7 +612,7 @@ flowchart TB
 | API keys | sk_live_* + SHA-256 hash | — |
 | OAuth | OAuth 2.0 + PKCE manual | RFC 7636 |
 | MCP | `@modelcontextprotocol/sdk` | latest |
-| Payments | x402 protocol + SOL nativo (USDC = 1 línea) | — |
+| Payments | x402 protocol + XLM nativo (stroops; USDC = otro token) | — |
 | Container | Docker + docker-compose v2 | — |
 | Monorepo | npm workspaces | npm 10 |
 
@@ -622,17 +620,17 @@ flowchart TB
 
 ## 11. Decisiones de arquitectura clave
 
-1. **SDK manual sin IDL** — encoders borsh propios, así el SDK no depende de regenerar IDLs después de cada `anchor build`. Trade-off: más código, menos magia.
+1. **SDK multi-cadena vía `ChainClient`** — una abstracción (`chain/types.ts`) con impls intercambiables; `chain/stellar.ts` (Soroban, activa) codifica los args como XDR/ScVal con `@stellar/stellar-sdk`. La impl Solana (`program.ts` + `anchor-helpers.ts`) queda como legacy. Trade-off: una interfaz extra, pero cambiar de cadena no toca `provider`/`client`.
 
 2. **Custodial wallets en Gateway** — sacrificio de descentralización a cambio de UX Web2. Master wallet única firma por todos. Para producción se rotaría a per-user wallets en HSM.
 
 3. **OAuth PKCE en lugar de API keys** — copiamos el patrón de Notion. Evita que el user tenga que generar/rotar keys; solo "Login with Kiba".
 
-4. **Discovery off-chain hidratado desde on-chain** — `getProgramAccounts` no escala (RPC pesado, lista entera al cliente). El backend mantiene una réplica SQLite con FTS5 + embeddings, sincronizada por un indexer en 3 capas (bootstrap, `onLogs`, heartbeat). On-chain sigue siendo source of truth; off-chain es derivable y rebuildeable. Es el mismo patrón que OpenSea (NFT data on-chain, search via Subgraph) o Uniswap (pools on-chain, frontend via The Graph).
+4. **Discovery off-chain hidratado desde on-chain** — Soroban no permite enumerar contratos ni suscribirse a eventos, así que el backend sincroniza el registry leyendo una lista configurada de servicios (`STELLAR_SERVICES`) vía `get_agent`, y mantiene una réplica SQLite con FTS5 + embeddings, refrescada por un heartbeat. On-chain sigue siendo source of truth; off-chain es derivable y rebuildeable. Es el mismo patrón que OpenSea (NFT data on-chain, search via Subgraph) o Uniswap (pools on-chain, frontend via The Graph).
 
 5. **Híbrido keyword + semántico, fail-soft del semántico** — BM25 cubre el 80%, embeddings (`all-MiniLM-L6-v2`) salvan los queries cross-lingüe. Si el modelo no carga, el server sigue sirviendo keyword puro sin código adicional. Sin contenedor extra, sin API keys, embedding in-process.
 
-6. **SOL nativo, no USDC** — refactor a USDC = cambio de 1 línea (`system_program::transfer` → `token::transfer` + ATA derivation). En devnet, SOL es trivial; en mainnet, USDC es lo que tiene sentido.
+6. **XLM nativo, no USDC** — el contrato liquida en XLM (stroops) vía el token configurado en `initialize`. En testnet, XLM es trivial (friendbot); en mainnet, un asset USDC es lo que tiene sentido y solo cambia el `token` pasado a `initialize`.
 
 7. **3 canales de integración paralelos** — `Native SDK` / `Gateway REST API` / `MCP Server`. Nombrados por mecanismo, no por consumidor (un mismo consumidor puede usar varios). Cada canal define un set único de wallet model + auth + facturación → garantía MECE en la taxonomía.
 
@@ -645,10 +643,10 @@ flowchart TB
 ## 12. Estado actual (snapshot 2026-05-09, día 2 del hackathon)
 
 - ✅ 7 containers en `docker compose up`
-- ✅ **Smart contract deployado en devnet**: `3CsQnAua3xniuMY5axKUNYtmTyAxh6cG2E257PLjJCmA`
-- ✅ **Tests Anchor 6/6 verdes** en localnet (`solana-test-validator-2.3` standalone)
+- ✅ **Smart contract deployado en testnet**: `CDYLMRS2UTBHNTWS67NC2OPQIH2HXGS36WZYC4JUMLKZWT7XXVUUX7XF`
+- ✅ **Tests Soroban 18/18 verdes** (`cargo test` en `packages/contracts-soroban/src/test.rs`)
 - ✅ Demo agents (yield-hunter, risk-auditor) auto-registrados on-chain
-- ✅ **E2E real on-chain probado**: signup → topup → `/v1/call` → `open_escrow` + `claim_payment` ambos confirmados en devnet, balance del agent on-chain incrementa
+- ✅ **E2E real on-chain probado**: signup → topup → `/v1/call` → `open_escrow` + `claim_payment` ambos confirmados en testnet (split 95/5 a agent/treasury con hashes reales), balance del agent on-chain incrementa
 - ✅ Discovery híbrido en backend: keyword (FTS5) + semantic (embeddings) + hybrid; latencia 1–3 ms
 - ✅ Landing con buscador de agentes en vivo + 7 demo agents en mezcla ES/EN
 - ✅ Dashboard con auth: signup, login, balance, transacciones, credentials (API keys + OAuth connections)
