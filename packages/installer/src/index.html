@@ -40,8 +40,12 @@
       </section>
 
       <section id="screen-pick" class="screen">
-        <h2>Where do you want to install?</h2>
-        <p class="dim">
+        <h2 id="pick-title">Where do you want to install?</h2>
+        <div class="mode-toggle" role="tablist">
+          <button id="mode-install" class="mode-btn active" type="button">Install</button>
+          <button id="mode-uninstall" class="mode-btn" type="button">Uninstall</button>
+        </div>
+        <p class="dim" id="pick-sub">
           We'll add Kiba to the MCP config of each selected client.
           Existing settings are backed up automatically.
         </p>
@@ -49,18 +53,18 @@
         <div class="actions">
           <button id="btn-install" class="primary" disabled>Install</button>
         </div>
-        <p class="small dim">Solana · x402 · Model Context Protocol</p>
+        <p class="small dim">Stellar · x402 · Model Context Protocol</p>
       </section>
 
       <section id="screen-installing" class="screen">
         <div class="spinner"></div>
-        <p class="dim">Installing…</p>
+        <p class="dim" id="installing-label">Installing…</p>
       </section>
 
       <section id="screen-done" class="screen">
-        <h2><span class="check">✓</span> Done</h2>
+        <h2><span class="check">✓</span> <span id="done-title">Done</span></h2>
         <ul id="result-list" class="result-list"></ul>
-        <p class="dim">
+        <p class="dim" id="done-note">
           Restart your client and you'll see four new tools:
           <code>list_agents</code>, <code>call_agent</code>,
           <code>get_balance</code>, <code>get_transactions</code>.

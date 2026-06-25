@@ -8,6 +8,7 @@ const NODEJS_URL = "https://nodejs.org/en/download";
 
 let detectedClients = [];
 let selectedIds = new Set();
+let mode = "install"; // "install" | "uninstall"
 
 const $ = (id) => document.getElementById(id);
 
@@ -20,18 +21,27 @@ function renderClients() {
   const list = $("client-list");
   list.innerHTML = "";
   for (const c of detectedClients) {
+    // En install: seleccionable si NO está ya instalado. En uninstall: solo si lo está.
+    const selectable = mode === "install" ? !c.already_installed : c.already_installed;
     const li = document.createElement("li");
     li.className = "client";
-    if (c.already_installed) li.classList.add("disabled");
+    if (!selectable) li.classList.add("disabled");
 
-    const tagHtml = c.already_installed
-      ? '<span class="tag installed">Already installed</span>'
-      : c.exists
-      ? '<span class="tag detected">Detected</span>'
-      : '<span class="tag notfound">Not found</span>';
+    let tagHtml;
+    if (mode === "install") {
+      tagHtml = c.already_installed
+        ? '<span class="tag installed">Already installed</span>'
+        : c.exists
+        ? '<span class="tag detected">Detected</span>'
+        : '<span class="tag notfound">Not found</span>';
+    } else {
+      tagHtml = c.already_installed
+        ? '<span class="tag installed">Installed</span>'
+        : '<span class="tag notfound">Not installed</span>';
+    }
 
     li.innerHTML = `
-      <input type="checkbox" ${c.already_installed ? "disabled" : ""} />
+      <input type="checkbox" ${selectable ? "" : "disabled"} />
       <div class="client-meta">
         <div class="client-name">${escapeHtml(c.name)}</div>
         <div class="client-status">${escapeHtml(c.config_path)}</div>
@@ -39,7 +49,7 @@ function renderClients() {
       ${tagHtml}
     `;
 
-    if (!c.already_installed) {
+    if (selectable) {
       li.addEventListener("click", (e) => {
         if (e.target.tagName === "INPUT") return; // already toggled by browser
         const cb = li.querySelector('input[type="checkbox"]');
@@ -68,7 +78,26 @@ function toggleSelection(id, checked, li) {
 }
 
 function updateInstallButton() {
-  $("btn-install").disabled = selectedIds.size === 0;
+  const btn = $("btn-install");
+  const n = selectedIds.size;
+  btn.disabled = n === 0;
+  const verb = mode === "install" ? "Install" : "Remove";
+  btn.textContent = n > 0 ? `${verb} (${n})` : verb;
+}
+
+function setMode(m) {
+  if (mode === m) return;
+  mode = m;
+  selectedIds.clear();
+  $("mode-install").classList.toggle("active", m === "install");
+  $("mode-uninstall").classList.toggle("active", m === "uninstall");
+  $("pick-title").textContent =
+    m === "install" ? "Where do you want to install?" : "Where do you want to remove Kiba?";
+  $("pick-sub").textContent =
+    m === "install"
+      ? "We'll add Kiba to the MCP config of each selected client. Existing settings are backed up automatically."
+      : "We'll remove the Kiba entry from each selected client. Your other MCP servers are kept.";
+  renderClients();
 }
 
 function escapeHtml(s) {
@@ -92,11 +121,19 @@ async function init() {
   showScreen("pick");
 }
 
-async function doInstall() {
+async function runAction() {
+  const isInstall = mode === "install";
+  $("installing-label").textContent = isInstall ? "Installing…" : "Removing…";
   showScreen("installing");
   const ids = Array.from(selectedIds);
-  const results = await invoke("install", { clientIds: ids });
+  const results = await invoke(isInstall ? "install" : "uninstall", { clientIds: ids });
   renderResults(results);
+  $("done-title").textContent = isInstall ? "Done" : "Removed";
+  $("done-note").innerHTML = isInstall
+    ? `Restart your client and you'll see four new tools: <code>list_agents</code>, <code>call_agent</code>, <code>get_balance</code>, <code>get_transactions</code>.`
+    : `Kiba was removed from the selected clients. Restart them to drop the tools.`;
+  // "Open dashboard" no aplica al desinstalar.
+  $("btn-dashboard").style.display = isInstall ? "" : "none";
   showScreen("done");
 }
 
@@ -117,7 +154,9 @@ function renderResults(results) {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  $("btn-install").addEventListener("click", doInstall);
+  $("btn-install").addEventListener("click", runAction);
+  $("mode-install").addEventListener("click", () => setMode("install"));
+  $("mode-uninstall").addEventListener("click", () => setMode("uninstall"));
   $("btn-dashboard").addEventListener("click", () => openUrl(DASHBOARD_URL));
   $("btn-close").addEventListener("click", () => window.close());
   $("open-nodejs").addEventListener("click", (e) => {
