@@ -242,12 +242,28 @@ export class AgentClient {
     const tEscrow = performance.now();
     let escrowSig = 'NO_ONCHAIN_PROGRAM_ID';
     if (this.chain) {
-      escrowSig = await this.chain.openEscrow({
-        service: manifest.service,
-        payToAddress: quote.payTo,
-        nonce: BigInt(quote.nonce),
-        amountBaseUnits: BigInt(quote.amount),
-      });
+      try {
+        escrowSig = await this.chain.openEscrow({
+          service: manifest.service,
+          payToAddress: quote.payTo,
+          nonce: BigInt(quote.nonce),
+          amountBaseUnits: BigInt(quote.amount),
+        });
+      } catch (err) {
+        // La tx de open_escrow PUDO difundirse on-chain (p.ej. timeout tras broadcast) y
+        // dejar el escrow Pending. Lanzamos un error accionable con service/nonce para que
+        // el caller pueda verificar y recuperar fondos, en vez de quedar varados sin pista.
+        const e = new Error(
+          `apertura de escrow para '${service}' (nonce ${quote.nonce}) falló o no confirmó. ` +
+            `Si la tx se difundió, el escrow puede quedar Pending; verifica y usa ` +
+            `client.refundEscrow('${service}', ${quote.nonce}n) tras la ventana de refund. ` +
+            `Causa: ${(err as Error).message}`,
+        ) as Error & { recoverable: boolean; service: string; nonce: string };
+        e.recoverable = true;
+        e.service = service;
+        e.nonce = String(quote.nonce);
+        throw e;
+      }
     }
     steps.push({
       type: 'escrow_opened',
