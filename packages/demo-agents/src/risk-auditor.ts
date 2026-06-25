@@ -10,10 +10,10 @@ const KEYPAIR_PATH = process.env.KEYPAIR_PATH || '/app/data/risk-auditor.json';
 const wallet = loadKeypairFromEnvOrFile('AGENT_WALLET_SECRET', KEYPAIR_PATH);
 
 // Pricing dinámico: cobra por cada protocolo auditado.
-// Floor 0.005 SOL (cubre 1 protocolo), + 0.005 SOL por protocolo adicional.
-// Auditar 1 protocolo ≈ 0.005 SOL, 5 protocolos ≈ 0.025 SOL.
-const PRICE_FLOOR_SOL = 0.005;
-const PRICE_PER_PROTOCOL_SOL = 0.005;
+// Floor 0.005 XLM (cubre 1 protocolo), + 0.005 XLM por protocolo adicional.
+// Auditar 1 protocolo ≈ 0.005 XLM, 5 protocolos ≈ 0.025 XLM.
+const PRICE_FLOOR_XLM = 0.005;
+const PRICE_PER_PROTOCOL_XLM = 0.005;
 
 function countProtocols(req: unknown): number {
   const r = req as { protocol?: string; protocols?: string[] };
@@ -25,11 +25,11 @@ function countProtocols(req: unknown): number {
 const agent = new AgentProvider({
   wallet,
   service: 'risk-auditor',
-  pricePerCall: PRICE_FLOOR_SOL,
-  pricingNote: `${PRICE_PER_PROTOCOL_SOL} SOL por protocolo auditado (floor ${PRICE_FLOOR_SOL} SOL)`,
-  priceFn: (req: unknown) => countProtocols(req) * PRICE_PER_PROTOCOL_SOL,
+  pricePerCall: PRICE_FLOOR_XLM,
+  pricingNote: `${PRICE_PER_PROTOCOL_XLM} XLM por protocolo auditado (floor ${PRICE_FLOOR_XLM} XLM)`,
+  priceFn: (req: unknown) => countProtocols(req) * PRICE_PER_PROTOCOL_XLM,
   description:
-    'Analiza el riesgo de smart contracts / protocolos Solana. Acepta protocolos individuales o batch. Cobra por protocolo auditado.',
+    'Analiza el riesgo de smart contracts / protocolos Stellar (Soroban). Acepta protocolos individuales o batch. Cobra por protocolo auditado.',
   endpoint: process.env.PUBLIC_ENDPOINT || 'http://demo-agents:5002',
 });
 
@@ -53,7 +53,7 @@ interface RiskResponse {
 }
 
 const MOCK_RISK: Record<string, Omit<RiskReport, 'protocol'>> = {
-  Kamino: {
+  Blend: {
     score: 8.5,
     rating: 'low',
     factors: [
@@ -64,7 +64,7 @@ const MOCK_RISK: Record<string, Omit<RiskReport, 'protocol'>> = {
     ],
     summary: 'Riesgo BAJO — protocolo maduro con auditorías y track record.',
   },
-  Lulo: {
+  YieldBlox: {
     score: 7.2,
     rating: 'low',
     factors: [
@@ -72,7 +72,7 @@ const MOCK_RISK: Record<string, Omit<RiskReport, 'protocol'>> = {
       { name: 'TVL moderado', impact: 'positive', weight: 0.3 },
       { name: 'agregador (riesgo de protocolos subyacentes)', impact: 'negative', weight: 0.3 },
     ],
-    summary: 'Riesgo BAJO-MEDIO — agregador, hereda riesgo de Kamino/Drift/MarginFi.',
+    summary: 'Riesgo BAJO-MEDIO — agregador, hereda riesgo de Blend/Aquarius/Soroswap.',
   },
   default: {
     score: 5.0,

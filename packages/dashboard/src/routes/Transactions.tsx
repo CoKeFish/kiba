@@ -25,7 +25,7 @@ export default function Transactions() {
       <div>
         <h1 className="text-2xl font-semibold">Transactions</h1>
         <p className="text-sm text-[var(--color-fg-muted)]">
-          Every call, top-up and refund — auditable on Solana when on-chain mode is active.
+          Every call, top-up and refund — auditable on Stellar when on-chain mode is active.
         </p>
       </div>
 

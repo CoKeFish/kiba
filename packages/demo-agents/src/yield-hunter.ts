@@ -23,27 +23,27 @@ const PRICE_BY_RISK: Record<string, number> = {
   medium: 0.01,
   high: 0.015,
 };
-const PRICE_FLOOR_SOL = Math.min(...Object.values(PRICE_BY_RISK));
+const PRICE_FLOOR_XLM = Math.min(...Object.values(PRICE_BY_RISK));
 
 const agent = new AgentProvider({
   wallet,
   service: 'yield-hunter',
-  pricePerCall: PRICE_FLOOR_SOL,
-  pricingNote: 'low risk = 0.005 SOL · medium = 0.01 SOL · high = 0.015 SOL (más análisis cuesta más)',
+  pricePerCall: PRICE_FLOOR_XLM,
+  pricingNote: 'low risk = 0.005 XLM · medium = 0.01 XLM · high = 0.015 XLM (más análisis cuesta más)',
   priceFn: (req: unknown) => {
     const risk = (req as { riskTolerance?: string })?.riskTolerance ?? 'low';
     return PRICE_BY_RISK[risk] ?? PRICE_BY_RISK.low;
   },
   description:
-    'Encuentra el mejor APY entre protocolos DeFi en Solana. Pricing escalado por profundidad de análisis.',
+    'Encuentra el mejor APY entre protocolos DeFi en Stellar. Pricing escalado por profundidad de análisis.',
   endpoint: process.env.PUBLIC_ENDPOINT || 'http://demo-agents:5001',
 });
 
 const MOCK_YIELDS = [
-  { protocol: 'Kamino', token: 'USDC', apy: 9.2, tvl: 145_000_000 },
-  { protocol: 'Lulo', token: 'USDC', apy: 8.5, tvl: 89_000_000 },
-  { protocol: 'MarginFi', token: 'USDC', apy: 7.1, tvl: 320_000_000 },
-  { protocol: 'Drift', token: 'USDC', apy: 6.8, tvl: 210_000_000 },
+  { protocol: 'Blend', token: 'USDC', apy: 9.2, tvl: 145_000_000 },
+  { protocol: 'YieldBlox', token: 'USDC', apy: 8.5, tvl: 89_000_000 },
+  { protocol: 'Aquarius', token: 'USDC', apy: 7.1, tvl: 320_000_000 },
+  { protocol: 'Soroswap', token: 'USDC', apy: 6.8, tvl: 210_000_000 },
 ];
 
 interface YieldRequest {

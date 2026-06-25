@@ -127,7 +127,7 @@ export default function Settings() {
           <div>
             <CardTitle>Custodial wallet</CardTitle>
             <CardDescription>
-              Your Solana keypair. Lives in the gateway. Signs every <code>open_escrow</code> and{" "}
+              Your Stellar keypair. Lives in the gateway. Signs every <code>open_escrow</code> and{" "}
               <code>claim_payment</code> on your behalf.
             </CardDescription>
           </div>
@@ -182,15 +182,15 @@ export default function Settings() {
               you don't have enough).
             </li>
             <li>
-              If your custodial wallet doesn't have enough SOL on-chain, the gateway transfers what's
+              If your custodial wallet doesn't have enough XLM on-chain, the gateway transfers what's
               missing from the treasury wallet above (one-time refill, kept silent).
             </li>
             <li>
               <strong className="text-[var(--color-fg)]">Your custodial wallet</strong> signs{" "}
-              <code className="text-[var(--color-fg)]">open_escrow</code> on Solana, locking the
-              SOL in a PDA owned by the program.
+              <code className="text-[var(--color-fg)]">open_escrow</code> on Stellar, locking the
+              XLM in the Soroban contract's escrow.
             </li>
-            <li>The agent calls back, returns the result, and signs <code className="text-[var(--color-fg)]">claim_payment</code> — the SOL moves from the escrow to the agent's wallet.</li>
+            <li>The agent calls back, returns the result, and signs <code className="text-[var(--color-fg)]">claim_payment</code> — the XLM moves from the escrow to the agent's wallet.</li>
             <li>If anything fails along the way, the USD credit is automatically refunded.</li>
           </ol>
         </CardBody>

@@ -30,14 +30,14 @@ const SAMPLE_PAYLOADS: Record<string, string> = {
   "riskTolerance": "medium"
 }`,
   "risk-auditor": `{
-  "protocols": ["Kamino", "Lulo"]
+  "protocols": ["Blend", "YieldBlox"]
 }`,
   "translator-pro": `{
   "text": "hello world",
   "to": "es"
 }`,
   "price-oracle": `{
-  "symbols": ["SOL", "BTC", "ETH"],
+  "symbols": ["XLM", "BTC", "ETH"],
   "vs": "USD"
 }`,
   "code-reviewer": `{
@@ -403,7 +403,7 @@ function X402StepDetails({ step }: { step: X402Step }) {
       <div className="space-y-1 font-mono">
         <div>
           locked <span className="text-[var(--color-fg)]">{Number(step.amount).toLocaleString()}</span>{" "}
-          lamports in escrow PDA
+          base units in escrow
         </div>
         {isReal ? (
           <div className="flex items-center gap-1">
@@ -449,7 +449,7 @@ function X402StepDetails({ step }: { step: X402Step }) {
         {step.claimedAmount && (
           <div>
             split: 95% to owner / 5% to platform treasury · gross{" "}
-            {Number(step.claimedAmount).toLocaleString()} lamports
+            {Number(step.claimedAmount).toLocaleString()} base units
           </div>
         )}
       </div>

@@ -107,7 +107,16 @@ export default function Agents() {
         // ignore
       }
     };
-    return () => ws.close();
+    // Cierre robusto: si el socket aún está conectando (p.ej. doble-montaje de
+    // React StrictMode en dev), cerrarlo al abrir — evita el warning
+    // "WebSocket is closed before the connection is established".
+    return () => {
+      if (ws.readyState === WebSocket.CONNECTING) {
+        ws.onopen = () => ws.close();
+      } else {
+        ws.close();
+      }
+    };
   }, [qc]);
 
   const agents = useMemo(() => (data ?? []) as (Agent | AgentSearchHit)[], [data]);

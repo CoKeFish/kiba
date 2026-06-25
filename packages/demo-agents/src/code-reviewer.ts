@@ -10,20 +10,20 @@ const KEYPAIR_PATH = process.env.KEYPAIR_PATH || '/app/data/code-reviewer.json';
 const wallet = loadKeypairFromEnvOrFile('AGENT_WALLET_SECRET', KEYPAIR_PATH);
 
 // Pricing dinámico: cobra por líneas de código analizadas.
-// Floor 0.005 SOL (cubre snippets cortos), + 0.0002 SOL por línea.
-// Una función de 30 líneas ≈ 0.011 SOL, un módulo de 200 líneas ≈ 0.045 SOL.
-const PRICE_FLOOR_SOL = 0.005;
-const PRICE_PER_LINE_SOL = 0.0002;
+// Floor 0.005 XLM (cubre snippets cortos), + 0.0002 XLM por línea.
+// Una función de 30 líneas ≈ 0.011 XLM, un módulo de 200 líneas ≈ 0.045 XLM.
+const PRICE_FLOOR_XLM = 0.005;
+const PRICE_PER_LINE_XLM = 0.0002;
 
 const agent = new AgentProvider({
   wallet,
   service: 'code-reviewer',
-  pricePerCall: PRICE_FLOOR_SOL,
-  pricingNote: `Floor ${PRICE_FLOOR_SOL} SOL + ${PRICE_PER_LINE_SOL} SOL per line of code reviewed`,
+  pricePerCall: PRICE_FLOOR_XLM,
+  pricingNote: `Floor ${PRICE_FLOOR_XLM} XLM + ${PRICE_PER_LINE_XLM} XLM per line of code reviewed`,
   priceFn: (req: unknown) => {
     const code = (req as { code?: string })?.code ?? '';
     const lines = code.split('\n').length;
-    return PRICE_FLOOR_SOL + lines * PRICE_PER_LINE_SOL;
+    return PRICE_FLOOR_XLM + lines * PRICE_PER_LINE_XLM;
   },
   description:
     'Reviews TypeScript, Rust and Solidity code for bugs, style issues, and common security vulnerabilities. Charges by line count.',
