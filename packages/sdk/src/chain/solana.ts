@@ -18,6 +18,7 @@ import type {
   OpenEscrowArgs,
   FetchEscrowArgs,
   ClaimPaymentArgs,
+  RefundEscrowArgs,
 } from './types';
 
 const LAMPORTS_PER_SOL = 1e9;
@@ -144,5 +145,11 @@ export class SolanaChainClient implements ChainClient {
       service: args.service,
     });
     return this.program.sendAndConfirm([ix], this.wallet);
+  }
+
+  async refundEscrow(_args: RefundEscrowArgs): Promise<string> {
+    // Esta versión es Stellar-only. El programa Anchor soporta refund_escrow on-chain,
+    // pero el wiring del refund vía SDK para Solana es un follow-up (no se usa aquí).
+    throw new Error('[solana] refundEscrow no implementado (versión Stellar-only)');
   }
 }

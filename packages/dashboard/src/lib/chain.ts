@@ -41,7 +41,7 @@ const CONFIGS: Record<string, ChainConfig> = {
   },
 };
 
-const KEY = (import.meta.env.VITE_CHAIN || "solana").toLowerCase();
+const KEY = (import.meta.env.VITE_CHAIN || "stellar").toLowerCase();
 
 /** Config de la cadena activa. */
-export const chain: ChainConfig = CONFIGS[KEY] ?? CONFIGS.solana;
+export const chain: ChainConfig = CONFIGS[KEY] ?? CONFIGS.stellar;

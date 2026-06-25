@@ -1,4 +1,4 @@
-import axios, { type AxiosError } from 'axios';
+import axios, { type AxiosError, type AxiosResponse } from 'axios';
 import { type Keypair } from '@solana/web3.js';
 import type { AgentConfig, CallOptions, ServiceManifest, X402Quote } from './types';
 import { createChainClient, type ChainClient } from './chain';
@@ -272,10 +272,29 @@ export class AgentClient {
 
     // 4) Reintentar con el header → el agente verifica + ejecuta + claim
     const tFinal = performance.now();
-    const final = await axios.post(`${manifest.endpoint}/service`, payload, {
-      headers: { 'X-PAYMENT': paymentHeader },
-      timeout: options.timeoutMs ?? 30_000,
-    });
+    let final: AxiosResponse;
+    try {
+      final = await axios.post(`${manifest.endpoint}/service`, payload, {
+        headers: { 'X-PAYMENT': paymentHeader },
+        timeout: options.timeoutMs ?? 30_000,
+      });
+    } catch (err) {
+      // El escrow ya está abierto on-chain: si la llamada al agente falla, los fondos quedan
+      // retenidos. Lanzamos un error accionable indicando cómo recuperarlos (refund tras la
+      // ventana del contrato). Antes esto dejaba los fondos varados sin pista de recuperación.
+      if (this.chain && escrowSig !== 'NO_ONCHAIN_PROGRAM_ID') {
+        const e = new Error(
+          `service '${service}' falló tras abrir el escrow (nonce ${quote.nonce}). ` +
+            `Fondos retenidos; recupéralos con client.refundEscrow('${service}', ${quote.nonce}n) ` +
+            `tras la ventana de refund. Causa: ${(err as Error).message}`,
+        ) as Error & { recoverable: boolean; service: string; nonce: string };
+        e.recoverable = true;
+        e.service = service;
+        e.nonce = String(quote.nonce);
+        throw e;
+      }
+      throw err;
+    }
     const responsePayment = (final.data as { _payment?: { signature?: string; amount?: string } })
       ?._payment;
     steps.push({
@@ -320,7 +339,21 @@ export class AgentClient {
 
     // Fallback: backend
     const backendUrl = process.env.BACKEND_URL ?? 'http://localhost:4000';
-    const resp = await axios.get<ServiceManifest>(`${backendUrl}/agents/${service}`);
+    const resp = await axios.get<ServiceManifest>(`${backendUrl}/agents/${service}`, {
+      timeout: 10_000,
+    });
     return resp.data;
+  }
+
+  /**
+   * Reembolsa un escrow Pending (p.ej. si la llamada al servicio falló tras abrirlo).
+   * Solo procede tras la ventana de refund del contrato (REFUND_DELAY_SECS). Devuelve el
+   * hash/id de la transacción.
+   */
+  async refundEscrow(service: string, nonce: bigint | string): Promise<string> {
+    if (!this.chain) {
+      throw new Error('refundEscrow: sin cadena configurada (modo degradado)');
+    }
+    return this.chain.refundEscrow({ service, nonce: BigInt(nonce) });
   }
 }

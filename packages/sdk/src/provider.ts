@@ -197,8 +197,18 @@ export class AgentProvider {
     }
 
     try {
-      // Sin cadena → modo degradado: aceptar el pago sin verificar on-chain (Phase 1)
+      // Sin cadena → modo degradado. Secure-by-default (fail-CLOSED): NO servir gratis.
+      // Solo se permite con ALLOW_DEGRADED_PAYMENTS=1 (opt-in explícito, p.ej. demo local
+      // sin contrato). Independiente de NODE_ENV.
       if (!this.chain) {
+        if (process.env.ALLOW_DEGRADED_PAYMENTS !== '1') {
+          res.status(503).json({
+            error:
+              'on-chain verification unavailable (no chain configured) — refusing to serve unpaid. ' +
+              'Set ALLOW_DEGRADED_PAYMENTS=1 to allow degraded mode explicitly.',
+          });
+          return;
+        }
         const result = await this.handler(req.body);
         res.json({
           ...((typeof result === 'object' && result !== null) ? result : { result }),

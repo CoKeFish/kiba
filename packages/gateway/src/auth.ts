@@ -11,14 +11,25 @@ import { usdToLamports } from './billing';
 const SIGNUP_BONUS_USD = 5;
 
 const DEFAULT_JWT_SECRET = 'dev-secret-change-in-prod';
-const JWT_SECRET = process.env.JWT_SECRET || DEFAULT_JWT_SECRET;
-if (JWT_SECRET === DEFAULT_JWT_SECRET) {
+// Seguridad independiente de NODE_ENV: NUNCA firmar con el default público ni con un
+// secreto débil. Si falta/es inseguro: en producción se aborta; fuera de producción se
+// genera uno ALEATORIO efímero (las sesiones no sobreviven a un reinicio — aceptable en
+// dev/testnet) de modo que las cookies jamás se firman con un secreto conocido/forjable.
+const envSecret = process.env.JWT_SECRET;
+let JWT_SECRET: string;
+if (!envSecret || envSecret === DEFAULT_JWT_SECRET || envSecret.length < 32) {
   if (process.env.NODE_ENV === 'production') {
     throw new Error(
-      '[auth] JWT_SECRET ausente o igual al default inseguro. Define un JWT_SECRET fuerte en producción.',
+      '[auth] JWT_SECRET ausente o inseguro en producción. Define uno fuerte: openssl rand -base64 48',
     );
   }
-  console.warn('[auth] usando JWT_SECRET débil por defecto; define JWT_SECRET para producción.');
+  JWT_SECRET = randomBytes(48).toString('base64url');
+  console.warn(
+    '[auth] JWT_SECRET ausente o inseguro — usando un secreto ALEATORIO efímero ' +
+      '(las sesiones no sobreviven a reinicios). Define JWT_SECRET para persistirlas.',
+  );
+} else {
+  JWT_SECRET = envSecret;
 }
 
 // ─── JWT helpers (HMAC-SHA256, sin librería) ───────────────────

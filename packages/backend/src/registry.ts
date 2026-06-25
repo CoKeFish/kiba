@@ -22,8 +22,12 @@ export interface RegistryReader {
   readonly baseUnitsPerToken: number;
   readonly asset: string;
   readonly label: string;
-  /** Enumera todos los agentes visibles del registro. */
-  listAgents(): Promise<AgentRecord[]>;
+  /**
+   * Enumera todos los agentes visibles del registro.
+   * `failed` = servicios cuya lectura ERRÓ (≠ "ausente"): el indexer NO debe borrarlos,
+   * para no perder agentes vivos ante un fallo parcial de RPC.
+   */
+  listAgents(): Promise<{ agents: AgentRecord[]; failed: string[] }>;
   /** Suscripción opcional a cambios live. Devuelve un unsubscribe. */
   subscribe?(onChange: () => void): () => void;
 }
@@ -49,10 +53,12 @@ class SolanaRegistryReader implements RegistryReader {
     private readonly connection: Connection,
   ) {}
 
-  async listAgents(): Promise<AgentRecord[]> {
+  async listAgents(): Promise<{ agents: AgentRecord[]; failed: string[] }> {
     const now = Math.floor(Date.now() / 1000);
+    // Solana enumera con getProgramAccounts: es all-or-nothing (lanza si el RPC falla),
+    // así que nunca hay fallo PARCIAL → failed siempre vacío.
     const onChain = await this.program.fetchAllAgents();
-    return onChain.map(({ pda, data }) => ({
+    const agents: AgentRecord[] = onChain.map(({ pda, data }) => ({
       pda: pda.toBase58(),
       service: data.service,
       owner_wallet: data.owner.toBase58(),
@@ -66,6 +72,7 @@ class SolanaRegistryReader implements RegistryReader {
       source: 'chain',
       deleted: 0,
     }));
+    return { agents, failed: [] };
   }
 
   subscribe(onChange: () => void): () => void {
@@ -95,10 +102,10 @@ class StellarRegistryReader implements RegistryReader {
     this.asset = chain.asset;
   }
 
-  async listAgents(): Promise<AgentRecord[]> {
+  async listAgents(): Promise<{ agents: AgentRecord[]; failed: string[] }> {
     const now = Math.floor(Date.now() / 1000);
     const out: AgentRecord[] = [];
-    let failures = 0;
+    const failed: string[] = [];
     for (const service of this.services) {
       try {
         const a = await this.chain.fetchAgent(service);
@@ -121,18 +128,19 @@ class StellarRegistryReader implements RegistryReader {
           deleted: 0,
         });
       } catch (err) {
-        failures++;
+        failed.push(service);
         console.warn(`[registry:stellar] get_agent(${service}) falló:`, (err as Error).message);
       }
     }
     // Si fallaron TODAS las lecturas es un fallo de RPC (no "0 agentes"): lanzar para
     // que el indexer NO reconcilie y NO borre el catálogo por un parpadeo de RPC.
-    if (this.services.length > 0 && failures === this.services.length) {
+    if (this.services.length > 0 && failed.length === this.services.length) {
       throw new Error(
-        `[registry:stellar] todas las lecturas fallaron (${failures}/${this.services.length}) — RPC caído`,
+        `[registry:stellar] todas las lecturas fallaron (${failed.length}/${this.services.length}) — RPC caído`,
       );
     }
-    return out;
+    // `failed` (fallo parcial) viaja al indexer para que NO borre esos servicios.
+    return { agents: out, failed };
   }
   // Sin subscribe: el heartbeat del indexer re-snapshotea periódicamente.
 }

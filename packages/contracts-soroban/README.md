@@ -70,16 +70,16 @@ despliega, resuelve el SAC del activo nativo (XLM) y llama `initialize`.
 | | |
 |---|---|
 | Network | Stellar **testnet** |
-| Contract ID | `CA5M54YV4KG3E75YDJEUXY2C4FYBIEHTQJVZQASYF2WPJUO4KHEIQ62M` |
+| Contract ID | `CDYLMRS2UTBHNTWS67NC2OPQIH2HXGS36WZYC4JUMLKZWT7XXVUUX7XF` |
 | Token (XLM SAC) | `CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC` |
 | Treasury / deployer | `GDQFFCWIGWT22VHN7GBXLMNBEWJ6NNL3NITS2PKVECKDBCG7VV3X6CEZ` |
 | Wasm hash | `69f961e81162e3e06db83aa022f47ca336e89b9a785c6afe4fda24785a751531` |
-| Explorer | https://stellar.expert/explorer/testnet/contract/CA5M54YV4KG3E75YDJEUXY2C4FYBIEHTQJVZQASYF2WPJUO4KHEIQ62M |
+| Explorer | https://stellar.expert/explorer/testnet/contract/CDYLMRS2UTBHNTWS67NC2OPQIH2HXGS36WZYC4JUMLKZWT7XXVUUX7XF |
 
 Leer estado on-chain (read-only, no consume fees):
 
 ```bash
-stellar contract invoke --id CA5M54YV4KG3E75YDJEUXY2C4FYBIEHTQJVZQASYF2WPJUO4KHEIQ62M \
+stellar contract invoke --id CDYLMRS2UTBHNTWS67NC2OPQIH2HXGS36WZYC4JUMLKZWT7XXVUUX7XF \
   --source deployer --network testnet -- get_config
 ```
 

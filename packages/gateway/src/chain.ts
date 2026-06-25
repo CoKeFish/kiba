@@ -9,7 +9,7 @@
 import type { Keypair } from '@solana/web3.js';
 import { createChainClient, type ChainClient } from '@kiba/sdk';
 
-export const CHAIN = (process.env.CHAIN || 'solana').toLowerCase();
+export const CHAIN = (process.env.CHAIN || 'stellar').toLowerCase();
 export const IS_STELLAR = CHAIN === 'stellar';
 
 /** Unidades base por token del activo activo: 1e9 (lamports/SOL) o 1e7 (stroops/XLM). */

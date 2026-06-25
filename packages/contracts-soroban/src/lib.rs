@@ -133,6 +133,10 @@ pub struct Kiba;
 #[contractimpl]
 impl Kiba {
     /// Fija el token de liquidación y la treasury. Solo una vez.
+    // TODO(kiba, contracts-crosscut-01): `initialize` no exige auth → en un redeploy futuro
+    // es front-runnable antes de que el deployer la llame. Endurecer migrándola a un
+    // `__constructor` (atómico en el deploy) en la próxima versión del contrato. Mitigación
+    // actual: deploy-testnet.sh despliega e inicializa en secuencia inmediata.
     pub fn initialize(env: Env, token: Address, treasury: Address) -> Result<(), Error> {
         if env.storage().instance().has(&DataKey::Config) {
             return Err(Error::AlreadyInitialized);

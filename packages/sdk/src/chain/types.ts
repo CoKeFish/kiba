@@ -76,6 +76,12 @@ export interface ClaimPaymentArgs {
   service: string;
 }
 
+export interface RefundEscrowArgs {
+  /** Servicio del que se abrió el escrow (se usa para derivar el agent_owner). */
+  service: string;
+  nonce: bigint;
+}
+
 export interface ChainClient {
   /** Símbolo del activo de liquidación (va en el manifest y la quote x402). */
   readonly asset: 'SOL' | 'USDC' | 'XLM';
@@ -111,4 +117,11 @@ export interface ChainClient {
 
   /** Reclama el pago de un escrow tras servir. Devuelve el id/hash de la transacción. */
   claimPayment(args: ClaimPaymentArgs): Promise<string>;
+
+  /**
+   * Reembolsa al cliente un escrow Pending tras la ventana de espera del contrato
+   * (REFUND_DELAY_SECS). Útil para recuperar fondos si la llamada al servicio falló
+   * después de abrir el escrow. Devuelve el id/hash de la transacción.
+   */
+  refundEscrow(args: RefundEscrowArgs): Promise<string>;
 }

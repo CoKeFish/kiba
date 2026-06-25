@@ -109,6 +109,7 @@ export type {
   OpenEscrowArgs,
   FetchEscrowArgs,
   ClaimPaymentArgs,
+  RefundEscrowArgs,
 } from './types';
 export { SolanaChainClient } from './solana';
 export { StellarChainClient, type StellarChainClientConfig } from './stellar';

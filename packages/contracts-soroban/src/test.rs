@@ -232,6 +232,60 @@ fn split_residue_goes_to_owner() {
     assert_eq!(token.balance(&contract_id), 0);
 }
 
+// ─── auth on-chain ─────────────────────────────────────────────
+
+#[test]
+#[should_panic] // sin mock de auth, owner.require_auth() en register_agent debe fallar
+fn register_agent_requires_owner_auth() {
+    let env = Env::default(); // SIN mock_all_auths → require_auth NO pasa
+    let contract_id = env.register(Kiba, ());
+    let app = KibaClient::new(&env, &contract_id);
+    let token = Address::generate(&env);
+    let treasury = Address::generate(&env);
+    app.initialize(&token, &treasury); // initialize no exige auth
+    let owner = Address::generate(&env);
+    // register_agent exige owner.require_auth() → panic sin auth mockeada.
+    app.register_agent(&owner, &s(&env, "svc"), &1, &s(&env, ""), &s(&env, ""));
+}
+
+#[test]
+fn claim_with_wrong_owner_finds_no_escrow() {
+    // El escrow está keyed por (client, agent_owner, nonce): un tercero no puede reclamar
+    // el de otro (key distinta → EscrowNotFound), aun con auth mockeada.
+    let (env, contract_id, token_id, _treasury) = setup();
+    let app = KibaClient::new(&env, &contract_id);
+    let token_admin = token::StellarAssetClient::new(&env, &token_id);
+    let owner = Address::generate(&env);
+    let client = Address::generate(&env);
+    let stranger = Address::generate(&env);
+    let svc = s(&env, "svc");
+    app.register_agent(&owner, &svc, &1, &s(&env, ""), &s(&env, ""));
+    token_admin.mint(&client, &1_000);
+    app.open_escrow(&client, &svc, &1u64, &1_000);
+    assert_eq!(
+        app.try_claim_payment(&client, &stranger, &1u64),
+        Err(Ok(Error::EscrowNotFound))
+    );
+}
+
+#[test]
+fn refund_with_wrong_client_finds_no_escrow() {
+    let (env, contract_id, token_id, _treasury) = setup();
+    let app = KibaClient::new(&env, &contract_id);
+    let token_admin = token::StellarAssetClient::new(&env, &token_id);
+    let owner = Address::generate(&env);
+    let client = Address::generate(&env);
+    let stranger = Address::generate(&env);
+    let svc = s(&env, "svc");
+    app.register_agent(&owner, &svc, &1, &s(&env, ""), &s(&env, ""));
+    token_admin.mint(&client, &1_000);
+    app.open_escrow(&client, &svc, &1u64, &1_000);
+    assert_eq!(
+        app.try_refund_escrow(&stranger, &owner, &1u64),
+        Err(Ok(Error::EscrowNotFound))
+    );
+}
+
 #[test]
 fn open_escrow_below_price_fails() {
     let (env, contract_id, _token, _treasury) = setup();

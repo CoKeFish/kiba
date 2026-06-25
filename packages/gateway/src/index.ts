@@ -330,13 +330,25 @@ app.get('/auth/connect', (req, res) => {
     return res.status(400).send('Missing code_challenge or redirect_uri');
   }
 
-  // Allowlist de redirect_uri (anti open-redirect / robo de authorization code).
-  // Los MCP clients usan loopback; configurable con ALLOWED_REDIRECT_ORIGINS (CSV).
-  const allowedRedirectOrigins = (process.env.ALLOWED_REDIRECT_ORIGINS ?? 'http://localhost,http://127.0.0.1')
+  // Validación estricta de redirect_uri (anti open-redirect / robo del authorization code).
+  // Parseo con WHATWG URL: sin userinfo, esquema http(s), y hostname EXACTO en allowlist
+  // (loopback por defecto). 'startsWith' era evadible (http://localhost.evil.com, user@host).
+  const allowedRedirectHosts = (process.env.ALLOWED_REDIRECT_ORIGINS ?? 'localhost,127.0.0.1,[::1]')
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean);
-  if (!allowedRedirectOrigins.some((o) => redirectUri.startsWith(o))) {
+  let redirectOk = false;
+  try {
+    const u = new URL(redirectUri);
+    redirectOk =
+      (u.protocol === 'http:' || u.protocol === 'https:') &&
+      !u.username &&
+      !u.password &&
+      allowedRedirectHosts.includes(u.hostname);
+  } catch {
+    redirectOk = false;
+  }
+  if (!redirectOk) {
     return res.status(400).send('redirect_uri no permitido');
   }
 

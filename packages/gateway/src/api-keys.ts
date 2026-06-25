@@ -40,7 +40,7 @@ export function createApiKey(userId: number, name: string, expiresInDays = 365) 
 export function listApiKeys(userId: number) {
   return db
     .prepare(
-      `SELECT id, name, prefix, last_used_at, created_at
+      `SELECT id, name, prefix, last_used_at, created_at, expires_at
        FROM api_keys
        WHERE user_id = ? AND revoked = 0
        ORDER BY created_at DESC`,

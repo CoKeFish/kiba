@@ -9,7 +9,7 @@ import { dirname } from 'node:path';
 const DB_PATH = process.env.DB_PATH || '/app/data/gateway.db';
 mkdirSync(dirname(DB_PATH), { recursive: true });
 
-export const db = new Database(DB_PATH);
+export const db: Database.Database = new Database(DB_PATH);
 db.pragma('journal_mode = WAL');
 db.pragma('foreign_keys = ON');
 
@@ -83,6 +83,9 @@ try {
 } catch {
   /* la columna ya existe */
 }
+// Backfill: keys preexistentes sin expiración → 1 año desde su creación (evita que las
+// keys con expires_at NULL se traten como inmortales tras añadir la columna).
+db.exec('UPDATE api_keys SET expires_at = created_at + 31536000 WHERE expires_at IS NULL');
 
 export interface UserRow {
   id: number;

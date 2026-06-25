@@ -169,7 +169,18 @@ export class Indexer {
     const now = Math.floor(Date.now() / 1000);
 
     if (!this.reader) {
-      console.log('[indexer] sin cadena configurada — sembrando FALLBACK_AGENTS');
+      // backend-02: si CHAIN está configurado pero no hay reader es una MISCONFIG
+      // (falta STELLAR_CONTRACT_ID/PROGRAM_ID) → NO sembrar agentes falsos (catálogo
+      // engañoso). Solo se siembra FALLBACK_AGENTS en modo demo real (CHAIN sin setear).
+      if ((process.env.CHAIN ?? '').trim() !== '') {
+        const msg =
+          '[indexer] CHAIN configurado pero sin reader (falta STELLAR_CONTRACT_ID/PROGRAM_ID) — ' +
+          'NO se siembran FALLBACK_AGENTS para no exponer un catálogo falso. Corrige la config.';
+        if (process.env.NODE_ENV === 'production') throw new Error(msg);
+        console.warn(msg);
+        return;
+      }
+      console.log('[indexer] sin cadena (modo demo) — sembrando FALLBACK_AGENTS');
       for (const a of FALLBACK_AGENTS) {
         upsertAgent(db, { ...a, updated_at: now });
         void embedAgent(a.service, a.description);
@@ -178,7 +189,10 @@ export class Indexer {
     }
 
     try {
-      const onChain = await this.reader.listAgents();
+      const { agents: onChain, failed } = await this.reader.listAgents();
+      if (failed.length > 0) {
+        console.warn(`[indexer] ${failed.length} servicio(s) con lectura fallida — NO se borrarán: ${failed.join(', ')}`);
+      }
       console.log(`[indexer] bootstrap (${this.reader.label}): ${onChain.length} agentes on-chain`);
       // Salvaguarda: lectura vacía con catálogo previo ⇒ probable fallo de RPC (no 0 agentes
       // reales) → NO reconciliar, para no borrar todo el catálogo por un parpadeo de RPC.
@@ -201,7 +215,9 @@ export class Indexer {
       // Marca como deleted los que están en DB pero ya no on-chain (excepto fallbacks)
       const local = listAgents(db, { limit: 10_000 });
       for (const l of local) {
-        if (l.source === 'chain' && !seen.has(l.service)) {
+        // No borrar servicios que ERRORARON esta vuelta (fallo parcial de RPC): solo los
+        // que se leyeron con éxito y ya no están on-chain.
+        if (l.source === 'chain' && !seen.has(l.service) && !failed.includes(l.service)) {
           markDeleted(db, l.service);
           this.emit({ type: 'agent_removed', agent: { service: l.service } });
         }

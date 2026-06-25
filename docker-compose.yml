@@ -141,7 +141,7 @@ services:
       - PROGRAM_ID=${PROGRAM_ID:-}
       - BACKEND_URL=http://backend:4000
       - PORT=8000
-      - JWT_SECRET=${JWT_SECRET:-dev-secret-change-in-prod}
+      - JWT_SECRET=${JWT_SECRET:-}
       - PUBLIC_URL=${PUBLIC_URL:-http://localhost:8000}
       - SOL_USD_RATE=${SOL_USD_RATE:-150}
       # Cadena: con CHAIN=stellar las custodiales y el proxy x402 operan en Soroban.

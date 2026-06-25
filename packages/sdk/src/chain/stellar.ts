@@ -31,6 +31,7 @@ import type {
   OpenEscrowArgs,
   FetchEscrowArgs,
   ClaimPaymentArgs,
+  RefundEscrowArgs,
 } from './types';
 
 /** Stroops por XLM (7 decimales). Análogo a lamports/SOL en Solana. */
@@ -271,6 +272,20 @@ export class StellarChainClient implements ChainClient {
     return this.invoke('claim_payment', [
       this.addr(args.clientAddress),
       this.addr(this.ownerAddress),
+      this.u64(args.nonce),
+    ]);
+  }
+
+  async refundEscrow(args: RefundEscrowArgs): Promise<string> {
+    // 'this' es el cliente/pagador. El contrato keyea el escrow por (client, agent_owner,
+    // nonce); derivamos el agent_owner del registro del servicio (igual que open_escrow).
+    const agent = await this.fetchAgent(args.service);
+    if (!agent) {
+      throw new Error(`[${this.label}] refundEscrow: servicio '${args.service}' no encontrado`);
+    }
+    return this.invoke('refund_escrow', [
+      this.addr(this.ownerAddress),
+      this.addr(agent.ownerAddress),
       this.u64(args.nonce),
     ]);
   }
