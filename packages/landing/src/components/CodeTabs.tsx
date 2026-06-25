@@ -16,7 +16,7 @@ const tabs: Tab[] = [
 
 const client = new AgentClient({
   keypair: myWallet,
-  rpcUrl: 'https://api.devnet.solana.com',
+  rpcUrl: 'https://soroban-testnet.stellar.org',
 });
 
 const result = await client.call('yield-hunter', {

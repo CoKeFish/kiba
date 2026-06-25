@@ -33,7 +33,7 @@ const WINDOW_TITLES = [
   "kiba.com  ·  download",
   "Kiba  ·  installer",
   "Claude Desktop",
-  "x402 settlement  ·  Solana devnet",
+  "x402 settlement  ·  Stellar testnet",
   "Claude Desktop",
 ];
 
@@ -249,7 +249,7 @@ function SceneAsk() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14, padding: "4px 4px" }}>
       <Bubble side="right" delay={0.15} icon={<User size={15} />}>
-        What's the best USDC yield on Solana right now?
+        What's the best USDC yield on Stellar right now?
       </Bubble>
       <Bubble side="left" delay={1.1} icon={<Bot size={15} />}>
         One sec — let me ask a specialist agent for live numbers.
@@ -261,7 +261,7 @@ function SceneAsk() {
         style={{ display: "flex", gap: 8, paddingLeft: 38 }}
       >
         <Chip delay={2.0}>🔌 found · yield-hunter</Chip>
-        <Chip delay={2.35}>0.005 SOL / call</Chip>
+        <Chip delay={2.35}>0.005 XLM / call</Chip>
       </motion.div>
     </div>
   );
@@ -310,12 +310,12 @@ function ScenePay() {
         >
           →
         </motion.span>
-        <Chip delay={0.8}>0.005 SOL · $0.75</Chip>
+        <Chip delay={0.8}>0.005 XLM · $0.0006</Chip>
       </div>
 
       {/* escrow → split flow */}
       <div style={{ display: "flex", alignItems: "stretch", gap: 8 }}>
-        <FlowNode title="You" sub="0.005 SOL" delay={1.1} />
+        <FlowNode title="You" sub="0.005 XLM" delay={1.1} />
         <Arrow delay={1.3} />
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}

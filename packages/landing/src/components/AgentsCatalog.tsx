@@ -24,7 +24,7 @@ type SearchResponse = {
 const FALLBACK: Agent[] = [
   {
     service: "yield-hunter",
-    description: "Compares USDC yields across major Solana DeFi protocols.",
+    description: "Compares USDC yields across major DeFi protocols.",
     endpoint: "",
     pricePerCall: 0.005,
   },
@@ -62,10 +62,10 @@ function serviceToName(service: string): string {
     .join(" ");
 }
 // Defaults coherentes con los del gateway (SOL_USD_RATE=150, XLM_USD_RATE=0.12).
-// Si llega un token desconocido on-chain, asume SOL como antes para no romper.
+// Si llega un token desconocido on-chain, asume XLM (cadena activa: Stellar).
 const RATES: Record<string, number> = { SOL: 150, XLM: 0.12 };
 const priceToUsd = (price: number, token?: string) =>
-  (price * (RATES[token ?? "SOL"] ?? RATES.SOL)).toFixed(4);
+  (price * (RATES[token ?? "XLM"] ?? RATES.XLM)).toFixed(4);
 const fmtPrice = (price: number) => price.toFixed(6);
 
 export default function AgentsCatalog() {
@@ -298,7 +298,7 @@ function AgentCard({ agent: a, hasQuery }: { agent: Agent; hasQuery: boolean }) 
             fontFamily: "var(--font-mono)",
             fontSize: 11,
             color: "var(--fg-3)",
-          }}>{fmtPrice(a.pricePerCall)} {a.acceptedToken ?? "SOL"}</div>
+          }}>{fmtPrice(a.pricePerCall)} {a.acceptedToken ?? "XLM"}</div>
         </div>
       </div>
 
