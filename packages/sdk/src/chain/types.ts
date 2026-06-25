@@ -31,6 +31,10 @@ export interface ChainAgentInfo {
    * implementaciones de cadena que no lo expongan todavía.
    */
   createdAt?: bigint;
+  /** Llamadas totales servidas (opcional; lo expone el registro on-chain). */
+  totalCalls?: bigint;
+  /** Total ganado por el owner, en unidades base del activo (opcional). */
+  totalEarnedBaseUnits?: bigint;
 }
 
 /** Estado de un escrow de pago, en forma neutral. */
@@ -108,6 +112,9 @@ export interface ChainClient {
 
   /** Actualiza un agente existente. Devuelve el id/hash de la transacción. */
   updateAgent(args: UpdateAgentArgs): Promise<string>;
+
+  /** Da de baja un agente (solo el owner). Devuelve el id/hash de la transacción. */
+  deregisterAgent(service: string): Promise<string>;
 
   /** Abre un escrow para pagar a un agente. Devuelve el id/hash de la transacción. */
   openEscrow(args: OpenEscrowArgs): Promise<string>;

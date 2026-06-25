@@ -111,6 +111,11 @@ export class SolanaChainClient implements ChainClient {
     return this.program.sendAndConfirm([ix], this.wallet);
   }
 
+  async deregisterAgent(service: string): Promise<string> {
+    const ix = this.program.deregisterAgentInstr({ owner: this.wallet.publicKey, service });
+    return this.program.sendAndConfirm([ix], this.wallet);
+  }
+
   async openEscrow(args: OpenEscrowArgs): Promise<string> {
     const agentOwner = new PublicKey(args.payToAddress);
     const [agentPda] = getAgentPda(this.program.programId, args.service);

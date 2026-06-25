@@ -1,38 +1,29 @@
 /**
- * Agent management — register / update / deregister on-chain a nombre del user.
+ * Agent management — register / update / deregister / list a nombre del user,
+ * AGNÓSTICO A LA CADENA (Solana o Stellar) vía la abstracción ChainClient.
  *
- * Modelo: el "owner" del agente registrado on-chain ES la custodial wallet del user.
- * Eso significa que cuando alguien paga por usar ese agente, el SOL llega a la
- * custodial wallet del user (no a la master). El user ve esos ingresos en
- * /v1/wallet (balance on-chain real, no virtual USD).
+ * Modelo: el "owner" on-chain del agente registrado ES la custodial wallet del
+ * user (la misma keypair que firma open_escrow/claim_payment). Cuando alguien
+ * paga por usar ese agente, el activo llega a la custodial del user — ingresos
+ * reales on-chain, visibles en /v1/wallet.
  *
- * Para registrar/actualizar/borrar, el gateway:
- *   1. Carga la keypair custodial del user
- *   2. Asegura que esa wallet tiene SOL para el rent + tx fee (refill desde master si no)
- *   3. Construye la instrucción con el SDK low-level y firma con la wallet del user
+ * Flujo (idéntico al de proxy.ts/callOnBehalf, ya probado en Stellar):
+ *   1. ChainClient para la custodial del user (chainClientFor → respeta CHAIN).
+ *   2. ensureFunded() asegura saldo on-chain (friendbot en Stellar, refill master en Solana).
+ *   3. cc.registerAgent / updateAgent / deregisterAgent firma con la wallet del user.
+ *
+ * Soroban no enumera el registro → trackeamos los servicios de cada user en la
+ * tabla `user_agents` para poder listarlos (listMyAgents) sin enumeración on-chain.
  */
-import { Connection, PublicKey } from '@solana/web3.js';
-import { KibaProgram } from '@kiba/sdk';
-import { ensureFunded, getOnChainBalance, loadUserWallet } from './wallets';
+import { ASSET, BASE_UNITS_PER_TOKEN, chainClientFor } from './chain';
+import { ensureFunded, loadUserWallet } from './wallets';
+import { db } from './db';
+import type { ChainClient } from '@kiba/sdk';
 
-const SOLANA_RPC_URL = process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com';
-const PROGRAM_ID = process.env.PROGRAM_ID;
-
-/**
- * Rent-exempt aproximado para una cuenta Agent (8 disc + 32 owner + ~32 service +
- * 8 price + ~256 endpoint + ~512 desc + 8 calls + 8 earned + 8 createdAt + 1 bump
- * = ~870 bytes → ~0.0067 SOL). Pedimos 0.01 para tener margen + tx fee.
- */
-const REGISTER_FUND_LAMPORTS = 10_000_000; // 0.01 SOL
-
-/** Sólo necesita cubrir el tx fee (~5000 lamports). */
-const UPDATE_FUND_LAMPORTS = 100_000; // 0.0001 SOL
-
-function getProgram(): KibaProgram {
-  if (!PROGRAM_ID) throw new Error('PROGRAM_ID env not set');
-  const conn = new Connection(SOLANA_RPC_URL, 'confirmed');
-  return new KibaProgram(PROGRAM_ID, conn);
-}
+/** Fondeo on-demand antes de registrar (cubre fee + rent/TTL). Base units: 0.01 SOL / 1 XLM. */
+const REGISTER_FUND_BASE_UNITS = 10_000_000;
+/** Sólo cubre el tx fee. */
+const UPDATE_FUND_BASE_UNITS = 100_000;
 
 const SERVICE_RE = /^[a-z0-9](?:[a-z0-9-_]{0,30}[a-z0-9])?$/;
 
@@ -56,8 +47,7 @@ export function validateRegisterInput(input: RegisterAgentInput): string | null 
     return 'service must be lowercase, alphanumeric, with optional - or _ (start/end alphanumeric)';
   if (!Number.isInteger(input.pricePerCallLamports) || input.pricePerCallLamports <= 0)
     return 'pricePerCallLamports must be positive integer';
-  if (input.pricePerCallLamports > 100_000_000_000) // 100 SOL cap
-    return 'pricePerCallLamports unreasonably high';
+  if (input.pricePerCallLamports > 100_000_000_000) return 'pricePerCallLamports unreasonably high';
   if (!input.endpoint || !/^https?:\/\//.test(input.endpoint))
     return 'endpoint must be http(s)://...';
   if (input.endpoint.length > 256) return 'endpoint too long (max 256)';
@@ -82,10 +72,18 @@ export function validateUpdateInput(input: UpdateAgentInput): string | null {
   return null;
 }
 
+/** ChainClient (chain-aware) firmando con la custodial del user. Lanza si no hay cadena. */
+function chainFor(userId: number): ChainClient {
+  const cc = chainClientFor(loadUserWallet(userId), `user:${userId}`);
+  if (!cc) throw new Error('on-chain registry unavailable (no chain configured)');
+  return cc;
+}
+
 export interface RegisterResult {
   signature: string;
   pda: string;
   owner: string;
+  service: string;
   refill?: { signature: string; lamports: number };
 }
 
@@ -93,35 +91,30 @@ export async function registerAgent(
   userId: number,
   input: RegisterAgentInput,
 ): Promise<RegisterResult> {
-  const program = getProgram();
-  const userWallet = loadUserWallet(userId);
+  const cc = chainFor(userId);
 
-  // Verifica que el service no exista ya
-  const existing = await program.fetchAgent(input.service);
-  if (existing) {
-    throw new Error(`service "${input.service}" is already registered`);
-  }
+  const existing = await cc.fetchAgent(input.service);
+  if (existing) throw new Error(`service "${input.service}" is already registered`);
 
-  // Refill on-demand (cubre rent + fee)
-  const refillInfo = await ensureFunded(userId, REGISTER_FUND_LAMPORTS);
+  const refillInfo = await ensureFunded(userId, REGISTER_FUND_BASE_UNITS);
 
-  const ix = program.registerAgentInstr({
-    owner: userWallet.publicKey,
+  const signature = await cc.registerAgent({
     service: input.service,
-    pricePerCall: input.pricePerCallLamports,
+    pricePerCallBaseUnits: BigInt(input.pricePerCallLamports),
     endpoint: input.endpoint,
     description: input.description,
   });
 
-  const signature = await program.sendAndConfirm([ix], userWallet);
-  const [pda] = await import('@kiba/sdk').then((m) =>
-    m.getAgentPda(new PublicKey(PROGRAM_ID!), input.service),
-  );
+  // Trackear para poder listar (Soroban no enumera).
+  db.prepare(
+    'INSERT OR REPLACE INTO user_agents (service, user_id, created_at) VALUES (?, ?, ?)',
+  ).run(input.service, userId, Math.floor(Date.now() / 1000));
 
   return {
     signature,
-    pda: pda.toBase58(),
-    owner: userWallet.publicKey.toBase58(),
+    pda: `${ASSET === 'XLM' ? 'stellar' : 'solana'}:${input.service}`,
+    owner: cc.ownerAddress,
+    service: input.service,
     ...(refillInfo.refilled && refillInfo.signature
       ? {
           refill: {
@@ -135,7 +128,7 @@ export async function registerAgent(
 
 export interface UpdateResult {
   signature: string;
-  pda: string;
+  service: string;
 }
 
 export async function updateAgent(
@@ -143,68 +136,43 @@ export async function updateAgent(
   service: string,
   input: UpdateAgentInput,
 ): Promise<UpdateResult> {
-  const program = getProgram();
-  const userWallet = loadUserWallet(userId);
+  const cc = chainFor(userId);
 
-  // Verifica que el agente exista y que el user sea el owner
-  const existing = await program.fetchAgent(service);
+  const existing = await cc.fetchAgent(service);
   if (!existing) throw new Error(`service "${service}" not found`);
-  if (!existing.owner.equals(userWallet.publicKey)) {
-    throw new Error('not the owner of this agent');
-  }
+  if (existing.ownerAddress !== cc.ownerAddress) throw new Error('not the owner of this agent');
 
-  await ensureFunded(userId, UPDATE_FUND_LAMPORTS);
+  await ensureFunded(userId, UPDATE_FUND_BASE_UNITS);
 
-  const ix = program.updateAgentInstr({
-    owner: userWallet.publicKey,
+  const signature = await cc.updateAgent({
     service,
-    pricePerCall: input.pricePerCallLamports ?? null,
+    pricePerCallBaseUnits:
+      input.pricePerCallLamports !== undefined ? BigInt(input.pricePerCallLamports) : null,
     endpoint: input.endpoint ?? null,
     description: input.description ?? null,
   });
 
-  const signature = await program.sendAndConfirm([ix], userWallet);
-  const [pda] = await import('@kiba/sdk').then((m) =>
-    m.getAgentPda(new PublicKey(PROGRAM_ID!), service),
-  );
-
-  return { signature, pda: pda.toBase58() };
+  return { signature, service };
 }
 
 export interface DeregisterResult {
   signature: string;
   service: string;
-  /** Lamports recovered from the closed PDA (rent refund). */
-  rentRecovered: number;
 }
 
-export async function deregisterAgent(
-  userId: number,
-  service: string,
-): Promise<DeregisterResult> {
-  const program = getProgram();
-  const userWallet = loadUserWallet(userId);
+export async function deregisterAgent(userId: number, service: string): Promise<DeregisterResult> {
+  const cc = chainFor(userId);
 
-  const existing = await program.fetchAgent(service);
+  const existing = await cc.fetchAgent(service);
   if (!existing) throw new Error(`service "${service}" not found`);
-  if (!existing.owner.equals(userWallet.publicKey)) {
-    throw new Error('not the owner of this agent');
-  }
+  if (existing.ownerAddress !== cc.ownerAddress) throw new Error('not the owner of this agent');
 
-  await ensureFunded(userId, UPDATE_FUND_LAMPORTS);
+  await ensureFunded(userId, UPDATE_FUND_BASE_UNITS);
 
-  const balanceBefore = await getOnChainBalance(userWallet);
+  const signature = await cc.deregisterAgent(service);
+  db.prepare('DELETE FROM user_agents WHERE service = ? AND user_id = ?').run(service, userId);
 
-  const ix = program.deregisterAgentInstr({
-    owner: userWallet.publicKey,
-    service,
-  });
-  const signature = await program.sendAndConfirm([ix], userWallet);
-
-  const balanceAfter = await getOnChainBalance(userWallet);
-  const rentRecovered = Math.max(0, balanceAfter - balanceBefore);
-
-  return { signature, service, rentRecovered };
+  return { signature, service };
 }
 
 export interface AgentSummary {
@@ -222,24 +190,36 @@ export interface AgentSummary {
 }
 
 export async function listMyAgents(userId: number): Promise<AgentSummary[]> {
-  const program = getProgram();
-  const userWallet = loadUserWallet(userId);
-  const ownerPubkey = userWallet.publicKey;
+  const cc = chainFor(userId);
+  const rows = db
+    .prepare('SELECT service FROM user_agents WHERE user_id = ? ORDER BY created_at DESC')
+    .all(userId) as { service: string }[];
 
-  const all = await program.fetchAllAgents();
-  return all
-    .filter((a) => a.data.owner.equals(ownerPubkey))
-    .map((a) => ({
-      pda: a.pda.toBase58(),
-      owner: a.data.owner.toBase58(),
-      service: a.data.service,
-      pricePerCallLamports: Number(a.data.pricePerCall),
-      pricePerCallSol: Number(a.data.pricePerCall) / 1e9,
-      endpoint: a.data.endpoint,
-      description: a.data.description,
-      totalCalls: Number(a.data.totalCalls),
-      totalEarnedLamports: Number(a.data.totalEarned),
-      totalEarnedSol: Number(a.data.totalEarned) / 1e9,
-      createdAt: Number(a.data.createdAt),
-    }));
+  const out: AgentSummary[] = [];
+  for (const { service } of rows) {
+    const a = await cc.fetchAgent(service);
+    if (!a) {
+      // Ya no existe on-chain → limpiar el tracking y omitir.
+      db.prepare('DELETE FROM user_agents WHERE service = ? AND user_id = ?').run(service, userId);
+      continue;
+    }
+    const price = Number(a.pricePerCallBaseUnits);
+    const earned = a.totalEarnedBaseUnits != null ? Number(a.totalEarnedBaseUnits) : 0;
+    // Nombres *_lamports/*_sol conservados por compat con el dashboard (legacy alias),
+    // con valores correctos para la cadena activa (stroops/XLM cuando CHAIN=stellar).
+    out.push({
+      pda: `${ASSET === 'XLM' ? 'stellar' : 'solana'}:${a.service}`,
+      owner: a.ownerAddress,
+      service: a.service,
+      pricePerCallLamports: price,
+      pricePerCallSol: price / BASE_UNITS_PER_TOKEN,
+      endpoint: a.endpoint,
+      description: a.description,
+      totalCalls: a.totalCalls != null ? Number(a.totalCalls) : 0,
+      totalEarnedLamports: earned,
+      totalEarnedSol: earned / BASE_UNITS_PER_TOKEN,
+      createdAt: a.createdAt != null ? Number(a.createdAt) : 0,
+    });
+  }
+  return out;
 }

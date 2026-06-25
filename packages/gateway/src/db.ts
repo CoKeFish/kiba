@@ -75,6 +75,14 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_tx_user ON transactions(user_id);
   CREATE INDEX IF NOT EXISTS idx_apikeys_user ON api_keys(user_id);
   CREATE INDEX IF NOT EXISTS idx_apikeys_hash ON api_keys(key_hash);
+
+  CREATE TABLE IF NOT EXISTS user_agents (
+    service TEXT PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    created_at INTEGER NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_user_agents_user ON user_agents(user_id);
 `);
 
 // Migración idempotente: añade expires_at a api_keys en DBs creadas antes de esta columna.

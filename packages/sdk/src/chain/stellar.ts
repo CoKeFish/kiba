@@ -209,6 +209,8 @@ export class StellarChainClient implements ChainClient {
           endpoint: string;
           owner: string;
           created_at?: bigint | number;
+          total_calls?: bigint | number;
+          total_earned?: bigint | number;
         }
       | null
       | undefined;
@@ -220,6 +222,8 @@ export class StellarChainClient implements ChainClient {
       endpoint: a.endpoint,
       ownerAddress: a.owner,
       createdAt: a.created_at != null ? BigInt(a.created_at) : undefined,
+      totalCalls: a.total_calls != null ? BigInt(a.total_calls) : undefined,
+      totalEarnedBaseUnits: a.total_earned != null ? BigInt(a.total_earned) : undefined,
     };
   }
 
@@ -240,6 +244,11 @@ export class StellarChainClient implements ChainClient {
       this.optStr(args.endpoint),
       this.optStr(args.description),
     ]);
+  }
+
+  async deregisterAgent(service: string): Promise<string> {
+    // El contrato deriva el owner del registro y exige owner.require_auth() → firma el custodial.
+    return this.invoke('deregister_agent', [this.str(service)]);
   }
 
   async openEscrow(args: OpenEscrowArgs): Promise<string> {
