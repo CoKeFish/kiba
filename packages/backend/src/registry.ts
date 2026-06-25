@@ -98,6 +98,7 @@ class StellarRegistryReader implements RegistryReader {
   async listAgents(): Promise<AgentRecord[]> {
     const now = Math.floor(Date.now() / 1000);
     const out: AgentRecord[] = [];
+    let failures = 0;
     for (const service of this.services) {
       try {
         const a = await this.chain.fetchAgent(service);
@@ -120,8 +121,16 @@ class StellarRegistryReader implements RegistryReader {
           deleted: 0,
         });
       } catch (err) {
+        failures++;
         console.warn(`[registry:stellar] get_agent(${service}) falló:`, (err as Error).message);
       }
+    }
+    // Si fallaron TODAS las lecturas es un fallo de RPC (no "0 agentes"): lanzar para
+    // que el indexer NO reconcilie y NO borre el catálogo por un parpadeo de RPC.
+    if (this.services.length > 0 && failures === this.services.length) {
+      throw new Error(
+        `[registry:stellar] todas las lecturas fallaron (${failures}/${this.services.length}) — RPC caído`,
+      );
     }
     return out;
   }

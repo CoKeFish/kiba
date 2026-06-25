@@ -16,7 +16,9 @@ COPY packages/orchestrator-agent/package.json ./packages/orchestrator-agent/
 COPY packages/gateway/package.json ./packages/gateway/
 COPY packages/mcp-server/package.json ./packages/mcp-server/
 
-RUN npm install
+# Install scoped al workspace (como backend/gateway/demo-agents): evita disparar
+# el `prepare: tsc` de otros workspaces (p.ej. mcp-server) cuyo source no se copia.
+RUN npm install --workspace=@kiba/orchestrator-agent --include-workspace-root
 
 # Source
 COPY packages/sdk ./packages/sdk

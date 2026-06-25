@@ -66,6 +66,7 @@ db.exec(`
     prefix TEXT NOT NULL,
     revoked INTEGER NOT NULL DEFAULT 0,
     last_used_at INTEGER,
+    expires_at INTEGER,
     created_at INTEGER NOT NULL,
     FOREIGN KEY (user_id) REFERENCES users(id)
   );
@@ -75,6 +76,13 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_apikeys_user ON api_keys(user_id);
   CREATE INDEX IF NOT EXISTS idx_apikeys_hash ON api_keys(key_hash);
 `);
+
+// Migración idempotente: añade expires_at a api_keys en DBs creadas antes de esta columna.
+try {
+  db.exec('ALTER TABLE api_keys ADD COLUMN expires_at INTEGER');
+} catch {
+  /* la columna ya existe */
+}
 
 export interface UserRow {
   id: number;

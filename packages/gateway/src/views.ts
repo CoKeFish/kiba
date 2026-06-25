@@ -2,6 +2,13 @@
  * HTML views simples server-rendered. Inline CSS — sin frameworks.
  */
 
+/** Escapa texto para interpolar de forma segura en HTML (anti-XSS). */
+function escapeHtml(s: string): string {
+  return String(s).replace(/[&<>"']/g, (c) =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!),
+  );
+}
+
 const css = `
   * { box-sizing: border-box; }
   body {
@@ -242,10 +249,10 @@ export function authorizeView(data: {
     'Autorizar acceso',
     `<div class="wrap">
       <h1>Autorizar acceso</h1>
-      <p class="muted">Iniciaste sesión como <strong>${data.email}</strong> · Saldo: $${data.balanceUsd.toFixed(2)}</p>
+      <p class="muted">Iniciaste sesión como <strong>${escapeHtml(data.email)}</strong> · Saldo: $${data.balanceUsd.toFixed(2)}</p>
 
       <div class="panel">
-        <h2 style="margin-top:0">${data.clientName}</h2>
+        <h2 style="margin-top:0">${escapeHtml(data.clientName)}</h2>
         <p>Esta aplicación solicita acceso para:</p>
         <ul>
           <li>Llamar agentes en tu nombre</li>

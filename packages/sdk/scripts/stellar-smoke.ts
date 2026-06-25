@@ -12,7 +12,7 @@ import { Keypair, Networks } from '@stellar/stellar-sdk';
 import { StellarChainClient } from '../src/chain/stellar';
 
 const CONTRACT_ID =
-  process.env.STELLAR_CONTRACT_ID ?? 'CA5M54YV4KG3E75YDJEUXY2C4FYBIEHTQJVZQASYF2WPJUO4KHEIQ62M';
+  process.env.STELLAR_CONTRACT_ID ?? 'CDYLMRS2UTBHNTWS67NC2OPQIH2HXGS36WZYC4JUMLKZWT7XXVUUX7XF';
 const RPC = process.env.STELLAR_RPC_URL ?? 'https://soroban-testnet.stellar.org';
 const FRIENDBOT = process.env.STELLAR_FRIENDBOT_URL ?? 'https://friendbot.stellar.org';
 

@@ -40,8 +40,8 @@ services:
       - PROGRAM_ID=${PROGRAM_ID:-}
       - SEMANTIC_SEARCH=${SEMANTIC_SEARCH:-true}
       # Cadena: con CHAIN=stellar el backend indexa el registro Soroban.
-      - CHAIN=${CHAIN:-solana}
-      - STELLAR_CONTRACT_ID=${STELLAR_CONTRACT_ID:-CA5M54YV4KG3E75YDJEUXY2C4FYBIEHTQJVZQASYF2WPJUO4KHEIQ62M}
+      - CHAIN=${CHAIN:-stellar}
+      - STELLAR_CONTRACT_ID=${STELLAR_CONTRACT_ID:-CDYLMRS2UTBHNTWS67NC2OPQIH2HXGS36WZYC4JUMLKZWT7XXVUUX7XF}
       - STELLAR_RPC_URL=${STELLAR_RPC_URL:-https://soroban-testnet.stellar.org}
       - "STELLAR_NETWORK_PASSPHRASE=${STELLAR_NETWORK_PASSPHRASE:-Test SDF Network ; September 2015}"
       - STELLAR_FRIENDBOT_URL=${STELLAR_FRIENDBOT_URL:-https://friendbot.stellar.org}
@@ -88,7 +88,7 @@ services:
       - VITE_GATEWAY_URL=http://gateway:8000
       - VITE_BACKEND_URL=http://backend:4000
       # Cadena para la UI (etiquetas, explorer, tasa). Se deriva de CHAIN.
-      - VITE_CHAIN=${CHAIN:-solana}
+      - VITE_CHAIN=${CHAIN:-stellar}
       - VITE_XLM_USD_RATE=${XLM_USD_RATE:-0.12}
     depends_on:
       - gateway
@@ -115,8 +115,8 @@ services:
       - PROGRAM_ID=${PROGRAM_ID:-}
       - BACKEND_URL=http://backend:4000
       # Cadena: con CHAIN=stellar los agentes registran y cobran en Soroban.
-      - CHAIN=${CHAIN:-solana}
-      - STELLAR_CONTRACT_ID=${STELLAR_CONTRACT_ID:-CA5M54YV4KG3E75YDJEUXY2C4FYBIEHTQJVZQASYF2WPJUO4KHEIQ62M}
+      - CHAIN=${CHAIN:-stellar}
+      - STELLAR_CONTRACT_ID=${STELLAR_CONTRACT_ID:-CDYLMRS2UTBHNTWS67NC2OPQIH2HXGS36WZYC4JUMLKZWT7XXVUUX7XF}
       - STELLAR_RPC_URL=${STELLAR_RPC_URL:-https://soroban-testnet.stellar.org}
       - "STELLAR_NETWORK_PASSPHRASE=${STELLAR_NETWORK_PASSPHRASE:-Test SDF Network ; September 2015}"
       - STELLAR_FRIENDBOT_URL=${STELLAR_FRIENDBOT_URL:-https://friendbot.stellar.org}
@@ -145,8 +145,8 @@ services:
       - PUBLIC_URL=${PUBLIC_URL:-http://localhost:8000}
       - SOL_USD_RATE=${SOL_USD_RATE:-150}
       # Cadena: con CHAIN=stellar las custodiales y el proxy x402 operan en Soroban.
-      - CHAIN=${CHAIN:-solana}
-      - STELLAR_CONTRACT_ID=${STELLAR_CONTRACT_ID:-CA5M54YV4KG3E75YDJEUXY2C4FYBIEHTQJVZQASYF2WPJUO4KHEIQ62M}
+      - CHAIN=${CHAIN:-stellar}
+      - STELLAR_CONTRACT_ID=${STELLAR_CONTRACT_ID:-CDYLMRS2UTBHNTWS67NC2OPQIH2HXGS36WZYC4JUMLKZWT7XXVUUX7XF}
       - STELLAR_RPC_URL=${STELLAR_RPC_URL:-https://soroban-testnet.stellar.org}
       - "STELLAR_NETWORK_PASSPHRASE=${STELLAR_NETWORK_PASSPHRASE:-Test SDF Network ; September 2015}"
       - STELLAR_FRIENDBOT_URL=${STELLAR_FRIENDBOT_URL:-https://friendbot.stellar.org}
@@ -174,6 +174,13 @@ services:
       - BACKEND_URL=http://backend:4000
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - PORT=6001
+      # Cadena: con CHAIN=stellar el orquestador liquida pagos a specialists en Soroban.
+      - CHAIN=${CHAIN:-stellar}
+      - STELLAR_CONTRACT_ID=${STELLAR_CONTRACT_ID:-CDYLMRS2UTBHNTWS67NC2OPQIH2HXGS36WZYC4JUMLKZWT7XXVUUX7XF}
+      - STELLAR_RPC_URL=${STELLAR_RPC_URL:-https://soroban-testnet.stellar.org}
+      - "STELLAR_NETWORK_PASSPHRASE=${STELLAR_NETWORK_PASSPHRASE:-Test SDF Network ; September 2015}"
+      - STELLAR_FRIENDBOT_URL=${STELLAR_FRIENDBOT_URL:-https://friendbot.stellar.org}
+      - STELLAR_HORIZON_URL=${STELLAR_HORIZON_URL:-https://horizon-testnet.stellar.org}
     depends_on:
       - backend
       - demo-agents

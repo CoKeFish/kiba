@@ -281,6 +281,13 @@ function handleTopup(req: Request, res: Response) {
     if (json) return res.status(400).json({ error: 'invalid amount (must be 0 < n <= 1000)' });
     return res.status(400).send('invalid amount');
   }
+  // Tope de saldo agregado (créditos virtuales) anti-abuso / drenaje de treasury vía refills.
+  const MAX_BALANCE_USD = 10_000;
+  if (lamportsToUsd(getBalance(userId)) + amount > MAX_BALANCE_USD) {
+    const capMsg = `balance cap exceeded (max $${MAX_BALANCE_USD})`;
+    if (json) return res.status(400).json({ error: capMsg });
+    return res.status(400).send(capMsg);
+  }
   topup(userId, amount);
   const balance = getBalance(userId);
 
@@ -321,6 +328,16 @@ app.get('/auth/connect', (req, res) => {
 
   if (!codeChallenge || !redirectUri) {
     return res.status(400).send('Missing code_challenge or redirect_uri');
+  }
+
+  // Allowlist de redirect_uri (anti open-redirect / robo de authorization code).
+  // Los MCP clients usan loopback; configurable con ALLOWED_REDIRECT_ORIGINS (CSV).
+  const allowedRedirectOrigins = (process.env.ALLOWED_REDIRECT_ORIGINS ?? 'http://localhost,http://127.0.0.1')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (!allowedRedirectOrigins.some((o) => redirectUri.startsWith(o))) {
+    return res.status(400).send('redirect_uri no permitido');
   }
 
   const sessionId = createOAuthSession({ codeChallenge, redirectUri, clientName });
@@ -720,6 +737,20 @@ app.delete('/v1/oauth/connections/:id', requireAuth, (req, res) => {
 });
 
 // ═══════════════════════════════════════════════════════════════
+
+// Guard anti "deploy roto se ve sano": exige config on-chain real en producción.
+{
+  const activeChain = process.env.CHAIN ?? 'solana';
+  const onchainId = activeChain === 'stellar' ? process.env.STELLAR_CONTRACT_ID : process.env.PROGRAM_ID;
+  if (!onchainId) {
+    const idName = activeChain === 'stellar' ? 'STELLAR_CONTRACT_ID' : 'PROGRAM_ID';
+    const warn = `[gateway] CHAIN=${activeChain} sin ${idName} — modo degradado: NO se liquida on-chain.`;
+    if (process.env.NODE_ENV === 'production') throw new Error(`${warn} Requerido en producción.`);
+    console.warn(warn);
+  } else {
+    console.log(`[gateway] on-chain activo: CHAIN=${activeChain} id=${onchainId.slice(0, 8)}…`);
+  }
+}
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log('╔══════════════════════════════════════════╗');

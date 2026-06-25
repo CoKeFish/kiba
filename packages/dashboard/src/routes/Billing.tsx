@@ -5,7 +5,7 @@ import { Card, CardBody, CardHeader, CardTitle, CardDescription } from "@/compon
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { formatUsd, lamportsToUsd, shortSig, explorerUrl } from "@/lib/format";
+import { formatUsd, lamportsToUsd, baseUnitsToUsd, shortSig, explorerUrl } from "@/lib/format";
 import { format } from "date-fns";
 import { CreditCard, Wallet, ExternalLink, AlertCircle } from "lucide-react";
 

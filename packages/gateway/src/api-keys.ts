@@ -20,20 +20,21 @@ function hashKey(secret: string): string {
   return createHash('sha256').update(secret).digest('hex');
 }
 
-export function createApiKey(userId: number, name: string) {
+export function createApiKey(userId: number, name: string, expiresInDays = 365) {
   const id = `key_${randomBytes(8).toString('hex')}`;
   const rand = randomBytes(24).toString('base64url');
   const secret = `sk_live_${rand}`;
   const prefix = `sk_live_${rand.slice(0, 6)}`;
   const hash = hashKey(secret);
   const now = Math.floor(Date.now() / 1000);
+  const expiresAt = now + expiresInDays * 24 * 60 * 60;
 
   db.prepare(
-    `INSERT INTO api_keys (id, user_id, name, key_hash, prefix, created_at)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-  ).run(id, userId, name, hash, prefix, now);
+    `INSERT INTO api_keys (id, user_id, name, key_hash, prefix, created_at, expires_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+  ).run(id, userId, name, hash, prefix, now, expiresAt);
 
-  return { id, secret, prefix, name, created_at: now };
+  return { id, secret, prefix, name, created_at: now, expires_at: expiresAt };
 }
 
 export function listApiKeys(userId: number) {
@@ -57,9 +58,10 @@ export function revokeApiKey(userId: number, id: string): boolean {
 export function getUserByApiKey(secret: string): { id: number } | null {
   const hash = hashKey(secret);
   const row = db
-    .prepare('SELECT id, user_id FROM api_keys WHERE key_hash = ? AND revoked = 0')
-    .get(hash) as { id: string; user_id: number } | undefined;
+    .prepare('SELECT id, user_id, expires_at FROM api_keys WHERE key_hash = ? AND revoked = 0')
+    .get(hash) as { id: string; user_id: number; expires_at: number | null } | undefined;
   if (!row) return null;
+  if (row.expires_at != null && row.expires_at < Math.floor(Date.now() / 1000)) return null;
   // Update last_used_at (best-effort, async-style)
   db.prepare('UPDATE api_keys SET last_used_at = ? WHERE id = ?').run(
     Math.floor(Date.now() / 1000),

@@ -10,7 +10,16 @@ import { usdToLamports } from './billing';
 /** Bono de bienvenida en USD, convertido a unidades base de la cadena activa. */
 const SIGNUP_BONUS_USD = 5;
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-prod';
+const DEFAULT_JWT_SECRET = 'dev-secret-change-in-prod';
+const JWT_SECRET = process.env.JWT_SECRET || DEFAULT_JWT_SECRET;
+if (JWT_SECRET === DEFAULT_JWT_SECRET) {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error(
+      '[auth] JWT_SECRET ausente o igual al default inseguro. Define un JWT_SECRET fuerte en producción.',
+    );
+  }
+  console.warn('[auth] usando JWT_SECRET débil por defecto; define JWT_SECRET para producción.');
+}
 
 // ─── JWT helpers (HMAC-SHA256, sin librería) ───────────────────
 
@@ -56,6 +65,10 @@ export function createUser(email: string, password: string): UserRow | { error: 
 
   const password_hash = bcrypt.hashSync(password, 10);
   const wallet = Keypair.generate();
+  // TODO(seguridad/custodia): la private key se guarda en CLARO en SQLite — aceptable en
+  // testnet/hackathon, NO en mainnet. Endurecer antes de producción real: cifrado en reposo
+  // (AES-256-GCM + KMS) o delegar la custodia a Accesly (social login + gasless sobre Stellar)
+  // y dejar de almacenar claves aquí. Ver docs/TEST_PLAN.md (gateway-20/21).
   const custodial_wallet_secret = JSON.stringify(Array.from(wallet.secretKey));
   const custodial_wallet_pubkey = wallet.publicKey.toBase58();
 

@@ -180,6 +180,18 @@ export class Indexer {
     try {
       const onChain = await this.reader.listAgents();
       console.log(`[indexer] bootstrap (${this.reader.label}): ${onChain.length} agentes on-chain`);
+      // Salvaguarda: lectura vacía con catálogo previo ⇒ probable fallo de RPC (no 0 agentes
+      // reales) → NO reconciliar, para no borrar todo el catálogo por un parpadeo de RPC.
+      if (onChain.length === 0) {
+        const existingChain = listAgents(db, { limit: 1 }).filter((a) => a.source === 'chain');
+        if (existingChain.length > 0) {
+          console.warn(
+            '[indexer] lectura on-chain vacía con catálogo previo — conservando snapshot (posible fallo de RPC)',
+          );
+          this.emit({ type: 'snapshot' });
+          return;
+        }
+      }
       const seen = new Set<string>();
       for (const rec of onChain) {
         upsertAgent(db, rec);

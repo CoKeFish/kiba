@@ -226,6 +226,18 @@ export class AgentClient {
       timestamp: Date.now(),
     });
 
+    // Cap autoritativo: valida el PRECIO REAL del 402 (quote.amount), no solo el anunciado
+    // (manifest.pricePerCall). Un provider con pricing dinámico podría cotizar por encima.
+    if (options.maxPrice !== undefined) {
+      const perToken = this.chain?.baseUnitsPerToken ?? 1e9;
+      const quotedPrice = Number(quote.amount) / perToken;
+      if (quotedPrice > options.maxPrice) {
+        throw new Error(
+          `service '${service}' quoted ${quotedPrice}, exceeds maxPrice ${options.maxPrice}`,
+        );
+      }
+    }
+
     // 2) Abrir escrow on-chain
     const tEscrow = performance.now();
     let escrowSig = 'NO_ONCHAIN_PROGRAM_ID';

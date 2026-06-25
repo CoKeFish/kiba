@@ -209,6 +209,30 @@ fn split_rounds_fee_down() {
 }
 
 #[test]
+fn split_residue_goes_to_owner() {
+    // amount = 20001 → fee = floor(20001*500/10000) = floor(1000.05) = 1000 (treasury),
+    // owner = 20001 - 1000 = 19001. El residuo del redondeo queda a favor del OWNER
+    // (consistente con el comentario del contrato y con la versión Anchor).
+    let (env, contract_id, token_id, treasury) = setup();
+    let app = KibaClient::new(&env, &contract_id);
+    let token = token::Client::new(&env, &token_id);
+    let token_admin = token::StellarAssetClient::new(&env, &token_id);
+
+    let owner = Address::generate(&env);
+    let client = Address::generate(&env);
+    let svc = s(&env, "residue");
+
+    app.register_agent(&owner, &svc, &1, &s(&env, ""), &s(&env, ""));
+    token_admin.mint(&client, &20_001);
+    app.open_escrow(&client, &svc, &11u64, &20_001);
+    app.claim_payment(&client, &owner, &11u64);
+
+    assert_eq!(token.balance(&treasury), 1_000); // 5% truncado hacia abajo
+    assert_eq!(token.balance(&owner), 19_001); // 95% + residuo del redondeo
+    assert_eq!(token.balance(&contract_id), 0);
+}
+
+#[test]
 fn open_escrow_below_price_fails() {
     let (env, contract_id, _token, _treasury) = setup();
     let app = KibaClient::new(&env, &contract_id);

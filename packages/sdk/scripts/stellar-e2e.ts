@@ -15,7 +15,7 @@ import { AgentClient } from '../src/client';
 // Configura la cadena ANTES de construir provider/client (createChainClient lee env).
 process.env.CHAIN = 'stellar';
 process.env.STELLAR_CONTRACT_ID =
-  process.env.STELLAR_CONTRACT_ID ?? 'CA5M54YV4KG3E75YDJEUXY2C4FYBIEHTQJVZQASYF2WPJUO4KHEIQ62M';
+  process.env.STELLAR_CONTRACT_ID ?? 'CDYLMRS2UTBHNTWS67NC2OPQIH2HXGS36WZYC4JUMLKZWT7XXVUUX7XF';
 
 async function main() {
   const PORT = 5599;
