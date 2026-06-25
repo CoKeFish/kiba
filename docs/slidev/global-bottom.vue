@@ -2,9 +2,9 @@
   <!-- Brand background: scheme-aware canvas + radial glow + drifting particles.
        Colors come from CSS vars (--kiba-bg / --kiba-particle / --kiba-glow-*),
        so it flips automatically between the light and dark themes. -->
-  <div class="ab-bg">
-    <div class="ab-glow" />
-    <canvas ref="cv" class="ab-particles" />
+  <div class="kiba-bg">
+    <div class="kiba-glow" />
+    <canvas ref="cv" class="kiba-particles" />
   </div>
 </template>
 
@@ -68,7 +68,7 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.ab-bg {
+.kiba-bg {
   position: absolute;
   inset: 0;
   z-index: 0;
@@ -76,14 +76,14 @@ onBeforeUnmount(() => {
   background: var(--kiba-bg);
   pointer-events: none;
 }
-.ab-glow {
+.kiba-glow {
   position: absolute;
   inset: 0;
   background:
     radial-gradient(ellipse 60% 50% at 16% 38%, var(--kiba-glow-1), transparent 60%),
     radial-gradient(ellipse 50% 45% at 88% 88%, var(--kiba-glow-2), transparent 60%);
 }
-.ab-particles {
+.kiba-particles {
   position: absolute;
   inset: 0;
   width: 100%;

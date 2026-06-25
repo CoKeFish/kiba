@@ -36,7 +36,7 @@ const HEARTBEAT_MS = 5 * 60 * 1000;
 
 /**
  * Catálogo de demo agents — espejo de los 5 agents reales que corre el container
- * `ab-agents` (yield-hunter, risk-auditor, translator-pro, price-oracle, code-reviewer).
+ * `kiba-agents` (yield-hunter, risk-auditor, translator-pro, price-oracle, code-reviewer).
  *
  * Solo se siembran si `PROGRAM_ID` no está configurado (modo demo). Cuando hay
  * program activo, el indexer lee del registry on-chain y estos quedan ignorados.
