@@ -1,0 +1,42 @@
+name: publish-kiba-mcp
+
+# Publica packages/mcp-server (kiba-mcp) en npm al pushear un tag `mcp-v*`.
+# Usa un Automation token de npm (secret NPM_TOKEN) que NO requiere OTP/2FA,
+# evitando el publish manual y errores como el dependency espurio.
+#
+# Para liberar una versión:
+#   1) sube "version" en packages/mcp-server/package.json
+#   2) commit + push a main
+#   3) git tag mcp-v<version> && git push origin mcp-v<version>
+#
+# Requisito único: secret NPM_TOKEN en GitHub
+#   (Settings → Secrets and variables → Actions), con un token tipo Automation
+#   creado en npmjs.com → Access Tokens, con permiso de publish sobre kiba-mcp.
+
+on:
+  push:
+    tags:
+      - 'mcp-v*'
+  workflow_dispatch: {}
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # habilita npm provenance (repo público)
+    defaults:
+      run:
+        working-directory: packages/mcp-server
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org
+      - run: npm install --no-audit --no-fund
+      - run: npm run build
+      - run: npm test
+      - run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

@@ -1,6 +1,6 @@
 {
   "name": "kiba-mcp",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "MCP server adapter for Kiba — connects any LLM agent to the marketplace via OAuth",
   "bin": {
     "kiba-mcp": "./dist/index.js"
