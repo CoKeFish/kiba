@@ -10,9 +10,11 @@ let server: Server;
 let baseUrl: string;
 
 before(async () => {
-  // Sin PROGRAM_ID → modo degradado: el provider acepta el pago sin verificación
-  // on-chain, ideal para tests sin Solana.
+  // Sin PROGRAM_ID → modo degradado. El provider es fail-CLOSED: en degradado solo
+  // sirve si se opta explícitamente con ALLOW_DEGRADED_PAYMENTS=1. Estos tests
+  // ejercitan justamente ese camino (sin Solana), así que lo activamos.
   delete process.env.PROGRAM_ID;
+  process.env.ALLOW_DEGRADED_PAYMENTS = '1';
 
   provider = new AgentProvider({
     wallet: Keypair.generate(),
@@ -36,6 +38,7 @@ before(async () => {
 
 after(() => {
   server?.close();
+  delete process.env.ALLOW_DEGRADED_PAYMENTS;
 });
 
 // ─── manifest endpoint ─────────────────────────────────────────
