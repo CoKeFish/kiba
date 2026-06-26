@@ -14,12 +14,14 @@ import { Keypair } from '@solana/web3.js';
 // DB aislada por proceso de test (cada test file corre en su propio subproceso)
 const tmpDir = mkdtempSync(join(tmpdir(), 'gw-test-'));
 process.env.DB_PATH = join(tmpDir, 'gateway.db');
-// Los tests de billing fijan la semántica Solana (rate 150, 1e9 unidades base):
-// sus aserciones están escritas contra esas constantes. Sin pinear CHAIN, caería
-// al default 'stellar' (1e7 stroops, rate 0.12) y romperían. chain.ts lee
-// process.env.CHAIN al cargarse, así que debe quedar fijado ANTES de importar src.
-process.env.CHAIN = process.env.CHAIN || 'solana';
-process.env.SOL_USD_RATE = process.env.SOL_USD_RATE || '150';
+// Semántica Stellar (1e7 stroops, rate 0.12). chain.ts lee process.env al cargarse,
+// así que debe fijarse ANTES de importar src. Forzamos modo degradado (sin
+// STELLAR_CONTRACT_ID) para que masterWalletPubkey sea determinista (base58 del
+// seed) sin depender del entorno donde corran los tests (p.ej. el contenedor sí
+// tiene STELLAR_CONTRACT_ID y devolvería la dirección G...).
+process.env.CHAIN = 'stellar';
+process.env.XLM_USD_RATE = process.env.XLM_USD_RATE || '0.12';
+delete process.env.STELLAR_CONTRACT_ID;
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-secret-do-not-use';
 
 // Master wallet por env (para que wallets.ts no toque el filesystem)

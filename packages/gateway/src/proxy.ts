@@ -111,10 +111,7 @@ export async function callOnBehalf(args: {
   const userWallet = loadUserWallet(args.userId);
 
   // Cliente del SDK con la wallet del user — esto firmará open_escrow/claim_payment
-  const client = new AgentClient({
-    wallet: userWallet,
-    rpcUrl: process.env.SOLANA_RPC_URL,
-  });
+  const client = new AgentClient({ wallet: userWallet });
 
   // 1. Pre-quote: precio REAL que el agente cobrará para ESTE payload
   //    (pricing dinámico via priceFn — translator cobra por chars, oracle por

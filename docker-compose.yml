@@ -1,25 +1,4 @@
 services:
-  contracts:
-    build:
-      context: .
-      dockerfile: packages/contracts/Dockerfile
-    container_name: kiba-contracts
-    volumes:
-      - ./packages/contracts:/workspace
-      - solana-keys:/root/.config/solana
-      - cargo-cache:/root/.cargo/registry
-      - anchor-cache:/root/.avm
-      - test-ledger:/var/test-ledger  # persiste el estado de localnet entre restarts
-    ports:
-      - "8899:8899"  # solana-test-validator RPC (localnet)
-      - "8900:8900"  # solana-test-validator WebSocket (localnet)
-    environment:
-      - SOLANA_RPC_URL=${SOLANA_RPC_URL:-https://api.devnet.solana.com}
-      - SOLANA_NETWORK=${SOLANA_NETWORK:-devnet}
-    stdin_open: true
-    tty: true
-    command: tail -f /dev/null  # Mantiene el container vivo para `docker compose exec`
-
   backend:
     build:
       context: .
@@ -35,9 +14,7 @@ services:
       - "4000:4000"
     environment:
       - NODE_ENV=development
-      - SOLANA_RPC_URL=${SOLANA_RPC_URL:-https://api.devnet.solana.com}
       - PORT=${BACKEND_PORT:-4000}
-      - PROGRAM_ID=${PROGRAM_ID:-}
       - SEMANTIC_SEARCH=${SEMANTIC_SEARCH:-true}
       # Cadena: con CHAIN=stellar el backend indexa el registro Soroban.
       - CHAIN=${CHAIN:-stellar}
@@ -47,8 +24,6 @@ services:
       - STELLAR_FRIENDBOT_URL=${STELLAR_FRIENDBOT_URL:-https://friendbot.stellar.org}
       - STELLAR_HORIZON_URL=${STELLAR_HORIZON_URL:-https://horizon-testnet.stellar.org}
       - STELLAR_SERVICES=${STELLAR_SERVICES:-yield-hunter,risk-auditor,translator-pro,price-oracle,code-reviewer}
-    depends_on:
-      - contracts
 
   landing:
     build:
@@ -111,8 +86,6 @@ services:
       - "5005:5005"  # code-reviewer
     environment:
       - NODE_ENV=development
-      - SOLANA_RPC_URL=${SOLANA_RPC_URL:-https://api.devnet.solana.com}
-      - PROGRAM_ID=${PROGRAM_ID:-}
       - BACKEND_URL=http://backend:4000
       # Cadena: con CHAIN=stellar los agentes registran y cobran en Soroban.
       - CHAIN=${CHAIN:-stellar}
@@ -120,7 +93,6 @@ services:
       - STELLAR_RPC_URL=${STELLAR_RPC_URL:-https://soroban-testnet.stellar.org}
       - "STELLAR_NETWORK_PASSPHRASE=${STELLAR_NETWORK_PASSPHRASE:-Test SDF Network ; September 2015}"
       - STELLAR_FRIENDBOT_URL=${STELLAR_FRIENDBOT_URL:-https://friendbot.stellar.org}
-      - STELLAR_HORIZON_URL=${STELLAR_HORIZON_URL:-https://horizon-testnet.stellar.org}
     depends_on:
       - backend
 
@@ -137,13 +109,10 @@ services:
       - "8000:8000"
     environment:
       - NODE_ENV=development
-      - SOLANA_RPC_URL=${SOLANA_RPC_URL:-https://api.devnet.solana.com}
-      - PROGRAM_ID=${PROGRAM_ID:-}
       - BACKEND_URL=http://backend:4000
       - PORT=8000
       - JWT_SECRET=${JWT_SECRET:-}
       - PUBLIC_URL=${PUBLIC_URL:-http://localhost:8000}
-      - SOL_USD_RATE=${SOL_USD_RATE:-150}
       # Cadena: con CHAIN=stellar las custodiales y el proxy x402 operan en Soroban.
       - CHAIN=${CHAIN:-stellar}
       - STELLAR_CONTRACT_ID=${STELLAR_CONTRACT_ID:-CDYLMRS2UTBHNTWS67NC2OPQIH2HXGS36WZYC4JUMLKZWT7XXVUUX7XF}
@@ -169,8 +138,6 @@ services:
       - "6001:6001"
     environment:
       - NODE_ENV=development
-      - SOLANA_RPC_URL=${SOLANA_RPC_URL:-https://api.devnet.solana.com}
-      - PROGRAM_ID=${PROGRAM_ID:-}
       - BACKEND_URL=http://backend:4000
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - PORT=6001
@@ -180,18 +147,13 @@ services:
       - STELLAR_RPC_URL=${STELLAR_RPC_URL:-https://soroban-testnet.stellar.org}
       - "STELLAR_NETWORK_PASSPHRASE=${STELLAR_NETWORK_PASSPHRASE:-Test SDF Network ; September 2015}"
       - STELLAR_FRIENDBOT_URL=${STELLAR_FRIENDBOT_URL:-https://friendbot.stellar.org}
-      - STELLAR_HORIZON_URL=${STELLAR_HORIZON_URL:-https://horizon-testnet.stellar.org}
     depends_on:
       - backend
       - demo-agents
 
 volumes:
-  solana-keys:
-  cargo-cache:
-  anchor-cache:
   agents-data:
   orchestrator-data:
   gateway-data:
   backend-data:
   backend-models:
-  test-ledger:

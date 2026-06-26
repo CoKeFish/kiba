@@ -61,9 +61,8 @@ function serviceToName(service: string): string {
     .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
     .join(" ");
 }
-// Defaults coherentes con los del gateway (SOL_USD_RATE=150, XLM_USD_RATE=0.12).
-// Si llega un token desconocido on-chain, asume XLM (cadena activa: Stellar).
-const RATES: Record<string, number> = { SOL: 150, XLM: 0.12 };
+// Tasa USD demo del gateway (XLM_USD_RATE=0.12). Token desconocido → asume XLM.
+const RATES: Record<string, number> = { XLM: 0.12 };
 const priceToUsd = (price: number, token?: string) =>
   (price * (RATES[token ?? "XLM"] ?? RATES.XLM)).toFixed(4);
 const fmtPrice = (price: number) => price.toFixed(6);

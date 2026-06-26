@@ -189,7 +189,7 @@ graph LR
 
 ## 4. Smart contract on-chain
 
-`packages/contracts-soroban/src/lib.rs` (Rust + Soroban SDK). El paquete Anchor en `packages/contracts` (Solana) es **legacy**, no desplegado.
+`packages/contracts-soroban/src/lib.rs` (Rust + Soroban SDK).
 
 **Deployado en Stellar testnet**: `CDYLMRS2UTBHNTWS67NC2OPQIH2HXGS36WZYC4JUMLKZWT7XXVUUX7XF` ([stellar.expert](https://stellar.expert/explorer/testnet/contract/CDYLMRS2UTBHNTWS67NC2OPQIH2HXGS36WZYC4JUMLKZWT7XXVUUX7XF)).
 
@@ -562,7 +562,6 @@ flowchart TB
     subgraph componentes["Componentes SDK"]
         Chain[chain/types.ts<br/>ChainClient abstraction]
         Stellar[chain/stellar.ts<br/>Soroban · XDR/ScVal]
-        Legacy[chain/solana.ts + program.ts<br/>+ anchor-helpers.ts · legacy]
         Prov[provider.ts<br/>server-side x402]
         Cli[client.ts<br/>consumer-side x402]
         KS[keypair-store.ts]
@@ -574,7 +573,6 @@ flowchart TB
     SDK --> KS
 
     Chain --> Stellar
-    Chain --> Legacy
     Prov --> Chain
     Prov --> KS
     Cli --> Chain
@@ -587,7 +585,7 @@ flowchart TB
     classDef sdk fill:#9945FF20,stroke:#9945FF
     classDef consumer fill:#14F19520,stroke:#14F195
 
-    class SDK,Chain,Stellar,Legacy,Prov,Cli,KS sdk
+    class SDK,Chain,Stellar,Prov,Cli,KS sdk
     class A1,A2,ORCH,GW consumer
 ```
 
@@ -620,7 +618,7 @@ flowchart TB
 
 ## 11. Decisiones de arquitectura clave
 
-1. **SDK multi-cadena vía `ChainClient`** — una abstracción (`chain/types.ts`) con impls intercambiables; `chain/stellar.ts` (Soroban, activa) codifica los args como XDR/ScVal con `@stellar/stellar-sdk`. La impl Solana (`program.ts` + `anchor-helpers.ts`) queda como legacy. Trade-off: una interfaz extra, pero cambiar de cadena no toca `provider`/`client`.
+1. **SDK multi-cadena vía `ChainClient`** — una abstracción (`chain/types.ts`) con impls intercambiables; `chain/stellar.ts` (Soroban, activa) codifica los args como XDR/ScVal con `@stellar/stellar-sdk`. Trade-off: una interfaz extra, pero la lógica de `provider`/`client` queda agnóstica de la cadena.
 
 2. **Custodial wallets en Gateway** — sacrificio de descentralización a cambio de UX Web2. Master wallet única firma por todos. Para producción se rotaría a per-user wallets en HSM.
 

@@ -110,7 +110,7 @@ agent.serve<ReviewRequest, ReviewResponse>(async (req) => {
     await agent.bootstrap();
   } catch (err) {
     console.error('[code-reviewer] bootstrap failed:', (err as Error).message);
-    console.error('[code-reviewer] Continuing without on-chain registration. Make sure PROGRAM_ID is set in .env after deploying the contract.');
+    console.error('[code-reviewer] Continuing without on-chain registration. Make sure STELLAR_CONTRACT_ID is set in .env.');
   }
   await agent.listen(Number(process.env.PORT) || 5005);
 })().catch((err) => {

@@ -22,7 +22,6 @@ export class AgentProvider {
     this.chain = createChainClient({
       wallet: config.wallet,
       rpcUrl: config.rpcUrl,
-      programId: config.programId,
       label: config.service,
     });
 

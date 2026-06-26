@@ -64,12 +64,11 @@ export class AgentClient {
   /** Cadena de liquidación. null en modo degradado (sin cadena configurada). */
   readonly chain: ChainClient | null;
 
-  constructor(config: Pick<AgentConfig, 'wallet' | 'rpcUrl' | 'programId'>) {
+  constructor(config: Pick<AgentConfig, 'wallet' | 'rpcUrl'>) {
     this.wallet = config.wallet;
     this.chain = createChainClient({
       wallet: config.wallet,
       rpcUrl: config.rpcUrl,
-      programId: config.programId,
       label: 'client',
     });
   }

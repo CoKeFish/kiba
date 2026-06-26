@@ -18,10 +18,7 @@ const KEYPAIR_PATH = process.env.KEYPAIR_PATH || '/app/data/orchestrator.json';
 
 const wallet = loadOrCreateKeypair(KEYPAIR_PATH);
 
-const client = new AgentClient({
-  wallet,
-  rpcUrl: process.env.SOLANA_RPC_URL,
-});
+const client = new AgentClient({ wallet });
 
 const app = express();
 app.use(cors());
@@ -33,7 +30,7 @@ app.get('/health', (_req, res) => {
     service: 'orchestrator-agent',
     wallet: wallet.publicKey.toBase58(),
     backend: process.env.BACKEND_URL,
-    programId: process.env.PROGRAM_ID,
+    contractId: process.env.STELLAR_CONTRACT_ID,
   });
 });
 
@@ -84,6 +81,6 @@ app.post('/intent', async (req, res) => {
     console.log(`  POST http://localhost:${PORT}/intent`);
     console.log(`  wallet: ${wallet.publicKey.toBase58()}`);
     console.log(`  backend: ${process.env.BACKEND_URL ?? '(not set)'}`);
-    console.log(`  programId: ${process.env.PROGRAM_ID ?? '(not deployed)'}`);
+    console.log(`  contractId: ${process.env.STELLAR_CONTRACT_ID ?? '(not set)'}`);
   });
 })();

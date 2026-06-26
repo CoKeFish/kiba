@@ -1,4 +1,4 @@
-import type { Keypair, PublicKey } from '@solana/web3.js';
+import type { Keypair } from '@solana/web3.js';
 
 export interface AgentConfig {
   /** Wallet del agente (Solana keypair) */
@@ -34,10 +34,8 @@ export interface AgentConfig {
   description?: string;
   /** Endpoint público donde otros agentes llaman al servicio (max 256) */
   endpoint?: string;
-  /** RPC de Solana — default: env SOLANA_RPC_URL o devnet */
+  /** RPC override (opcional). En Stellar el cliente usa STELLAR_RPC_URL del entorno. */
   rpcUrl?: string;
-  /** Program ID del Kiba registry — default: env PROGRAM_ID */
-  programId?: PublicKey | string;
 }
 
 export interface ServiceManifest {

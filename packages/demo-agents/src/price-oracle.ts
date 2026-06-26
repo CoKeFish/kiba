@@ -102,7 +102,7 @@ agent.serve<PriceRequest, PriceResponse>(async (req) => {
     await agent.bootstrap();
   } catch (err) {
     console.error('[price-oracle] bootstrap failed:', (err as Error).message);
-    console.error('[price-oracle] Continuing without on-chain registration. Make sure PROGRAM_ID is set in .env after deploying the contract.');
+    console.error('[price-oracle] Continuing without on-chain registration. Make sure STELLAR_CONTRACT_ID is set in .env.');
   }
   await agent.listen(Number(process.env.PORT) || 5004);
 })().catch((err) => {

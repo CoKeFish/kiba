@@ -923,15 +923,13 @@ app.delete('/v1/oauth/connections/:id', requireAuth, (req, res) => {
 
 // Guard anti "deploy roto se ve sano": exige config on-chain real en producción.
 {
-  const activeChain = process.env.CHAIN ?? 'solana';
-  const onchainId = activeChain === 'stellar' ? process.env.STELLAR_CONTRACT_ID : process.env.PROGRAM_ID;
+  const onchainId = process.env.STELLAR_CONTRACT_ID;
   if (!onchainId) {
-    const idName = activeChain === 'stellar' ? 'STELLAR_CONTRACT_ID' : 'PROGRAM_ID';
-    const warn = `[gateway] CHAIN=${activeChain} sin ${idName} — modo degradado: NO se liquida on-chain.`;
+    const warn = '[gateway] Stellar sin STELLAR_CONTRACT_ID — modo degradado: NO se liquida on-chain.';
     if (process.env.NODE_ENV === 'production') throw new Error(`${warn} Requerido en producción.`);
     console.warn(warn);
   } else {
-    console.log(`[gateway] on-chain activo: CHAIN=${activeChain} id=${onchainId.slice(0, 8)}…`);
+    console.log(`[gateway] on-chain activo: Stellar id=${onchainId.slice(0, 8)}…`);
   }
 }
 

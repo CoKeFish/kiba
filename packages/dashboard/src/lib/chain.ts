@@ -21,15 +21,6 @@ export interface ChainConfig {
 }
 
 const CONFIGS: Record<string, ChainConfig> = {
-  solana: {
-    key: "solana",
-    asset: "SOL",
-    baseUnitsPerToken: 1_000_000_000,
-    usdRate: 150,
-    networkLabel: "Solana devnet",
-    explorerTx: (sig) => `https://explorer.solana.com/tx/${sig}?cluster=devnet`,
-    explorerAddr: (addr) => `https://explorer.solana.com/address/${addr}?cluster=devnet`,
-  },
   stellar: {
     key: "stellar",
     asset: "XLM",

@@ -12,6 +12,7 @@ import {
   getUser,
   getUserByToken,
 } from '../src/auth';
+import { usdToLamports } from '../src/billing';
 import { db } from '../src/db';
 
 after(() => {
@@ -106,8 +107,8 @@ test('createUser inserta usuario y le da bono inicial $5', () => {
   assert.ok(!('error' in result));
   if (!('error' in result)) {
     assert.equal(result.email, 'new@test.com');
-    // $5 / $150 * 1e9 = 33_333_333
-    assert.equal(result.balance_lamports, 33_333_333);
+    // Bono de signup: $5 convertidos a unidades base de la cadena activa.
+    assert.equal(result.balance_lamports, usdToLamports(5));
     // Tiene wallet custodial
     assert.ok(result.custodial_wallet_pubkey);
     assert.ok(result.custodial_wallet_secret);
@@ -125,7 +126,7 @@ test('createUser registra una transacción de bono "signup-bonus"', () => {
     assert.equal(txs.length, 1);
     assert.equal(txs[0].type, 'topup');
     assert.equal(txs[0].service, 'signup-bonus');
-    assert.equal(txs[0].amount_lamports, 33_333_333);
+    assert.equal(txs[0].amount_lamports, usdToLamports(5));
   }
 });
 

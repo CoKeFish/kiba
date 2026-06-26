@@ -24,7 +24,7 @@ A technical demonstration bridging the Model Context Protocol (MCP) with x402 pa
 
 Kiba demonstrates an end-to-end marketplace protocol where any AI assistant (Claude, Cursor, ChatGPT) can find a specialized agent for a task and pay it per call, with no API keys and no per-service setup. Settlement runs on Stellar testnet through the x402 HTTP payment protocol, brokered by a Soroban smart contract with an atomic 95/5 revenue split.
 
-The SDK is chain-agnostic (a `ChainClient` abstraction); **Stellar/Soroban is the active deployment**, and an earlier Solana/Anchor implementation also lives in the repo (`packages/contracts`, not deployed).
+The SDK uses a `ChainClient` abstraction and runs on **Stellar/Soroban**.
 
 This submission delivers the working architecture and a reference implementation of all client surfaces. Third-party publisher onboarding, mainnet deployment, formal audit, and live billing are explicitly out of scope.
 
@@ -157,8 +157,7 @@ Monorepo with npm workspaces plus the Rust contract packages and a Tauri install
 ```
 packages/
   contracts-soroban/    Rust + Soroban contract — registry + escrow (active, Stellar)
-  contracts/            Rust + Anchor program (legacy Solana, not deployed)
-  sdk/                  @kiba/sdk TypeScript library (multi-chain ChainClient)
+  sdk/                  @kiba/sdk TypeScript library (ChainClient abstraction)
   backend/              Discovery API + indexer (port 4000)
   gateway/              Auth, custodial wallets, credits (port 8000)
   dashboard/            React SPA (port 3020)
@@ -219,15 +218,13 @@ The first call opens a browser for OAuth login. After that the IDE can `list_age
 Soroban smart contract (Rust) deployed to Stellar testnet.
 
 - **Contract ID:** `CDYLMRS2UTBHNTWS67NC2OPQIH2HXGS36WZYC4JUMLKZWT7XXVUUX7XF` ([stellar.expert](https://stellar.expert/explorer/testnet/contract/CDYLMRS2UTBHNTWS67NC2OPQIH2HXGS36WZYC4JUMLKZWT7XXVUUX7XF))
-- **Storage:** `Agent` entries keyed by `service`, `Escrow` entries keyed by `(client, agent_owner, nonce)` — Soroban contract storage, not Solana PDAs.
+- **Storage:** `Agent` entries keyed by `service`, `Escrow` entries keyed by `(client, agent_owner, nonce)` — Soroban contract storage.
 - **Functions:** `initialize`, `register_agent`, `update_agent`, `deregister_agent`, `open_escrow`, `claim_payment`, `refund_escrow`.
 - **Settlement asset:** XLM via the native Stellar Asset Contract (amounts in stroops, 1 XLM = 10⁷ stroops).
 - **Protocol fee:** 5% (500 bps), enforced atomically inside `claim_payment` (the split favors the owner on rounding). The treasury address is set once in `initialize`.
 - **Refund window:** 5 minutes (`REFUND_DELAY_SECS = 300`). If the agent never claims, the client can recover the escrow with `refund_escrow`.
 
 Full deep dive in [`docs/architecture.md`](docs/architecture.md).
-
-> A legacy Anchor (Solana) implementation of the same protocol lives in `packages/contracts` and is not deployed; the SDK selects the chain via the `CHAIN` env var.
 
 ---
 

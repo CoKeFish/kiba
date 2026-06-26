@@ -101,7 +101,7 @@ agent.serve<RiskRequest, RiskResponse>(async (req) => {
     await agent.bootstrap();
   } catch (err) {
     console.error('[risk-auditor] bootstrap failed:', (err as Error).message);
-    console.error('[risk-auditor] Continuing without on-chain registration. Make sure PROGRAM_ID is set in .env after deploying the contract.');
+    console.error('[risk-auditor] Continuing without on-chain registration. Make sure STELLAR_CONTRACT_ID is set in .env.');
   }
   await agent.listen(Number(process.env.PORT) || 5002);
 })().catch((err) => {

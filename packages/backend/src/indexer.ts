@@ -38,8 +38,8 @@ const HEARTBEAT_MS = 5 * 60 * 1000;
  * Catálogo de demo agents — espejo de los 5 agents reales que corre el container
  * `kiba-agents` (yield-hunter, risk-auditor, translator-pro, price-oracle, code-reviewer).
  *
- * Solo se siembran si `PROGRAM_ID` no está configurado (modo demo). Cuando hay
- * program activo, el indexer lee del registry on-chain y estos quedan ignorados.
+ * Solo se siembran si `STELLAR_CONTRACT_ID` no está configurado (modo demo). Cuando
+ * hay contrato activo, el indexer lee del registry on-chain y estos quedan ignorados.
  */
 const NOW_TS = Math.floor(Date.now() / 1000);
 const FALLBACK_AGENTS: AgentRecord[] = [
@@ -47,9 +47,9 @@ const FALLBACK_AGENTS: AgentRecord[] = [
     pda: 'fallback:yield-hunter',
     service: 'yield-hunter',
     owner_wallet: 'PHASE_1_PLACEHOLDER',
-    price_per_call: 10_000_000, // 0.01 SOL
+    price_per_call: 50_000, // 0.005 XLM
     endpoint: 'http://demo-agents:5001',
-    description: 'Encuentra el mejor APY entre protocolos DeFi en Solana',
+    description: 'Encuentra el mejor APY entre protocolos DeFi en Stellar',
     total_calls: 142,
     total_earned: 1_420_000_000,
     created_at: NOW_TS,
@@ -61,9 +61,9 @@ const FALLBACK_AGENTS: AgentRecord[] = [
     pda: 'fallback:risk-auditor',
     service: 'risk-auditor',
     owner_wallet: 'PHASE_1_PLACEHOLDER',
-    price_per_call: 20_000_000, // 0.02 SOL
+    price_per_call: 50_000, // 0.005 XLM
     endpoint: 'http://demo-agents:5002',
-    description: 'Analiza el riesgo de un smart contract / protocolo Solana',
+    description: 'Analiza el riesgo de un smart contract / protocolo Stellar',
     total_calls: 89,
     total_earned: 1_780_000_000,
     created_at: NOW_TS,
@@ -75,7 +75,7 @@ const FALLBACK_AGENTS: AgentRecord[] = [
     pda: 'fallback:translator-pro',
     service: 'translator-pro',
     owner_wallet: 'PHASE_1_PLACEHOLDER',
-    price_per_call: 5_000_000, // 0.005 SOL
+    price_per_call: 10_000, // 0.001 XLM
     endpoint: 'http://demo-agents:5003',
     description:
       'Professional translation across English, Spanish, French, German, Japanese and Chinese',
@@ -90,7 +90,7 @@ const FALLBACK_AGENTS: AgentRecord[] = [
     pda: 'fallback:price-oracle',
     service: 'price-oracle',
     owner_wallet: 'PHASE_1_PLACEHOLDER',
-    price_per_call: 1_000_000, // 0.001 SOL
+    price_per_call: 5_000, // 0.0005 XLM
     endpoint: 'http://demo-agents:5004',
     description:
       'Real-time cryptocurrency prices aggregated from major exchanges (Binance, Coinbase, Kraken)',
@@ -105,7 +105,7 @@ const FALLBACK_AGENTS: AgentRecord[] = [
     pda: 'fallback:code-reviewer',
     service: 'code-reviewer',
     owner_wallet: 'PHASE_1_PLACEHOLDER',
-    price_per_call: 25_000_000, // 0.025 SOL
+    price_per_call: 50_000, // 0.005 XLM
     endpoint: 'http://demo-agents:5005',
     description:
       'Reviews TypeScript, Rust and Solidity code for bugs, style issues, and common security vulnerabilities',

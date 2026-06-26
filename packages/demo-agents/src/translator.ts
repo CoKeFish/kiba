@@ -90,7 +90,7 @@ agent.serve<TranslateRequest, TranslateResponse>(async (req) => {
     await agent.bootstrap();
   } catch (err) {
     console.error('[translator] bootstrap failed:', (err as Error).message);
-    console.error('[translator] Continuing without on-chain registration. Make sure PROGRAM_ID is set in .env after deploying the contract.');
+    console.error('[translator] Continuing without on-chain registration. Make sure STELLAR_CONTRACT_ID is set in .env.');
   }
   await agent.listen(Number(process.env.PORT) || 5003);
 })().catch((err) => {

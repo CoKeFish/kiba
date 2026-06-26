@@ -6,13 +6,11 @@
  * APIs:
  *   - AgentProvider: para agentes que OFRECEN un servicio (handshake x402)
  *   - AgentClient:   para agentes que CONSUMEN un servicio (descubrimiento + pago automático)
- *   - KibaProgram: cliente low-level del programa Anchor (PDAs, instr builders)
  */
 
 export { AgentProvider } from './provider';
 export { AgentClient } from './client';
 export type { X402Step, X402Trace } from './client';
-export { KibaProgram } from './program';
 export type {
   AgentConfig,
   ServiceManifest,
@@ -20,21 +18,13 @@ export type {
   ProviderHandler,
   CallOptions,
 } from './types';
-export type { AgentAccount, EscrowAccount, EscrowState } from './anchor-helpers';
-export {
-  getAgentPda,
-  getEscrowPda,
-  PLATFORM_FEE_BPS,
-  PLATFORM_TREASURY,
-  BPS_DENOMINATOR,
-  computeFeeSplit,
-} from './anchor-helpers';
+export { PLATFORM_FEE_BPS, BPS_DENOMINATOR, computeFeeSplit } from './fees';
 export { loadOrCreateKeypair, loadKeypairFromEnvOrFile } from './keypair-store';
 
 // Abstracción de cadena: la interfaz ChainClient y su factory. AgentClient y
 // AgentProvider operan la blockchain solo a través de esto. Para sumar una nueva
 // cadena (ej. Stellar), se implementa ChainClient y se enruta en createChainClient.
-export { createChainClient, SolanaChainClient, StellarChainClient } from './chain';
+export { createChainClient, StellarChainClient } from './chain';
 export type {
   ChainClient,
   ChainAgentInfo,

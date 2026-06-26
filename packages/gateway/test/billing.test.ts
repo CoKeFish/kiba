@@ -17,6 +17,7 @@ import {
   getTransactions,
 } from '../src/billing';
 import { db } from '../src/db';
+import { BASE_UNITS_PER_TOKEN, ASSET_USD_RATE } from '../src/chain';
 
 after(() => {
   try {
@@ -47,44 +48,40 @@ beforeEach(() => {
   db.exec('DELETE FROM transactions; DELETE FROM users;');
 });
 
-// ─── usdToLamports / lamportsToUsd ─────────────────────────────
+// ─── usdToLamports / lamportsToUsd (chain-agnostic, vía constantes) ──
 
-test('usdToLamports: $0 → 0 lamports', () => {
+test('usdToLamports: $0 → 0 unidades base', () => {
   assert.equal(usdToLamports(0), 0);
 });
 
-test('usdToLamports: $5 → 33_333_333 lamports (rate 150)', () => {
-  // 5/150 * 1e9 = 33_333_333.333... → floor → 33_333_333
-  assert.equal(usdToLamports(5), 33_333_333);
+test('usdToLamports($X) = floor(X/rate * base)', () => {
+  for (const usd of [0.01, 5, 100]) {
+    assert.equal(usdToLamports(usd), Math.floor((usd / ASSET_USD_RATE) * BASE_UNITS_PER_TOKEN));
+  }
 });
 
-test('usdToLamports: $0.01 → 66_666 lamports', () => {
-  // 0.01/150 * 1e9 = 66_666.66... → floor
-  assert.equal(usdToLamports(0.01), 66_666);
+test('usdToLamports(rate) = 1 token (base units exactos)', () => {
+  assert.equal(usdToLamports(ASSET_USD_RATE), BASE_UNITS_PER_TOKEN);
 });
 
-test('usdToLamports: $150 → 1 SOL exact', () => {
-  assert.equal(usdToLamports(150), 1_000_000_000);
-});
-
-test('lamportsToUsd: 1 SOL → $150', () => {
-  assert.equal(lamportsToUsd(1_000_000_000), 150);
+test('lamportsToUsd: 1 token base → rate', () => {
+  assert.equal(lamportsToUsd(BASE_UNITS_PER_TOKEN), ASSET_USD_RATE);
 });
 
 test('lamportsToUsd: 0 → 0', () => {
   assert.equal(lamportsToUsd(0), 0);
 });
 
-test('lamportsToSol: 1e9 → 1', () => {
-  assert.equal(lamportsToSol(1_000_000_000), 1);
+test('lamportsToSol: base → 1', () => {
+  assert.equal(lamportsToSol(BASE_UNITS_PER_TOKEN), 1);
 });
 
-test('lamportsToSol: 0.5 SOL', () => {
-  assert.equal(lamportsToSol(500_000_000), 0.5);
+test('lamportsToSol: base/2 → 0.5', () => {
+  assert.equal(lamportsToSol(BASE_UNITS_PER_TOKEN / 2), 0.5);
 });
 
-test('round-trip USD ↔ lamports preserves whole-dollar amounts', () => {
-  for (const usd of [1, 5, 10, 100, 150, 1000]) {
+test('round-trip USD ↔ base preserva montos en dólares enteros', () => {
+  for (const usd of [1, 5, 10, 100]) {
     const round = lamportsToUsd(usdToLamports(usd));
     // Tolerancia por floor en usdToLamports
     assert.ok(Math.abs(round - usd) < 1e-3, `${usd} round-trip: ${round}`);
