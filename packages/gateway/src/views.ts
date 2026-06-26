@@ -63,6 +63,53 @@ const css = `
     border-radius: 999px; cursor: pointer; margin-right: 8px;
   }
   .topup-pill:hover { border-color: #9945FF; }
+
+  /* ── Auth pages (login / signup / consent) ───────────────── */
+  .auth-page {
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    padding: 24px; background: radial-gradient(900px 500px at 50% -15%, #11233b 0%, #0a0a0a 60%);
+  }
+  .auth-card {
+    width: 100%; max-width: 400px; background: #121212; border: 1px solid #232323;
+    border-radius: 16px; padding: 32px 28px; box-shadow: 0 24px 70px rgba(0,0,0,.55);
+  }
+  .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 26px; }
+  .brand-logo {
+    width: 34px; height: 34px; border-radius: 9px; flex-shrink: 0;
+    background: linear-gradient(135deg, #14F195, #2f80ed);
+    display: flex; align-items: center; justify-content: center;
+    color: #052016; font-weight: 800; font-size: 19px;
+  }
+  .brand-name { font-size: 18px; font-weight: 700; letter-spacing: -.01em; }
+  .auth-title { font-size: 22px; font-weight: 650; margin: 0 0 6px; }
+  .app-name { font-size: 19px; font-weight: 650; margin: 0 0 2px; }
+  .auth-sub { color: #8a8a8a; font-size: 14px; line-height: 1.5; margin: 0 0 22px; }
+  .auth-card label { margin-top: 14px; }
+  .auth-card label.first { margin-top: 0; }
+  .auth-card input { padding: 12px 13px; border-radius: 10px; font-size: 15px; }
+  .auth-card input:focus { border-color: #14F195; }
+  .btn-primary {
+    width: 100%; margin-top: 22px; padding: 12px; border-radius: 10px;
+    font-size: 15px; font-weight: 600; color: #04130d; cursor: pointer; border: 0;
+    background: linear-gradient(135deg, #14F195, #10b981);
+  }
+  .btn-primary:hover { filter: brightness(1.06); }
+  .btn-ghost {
+    display: block; width: 100%; margin-top: 10px; padding: 12px; border-radius: 10px;
+    font-size: 14px; font-weight: 500; cursor: pointer; text-align: center;
+    background: transparent; color: #cfcfcf; border: 1px solid #2c2c2c;
+  }
+  .btn-ghost:hover { border-color: #3a3a3a; background: #181818; }
+  .auth-foot { text-align: center; color: #777; font-size: 13px; margin: 18px 0 0; }
+  .scopes { list-style: none; padding: 0; margin: 16px 0 0; }
+  .scopes li { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; color: #d7d7d7; font-size: 14px; }
+  .scopes .tick { color: #14F195; font-weight: 700; flex-shrink: 0; }
+  .who {
+    display: flex; align-items: center; gap: 9px; background: #181818;
+    border: 1px solid #242424; border-radius: 10px; padding: 10px 12px;
+    margin-bottom: 18px; font-size: 13px; color: #bbb;
+  }
+  .who .dot { width: 8px; height: 8px; border-radius: 50%; background: #14F195; flex-shrink: 0; }
 `;
 
 const layout = (title: string, body: string) => `<!DOCTYPE html>
@@ -102,38 +149,43 @@ export function signupView(error?: string, next?: string): string {
   const loginHref = next ? `/login?next=${encodeURIComponent(next)}` : '/login';
   return layout(
     'Crear cuenta',
-    `<div class="wrap">
-      <h1>Crear cuenta</h1>
-      <p class="muted">Empieza con $5 de crédito gratis</p>
-      <form method="POST" action="${action}" class="panel">
-        <label>Email</label>
-        <input type="email" name="email" required>
-        <label style="margin-top:16px">Contraseña</label>
-        <input type="password" name="password" required minlength="6">
+    `<div class="auth-page"><div class="auth-card">
+      <div class="brand"><div class="brand-logo">K</div><div class="brand-name">Kiba</div></div>
+      <h1 class="auth-title">Crea tu cuenta</h1>
+      <p class="auth-sub">Marketplace de agentes IA con micro-pagos x402 · Stellar testnet. Empiezas con <strong>$5</strong> de crédito gratis.</p>
+      <form method="POST" action="${action}">
+        <label class="first">Email</label>
+        <input type="email" name="email" autocomplete="email" required>
+        <label>Contraseña</label>
+        <input type="password" name="password" autocomplete="new-password" required minlength="6">
         ${error ? `<div class="err">${error}</div>` : ''}
-        <button type="submit">Crear cuenta</button>
-        <p class="muted" style="margin-top:16px">¿Ya tienes cuenta? <a href="${loginHref}">Inicia sesión</a></p>
+        <button type="submit" class="btn-primary">Crear cuenta</button>
       </form>
-    </div>`,
+      <p class="auth-foot">¿Ya tienes cuenta? <a href="${loginHref}">Inicia sesión</a></p>
+    </div></div>`,
   );
 }
 
 export function loginView(error?: string, next?: string): string {
   const action = next ? `/login?next=${encodeURIComponent(next)}` : '/login';
+  const signupHref = next ? `/signup?next=${encodeURIComponent(next)}` : '/signup';
+  const connecting = !!next && next.includes('/auth/consent');
   return layout(
     'Iniciar sesión',
-    `<div class="wrap">
-      <h1>Iniciar sesión</h1>
-      <form method="POST" action="${action}" class="panel">
-        <label>Email</label>
-        <input type="email" name="email" required>
-        <label style="margin-top:16px">Contraseña</label>
-        <input type="password" name="password" required>
+    `<div class="auth-page"><div class="auth-card">
+      <div class="brand"><div class="brand-logo">K</div><div class="brand-name">Kiba</div></div>
+      <h1 class="auth-title">Inicia sesión</h1>
+      <p class="auth-sub">${connecting ? 'Inicia sesión para autorizar la conexión con tu cuenta de Kiba.' : 'Accede a tu cuenta de Kiba.'}</p>
+      <form method="POST" action="${action}">
+        <label class="first">Email</label>
+        <input type="email" name="email" autocomplete="email" required>
+        <label>Contraseña</label>
+        <input type="password" name="password" autocomplete="current-password" required>
         ${error ? `<div class="err">${error}</div>` : ''}
-        <button type="submit">Entrar</button>
-        <p class="muted" style="margin-top:16px">¿Sin cuenta? <a href="${next ? `/signup?next=${encodeURIComponent(next)}` : '/signup'}">Crear una</a></p>
+        <button type="submit" class="btn-primary">Entrar</button>
       </form>
-    </div>`,
+      <p class="auth-foot">¿Sin cuenta? <a href="${signupHref}">Crear una</a></p>
+    </div></div>`,
   );
 }
 
@@ -249,40 +301,36 @@ export function authorizeView(data: {
 }): string {
   return layout(
     'Autorizar acceso',
-    `<div class="wrap">
-      <h1>Autorizar acceso</h1>
-      <p class="muted">Iniciaste sesión como <strong>${escapeHtml(data.email)}</strong> · Saldo: $${data.balanceUsd.toFixed(2)}</p>
-
-      <div class="panel">
-        <h2 style="margin-top:0">${escapeHtml(data.clientName)}</h2>
-        <p>Esta aplicación solicita acceso para:</p>
-        <ul>
-          <li>Llamar agentes en tu nombre</li>
-          <li>Descontar de tu saldo USD</li>
-          <li>Ver tu balance e historial</li>
-        </ul>
-        <p class="muted" style="margin-top:16px">Puedes revocar este acceso en cualquier momento desde tu dashboard.</p>
-
-        <form method="POST" action="/auth/authorize" style="margin-top:24px">
-          <input type="hidden" name="session_id" value="${data.sessionId}">
-          <button type="submit">Autorizar</button>
-          <a href="/dashboard"><button type="button" class="secondary">Cancelar</button></a>
-        </form>
-      </div>
-    </div>`,
+    `<div class="auth-page"><div class="auth-card">
+      <div class="brand"><div class="brand-logo">K</div><div class="brand-name">Kiba</div></div>
+      <h1 class="app-name">${escapeHtml(data.clientName)}</h1>
+      <p class="auth-sub">quiere conectarse a tu cuenta de Kiba</p>
+      <div class="who"><span class="dot"></span> ${escapeHtml(data.email)} · Saldo $${data.balanceUsd.toFixed(2)}</div>
+      <p style="font-size:14px;color:#cfcfcf;margin:0">Esta aplicación podrá:</p>
+      <ul class="scopes">
+        <li><span class="tick">✓</span> Descubrir y llamar agentes en tu nombre</li>
+        <li><span class="tick">✓</span> Descontar micro-pagos de tu saldo</li>
+        <li><span class="tick">✓</span> Ver tu balance e historial de transacciones</li>
+      </ul>
+      <form method="POST" action="/auth/authorize">
+        <input type="hidden" name="session_id" value="${data.sessionId}">
+        <button type="submit" class="btn-primary">Autorizar</button>
+        <a href="/dashboard" class="btn-ghost">Cancelar</a>
+      </form>
+      <p class="auth-foot">Puedes revocar el acceso cuando quieras desde tu dashboard.</p>
+    </div></div>`,
   );
 }
 
 export function authorizedView(): string {
   return layout(
     'Autorizado',
-    `<div class="wrap">
-      <h1>✓ Autorizado</h1>
-      <p class="muted">Tu agente IA ahora tiene acceso a Kiba.</p>
-      <div class="panel">
-        <p>Puedes cerrar esta pestaña.</p>
-        <a href="/dashboard"><button class="secondary">Ir al dashboard</button></a>
-      </div>
-    </div>`,
+    `<div class="auth-page"><div class="auth-card" style="text-align:center">
+      <div class="brand" style="justify-content:center"><div class="brand-logo">K</div><div class="brand-name">Kiba</div></div>
+      <div style="font-size:42px;line-height:1;margin:6px 0 4px;color:#14F195">✓</div>
+      <h1 class="auth-title" style="text-align:center">Conectado</h1>
+      <p class="auth-sub" style="text-align:center">Tu app de IA ya tiene acceso a Kiba. Puedes cerrar esta pestaña.</p>
+      <a href="/dashboard" class="btn-ghost">Ir al dashboard</a>
+    </div></div>`,
   );
 }
