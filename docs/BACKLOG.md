@@ -30,29 +30,31 @@ con una unidad amigable y estable (p.ej. 1 crédito = $0.01, o paquetes de $5/$1
 
 ## Arquitectura / Dinero
 
-### [P0] Modelo de fondos: custodial por usuario, sin master que adelante
+### [RESUELTO] Modelo de fondos: dos buckets (crédito plataforma + wallet usuario)
 
-**Problema.** Hoy conviven dos pozos separados: el **crédito virtual** (off-chain,
-`users.balance_lamports`) y la **custodial on-chain** por usuario (`loadUserWallet`).
-En modo `virtual` se **debita el crédito Y además la custodial paga el escrow on-chain**
-→ doble cobro (medido en prod: crédito −10 100 stroops y wallet −293 603 stroops por
-llamada; el extra es el fee de `open_escrow`). En testnet lo enmascara friendbot (rellena
-la custodial); en mainnet el path "el master adelanta el costo on-chain" solo existe para
-Solana (`ensureFunded` en Stellar usa friendbot), así que Stellar quedaría roto o
-doble-cobrando.
+**Problema (resuelto).** En modo `virtual` se **debitaba el crédito Y además la custodial
+del usuario pagaba el escrow on-chain** → doble cobro (medido en prod: crédito −5 000 y
+wallet −291 257 stroops; el extra es el fee de `open_escrow`).
 
-**Decisión.** Mover a **custodial wallet por usuario como única fuente de fondos**, sin un
-master hot wallet que adelante pagos. El balance debe ser una sola verdad con un único
-débito por llamada.
+**Decisión implementada (commit `afc4a5a`).** Modelo de **dos buckets** con semántica clara:
+- **Crédito** = dinero de la plataforma (off-chain, `balance_lamports`, solo gastable en
+  Kiba). Al pagar con crédito, la **treasury** (master wallet) firma/paga el escrow on-chain
+  → el wallet del usuario **NO se toca**. Un solo cargo (al crédito).
+- **Wallet** = dinero del usuario (su custodial on-chain, movible). Si no hay crédito, la
+  custodial paga directo (modo `wallet-direct`, sin débito de crédito). Un solo cargo.
 
-**A definir.**
-- ¿Se elimina el ledger off-chain (`balance_lamports`) y el balance pasa a ser el saldo
-  real de la custodial, o se mantiene como espejo 1:1 reconciliado?
-- Fondeo de la custodial (topup): testnet = friendbot; mainnet = depósito/on-ramp.
-- Rol del master wallet: ¿se elimina o queda solo para gas/bootstrap?
-- Conservar el split 95/5 y la semántica del escrow x402.
+`callOnBehalf` elige el cliente de liquidación por bucket (`getMasterWallet` vs custodial) y
+expone `paidWith: 'credit' | 'wallet'`. `ensureTreasuryFunded()` fondea la treasury
+(friendbot en testnet). Verificado en prod: call con crédito → crédito −costo, wallet
+intacto (custodial vacío liquidó vía treasury).
 
-**Origen.** QA E2E vía ChatGPT (2026-06-26): el wallet on-chain baja además del crédito.
+**Pendiente (no bloqueante).** Reposición automática de la treasury en mainnet; pool de
+cuentas-canal si hay concurrencia alta (la treasury firma todas las liquidaciones por
+crédito → contención de sequence, mitigada por el retry de `invoke`); fondeo real del
+wallet del usuario (topup mainnet = depósito/on-ramp). Ver también el ítem de pricing
+(el gas ~0.0286 XLM supera el precio demo del agente).
+
+**Origen.** QA E2E vía ChatGPT (2026-06-26): el wallet on-chain bajaba además del crédito.
 
 ---
 
