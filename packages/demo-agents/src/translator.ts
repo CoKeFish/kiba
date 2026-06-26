@@ -53,15 +53,33 @@ const PHRASES: Record<string, Record<string, string>> = {
   'gracias': { en: 'thank you', fr: 'merci', de: 'danke', ja: 'ありがとう', zh: '谢谢' },
 };
 
+// Los LLMs (ChatGPT/Claude) adivinan los nombres de campo del payload. Aceptamos
+// sinónimos comunes para no traducir al idioma equivocado, y normalizamos nombres
+// de idioma ("spanish" → "es") además de los códigos ISO.
+const LANG_ALIASES: Record<string, string> = {
+  spanish: 'es', español: 'es', espanol: 'es',
+  english: 'en', inglés: 'en', ingles: 'en',
+  french: 'fr', francés: 'fr', frances: 'fr',
+  german: 'de', alemán: 'de', aleman: 'de',
+  japanese: 'ja', japonés: 'ja', japones: 'ja',
+  chinese: 'zh', chino: 'zh',
+};
+
 agent.serve<TranslateRequest, TranslateResponse>(async (req) => {
-  const lower = (req.text || '').toLowerCase().trim();
-  const target = (req.to || 'en').toLowerCase().slice(0, 2);
+  const r = req as Record<string, unknown>;
+  const text = String(r.text ?? r.q ?? r.input ?? r.content ?? '');
+  const toRaw = String(
+    r.to ?? r.target ?? r.target_language ?? r.targetLang ?? r.targetLanguage ?? r.lang ?? 'en',
+  ).toLowerCase().trim();
+  const fromRaw = String(r.from ?? r.source ?? r.source_language ?? r.sourceLang ?? 'auto');
+  const target = (LANG_ALIASES[toRaw] ?? toRaw).slice(0, 2);
+  const lower = text.toLowerCase().trim();
   const dict = PHRASES[lower];
-  const translated = dict?.[target] ?? `[${target.toUpperCase()}] ${req.text}`;
+  const translated = dict?.[target] ?? `[${target.toUpperCase()}] ${text}`;
   return {
-    original: req.text,
+    original: text,
     translated,
-    from: req.from ?? 'auto',
+    from: fromRaw,
     to: target,
     confidence: dict ? 0.97 : 0.42,
   };
