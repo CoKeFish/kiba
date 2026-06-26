@@ -71,6 +71,20 @@ db.exec(`
     FOREIGN KEY (user_id) REFERENCES users(id)
   );
 
+  -- OAuth clients registrados vía Dynamic Client Registration (RFC 7591).
+  -- Usado por connectors remotos (Claude.ai, ChatGPT Apps) que se auto-registran.
+  CREATE TABLE IF NOT EXISTS oauth_clients (
+    client_id TEXT PRIMARY KEY,
+    client_secret TEXT,
+    client_name TEXT,
+    redirect_uris TEXT NOT NULL,            -- JSON array
+    grant_types TEXT,                       -- JSON array
+    response_types TEXT,                    -- JSON array
+    scope TEXT,
+    token_endpoint_auth_method TEXT,
+    created_at INTEGER NOT NULL
+  );
+
   CREATE INDEX IF NOT EXISTS idx_tokens_user ON oauth_tokens(user_id);
   CREATE INDEX IF NOT EXISTS idx_tx_user ON transactions(user_id);
   CREATE INDEX IF NOT EXISTS idx_apikeys_user ON api_keys(user_id);
@@ -95,6 +109,19 @@ try {
 // keys con expires_at NULL se traten como inmortales tras añadir la columna).
 db.exec('UPDATE api_keys SET expires_at = created_at + 31536000 WHERE expires_at IS NULL');
 
+// Migración idempotente: el connector remoto (OAuth estándar) guarda state /
+// client_id / resource en las sesiones OAuth. Aditivo; el flujo stdio existente
+// sigue usando solo code_challenge / redirect_uri / client_name.
+function ensureColumn(table: string, column: string, ddl: string): void {
+  const cols = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
+  if (!cols.some((c) => c.name === column)) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${ddl}`);
+  }
+}
+ensureColumn('oauth_sessions', 'state', 'TEXT');
+ensureColumn('oauth_sessions', 'client_id', 'TEXT');
+ensureColumn('oauth_sessions', 'resource', 'TEXT');
+
 export interface UserRow {
   id: number;
   email: string;
@@ -114,6 +141,23 @@ export interface OAuthSessionRow {
   code: string | null;
   expires_at: number;
   consumed: number;
+  // Columnas del flujo OAuth estándar (connectors remotos). Nullable: el flujo
+  // stdio existente no las setea.
+  state: string | null;
+  client_id: string | null;
+  resource: string | null;
+}
+
+export interface OAuthClientRow {
+  client_id: string;
+  client_secret: string | null;
+  client_name: string | null;
+  redirect_uris: string; // JSON array
+  grant_types: string | null; // JSON array
+  response_types: string | null; // JSON array
+  scope: string | null;
+  token_endpoint_auth_method: string | null;
+  created_at: number;
 }
 
 export interface OAuthTokenRow {

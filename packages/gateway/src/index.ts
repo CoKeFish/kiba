@@ -23,9 +23,19 @@ import {
   authorizeSession,
   createOAuthSession,
   exchangeCodeForToken,
+  getOAuthClient,
   getOAuthSession,
+  registerOAuthClient,
   revokeToken,
 } from './oauth';
+import { requireBearerAuth } from '@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js';
+import {
+  authServerMetadata,
+  mcpTokenVerifier,
+  protectedResourceMetadata,
+  protectedResourceMetadataUrl,
+} from './mcp-oauth';
+import { handleMcpRequest } from './mcp';
 import { getBalance, getTransactions, lamportsToUsd, topup } from './billing';
 import { callOnBehalf, listAgents, masterWalletPubkey } from './proxy';
 import { getMasterWallet, getOnChainBalance, getUserBalances, loadUserWallet } from './wallets';
@@ -75,16 +85,39 @@ const PUBLIC_URL = process.env.PUBLIC_URL;
 if (PUBLIC_URL && !ALLOWED_ORIGINS.includes(PUBLIC_URL)) {
   ALLOWED_ORIGINS.push(PUBLIC_URL);
 }
-app.use(
-  cors({
-    origin: (origin, cb) => {
-      // Sin origin (curl, server-to-server) → permitido
-      if (!origin) return cb(null, true);
-      if (ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
-      cb(new Error(`CORS: origin ${origin} no permitido`));
-    },
-    credentials: true,
-  }),
+// Base URL pública del gateway: issuer en la metadata OAuth y resource del /mcp.
+const MCP_ISSUER = (PUBLIC_URL || `http://localhost:${PORT}`).replace(/\/+$/, '');
+
+// CORS: allowlist con credentials para los frontends propios. Pero los endpoints
+// públicos del connector remoto (discovery OAuth, DCR, token, /mcp) los consumen
+// Claude/ChatGPT desde orígenes arbitrarios → CORS permisivo (refleja el origin).
+const allowlistCors = cors({
+  origin: (origin, cb) => {
+    // Sin origin (curl, server-to-server) → permitido
+    if (!origin) return cb(null, true);
+    if (ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
+    cb(new Error(`CORS: origin ${origin} no permitido`));
+  },
+  credentials: true,
+});
+const mcpPublicCors = cors({
+  origin: true, // refleja cualquier origin
+  exposedHeaders: ['WWW-Authenticate', 'Mcp-Session-Id', 'Mcp-Protocol-Version'],
+  allowedHeaders: ['Authorization', 'Content-Type', 'Mcp-Session-Id', 'Mcp-Protocol-Version', 'Last-Event-ID'],
+  methods: ['GET', 'POST', 'OPTIONS', 'DELETE'],
+});
+const MCP_PUBLIC_PATHS = [
+  /^\/\.well-known\//,
+  /^\/register$/,
+  /^\/authorize$/,
+  /^\/token$/,
+  /^\/revoke$/,
+  /^\/mcp(?:\/|$)/,
+];
+app.use((req, res, next) =>
+  MCP_PUBLIC_PATHS.some((re) => re.test(req.path))
+    ? mcpPublicCors(req, res, next)
+    : allowlistCors(req, res, next),
 );
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -389,6 +422,8 @@ app.post('/auth/authorize', requireSession, (req, res) => {
   const url = new URL(session.redirect_uri);
   url.searchParams.set('code', code);
   url.searchParams.set('session', sessionId);
+  // Flujo OAuth estándar (connectors remotos): devolver el `state` recibido.
+  if (session.state) url.searchParams.set('state', session.state);
 
   // Para que el MCP confirme y pida el token, mostramos página intermedia que
   // automáticamente hace fetch al redirect_uri (el MCP local server lo recibe).
@@ -428,6 +463,132 @@ app.post('/oauth/revoke', (req, res) => {
   const token = req.body.token;
   if (token) revokeToken(token);
   res.json({ ok: true });
+});
+
+// ═══════════════════════════════════════════════════════════════
+//   OAuth estándar + MCP remoto (connectors Claude / ChatGPT)
+//   Aditivo: discovery RFC 8414/9728, DCR RFC 7591 y un endpoint
+//   Streamable HTTP /mcp. Reutiliza el mismo store de sesiones/tokens,
+//   y la pantalla de consentimiento existente (/auth/consent).
+// ═══════════════════════════════════════════════════════════════
+
+// Authorization Server Metadata (RFC 8414)
+app.get('/.well-known/oauth-authorization-server', (_req, res) => {
+  res.json(authServerMetadata(MCP_ISSUER));
+});
+
+// Protected Resource Metadata (RFC 9728) — describe el recurso /mcp.
+const serveProtectedResourceMetadata = (_req: Request, res: Response) => {
+  res.json(protectedResourceMetadata(MCP_ISSUER));
+};
+app.get('/.well-known/oauth-protected-resource', serveProtectedResourceMetadata);
+app.get('/.well-known/oauth-protected-resource/mcp', serveProtectedResourceMetadata);
+
+// Dynamic Client Registration (RFC 7591) — Claude/ChatGPT se auto-registran.
+app.post('/register', (req, res) => {
+  const body = req.body ?? {};
+  const redirectUris = Array.isArray(body.redirect_uris) ? body.redirect_uris : [];
+  if (redirectUris.length === 0) {
+    return res
+      .status(400)
+      .json({ error: 'invalid_client_metadata', error_description: 'redirect_uris required' });
+  }
+  const client = registerOAuthClient({
+    client_name: body.client_name,
+    redirect_uris: redirectUris,
+    grant_types: body.grant_types,
+    response_types: body.response_types,
+    scope: body.scope,
+    token_endpoint_auth_method: body.token_endpoint_auth_method,
+  });
+  res.status(201).json({
+    client_id: client.client_id,
+    client_id_issued_at: client.created_at,
+    client_name: client.client_name ?? undefined,
+    redirect_uris: JSON.parse(client.redirect_uris),
+    grant_types: JSON.parse(client.grant_types ?? '["authorization_code"]'),
+    response_types: JSON.parse(client.response_types ?? '["code"]'),
+    token_endpoint_auth_method: client.token_endpoint_auth_method ?? 'none',
+    scope: client.scope ?? undefined,
+  });
+});
+
+// Authorization endpoint estándar (response_type=code + PKCE S256).
+// Reutiliza la pantalla de consentimiento existente (/auth/consent → /auth/authorize).
+app.get('/authorize', (req, res) => {
+  const toStr = (v: unknown): string =>
+    typeof v === 'string' ? v : Array.isArray(v) && typeof v[0] === 'string' ? v[0] : '';
+  const responseType = toStr(req.query.response_type);
+  const clientId = toStr(req.query.client_id);
+  const redirectUri = toStr(req.query.redirect_uri);
+  const codeChallenge = toStr(req.query.code_challenge);
+  const codeChallengeMethod = toStr(req.query.code_challenge_method) || 'S256';
+  const state = toStr(req.query.state);
+  const resource = toStr(req.query.resource);
+
+  if (responseType !== 'code') {
+    return res.status(400).send('unsupported response_type (expected "code")');
+  }
+  if (!clientId || !redirectUri || !codeChallenge) {
+    return res.status(400).send('missing client_id, redirect_uri or code_challenge');
+  }
+  if (codeChallengeMethod !== 'S256') {
+    return res.status(400).send('unsupported code_challenge_method (expected "S256")');
+  }
+
+  const client = getOAuthClient(clientId);
+  if (!client) return res.status(400).send('unknown client_id');
+  const registered: string[] = JSON.parse(client.redirect_uris || '[]');
+  if (registered.length > 0 && !registered.includes(redirectUri)) {
+    return res.status(400).send('redirect_uri not registered for this client');
+  }
+
+  const sessionId = createOAuthSession({
+    codeChallenge,
+    redirectUri,
+    clientName: client.client_name ?? clientId,
+    state: state || undefined,
+    clientId,
+    resource: resource || undefined,
+  });
+
+  if (!req.user) {
+    return res.redirect(`/login?next=/auth/consent?session=${sessionId}`);
+  }
+  res.redirect(`/auth/consent?session=${sessionId}`);
+});
+
+// Token endpoint estándar (authorization_code + PKCE). Reutiliza exchangeCodeForToken.
+app.post('/token', (req, res) => {
+  const { grant_type, code, code_verifier } = req.body ?? {};
+  if (grant_type !== 'authorization_code') {
+    return res.status(400).json({ error: 'unsupported_grant_type' });
+  }
+  if (!code || !code_verifier) {
+    return res.status(400).json({ error: 'invalid_request' });
+  }
+  const result = exchangeCodeForToken(code, code_verifier);
+  if ('error' in result) {
+    return res.status(400).json({ error: 'invalid_grant', error_description: result.error });
+  }
+  res.json(result);
+});
+
+// Token revocation estándar (RFC 7009).
+app.post('/revoke', (req, res) => {
+  const token = req.body?.token;
+  if (token) revokeToken(token);
+  res.status(200).json({});
+});
+
+// Endpoint MCP remoto (Streamable HTTP). Bearer obligatorio; el 401 incluye
+// WWW-Authenticate con resource_metadata para que el cliente descubra el OAuth.
+const mcpBearer = requireBearerAuth({
+  verifier: mcpTokenVerifier,
+  resourceMetadataUrl: protectedResourceMetadataUrl(MCP_ISSUER),
+});
+app.all('/mcp', mcpBearer, (req, res) => {
+  void handleMcpRequest(req, res);
 });
 
 // ═══════════════════════════════════════════════════════════════

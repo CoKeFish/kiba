@@ -13,7 +13,7 @@
  *     → emite access_token (opaque, en DB)
  */
 import { createHash } from 'node:crypto';
-import { db, type OAuthSessionRow } from './db';
+import { db, type OAuthSessionRow, type OAuthClientRow } from './db';
 import { newRandomId } from './auth';
 
 const SESSION_TTL = 10 * 60; // 10 minutos para completar el flow
@@ -23,16 +23,24 @@ export function createOAuthSession(args: {
   codeChallenge: string;
   redirectUri: string;
   clientName: string;
+  // Campos del flujo OAuth estándar (connectors remotos). Opcionales: el flujo
+  // stdio existente no los pasa y quedan NULL.
+  state?: string;
+  clientId?: string;
+  resource?: string;
 }): string {
   const sessionId = newRandomId('sess', 16);
   db.prepare(
-    `INSERT INTO oauth_sessions (session_id, code_challenge, redirect_uri, client_name, expires_at)
-     VALUES (@sessionId, @codeChallenge, @redirectUri, @clientName, @expiresAt)`,
+    `INSERT INTO oauth_sessions (session_id, code_challenge, redirect_uri, client_name, state, client_id, resource, expires_at)
+     VALUES (@sessionId, @codeChallenge, @redirectUri, @clientName, @state, @clientId, @resource, @expiresAt)`,
   ).run({
     sessionId,
     codeChallenge: args.codeChallenge,
     redirectUri: args.redirectUri,
     clientName: args.clientName,
+    state: args.state ?? null,
+    clientId: args.clientId ?? null,
+    resource: args.resource ?? null,
     expiresAt: Math.floor(Date.now() / 1000) + SESSION_TTL,
   });
   return sessionId;
@@ -110,4 +118,45 @@ export function exchangeCodeForToken(
 
 export function revokeToken(token: string): void {
   db.prepare('UPDATE oauth_tokens SET revoked = 1 WHERE token = ?').run(token);
+}
+
+// ─── Dynamic Client Registration (RFC 7591) ────────────────────
+// Claude.ai y ChatGPT no tienen un client_id pre-emitido: lo obtienen
+// auto-registrándose contra POST /register. Clientes públicos (PKCE, sin secret).
+
+export interface RegisterClientInput {
+  client_name?: string;
+  redirect_uris: string[];
+  grant_types?: string[];
+  response_types?: string[];
+  scope?: string;
+  token_endpoint_auth_method?: string;
+}
+
+export function registerOAuthClient(input: RegisterClientInput): OAuthClientRow {
+  const row: OAuthClientRow = {
+    client_id: newRandomId('client', 16),
+    client_secret: null, // public client (PKCE), sin secret
+    client_name: input.client_name ?? null,
+    redirect_uris: JSON.stringify(input.redirect_uris ?? []),
+    grant_types: JSON.stringify(input.grant_types ?? ['authorization_code']),
+    response_types: JSON.stringify(input.response_types ?? ['code']),
+    scope: input.scope ?? null,
+    token_endpoint_auth_method: input.token_endpoint_auth_method ?? 'none',
+    created_at: Math.floor(Date.now() / 1000),
+  };
+  db.prepare(
+    `INSERT INTO oauth_clients
+       (client_id, client_secret, client_name, redirect_uris, grant_types, response_types, scope, token_endpoint_auth_method, created_at)
+     VALUES
+       (@client_id, @client_secret, @client_name, @redirect_uris, @grant_types, @response_types, @scope, @token_endpoint_auth_method, @created_at)`,
+  ).run(row);
+  return row;
+}
+
+export function getOAuthClient(clientId: string): OAuthClientRow | null {
+  const row = db.prepare('SELECT * FROM oauth_clients WHERE client_id = ?').get(clientId) as
+    | OAuthClientRow
+    | undefined;
+  return row ?? null;
 }
