@@ -97,20 +97,22 @@ export function landingView(loggedIn: boolean): string {
   );
 }
 
-export function signupView(error?: string): string {
+export function signupView(error?: string, next?: string): string {
+  const action = next ? `/signup?next=${encodeURIComponent(next)}` : '/signup';
+  const loginHref = next ? `/login?next=${encodeURIComponent(next)}` : '/login';
   return layout(
     'Crear cuenta',
     `<div class="wrap">
       <h1>Crear cuenta</h1>
       <p class="muted">Empieza con $5 de crédito gratis</p>
-      <form method="POST" action="/signup" class="panel">
+      <form method="POST" action="${action}" class="panel">
         <label>Email</label>
         <input type="email" name="email" required>
         <label style="margin-top:16px">Contraseña</label>
         <input type="password" name="password" required minlength="6">
         ${error ? `<div class="err">${error}</div>` : ''}
         <button type="submit">Crear cuenta</button>
-        <p class="muted" style="margin-top:16px">¿Ya tienes cuenta? <a href="/login">Inicia sesión</a></p>
+        <p class="muted" style="margin-top:16px">¿Ya tienes cuenta? <a href="${loginHref}">Inicia sesión</a></p>
       </form>
     </div>`,
   );
@@ -129,7 +131,7 @@ export function loginView(error?: string, next?: string): string {
         <input type="password" name="password" required>
         ${error ? `<div class="err">${error}</div>` : ''}
         <button type="submit">Entrar</button>
-        <p class="muted" style="margin-top:16px">¿Sin cuenta? <a href="/signup">Crear una</a></p>
+        <p class="muted" style="margin-top:16px">¿Sin cuenta? <a href="${next ? `/signup?next=${encodeURIComponent(next)}` : '/signup'}">Crear una</a></p>
       </form>
     </div>`,
   );

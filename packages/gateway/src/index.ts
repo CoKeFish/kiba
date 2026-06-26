@@ -172,16 +172,17 @@ app.get('/health', (_req, res) => {
 
 // ─── Signup ────────────────────────────────────────────────────
 
-app.get('/signup', (_req, res) => {
-  res.send(signupView());
+app.get('/signup', (req, res) => {
+  res.send(signupView(undefined, req.query.next as string | undefined));
 });
 
 app.post('/signup', (req, res) => {
   const json = wantsJson(req);
   const { email, password } = req.body;
+  const next_url = (req.query.next as string) || '/dashboard';
   const fail = (status: number, msg: string) => {
     if (json) return res.status(status).json({ error: msg });
-    return res.status(status).send(signupView(msg));
+    return res.status(status).send(signupView(msg, req.query.next as string | undefined));
   };
 
   if (!email || !password) return fail(400, 'Email y contraseña requeridos');
@@ -204,7 +205,7 @@ app.post('/signup', (req, res) => {
       },
     });
   }
-  res.redirect('/dashboard');
+  res.redirect(next_url);
 });
 
 // ─── Login ─────────────────────────────────────────────────────
