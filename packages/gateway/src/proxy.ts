@@ -1,15 +1,14 @@
 /**
  * Proxy de /v1/call al SDK de Kiba.
  *
- * Modelo: cascada virtual → on-chain con pricing dinámico y x402 trace.
+ * Modelo: dos buckets de fondos.
  *   1. Pre-quote: probe HTTP sin pago para obtener el monto REAL que el agente
  *      cobrará por ESTE payload (pricing dinámico via priceFn).
  *   2. Cascada (decide ANTES de llamar):
- *      - Si crédito virtual cubre el costo → debita virtual, master refilla la
- *        custodial on-chain (ensureFunded). En este modo el user paga "USD".
- *      - Si no → modo wallet-direct: la custodial paga directo con su SOL
- *        on-chain (lo que el user transfirió desde Phantom externa). Sin debit
- *        ni refill master.
+ *      - Si el CRÉDITO de plataforma cubre el costo → debita crédito y la TREASURY
+ *        de la plataforma liquida el escrow on-chain (el wallet del user NO se toca).
+ *      - Si no → modo wallet-direct: la custodial del user paga directo con su XLM
+ *        on-chain. Sin debit de crédito.
  *   3. La llamada al servicio se hace UNA sola vez (callWithTrace), después de
  *      la decisión. El SDK maneja el handshake x402 internamente y devuelve
  *      un trace estructurado de los 4 steps.
@@ -20,11 +19,11 @@ import { AgentClient, type X402Trace } from '@kiba/sdk';
 import { attachSignature, debit, getBalance, lamportsToUsd } from './billing';
 import { db } from './db';
 import {
-  ensureFunded,
+  ensureTreasuryFunded,
+  getMasterWallet,
   getOnChainBalance,
   loadUserWallet,
   masterWalletPubkey,
-  type RefillResult,
 } from './wallets';
 import { BASE_UNITS_PER_TOKEN } from './chain';
 
@@ -104,13 +103,14 @@ export async function callOnBehalf(args: {
   result: unknown;
   cost: { lamports: number; usd: number };
   mode: 'virtual' | 'wallet-direct';
+  paidWith: 'credit' | 'wallet';
   newBalance: { lamports: number; usd: number };
-  refill?: { signature: string; lamports: number };
   trace: X402Trace;
 }> {
   const userWallet = loadUserWallet(args.userId);
 
-  // Cliente del SDK con la wallet del user — esto firmará open_escrow/claim_payment
+  // Cliente para la QUOTE (lectura). El cliente que LIQUIDA (firma open_escrow) se
+  // elige según el bucket: treasury para crédito, custodial del user para wallet.
   const client = new AgentClient({ wallet: userWallet });
 
   // 1. Pre-quote: precio REAL que el agente cobrará para ESTE payload
@@ -125,7 +125,9 @@ export async function callOnBehalf(args: {
   // 2. Cascada — decide modo y prepara fondos antes de la llamada.
   let mode: 'virtual' | 'wallet-direct';
   let debitResult: { newBalance: number; transactionId: number } | null = null;
-  let refillInfo: RefillResult | null = null;
+  // Cliente que firma/paga el escrow on-chain. Crédito → treasury de la plataforma;
+  // wallet → custodial del usuario.
+  let settleClient: AgentClient;
 
   if (virtualBalance >= lamports) {
     mode = 'virtual';
@@ -144,11 +146,14 @@ export async function callOnBehalf(args: {
     debitResult = debited;
 
     try {
-      refillInfo = await ensureFunded(args.userId, lamports);
+      // La plataforma adelanta la liquidación on-chain desde su treasury → el
+      // wallet del usuario NO se toca. El usuario "pagó" consumiendo crédito.
+      await ensureTreasuryFunded();
     } catch (err) {
-      refundDebit(args.userId, lamports, args.service, `refill failed: ${(err as Error).message}`);
+      refundDebit(args.userId, lamports, args.service, `treasury funding failed: ${(err as Error).message}`);
       throw err;
     }
+    settleClient = new AgentClient({ wallet: getMasterWallet() });
   } else {
     mode = 'wallet-direct';
 
@@ -156,9 +161,10 @@ export async function callOnBehalf(args: {
     const required = lamports + WALLET_TX_FEE_BUFFER;
     if (onChain < required) {
       throw new Error(
-        `insufficient funds: virtual ${virtualBalance} lamports + wallet ${onChain} lamports < ${required} (price ${lamports} + fee buffer ${WALLET_TX_FEE_BUFFER})`,
+        `insufficient funds: credit ${virtualBalance} + wallet ${onChain} < ${required} (price ${lamports} + fee buffer ${WALLET_TX_FEE_BUFFER})`,
       );
     }
+    settleClient = client; // la custodial del usuario paga
   }
 
   // 3. Llamada única al servicio. callWithTrace devuelve el resultado + un
@@ -168,7 +174,7 @@ export async function callOnBehalf(args: {
   let result: unknown;
   let trace: X402Trace;
   try {
-    const traced = await client.callWithTrace(args.service, args.payload, {
+    const traced = await settleClient.callWithTrace(args.service, args.payload, {
       // maxPrice circuit breaker — 2x del cotizado por seguridad (en unidades del token)
       maxPrice: (lamports / BASE_UNITS_PER_TOKEN) * 2,
       timeoutMs: 30_000,
@@ -201,22 +207,19 @@ export async function callOnBehalf(args: {
     });
   }
 
+  // Saldo del bucket efectivamente cobrado: crédito (virtual) o wallet on-chain
+  // (wallet-direct). Así el desglose es claro: en virtual el wallet no se movió.
+  const newBalanceLamports =
+    mode === 'virtual' && debitResult
+      ? debitResult.newBalance
+      : await getOnChainBalance(userWallet);
+
   return {
     result,
     cost: { lamports, usd: lamportsToUsd(lamports) },
     mode,
-    newBalance:
-      mode === 'virtual' && debitResult
-        ? { lamports: debitResult.newBalance, usd: lamportsToUsd(debitResult.newBalance) }
-        : { lamports: virtualBalance, usd: lamportsToUsd(virtualBalance) },
-    ...(refillInfo?.refilled && refillInfo.signature
-      ? {
-          refill: {
-            signature: refillInfo.signature,
-            lamports: refillInfo.afterLamports - refillInfo.beforeLamports,
-          },
-        }
-      : {}),
+    paidWith: mode === 'virtual' ? 'credit' : 'wallet',
+    newBalance: { lamports: newBalanceLamports, usd: lamportsToUsd(newBalanceLamports) },
     trace,
   };
 }

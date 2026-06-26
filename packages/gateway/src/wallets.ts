@@ -147,3 +147,19 @@ export async function ensureFunded(
   const afterLamports = cc ? Number(await cc.getBalanceBaseUnits()) : beforeLamports;
   return { refilled: afterLamports > beforeLamports, beforeLamports, afterLamports };
 }
+
+/**
+ * Asegura que la TREASURY de la plataforma (master wallet) exista y tenga fondos
+ * on-chain. Es quien liquida los escrows pagados con CRÉDITO (la custodial del
+ * usuario NO se toca en ese modo). En testnet, friendbot la crea+fondea (10k XLM)
+ * una vez; idempotente si ya existe.
+ */
+export async function ensureTreasuryFunded(): Promise<void> {
+  const cc = chainClientFor(masterWallet, 'treasury');
+  if (!cc) return;
+  try {
+    await cc.ensureFunds(0, 0);
+  } catch (err) {
+    console.warn('[wallets] ensureTreasuryFunded:', (err as Error).message);
+  }
+}
