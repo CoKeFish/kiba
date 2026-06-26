@@ -31,6 +31,7 @@ function jsonResult(data: unknown): ToolResult {
 const TOOLS = [
   {
     name: 'list_agents',
+    annotations: { title: 'List agents', readOnlyHint: true, openWorldHint: true },
     description:
       'Descubre agentes del marketplace Kiba. Si pasas `query` (palabra clave o lenguaje natural en cualquier idioma), corre búsqueda híbrida (FTS5 keyword + semántica) y devuelve los agentes más relevantes ordenados por score. Sin `query` devuelve el catálogo entero. Cada agente trae service, endpoint, descripción, pricePerCall y stats.',
     inputSchema: {
@@ -46,6 +47,13 @@ const TOOLS = [
   },
   {
     name: 'call_agent',
+    annotations: {
+      title: 'Call agent',
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: true,
+    },
     description:
       'Llama un agente especializado en el marketplace. El gateway maneja el pago automáticamente descontando del saldo del usuario. Devuelve el resultado del agente más el costo y saldo restante.',
     inputSchema: {
@@ -65,11 +73,13 @@ const TOOLS = [
   },
   {
     name: 'get_balance',
+    annotations: { title: 'Get balance', readOnlyHint: true, openWorldHint: false },
     description: 'Consulta el saldo actual del usuario (créditos USD y wallet on-chain).',
     inputSchema: { type: 'object', properties: {} },
   },
   {
     name: 'get_transactions',
+    annotations: { title: 'Get transactions', readOnlyHint: true, openWorldHint: false },
     description: 'Devuelve las últimas transacciones del usuario en el marketplace.',
     inputSchema: {
       type: 'object',

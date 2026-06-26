@@ -418,15 +418,24 @@ app.post('/auth/authorize', requireSession, (req, res) => {
   const code = authorizeSession(sessionId, req.user!.id);
   if (!code) return res.status(500).send('Failed to authorize');
 
-  // Redirige al redirect_uri del MCP con el code
+  // Redirige al redirect_uri del cliente con el code
   const url = new URL(session.redirect_uri);
   url.searchParams.set('code', code);
-  url.searchParams.set('session', sessionId);
   // Flujo OAuth estándar (connectors remotos): devolver el `state` recibido.
   if (session.state) url.searchParams.set('state', session.state);
 
-  // Para que el MCP confirme y pida el token, mostramos página intermedia que
-  // automáticamente hace fetch al redirect_uri (el MCP local server lo recibe).
+  // Connectors remotos (ChatGPT/Claude): el flujo estándar (GET /authorize) setea
+  // client_id en la sesión. OAuth 2.1 exige un redirect HTTP real al callback del
+  // cliente, no una página intermedia (un <meta refresh> es frágil y no es lo que
+  // espera ChatGPT). El flujo stdio (GET /auth/connect) deja client_id NULL y
+  // conserva la página que su server local en loopback intercepta.
+  if (session.client_id) {
+    return res.redirect(302, url.toString());
+  }
+
+  url.searchParams.set('session', sessionId);
+  // Para que el MCP local confirme y pida el token, mostramos página intermedia que
+  // automáticamente redirige al redirect_uri (el MCP local server lo recibe).
   res.send(`<!DOCTYPE html><html><head>
     <title>Autorizado · Kiba</title>
     <meta http-equiv="refresh" content="0;url=${url.toString()}">

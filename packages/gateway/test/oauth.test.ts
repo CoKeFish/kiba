@@ -12,6 +12,7 @@ import {
   revokeToken,
 } from '../src/oauth';
 import { db } from '../src/db';
+import { mcpTokenVerifier } from '../src/mcp-oauth';
 
 after(() => {
   try {
@@ -241,6 +242,109 @@ test('exchangeCodeForToken inserta el token en oauth_tokens con expires_at futur
     assert.equal(row!.client_name, 'mcp');
     assert.equal(row!.revoked, 0);
     assert.ok(row!.expires_at > Math.floor(Date.now() / 1000));
+  }
+});
+
+// ─── Resource indicator / audience binding (RFC 8707) ──────────
+
+test('exchangeCodeForToken liga el resource de la sesión al token', () => {
+  const userId = createTestUser('aud@test');
+  const { verifier, challenge } = makePkcePair();
+  const sessionId = createOAuthSession({
+    codeChallenge: challenge,
+    redirectUri: 'https://chatgpt.com/connector/oauth/abc',
+    clientName: 'chatgpt',
+    clientId: 'client_abc',
+    resource: 'https://gw.example.com/mcp',
+  });
+  const code = authorizeSession(sessionId, userId)!;
+  const r = exchangeCodeForToken(code, verifier);
+  assert.ok('access_token' in r);
+  if ('access_token' in r) {
+    const row = db
+      .prepare('SELECT resource FROM oauth_tokens WHERE token = ?')
+      .get(r.access_token) as { resource: string | null };
+    assert.equal(row.resource, 'https://gw.example.com/mcp');
+  }
+});
+
+test('exchangeCodeForToken sin resource → columna NULL (compat stdio)', () => {
+  const userId = createTestUser('nores@test');
+  const { verifier, challenge } = makePkcePair();
+  const sessionId = createOAuthSession({
+    codeChallenge: challenge,
+    redirectUri: 'http://localhost:5000/cb',
+    clientName: 'stdio',
+  });
+  const code = authorizeSession(sessionId, userId)!;
+  const r = exchangeCodeForToken(code, verifier);
+  assert.ok('access_token' in r);
+  if ('access_token' in r) {
+    const row = db
+      .prepare('SELECT resource FROM oauth_tokens WHERE token = ?')
+      .get(r.access_token) as { resource: string | null };
+    assert.equal(row.resource, null);
+  }
+});
+
+// PUBLIC_URL no está seteado en los tests → gatewayOrigin() = http://localhost:8000
+
+test('mcpTokenVerifier: token con resource del mismo origin → AuthInfo OK', async () => {
+  const userId = createTestUser('vok@test');
+  const { verifier, challenge } = makePkcePair();
+  const sessionId = createOAuthSession({
+    codeChallenge: challenge,
+    redirectUri: 'https://chatgpt.com/connector/oauth/x',
+    clientName: 'cg',
+    clientId: 'c1',
+    resource: 'http://localhost:8000/mcp',
+  });
+  const code = authorizeSession(sessionId, userId)!;
+  const r = exchangeCodeForToken(code, verifier);
+  assert.ok('access_token' in r);
+  if ('access_token' in r) {
+    const info = await mcpTokenVerifier.verifyAccessToken(r.access_token);
+    assert.equal((info.extra as { userId: number }).userId, userId);
+    assert.equal(info.resource?.origin, 'http://localhost:8000');
+  }
+});
+
+test('mcpTokenVerifier: token con resource de otro origin → InvalidTokenError', async () => {
+  const userId = createTestUser('vbad@test');
+  const { verifier, challenge } = makePkcePair();
+  const sessionId = createOAuthSession({
+    codeChallenge: challenge,
+    redirectUri: 'https://chatgpt.com/connector/oauth/y',
+    clientName: 'cg',
+    clientId: 'c2',
+    resource: 'https://evil.example.com/mcp',
+  });
+  const code = authorizeSession(sessionId, userId)!;
+  const r = exchangeCodeForToken(code, verifier);
+  assert.ok('access_token' in r);
+  if ('access_token' in r) {
+    await assert.rejects(
+      () => mcpTokenVerifier.verifyAccessToken(r.access_token),
+      /audience/i,
+    );
+  }
+});
+
+test('mcpTokenVerifier: token sin resource (stdio/legacy) → OK', async () => {
+  const userId = createTestUser('vnores@test');
+  const { verifier, challenge } = makePkcePair();
+  const sessionId = createOAuthSession({
+    codeChallenge: challenge,
+    redirectUri: 'http://localhost:5000/cb',
+    clientName: 'stdio',
+  });
+  const code = authorizeSession(sessionId, userId)!;
+  const r = exchangeCodeForToken(code, verifier);
+  assert.ok('access_token' in r);
+  if ('access_token' in r) {
+    const info = await mcpTokenVerifier.verifyAccessToken(r.access_token);
+    assert.equal((info.extra as { userId: number }).userId, userId);
+    assert.equal(info.resource, undefined);
   }
 });
 

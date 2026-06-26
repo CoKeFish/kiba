@@ -26,6 +26,15 @@ import { getUserByApiKey } from './api-keys';
 // un expiresAt numérico, así que les damos una ventana larga sintética.
 const API_KEY_VERIFY_TTL = 365 * 24 * 60 * 60;
 
+/** Origin público del gateway, contra el que se valida la audiencia del token. */
+function gatewayOrigin(): string {
+  try {
+    return new URL(process.env.PUBLIC_URL || 'http://localhost:8000').origin;
+  } catch {
+    return 'http://localhost:8000';
+  }
+}
+
 /**
  * Verifica un access token (OAuth opaco o API key) y devuelve el AuthInfo que el
  * middleware requireBearerAuth adjunta como `req.auth`. `extra.userId` es lo que
@@ -37,9 +46,24 @@ export const mcpTokenVerifier: OAuthTokenVerifier = {
 
     // 1. Token OAuth emitido por el gateway (PKCE flow).
     const tokenRow = db
-      .prepare('SELECT user_id, expires_at FROM oauth_tokens WHERE token = ? AND revoked = 0')
-      .get(token) as { user_id: number; expires_at: number } | undefined;
+      .prepare('SELECT user_id, expires_at, resource FROM oauth_tokens WHERE token = ? AND revoked = 0')
+      .get(token) as { user_id: number; expires_at: number; resource: string | null } | undefined;
     if (tokenRow && tokenRow.expires_at > now) {
+      // RFC 8707: si el token se ligó a una audiencia (`resource`), su origin debe
+      // coincidir con el de este gateway. Comparamos solo el origin (lenient): es
+      // robusto ante la ambigüedad origin-vs-/mcp de ChatGPT y los trailing slashes.
+      // resource NULL = sin binding (tokens stdio/legacy) → se acepta.
+      let resourceUrl: URL | undefined;
+      if (tokenRow.resource) {
+        try {
+          resourceUrl = new URL(tokenRow.resource);
+        } catch {
+          throw new InvalidTokenError('Invalid token audience');
+        }
+        if (resourceUrl.origin !== gatewayOrigin()) {
+          throw new InvalidTokenError('Token audience mismatch');
+        }
+      }
       const user = getUser(tokenRow.user_id);
       if (user) {
         return {
@@ -47,6 +71,7 @@ export const mcpTokenVerifier: OAuthTokenVerifier = {
           clientId: 'kiba-oauth',
           scopes: [],
           expiresAt: tokenRow.expires_at,
+          resource: resourceUrl,
           extra: { userId: user.id, email: user.email },
         };
       }

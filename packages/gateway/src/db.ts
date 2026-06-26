@@ -121,6 +121,10 @@ function ensureColumn(table: string, column: string, ddl: string): void {
 ensureColumn('oauth_sessions', 'state', 'TEXT');
 ensureColumn('oauth_sessions', 'client_id', 'TEXT');
 ensureColumn('oauth_sessions', 'resource', 'TEXT');
+// El access token queda ligado al `resource` (audiencia) del flujo estándar
+// (RFC 8707): connectors remotos como ChatGPT mandan `resource` y el token no
+// debe ser válido contra otro recurso. NULL para tokens stdio/legacy.
+ensureColumn('oauth_tokens', 'resource', 'TEXT');
 
 export interface UserRow {
   id: number;
@@ -164,6 +168,9 @@ export interface OAuthTokenRow {
   token: string;
   user_id: number;
   client_name: string;
+  // Audiencia RFC 8707 a la que se ligó el token (flujo OAuth estándar). NULL
+  // en tokens del flujo stdio/legacy.
+  resource: string | null;
   expires_at: number;
   revoked: number;
   created_at: number;

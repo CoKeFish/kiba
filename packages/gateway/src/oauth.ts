@@ -96,12 +96,15 @@ export function exchangeCodeForToken(
   const token = newRandomId('tok', 32);
   const now = Math.floor(Date.now() / 1000);
   db.prepare(
-    `INSERT INTO oauth_tokens (token, user_id, client_name, expires_at, created_at)
-     VALUES (@token, @userId, @clientName, @expiresAt, @createdAt)`,
+    `INSERT INTO oauth_tokens (token, user_id, client_name, resource, expires_at, created_at)
+     VALUES (@token, @userId, @clientName, @resource, @expiresAt, @createdAt)`,
   ).run({
     token,
     userId: session.user_id,
     clientName: session.client_name,
+    // RFC 8707: liga el token a la audiencia (`resource`) que pidió el cliente en
+    // el authorize. NULL para el flujo stdio (que no manda resource).
+    resource: session.resource ?? null,
     expiresAt: now + TOKEN_TTL,
     createdAt: now,
   });
