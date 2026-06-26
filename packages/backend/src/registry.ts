@@ -117,8 +117,10 @@ class StellarRegistryReader implements RegistryReader {
           price_per_call: Number(a.pricePerCallBaseUnits),
           endpoint: a.endpoint,
           description: a.description,
-          total_calls: 0,
-          total_earned: 0,
+          // El contrato acumula stats en cada claim; el SDK las expone. Antes se
+          // hardcodeaban a 0, así que el backend nunca reflejaba la actividad real.
+          total_calls: a.totalCalls != null ? Number(a.totalCalls) : 0,
+          total_earned: a.totalEarnedBaseUnits != null ? Number(a.totalEarnedBaseUnits) : 0,
           // `createdAt` viene del contrato (register_agent lo fija una vez;
           // update_agent lo preserva). Fallback al timestamp del indexer si el
           // cliente de cadena no lo expone — preserva el comportamiento previo.
