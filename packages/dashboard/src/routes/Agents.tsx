@@ -89,7 +89,12 @@ export default function Agents() {
   });
 
   useEffect(() => {
-    const url = `${location.protocol === "https:" ? "wss:" : "ws:"}//${location.host}/ws`;
+    // En producción (Vercel) el WS va DIRECTO al backend (Railway): Vercel no proxea
+    // WebSockets por rewrites. En dev, VITE_WS_URL no está set y cae al host local,
+    // que el proxy de Vite redirige al backend. Ver docs/DEPLOYMENT.md.
+    const url =
+      import.meta.env.VITE_WS_URL ||
+      `${location.protocol === "https:" ? "wss:" : "ws:"}//${location.host}/ws`;
     const ws = new WebSocket(url);
     setWsState("connecting");
     ws.onopen = () => setWsState("open");

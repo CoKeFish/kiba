@@ -34,8 +34,8 @@ jobs:
       backend: ${{ steps.f.outputs.backend }}
       gateway: ${{ steps.f.outputs.gateway }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v3
+      - uses: actions/checkout@v5
+      - uses: dorny/paths-filter@v4
         id: f
         with:
           filters: |
@@ -56,10 +56,10 @@ jobs:
   gitleaks:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0 # historia completa para escanear todos los commits
-      - uses: gitleaks/gitleaks-action@v2
+      - uses: gitleaks/gitleaks-action@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Gratis para cuentas personales. Si el repo pasa a una organización,
@@ -69,8 +69,8 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 20
           cache: npm
@@ -89,7 +89,7 @@ jobs:
     env:
       VERCEL_PROJECT_ID: prj_gLOztq0RbVqTKyIaf5skUBkIDtW3
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - run: npm i -g vercel@latest
       - run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
       - run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
@@ -106,7 +106,7 @@ jobs:
     env:
       VERCEL_PROJECT_ID: prj_rAW3qHsRmUw9UavD37nRaMZxG2qC
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - run: npm i -g vercel@latest
       - run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
       - run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
@@ -118,7 +118,7 @@ jobs:
     if: needs.changes.outputs.backend == 'true' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - run: npm i -g @railway/cli
       - name: Deploy backend
         run: railway up --service backend --ci
@@ -131,7 +131,7 @@ jobs:
     if: needs.changes.outputs.gateway == 'true' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - run: npm i -g @railway/cli
       - name: Deploy gateway
         run: railway up --service gateway --ci
