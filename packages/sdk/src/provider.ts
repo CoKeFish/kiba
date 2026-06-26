@@ -217,11 +217,20 @@ export class AgentProvider {
         return;
       }
 
-      // Verifica que el escrow existe on-chain con el monto esperado
-      const escrow = await this.chain.fetchEscrow({
+      // Verifica que el escrow existe on-chain con el monto esperado. En testnet
+      // el escrow recién abierto puede tardar en propagarse al RPC del agente, así
+      // que reintentamos unas veces antes de rechazar con 402.
+      let escrow = await this.chain.fetchEscrow({
         clientAddress: parsed.clientWallet,
         nonce: BigInt(parsed.nonce),
       });
+      for (let i = 0; !escrow && i < 4; i++) {
+        await new Promise((r) => setTimeout(r, 1500));
+        escrow = await this.chain.fetchEscrow({
+          clientAddress: parsed.clientWallet,
+          nonce: BigInt(parsed.nonce),
+        });
+      }
       if (!escrow) {
         res.status(402).json({ error: 'escrow not found on-chain' });
         return;
@@ -244,8 +253,10 @@ export class AgentProvider {
       // Pago verificado → ejecutar el servicio
       const result = await this.handler(req.body);
 
-      // Después de servir → claim del pago
-      const claimSig = await this.chain.claimPayment({
+      // Después de servir → claim del pago (con reintentos: en testnet el claim
+      // puede fallar por lag de propagación/confirmación aunque el escrow ya esté
+      // Pending). Sin esto, el agente devuelve 500 de forma intermitente.
+      const claimSig = await this.claimWithRetry({
         clientAddress: parsed.clientWallet,
         nonce: BigInt(parsed.nonce),
         service: this.config.service,
@@ -263,6 +274,39 @@ export class AgentProvider {
       const msg = err instanceof Error ? err.message : 'unknown error';
       res.status(500).json({ error: msg });
     }
+  }
+
+  /**
+   * Reclama el pago con reintentos. En testnet `claim_payment` puede fallar por lag
+   * de propagación/confirmación aunque `fetchEscrow` ya vio el escrow Pending. Si un
+   * intento aterrizó pero su confirmación se perdió, lo detectamos por estado Completed.
+   */
+  private async claimWithRetry(args: {
+    clientAddress: string;
+    nonce: bigint;
+    service: string;
+  }): Promise<string> {
+    const ATTEMPTS = 4;
+    let lastErr: unknown;
+    for (let i = 0; i < ATTEMPTS; i++) {
+      try {
+        return await this.chain!.claimPayment(args);
+      } catch (err) {
+        lastErr = err;
+        // ¿el claim aterrizó de todos modos? (confirmación perdida)
+        try {
+          const e = await this.chain!.fetchEscrow({
+            clientAddress: args.clientAddress,
+            nonce: args.nonce,
+          });
+          if (e && e.state === 'Completed') return 'claimed';
+        } catch {
+          /* ignore, reintentamos */
+        }
+        if (i < ATTEMPTS - 1) await new Promise((r) => setTimeout(r, 1500 * (i + 1)));
+      }
+    }
+    throw lastErr instanceof Error ? lastErr : new Error('claim failed after retries');
   }
 }
 

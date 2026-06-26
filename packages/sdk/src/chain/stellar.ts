@@ -90,38 +90,58 @@ export class StellarChainClient implements ChainClient {
 
   /** Método que cambia estado: prepara (simula + footprint + auth), firma, envía y espera. */
   private async invoke(method: string, args: xdr.ScVal[]): Promise<string> {
-    const source = await this.server.getAccount(this.keypair.publicKey());
-    const tx = new TransactionBuilder(source, {
-      fee: BASE_FEE,
-      networkPassphrase: this.networkPassphrase,
-    })
-      .addOperation(this.contract.call(method, ...args))
-      .setTimeout(30)
-      .build();
+    // Reintentos: en testnet, submit/confirm falla por races transitorios
+    // (txBadSeq con sequence stale, fee de recurso bajo bajo carga, NOT_FOUND
+    // por lag de confirmación). Re-leemos la cuenta (sequence fresco) en cada
+    // intento. Es SEGURO reintentar: el nonce del escrow es fijo por llamada, así
+    // que un open/claim que ya aterrizó rebota con EscrowExists/NotPending (no
+    // duplica). Backoff entre intentos.
+    const ATTEMPTS = 4;
+    let lastErr: unknown;
+    for (let attempt = 0; attempt < ATTEMPTS; attempt++) {
+      try {
+        const source = await this.server.getAccount(this.keypair.publicKey());
+        const tx = new TransactionBuilder(source, {
+          fee: BASE_FEE,
+          networkPassphrase: this.networkPassphrase,
+        })
+          .addOperation(this.contract.call(method, ...args))
+          .setTimeout(30)
+          .build();
 
-    const prepared = await this.server.prepareTransaction(tx);
-    prepared.sign(this.keypair);
+        const prepared = await this.server.prepareTransaction(tx);
+        prepared.sign(this.keypair);
 
-    const sent = await this.server.sendTransaction(prepared);
-    if (sent.status === 'ERROR') {
-      throw new Error(
-        `[${this.label}] ${method} rechazada: ${JSON.stringify(sent.errorResult)}`,
-      );
-    }
+        const sent = await this.server.sendTransaction(prepared);
+        if (sent.status === 'ERROR') {
+          throw new Error(
+            `[${this.label}] ${method} rechazada: ${JSON.stringify(sent.errorResult)}`,
+          );
+        }
 
-    let result = await this.server.getTransaction(sent.hash);
-    const deadline = Date.now() + 30_000;
-    while (
-      result.status === rpc.Api.GetTransactionStatus.NOT_FOUND &&
-      Date.now() < deadline
-    ) {
-      await new Promise((r) => setTimeout(r, 1000));
-      result = await this.server.getTransaction(sent.hash);
+        let result = await this.server.getTransaction(sent.hash);
+        const deadline = Date.now() + 30_000;
+        while (
+          result.status === rpc.Api.GetTransactionStatus.NOT_FOUND &&
+          Date.now() < deadline
+        ) {
+          await new Promise((r) => setTimeout(r, 1000));
+          result = await this.server.getTransaction(sent.hash);
+        }
+        if (result.status !== rpc.Api.GetTransactionStatus.SUCCESS) {
+          throw new Error(`[${this.label}] ${method} no confirmó: ${result.status}`);
+        }
+        return sent.hash;
+      } catch (err) {
+        lastErr = err;
+        if (attempt < ATTEMPTS - 1) {
+          await new Promise((r) => setTimeout(r, 1500 * (attempt + 1)));
+        }
+      }
     }
-    if (result.status !== rpc.Api.GetTransactionStatus.SUCCESS) {
-      throw new Error(`[${this.label}] ${method} no confirmó: ${result.status}`);
-    }
-    return sent.hash;
+    throw lastErr instanceof Error
+      ? lastErr
+      : new Error(`[${this.label}] ${method} falló tras reintentos`);
   }
 
   /** Método read-only: solo simula y devuelve el valor nativo del retorno.
