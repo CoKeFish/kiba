@@ -136,10 +136,30 @@ export function buildMcpServer(userId: number): Server {
         case 'call_agent': {
           const { service, payload } = (args ?? {}) as { service?: string; payload?: unknown };
           if (!service) throw new Error('service required');
-          return jsonResult(await callOnBehalf({ userId, service, payload: payload ?? {} }));
+          const out = (await callOnBehalf({ userId, service, payload: payload ?? {} })) as unknown as {
+            cost?: { lamports: number; usd: number };
+            newBalance?: { lamports: number; usd: number };
+            [k: string]: unknown;
+          };
+          // Normaliza los nombres heredados de Solana (lamports) a unidades base:
+          // la cadena activa es Stellar/XLM (stroops).
+          const clean: Record<string, unknown> = { ...out };
+          if (out.cost) clean.cost = { baseUnits: out.cost.lamports, usd: out.cost.usd };
+          if (out.newBalance) {
+            clean.newBalance = { baseUnits: out.newBalance.lamports, usd: out.newBalance.usd };
+          }
+          return jsonResult(clean);
         }
         case 'get_balance': {
-          return jsonResult(await getUserBalances(userId));
+          const b = await getUserBalances(userId);
+          // Solo campos Stellar-correctos (sin los aliases legacy lamports/sol).
+          return jsonResult({
+            asset: b.asset,
+            baseUnitName: b.baseUnitName,
+            credit: { baseUnits: b.creditBaseUnits, usd: b.creditUsd },
+            wallet: { baseUnits: b.walletBaseUnits, assetAmount: b.walletAssetAmount, usd: b.walletUsd },
+            total: { baseUnits: b.totalBaseUnits, assetAmount: b.totalAssetAmount, usd: b.totalUsd },
+          });
         }
         case 'get_transactions': {
           const { limit } = (args ?? {}) as { limit?: number };
@@ -148,7 +168,7 @@ export function buildMcpServer(userId: number): Server {
             txs.map((t) => ({
               id: String(t.id),
               type: t.type,
-              amount_lamports: Math.abs(t.amount_lamports),
+              amount_base_units: Math.abs(t.amount_lamports),
               service: t.service ?? undefined,
               tx_signature: t.signature ?? undefined,
               created_at: t.created_at,
