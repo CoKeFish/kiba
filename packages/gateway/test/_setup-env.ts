@@ -14,6 +14,11 @@ import { Keypair } from '@solana/web3.js';
 // DB aislada por proceso de test (cada test file corre en su propio subproceso)
 const tmpDir = mkdtempSync(join(tmpdir(), 'gw-test-'));
 process.env.DB_PATH = join(tmpDir, 'gateway.db');
+// Los tests de billing fijan la semántica Solana (rate 150, 1e9 unidades base):
+// sus aserciones están escritas contra esas constantes. Sin pinear CHAIN, caería
+// al default 'stellar' (1e7 stroops, rate 0.12) y romperían. chain.ts lee
+// process.env.CHAIN al cargarse, así que debe quedar fijado ANTES de importar src.
+process.env.CHAIN = process.env.CHAIN || 'solana';
 process.env.SOL_USD_RATE = process.env.SOL_USD_RATE || '150';
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-secret-do-not-use';
 

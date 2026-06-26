@@ -3,17 +3,18 @@ name: deploy
 # CI/CD de Kiba.
 #   Frontends (Astro landing, Vite dashboard) -> Vercel
 #   Backends  (backend indexer, gateway x402) -> Railway
-# Cada push a main: corre tests, y despliega SOLO los paquetes que cambiaron.
+# Cada push a main: corre tests + escaneo de secretos, y despliega SOLO los
+# paquetes que cambiaron. En pull_request corre tests + gitleaks (sin desplegar).
 #
 # Secrets requeridos en el repo (Settings -> Secrets and variables -> Actions):
 #   VERCEL_TOKEN    Token de Vercel  (https://vercel.com/account/tokens)
 #   RAILWAY_TOKEN   Project token del proyecto "kiba" en Railway
-#                   (Railway -> proyecto kiba -> Settings -> Tokens, scope = production)
 # Los IDs de Vercel (org/project) NO son secretos y van inline abajo.
 
 on:
   push:
     branches: [main]
+  pull_request: {}
   workflow_dispatch: {}
 
 concurrency:
@@ -51,6 +52,19 @@ jobs:
               - 'packages/sdk/**'
               - 'package-lock.json'
 
+  # ---- Escaneo de secretos (gate de los deploys) ---------------------------
+  gitleaks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # historia completa para escanear todos los commits
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Gratis para cuentas personales. Si el repo pasa a una organización,
+          # añadir el secret GITLEAKS_LICENSE (https://gitleaks.io/products.html).
+
   # ---- Tests (gate de los deploys) -----------------------------------------
   test:
     runs-on: ubuntu-latest
@@ -66,8 +80,8 @@ jobs:
 
   # ---- Vercel: landing -----------------------------------------------------
   deploy-landing:
-    needs: [changes, test]
-    if: needs.changes.outputs.landing == 'true'
+    needs: [changes, gitleaks, test]
+    if: needs.changes.outputs.landing == 'true' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -83,8 +97,8 @@ jobs:
 
   # ---- Vercel: dashboard ---------------------------------------------------
   deploy-dashboard:
-    needs: [changes, test]
-    if: needs.changes.outputs.dashboard == 'true'
+    needs: [changes, gitleaks, test]
+    if: needs.changes.outputs.dashboard == 'true' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -100,8 +114,8 @@ jobs:
 
   # ---- Railway: backend ----------------------------------------------------
   deploy-backend:
-    needs: [changes, test]
-    if: needs.changes.outputs.backend == 'true'
+    needs: [changes, gitleaks, test]
+    if: needs.changes.outputs.backend == 'true' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -113,8 +127,8 @@ jobs:
 
   # ---- Railway: gateway ----------------------------------------------------
   deploy-gateway:
-    needs: [changes, test]
-    if: needs.changes.outputs.gateway == 'true'
+    needs: [changes, gitleaks, test]
+    if: needs.changes.outputs.gateway == 'true' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
