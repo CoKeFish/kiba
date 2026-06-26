@@ -1,0 +1,33 @@
+# Imagen de PRODUCCIÓN para Railway.
+# Variante de packages/gateway/Dockerfile (dev). Hornea el código y arranca el
+# server sin watch. Railway apunta aquí vía RAILWAY_DOCKERFILE_PATH.
+FROM node:20-alpine
+
+# better-sqlite3 necesita build tools.
+RUN apk add --no-cache python3 make g++ sqlite
+
+WORKDIR /app
+
+# Root configs + lockfile
+COPY package.json package-lock.json tsconfig.base.json ./
+
+# Solo los workspaces que el gateway usa (sdk es dep transitiva).
+COPY packages/sdk/package.json ./packages/sdk/
+COPY packages/gateway/package.json ./packages/gateway/
+
+# --include=dev garantiza `tsx` aunque Railway fije NODE_ENV=production en build.
+RUN npm install --workspace=@kiba/gateway --include-workspace-root --include=dev
+
+COPY packages/sdk ./packages/sdk
+COPY packages/gateway ./packages/gateway
+
+WORKDIR /app/packages/gateway
+
+# DB SQLite + master-wallet CUSTODIAL viven en el volumen de Railway (/app/data).
+# Perder este directorio = perder las wallets custodiales. El volumen lo persiste.
+RUN mkdir -p /app/data
+
+# Railway inyecta $PORT; el server usa process.env.PORT (default 8000).
+EXPOSE 8000
+
+CMD ["npx", "tsx", "src/index.ts"]

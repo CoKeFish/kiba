@@ -1,0 +1,42 @@
+# Imagen de PRODUCCIÓN para Railway.
+# Variante de packages/backend/Dockerfile (que es dev: monta el código y usa
+# `tsx watch`). Aquí el código se hornea en la imagen y el server arranca SIN
+# watch. Railway apunta a este archivo vía la variable RAILWAY_DOCKERFILE_PATH.
+FROM node:20-slim
+
+# better-sqlite3 necesita build tools nativos; onnxruntime (transformers.js) glibc.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 make g++ \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Root configs + lockfile (install determinista)
+COPY package.json package-lock.json tsconfig.base.json ./
+
+# Solo los workspaces que el backend usa (sdk es dep transitiva).
+COPY packages/sdk/package.json ./packages/sdk/
+COPY packages/backend/package.json ./packages/backend/
+
+# Install scopeado al backend. --include=dev garantiza que `tsx` esté presente
+# aunque Railway inyecte NODE_ENV=production en build (que omitiría devDeps).
+RUN npm install --workspace=@kiba/backend --include-workspace-root --include=dev
+
+# Código fuente
+COPY packages/sdk ./packages/sdk
+COPY packages/backend ./packages/backend
+
+WORKDIR /app/packages/backend
+
+# SQLite + cache de modelos transformers.js viven en el volumen de Railway,
+# montado en /app/packages/backend/data (ver railway volume).
+ENV BACKEND_DATA_DIR=/app/packages/backend/data
+ENV TRANSFORMERS_CACHE=/app/packages/backend/data/models
+RUN mkdir -p /app/packages/backend/data
+
+# Railway inyecta $PORT; el server usa process.env.PORT (default 4000).
+EXPOSE 4000
+
+# tsx ejecuta TS directamente (sin paso tsc): evita el problema de orden de
+# build del monorepo y replica lo que corre en dev, pero sin --watch.
+CMD ["npx", "tsx", "src/index.ts"]

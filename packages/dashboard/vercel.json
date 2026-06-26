@@ -1,0 +1,11 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "vite",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "https://gateway-production-be17.up.railway.app/:path*" },
+    { "source": "/backend/:path*", "destination": "https://backend-production-c019.up.railway.app/:path*" },
+    { "source": "/((?!assets|.*\\.).*)", "destination": "/index.html" }
+  ]
+}

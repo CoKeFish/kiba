@@ -1,0 +1,125 @@
+name: deploy
+
+# CI/CD de Kiba.
+#   Frontends (Astro landing, Vite dashboard) -> Vercel
+#   Backends  (backend indexer, gateway x402) -> Railway
+# Cada push a main: corre tests, y despliega SOLO los paquetes que cambiaron.
+#
+# Secrets requeridos en el repo (Settings -> Secrets and variables -> Actions):
+#   VERCEL_TOKEN    Token de Vercel  (https://vercel.com/account/tokens)
+#   RAILWAY_TOKEN   Project token del proyecto "kiba" en Railway
+#                   (Railway -> proyecto kiba -> Settings -> Tokens, scope = production)
+# Los IDs de Vercel (org/project) NO son secretos y van inline abajo.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  VERCEL_ORG_ID: team_9ih8tHa4Rdt6QMgOLYFGnBAx
+
+jobs:
+  # ---- ¿Qué cambió? --------------------------------------------------------
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      landing: ${{ steps.f.outputs.landing }}
+      dashboard: ${{ steps.f.outputs.dashboard }}
+      backend: ${{ steps.f.outputs.backend }}
+      gateway: ${{ steps.f.outputs.gateway }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: f
+        with:
+          filters: |
+            landing:
+              - 'packages/landing/**'
+            dashboard:
+              - 'packages/dashboard/**'
+            backend:
+              - 'packages/backend/**'
+              - 'packages/sdk/**'
+              - 'package-lock.json'
+            gateway:
+              - 'packages/gateway/**'
+              - 'packages/sdk/**'
+              - 'package-lock.json'
+
+  # ---- Tests (gate de los deploys) -----------------------------------------
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Run workspace tests
+        run: npm test --workspaces --if-present
+
+  # ---- Vercel: landing -----------------------------------------------------
+  deploy-landing:
+    needs: [changes, test]
+    if: needs.changes.outputs.landing == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/landing
+    env:
+      VERCEL_PROJECT_ID: prj_gLOztq0RbVqTKyIaf5skUBkIDtW3
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm i -g vercel@latest
+      - run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+      - run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+      - run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+
+  # ---- Vercel: dashboard ---------------------------------------------------
+  deploy-dashboard:
+    needs: [changes, test]
+    if: needs.changes.outputs.dashboard == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/dashboard
+    env:
+      VERCEL_PROJECT_ID: prj_rAW3qHsRmUw9UavD37nRaMZxG2qC
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm i -g vercel@latest
+      - run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+      - run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+      - run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+
+  # ---- Railway: backend ----------------------------------------------------
+  deploy-backend:
+    needs: [changes, test]
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm i -g @railway/cli
+      - name: Deploy backend
+        run: railway up --service backend --ci
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+
+  # ---- Railway: gateway ----------------------------------------------------
+  deploy-gateway:
+    needs: [changes, test]
+    if: needs.changes.outputs.gateway == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm i -g @railway/cli
+      - name: Deploy gateway
+        run: railway up --service gateway --ci
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
