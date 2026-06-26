@@ -9,6 +9,11 @@
     "dev:translator": "tsx watch src/translator.ts",
     "dev:price": "tsx watch src/price-oracle.ts",
     "dev:code": "tsx watch src/code-reviewer.ts",
+    "start:yield": "tsx src/yield-hunter.ts",
+    "start:risk": "tsx src/risk-auditor.ts",
+    "start:translator": "tsx src/translator.ts",
+    "start:price": "tsx src/price-oracle.ts",
+    "start:code": "tsx src/code-reviewer.ts",
     "build": "tsc"
   },
   "dependencies": {

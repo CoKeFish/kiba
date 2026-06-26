@@ -1,0 +1,23 @@
+# Imagen de PRODUCCIÓN para Railway. Corre UN agente sin watch.
+# Railway apunta aquí vía RAILWAY_DOCKERFILE_PATH y elige el agente con AGENT_NAME
+# (translator-pro|yield-hunter|risk-auditor|price-oracle|code-reviewer).
+# El keypair llega por AGENT_WALLET_SECRET (env), no por archivo; el endpoint
+# on-chain por PUBLIC_ENDPOINT. Railway inyecta $PORT.
+FROM node:20-alpine
+
+WORKDIR /app
+
+COPY package.json package-lock.json tsconfig.base.json ./
+COPY packages/sdk/package.json ./packages/sdk/
+COPY packages/demo-agents/package.json ./packages/demo-agents/
+
+# --include=dev garantiza `tsx` aunque Railway fije NODE_ENV=production en build.
+RUN npm install --workspace=@kiba/demo-agents --include-workspace-root --include=dev
+
+COPY packages/sdk ./packages/sdk
+COPY packages/demo-agents ./packages/demo-agents
+
+WORKDIR /app/packages/demo-agents
+
+# ${AGENT_NAME%%-*} mapea translator-pro→translator, yield-hunter→yield, etc.
+CMD ["sh", "-c", "npm run start:${AGENT_NAME%%-*}"]

@@ -11,9 +11,30 @@ orquestado por **GitHub Actions** (`.github/workflows/deploy.yml`).
 | `packages/dashboard` (Vite) | Vercel | `kiba-dashboard` | https://kiba-dashboard.vercel.app |
 | `packages/backend` (Express) | Railway | `kiba` / `backend` | https://backend-production-c019.up.railway.app |
 | `packages/gateway` (Express) | Railway | `kiba` / `gateway` | https://gateway-production-be17.up.railway.app |
+| `demo-agents` (translator-pro) | Railway | `kiba` / `kiba-agent-translator` | https://kiba-agent-translator-production.up.railway.app |
+| `demo-agents` (yield-hunter) | Railway | `kiba` / `kiba-agent-yield` | https://kiba-agent-yield-production.up.railway.app |
+| `demo-agents` (risk-auditor) | Railway | `kiba` / `kiba-agent-risk` | https://kiba-agent-risk-production.up.railway.app |
+| `demo-agents` (price-oracle) | Railway | `kiba` / `kiba-agent-price` | https://kiba-agent-price-production.up.railway.app |
+| `demo-agents` (code-reviewer) | Railway | `kiba` / `kiba-agent-code` | https://kiba-agent-code-production.up.railway.app |
 
 Los demás paquetes (`sdk`, `contracts`, `contracts-soroban`, `mcp-server`, `installer`,
-`demo-agents`, `orchestrator-agent`) **no se despliegan** en este pipeline.
+`orchestrator-agent`) **no se despliegan** en este pipeline.
+
+### Demo-agents en Railway (1 servicio por agente)
+
+Los 5 agentes corren en servicios Railway separados (un puerto público c/u). Imagen:
+`packages/demo-agents/Dockerfile.railway` (selecciona el agente con `AGENT_NAME`).
+Variables por servicio: `AGENT_NAME` (translator-pro|yield-hunter|risk-auditor|price-oracle|code-reviewer),
+`AGENT_WALLET_SECRET` (keypair del owner on-chain, JSON array), `PUBLIC_ENDPOINT`
+(su URL pública — el agente actualiza su endpoint on-chain en boot vía `bootstrap()`),
+`CHAIN=stellar`, `STELLAR_*`, `BACKEND_URL`. No están en el pipeline de CI; se
+desplegaron con `railway up --service kiba-agent-<x>`.
+
+> ⚠️ **El master wallet del gateway debe estar fondeado on-chain.** En modo virtual el
+> gateway refilla la custodial del usuario desde el master (`ensureFunded`) para abrir el
+> escrow. Si el master (ver "Master wallet:" en los logs de boot del gateway) no existe
+> on-chain, todo `call_agent` falla con "apertura de escrow no confirmó". En testnet:
+> `curl "https://friendbot.stellar.org/?addr=<MASTER_PUBKEY>"`.
 
 ### IDs de referencia
 - Vercel org (team): `team_9ih8tHa4Rdt6QMgOLYFGnBAx`
