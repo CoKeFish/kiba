@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Despliega e inicializa el contrato Kiba en testnet de Stellar.
+# Despliega el contrato Kiba (registro de agentes) en testnet de Stellar.
 # Pensado para correr DENTRO de la imagen kiba/stellar-cli, con el repo
 # montado en /workspace. Desde packages/contracts-soroban:
 #
@@ -9,7 +9,6 @@
 # Variables opcionales:
 #   NETWORK   (default: testnet)
 #   IDENTITY  (default: deployer)   — nombre de la identidad del CLI
-#   TREASURY  (default: el deployer) — dirección que recibe el fee 5%
 set -euo pipefail
 
 NETWORK="${NETWORK:-testnet}"
@@ -38,19 +37,7 @@ echo "→ desplegando a $NETWORK"
 CONTRACT_ID="$(stellar contract deploy --wasm "$WASM" --source "$IDENTITY" --network "$NETWORK")"
 echo "→ contract id: $CONTRACT_ID"
 
-# 4. Token de liquidación: por simplicidad usamos el SAC del activo nativo (XLM)
-#    de testnet. En un entorno realista sería el SAC de USDC.
-NATIVE_SAC="$(stellar contract id asset --asset native --network "$NETWORK")"
-echo "→ token (XLM SAC): $NATIVE_SAC"
-
-# 5. initialize(token, treasury). treasury = deployer salvo override.
-TREASURY="${TREASURY:-$DEPLOYER_ADDR}"
-echo "→ initialize(token=$NATIVE_SAC, treasury=$TREASURY)"
-stellar contract invoke \
-  --id "$CONTRACT_ID" --source "$IDENTITY" --network "$NETWORK" \
-  -- initialize --token "$NATIVE_SAC" --treasury "$TREASURY"
-
 echo
-echo "✅ Desplegado e inicializado en $NETWORK"
+echo "✅ Desplegado en $NETWORK"
 echo "   CONTRACT_ID=$CONTRACT_ID"
 echo "   Explorer: https://stellar.expert/explorer/$NETWORK/contract/$CONTRACT_ID"

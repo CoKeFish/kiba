@@ -5,58 +5,24 @@ use super::*;
 use soroban_sdk::testutils::Address as _;
 use soroban_sdk::{Address, Env, String};
 
-/// Crea el entorno, un token (Stellar Asset Contract), la treasury y el contrato
-/// ya inicializado. Devuelve direcciones (los clients se crean en cada test para
-/// evitar problemas de lifetime con el Env local).
-fn setup() -> (Env, Address, Address, Address) {
+/// Crea el entorno y el contrato registrado. Los clients se crean en cada test
+/// para evitar problemas de lifetime con el Env local.
+fn setup() -> (Env, Address) {
     let env = Env::default();
     env.mock_all_auths();
-
-    let token_admin = Address::generate(&env);
-    let sac = env.register_stellar_asset_contract_v2(token_admin);
-    let token_id = sac.address();
-
-    let treasury = Address::generate(&env);
     let contract_id = env.register(Kiba, ());
-
-    let app = KibaClient::new(&env, &contract_id);
-    app.initialize(&token_id, &treasury);
-
-    (env, contract_id, token_id, treasury)
+    (env, contract_id)
 }
 
 fn s(env: &Env, v: &str) -> String {
     String::from_str(env, v)
 }
 
-// ─── initialize ────────────────────────────────────────────────
-
-#[test]
-fn initialize_sets_config() {
-    let (env, contract_id, token_id, treasury) = setup();
-    let app = KibaClient::new(&env, &contract_id);
-
-    let config = app.get_config().unwrap();
-    assert_eq!(config.token, token_id);
-    assert_eq!(config.treasury, treasury);
-}
-
-#[test]
-fn initialize_twice_fails() {
-    let (env, contract_id, token_id, treasury) = setup();
-    let app = KibaClient::new(&env, &contract_id);
-
-    assert_eq!(
-        app.try_initialize(&token_id, &treasury),
-        Err(Ok(Error::AlreadyInitialized))
-    );
-}
-
 // ─── registry ──────────────────────────────────────────────────
 
 #[test]
 fn register_and_read_agent() {
-    let (env, contract_id, _token, _treasury) = setup();
+    let (env, contract_id) = setup();
     let app = KibaClient::new(&env, &contract_id);
     let owner = Address::generate(&env);
 
@@ -77,7 +43,7 @@ fn register_and_read_agent() {
 
 #[test]
 fn register_duplicate_fails() {
-    let (env, contract_id, _token, _treasury) = setup();
+    let (env, contract_id) = setup();
     let app = KibaClient::new(&env, &contract_id);
     let owner = Address::generate(&env);
     let svc = s(&env, "dup");
@@ -91,7 +57,7 @@ fn register_duplicate_fails() {
 
 #[test]
 fn register_empty_service_fails() {
-    let (env, contract_id, _token, _treasury) = setup();
+    let (env, contract_id) = setup();
     let app = KibaClient::new(&env, &contract_id);
     let owner = Address::generate(&env);
 
@@ -103,7 +69,7 @@ fn register_empty_service_fails() {
 
 #[test]
 fn register_nonpositive_price_fails() {
-    let (env, contract_id, _token, _treasury) = setup();
+    let (env, contract_id) = setup();
     let app = KibaClient::new(&env, &contract_id);
     let owner = Address::generate(&env);
 
@@ -115,7 +81,7 @@ fn register_nonpositive_price_fails() {
 
 #[test]
 fn update_agent_changes_fields() {
-    let (env, contract_id, _token, _treasury) = setup();
+    let (env, contract_id) = setup();
     let app = KibaClient::new(&env, &contract_id);
     let owner = Address::generate(&env);
     let svc = s(&env, "translator");
@@ -136,7 +102,7 @@ fn update_agent_changes_fields() {
 
 #[test]
 fn deregister_removes_agent() {
-    let (env, contract_id, _token, _treasury) = setup();
+    let (env, contract_id) = setup();
     let app = KibaClient::new(&env, &contract_id);
     let owner = Address::generate(&env);
     let svc = s(&env, "temp");
@@ -154,9 +120,6 @@ fn register_agent_requires_owner_auth() {
     let env = Env::default(); // SIN mock_all_auths → require_auth NO pasa
     let contract_id = env.register(Kiba, ());
     let app = KibaClient::new(&env, &contract_id);
-    let token = Address::generate(&env);
-    let treasury = Address::generate(&env);
-    app.initialize(&token, &treasury); // initialize no exige auth
     let owner = Address::generate(&env);
     // register_agent exige owner.require_auth() → panic sin auth mockeada.
     app.register_agent(&owner, &s(&env, "svc"), &1, &s(&env, ""), &s(&env, ""));

@@ -5,9 +5,8 @@
 //! pagos se liquida fuera de este contrato (Trustless Work).
 //!
 //! Funciones:
-//!   initialize
 //!   register_agent / update_agent / deregister_agent
-//!   get_agent / get_config (lecturas)
+//!   get_agent (lectura)
 
 use soroban_sdk::{
     contract, contracterror, contractimpl, contracttype, Address, Env, String, Symbol,
@@ -30,15 +29,6 @@ const TTL_EXTEND_TO: u32 = 30 * LEDGERS_PER_DAY;
 
 #[contracttype]
 #[derive(Clone)]
-pub struct Config {
-    /// Stellar Asset Contract del token de liquidación (USDC/XLM).
-    pub token: Address,
-    /// Wallet que recibe la comisión de la plataforma.
-    pub treasury: Address,
-}
-
-#[contracttype]
-#[derive(Clone)]
 pub struct Agent {
     pub owner: Address,
     pub service: String,
@@ -55,7 +45,6 @@ pub struct Agent {
 #[contracttype]
 #[derive(Clone)]
 pub enum DataKey {
-    Config,
     Agent(String),
 }
 
@@ -63,7 +52,6 @@ pub enum DataKey {
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 #[repr(u32)]
 pub enum Error {
-    AlreadyInitialized = 1,
     ServiceEmpty = 3,
     ServiceTooLong = 4,
     EndpointTooLong = 5,
@@ -82,21 +70,6 @@ pub struct Kiba;
 
 #[contractimpl]
 impl Kiba {
-    /// Fija el token de liquidación y la treasury. Solo una vez.
-    // TODO(kiba, contracts-crosscut-01): `initialize` no exige auth → en un redeploy futuro
-    // es front-runnable antes de que el deployer la llame. Endurecer migrándola a un
-    // `__constructor` (atómico en el deploy) en la próxima versión del contrato. Mitigación
-    // actual: deploy-testnet.sh despliega e inicializa en secuencia inmediata.
-    pub fn initialize(env: Env, token: Address, treasury: Address) -> Result<(), Error> {
-        if env.storage().instance().has(&DataKey::Config) {
-            return Err(Error::AlreadyInitialized);
-        }
-        env.storage()
-            .instance()
-            .set(&DataKey::Config, &Config { token, treasury });
-        Ok(())
-    }
-
     // ─── Registry ─────────────────────────────────────────────
 
     pub fn register_agent(
@@ -217,10 +190,6 @@ impl Kiba {
 
     pub fn get_agent(env: Env, service: String) -> Option<Agent> {
         env.storage().persistent().get(&DataKey::Agent(service))
-    }
-
-    pub fn get_config(env: Env) -> Option<Config> {
-        env.storage().instance().get(&DataKey::Config)
     }
 }
 
