@@ -15,8 +15,8 @@
  * Soroban no enumera el registro → trackeamos los servicios de cada user en la
  * tabla `user_agents` para poder listarlos (listMyAgents) sin enumeración on-chain.
  */
-import { ASSET, BASE_UNITS_PER_TOKEN, chainClientFor } from './chain';
-import { ensureFunded, loadUserWallet } from './wallets';
+import { ASSET, BASE_UNITS_PER_TOKEN, chainClientForSigner } from './chain';
+import { ensureFunded, loadUserSigner } from './wallets';
 import { db } from './db';
 import type { ChainClient } from '@kiba/sdk';
 
@@ -73,8 +73,8 @@ export function validateUpdateInput(input: UpdateAgentInput): string | null {
 }
 
 /** ChainClient (chain-aware) firmando con la custodial del user. Lanza si no hay cadena. */
-function chainFor(userId: number): ChainClient {
-  const cc = chainClientFor(loadUserWallet(userId), `user:${userId}`);
+async function chainFor(userId: number): Promise<ChainClient> {
+  const cc = chainClientForSigner(await loadUserSigner(userId), `user:${userId}`);
   if (!cc) throw new Error('on-chain registry unavailable (no chain configured)');
   return cc;
 }
@@ -91,7 +91,7 @@ export async function registerAgent(
   userId: number,
   input: RegisterAgentInput,
 ): Promise<RegisterResult> {
-  const cc = chainFor(userId);
+  const cc = await chainFor(userId);
 
   const existing = await cc.fetchAgent(input.service);
   if (existing) throw new Error(`service "${input.service}" is already registered`);
@@ -136,7 +136,7 @@ export async function updateAgent(
   service: string,
   input: UpdateAgentInput,
 ): Promise<UpdateResult> {
-  const cc = chainFor(userId);
+  const cc = await chainFor(userId);
 
   const existing = await cc.fetchAgent(service);
   if (!existing) throw new Error(`service "${service}" not found`);
@@ -161,7 +161,7 @@ export interface DeregisterResult {
 }
 
 export async function deregisterAgent(userId: number, service: string): Promise<DeregisterResult> {
-  const cc = chainFor(userId);
+  const cc = await chainFor(userId);
 
   const existing = await cc.fetchAgent(service);
   if (!existing) throw new Error(`service "${service}" not found`);
@@ -190,7 +190,7 @@ export interface AgentSummary {
 }
 
 export async function listMyAgents(userId: number): Promise<AgentSummary[]> {
-  const cc = chainFor(userId);
+  const cc = await chainFor(userId);
   const rows = db
     .prepare('SELECT service FROM user_agents WHERE user_id = ? ORDER BY created_at DESC')
     .all(userId) as { service: string }[];

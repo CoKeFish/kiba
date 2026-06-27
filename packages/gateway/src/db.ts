@@ -160,6 +160,12 @@ db.exec(
 // debe ser válido contra otro recurso. NULL para tokens stdio/legacy.
 ensureColumn('oauth_tokens', 'resource', 'TEXT');
 
+// Privy server wallets: la clave ed25519 vive en el TEE de Privy, no en la DB de Kiba.
+// `privy_wallet_id` + `stellar_address` reemplazan a custodial_wallet_secret (que queda
+// vacío '' al migrar un usuario). Nullable: los usuarios legacy siguen con su secret local.
+ensureColumn('users', 'privy_wallet_id', 'TEXT');
+ensureColumn('users', 'stellar_address', 'TEXT');
+
 export interface UserRow {
   id: number;
   email: string;
@@ -170,6 +176,10 @@ export interface UserRow {
   created_at: number;
   is_publisher: number;
   publisher_name: string | null;
+  /** Privy: id de la server wallet (clave en el TEE de Privy). null = legacy/no migrado. */
+  privy_wallet_id: string | null;
+  /** Privy: dirección Stellar (G...) de la wallet. null = legacy/no migrado. */
+  stellar_address: string | null;
 }
 
 export interface OAuthSessionRow {

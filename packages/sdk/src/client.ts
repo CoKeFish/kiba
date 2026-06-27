@@ -1,7 +1,7 @@
 import axios, { type AxiosError, type AxiosResponse } from 'axios';
 import { type Keypair } from '@solana/web3.js';
 import type { AgentConfig, CallOptions, ServiceManifest, X402Quote } from './types';
-import { createChainClient, type ChainClient } from './chain';
+import { createChainClient, type ChainClient, type StellarSigner } from './chain';
 
 /**
  * Trace de cada paso del handshake x402.
@@ -62,14 +62,16 @@ export interface X402Trace {
  *   const result = await client.call('yield-hunter', { token: 'USDC' });
  */
 export class AgentClient {
-  readonly wallet: Keypair;
+  /** Keypair local del cliente. Opcional: con `signer` (p.ej. Privy) no hay Keypair. */
+  readonly wallet?: Keypair;
   /** Cadena de liquidación. null en modo degradado (sin cadena configurada). */
   readonly chain: ChainClient | null;
 
-  constructor(config: Pick<AgentConfig, 'wallet' | 'rpcUrl'>) {
+  constructor(config: { wallet?: Keypair; signer?: StellarSigner; rpcUrl?: string }) {
     this.wallet = config.wallet;
     this.chain = createChainClient({
       wallet: config.wallet,
+      signer: config.signer,
       rpcUrl: config.rpcUrl,
       label: 'client',
     });
@@ -285,7 +287,7 @@ export class AgentClient {
         escrowId,
         signature: escrowSig,
         nonce: quote.nonce,
-        clientWallet: this.chain?.ownerAddress ?? this.wallet.publicKey.toBase58(),
+        clientWallet: this.chain?.ownerAddress ?? this.wallet?.publicKey.toBase58() ?? 'unknown',
       }),
       'utf8',
     ).toString('base64');

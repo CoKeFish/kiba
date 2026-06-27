@@ -21,9 +21,9 @@ import { db } from './db';
 import {
   ensureTreasuryFunded,
   getMasterWallet,
-  getOnChainBalance,
-  loadUserWallet,
+  loadUserSigner,
   masterWalletPubkey,
+  userOnChainBalance,
 } from './wallets';
 import { BASE_UNITS_PER_TOKEN } from './chain';
 
@@ -107,11 +107,11 @@ export async function callOnBehalf(args: {
   newBalance: { lamports: number; usd: number };
   trace: X402Trace;
 }> {
-  const userWallet = loadUserWallet(args.userId);
+  const userSigner = await loadUserSigner(args.userId);
 
   // Cliente para la QUOTE (lectura). El cliente que LIQUIDA (firma open_escrow) se
   // elige según el bucket: treasury para crédito, custodial del user para wallet.
-  const client = new AgentClient({ wallet: userWallet });
+  const client = new AgentClient({ signer: userSigner });
 
   // 1. Pre-quote: precio REAL que el agente cobrará para ESTE payload
   //    (pricing dinámico via priceFn — translator cobra por chars, oracle por
@@ -157,7 +157,7 @@ export async function callOnBehalf(args: {
   } else {
     mode = 'wallet-direct';
 
-    const onChain = await getOnChainBalance(userWallet);
+    const onChain = await userOnChainBalance(args.userId);
     const required = lamports + WALLET_TX_FEE_BUFFER;
     if (onChain < required) {
       throw new Error(
@@ -212,7 +212,7 @@ export async function callOnBehalf(args: {
   const newBalanceLamports =
     mode === 'virtual' && debitResult
       ? debitResult.newBalance
-      : await getOnChainBalance(userWallet);
+      : await userOnChainBalance(args.userId);
 
   return {
     result,

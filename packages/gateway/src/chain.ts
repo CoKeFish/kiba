@@ -6,7 +6,7 @@
  * resto: balances de las custodiales y fondeo.
  */
 import type { Keypair } from '@solana/web3.js';
-import { createChainClient, type ChainClient } from '@kiba/sdk';
+import { createChainClient, type ChainClient, type StellarSigner } from '@kiba/sdk';
 
 export const CHAIN = (process.env.CHAIN || 'stellar').toLowerCase();
 
@@ -25,4 +25,12 @@ export const ASSET_USD_RATE = Number(process.env.USDC_USD_RATE) || 1.0;
  */
 export function chainClientFor(wallet: Keypair, label = 'gateway'): ChainClient | null {
   return createChainClient({ wallet, label });
+}
+
+/**
+ * ChainClient para un firmante Stellar arbitrario (p.ej. Privy, firma remota).
+ * Lo usan las wallets de usuario migradas a Privy.
+ */
+export function chainClientForSigner(signer: StellarSigner, label = 'user'): ChainClient | null {
+  return createChainClient({ signer, label });
 }

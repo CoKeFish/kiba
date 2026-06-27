@@ -10,10 +10,12 @@
  * vez (10.000 XLM), suficiente para la demo.
  */
 import { Keypair } from '@solana/web3.js';
-import { loadOrCreateKeypair } from '@kiba/sdk';
+import { Keypair as StellarKeypair } from '@stellar/stellar-sdk';
+import { loadOrCreateKeypair, LocalKeypairSigner, type StellarSigner } from '@kiba/sdk';
 import { getBalance, lamportsToSol, lamportsToUsd } from './billing';
-import { ASSET, chainClientFor } from './chain';
+import { ASSET, chainClientFor, chainClientForSigner } from './chain';
 import { db } from './db';
+import { privyEnabled, createStellarWallet, PrivyStellarSigner } from './privy';
 
 /** Nombre de la unidad base de la cadena activa (stroops en Stellar). */
 export const BASE_UNIT_NAME: 'lamports' | 'stroops' = 'stroops';
@@ -48,6 +50,51 @@ export function loadUserWallet(userId: number): Keypair {
   if (!row) throw new Error(`user ${userId} not found`);
   const secret = JSON.parse(row.custodial_wallet_secret) as number[];
   return Keypair.fromSecretKey(new Uint8Array(secret));
+}
+
+/**
+ * Firmante Stellar del usuario.
+ *  - Migrado a Privy → firma remota (la clave vive en el TEE de Privy, no en la DB).
+ *  - No migrado y Privy habilitado → provisiona la wallet de Privy de forma lazy,
+ *    guarda la referencia y BORRA el secret local (la clave sale de la DB).
+ *  - Privy no configurado → firma local con el secret guardado (legacy/degradado).
+ */
+export async function loadUserSigner(userId: number): Promise<StellarSigner> {
+  const row = db
+    .prepare('SELECT custodial_wallet_secret, privy_wallet_id, stellar_address FROM users WHERE id = ?')
+    .get(userId) as
+    | { custodial_wallet_secret: string | null; privy_wallet_id: string | null; stellar_address: string | null }
+    | undefined;
+  if (!row) throw new Error(`user ${userId} not found`);
+
+  if (row.privy_wallet_id && row.stellar_address) {
+    return new PrivyStellarSigner(row.privy_wallet_id, row.stellar_address);
+  }
+
+  if (privyEnabled()) {
+    const w = await createStellarWallet();
+    db.prepare(
+      "UPDATE users SET privy_wallet_id = ?, stellar_address = ?, custodial_wallet_pubkey = ?, custodial_wallet_secret = '' WHERE id = ?",
+    ).run(w.walletId, w.address, w.address, userId);
+    console.log(`[wallets] user ${userId} migrado a Privy ${w.walletId} (${w.address})`);
+    return new PrivyStellarSigner(w.walletId, w.address);
+  }
+
+  // Legacy: deriva el keypair Stellar del seed ed25519 guardado.
+  const kp = loadUserWallet(userId);
+  return new LocalKeypairSigner(StellarKeypair.fromRawEd25519Seed(Buffer.from(kp.secretKey.slice(0, 32))));
+}
+
+/** Saldo on-chain (unidades base) de la wallet del usuario, vía su firmante. */
+export async function userOnChainBalance(userId: number): Promise<number> {
+  const cc = chainClientForSigner(await loadUserSigner(userId), `user:${userId}`);
+  if (!cc) return 0;
+  try {
+    return Number(await cc.getBalanceBaseUnits());
+  } catch (err) {
+    console.warn('[wallets] user balance query failed:', (err as Error).message);
+    return 0;
+  }
 }
 
 /** Saldo on-chain de una custodial, en unidades base del activo activo. */
@@ -94,8 +141,7 @@ export async function getUserBalances(userId: number): Promise<UserBalances> {
   const creditLamports = getBalance(userId);
   let walletLamports = 0;
   try {
-    const wallet = loadUserWallet(userId);
-    walletLamports = await getOnChainBalance(wallet);
+    walletLamports = await userOnChainBalance(userId);
   } catch (err) {
     console.warn(`[wallets] on-chain balance failed for user ${userId}:`, (err as Error).message);
   }
@@ -137,11 +183,10 @@ export async function ensureFunded(
   userId: number,
   requiredLamports: number,
 ): Promise<RefillResult> {
-  const userWallet = loadUserWallet(userId);
-  const cc = chainClientFor(userWallet, `user:${userId}`);
+  const cc = chainClientForSigner(await loadUserSigner(userId), `user:${userId}`);
   const beforeLamports = cc ? Number(await cc.getBalanceBaseUnits()) : 0;
   if (cc && beforeLamports < requiredLamports + 1_000_000) {
-    // ensureFunds usa friendbot si la cuenta no existe (crea + fondea 10k XLM).
+    // ensureFunds usa friendbot si la cuenta no existe (crea + fondea) + trustline USDC.
     await cc.ensureFunds(0, 0);
   }
   const afterLamports = cc ? Number(await cc.getBalanceBaseUnits()) : beforeLamports;

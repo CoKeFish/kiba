@@ -40,7 +40,7 @@ import {
 import { handleMcpRequest } from './mcp';
 import { getBalance, getTransactions, lamportsToUsd, topup } from './billing';
 import { callOnBehalf, listAgents, masterWalletPubkey } from './proxy';
-import { getMasterWallet, getOnChainBalance, getUserBalances, loadUserWallet } from './wallets';
+import { getMasterWallet, getOnChainBalance, getUserBalances, userOnChainBalance } from './wallets';
 import { ASSET, ASSET_USD_RATE, BASE_UNITS_PER_TOKEN } from './chain';
 import { BASE_UNIT_NAME } from './wallets';
 import { PLATFORM_FEE_BPS, BPS_DENOMINATOR } from '@kiba/sdk';
@@ -686,8 +686,7 @@ app.get('/v1/wallet', requireAuth, async (req, res) => {
   const user = getUser(req.bearerUser!.id);
   if (!user) return res.status(404).json({ error: 'user not found' });
   try {
-    const wallet = loadUserWallet(user.id);
-    const baseUnits = await getOnChainBalance(wallet);
+    const baseUnits = await userOnChainBalance(user.id);
     res.json({
       pubkey: user.custodial_wallet_pubkey,
       asset: ASSET,
@@ -812,7 +811,7 @@ app.get('/v1/publisher/overview', requireAuth, async (req, res) => {
     if (!user) return res.status(404).json({ error: 'user not found' });
     const [agents, walletBaseUnits] = await Promise.all([
       listMyAgents(userId),
-      getOnChainBalance(loadUserWallet(userId)).catch(() => 0),
+      userOnChainBalance(userId).catch(() => 0),
     ]);
     const totalCalls = agents.reduce((s, a) => s + (a.totalCalls || 0), 0);
     // totalEarnedSol ya viene en unidades del activo (alias legacy, valor correcto).
