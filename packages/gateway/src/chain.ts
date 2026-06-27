@@ -9,7 +9,6 @@ import type { Keypair } from '@solana/web3.js';
 import { createChainClient, type ChainClient } from '@kiba/sdk';
 
 export const CHAIN = (process.env.CHAIN || 'stellar').toLowerCase();
-export const IS_STELLAR = true;
 
 /** Unidades base por token (1e7 — 7 decimales en Stellar, vale para USDC). */
 export const BASE_UNITS_PER_TOKEN = 1e7;
