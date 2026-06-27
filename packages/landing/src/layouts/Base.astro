@@ -1,5 +1,6 @@
 ---
 import "../styles/global.css";
+import "../styles/animations.css";
 
 interface Props {
   title?: string;
@@ -7,11 +8,18 @@ interface Props {
 }
 
 const {
-  title = "Kiba — Marketplace de agentes IA con pagos x402 en Stellar",
-  description = "Pay-per-call AI agents. Native SDK, REST API, or MCP. Settle on Stellar.",
+  title = "Kiba — Find the right AI agent in any language",
+  description = "The marketplace where AI assistants discover and pay specialized agents on demand. Settled on Stellar.",
 } = Astro.props;
 
 const DASHBOARD_URL = import.meta.env.PUBLIC_DASHBOARD_URL || "https://dashboard.kiba.rodion.com.co";
+
+const navLinks = [
+  { label: "Agents", href: "#agents" },
+  { label: "How it works", href: "#how-it-works" },
+  { label: "Pricing", href: "#pricing" },
+  { label: "Docs", href: "https://github.com/CoKeFish/kiba" },
+];
 ---
 
 <!doctype html>
@@ -25,62 +33,56 @@ const DASHBOARD_URL = import.meta.env.PUBLIC_DASHBOARD_URL || "https://dashboard
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
     <title>{title}</title>
   </head>
   <body>
-    <!-- Fixed translucent header -->
+    <!-- Fixed header -->
     <header id="site-header" style="
-      position: fixed; top: 0; left: 0; right: 0; height: 64px; z-index: 50;
+      position: fixed; top: 0; left: 0; right: 0; height: 68px; z-index: 50;
       display: flex; align-items: center; justify-content: space-between;
       padding: 0 40px;
-      background: color-mix(in srgb, var(--bg-canvas) 70%, transparent);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
+      background: color-mix(in srgb, var(--bg-canvas) 80%, transparent);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
       border-bottom: 1px solid var(--border-subtle);
-      transition: background var(--dur-base) var(--ease-out);
+      transition: box-shadow var(--dur-base) var(--ease-out);
     ">
       <!-- Brand -->
-      <a href="/" style="
-        display: flex; align-items: center; gap: 10px;
-        text-decoration: none; color: inherit;
+      <a href="/" class="kiba-brand" aria-label="Kiba home" style="
+        display: inline-flex; align-items: center; gap: 5px;
+        text-decoration: none; position: relative;
       ">
-        <img
-          src="/logomark.png"
-          alt=""
-          width="28"
-          height="28"
-          style="
-            width: 28px; height: 28px; object-fit: contain;
-            filter: drop-shadow(0 0 10px color-mix(in srgb, var(--blue-500) 60%, transparent));
-          "
-        />
         <span style="
           font-family: var(--font-display);
-          font-size: 18px;
-          font-weight: 400;
-          letter-spacing: -0.01em;
+          font-size: 26px;
+          font-weight: 800;
+          letter-spacing: -0.06em;
           color: var(--fg-1);
-          text-transform: lowercase;
-        ">kiba</span>
+        ">Kiba</span>
+        <span class="logo-dot" aria-hidden="true"></span>
       </a>
 
       <!-- Nav links -->
-      <nav style="display: flex; gap: 28px; align-items: center;">
-        {["demo", "discover", "connect", "scale", "trust"].map((item) => (
+      <nav style="display: flex; gap: 30px; align-items: center;">
+        {navLinks.map((item) => (
           <a
-            href={`#${item}`}
+            href={item.href}
             class="nav-link"
             style="
-              font-family: var(--font-display);
-              font-size: 12px;
+              font-family: var(--font-sans);
+              font-size: 15px;
               font-weight: 600;
-              letter-spacing: 0.16em;
-              text-transform: uppercase;
               color: var(--fg-2);
               text-decoration: none;
               transition: color var(--dur-fast) var(--ease-out);
             "
-          >{item.toUpperCase()}</a>
+          >{item.label}</a>
         ))}
       </nav>
 
@@ -88,49 +90,101 @@ const DASHBOARD_URL = import.meta.env.PUBLIC_DASHBOARD_URL || "https://dashboard
       <div style="display: flex; gap: 10px; align-items: center;">
         <a
           href={`${DASHBOARD_URL}/login`}
+          class="btn-ghost"
           style="
             font-family: var(--font-sans);
-            font-size: 13px;
-            font-weight: 600;
+            font-size: 14px;
+            font-weight: 700;
             background: transparent;
-            color: var(--fg-2);
-            border: 1px solid var(--border-strong);
-            padding: 8px 16px;
+            color: var(--fg-1);
+            border: 1.5px solid var(--border-strong);
+            padding: 9px 20px;
             border-radius: 999px;
             text-decoration: none;
-            transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+            transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
           "
-          onmouseover="this.style.color='var(--fg-1)';this.style.borderColor='var(--border-accent)'"
-          onmouseout="this.style.color='var(--fg-2)';this.style.borderColor='var(--border-strong)'"
         >Sign in</a>
         <a
           href={`${DASHBOARD_URL}/signup`}
+          class="btn-primary"
           style="
             font-family: var(--font-sans);
-            font-size: 13px;
-            font-weight: 600;
+            font-size: 14px;
+            font-weight: 700;
             background: var(--accent);
             color: #fff;
             border: none;
-            padding: 8px 18px;
+            padding: 10px 22px;
             border-radius: 999px;
             text-decoration: none;
-            box-shadow: 0 0 18px color-mix(in srgb, var(--accent) 40%, transparent);
-            transition: background var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+            box-shadow: var(--glow-sm);
+            transition: transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
           "
-          onmouseover="this.style.background='var(--accent-hover)';this.style.boxShadow='0 0 28px color-mix(in srgb, var(--accent) 55%, transparent)'"
-          onmouseout="this.style.background='var(--accent)';this.style.boxShadow='0 0 18px color-mix(in srgb, var(--accent) 40%, transparent)'"
-        >Start free</a>
+        >Start exploring →</a>
       </div>
     </header>
 
     <!-- Page content — padded for fixed header -->
-    <main style="padding-top: 64px;">
+    <main style="padding-top: 68px;">
       <slot />
     </main>
 
     <style>
-      .nav-link:hover { color: var(--blue-300) !important; }
+      #site-header {
+        animation: header-slide-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+      }
+      @keyframes header-slide-in {
+        from { opacity: 0; transform: translateY(-14px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      .nav-link:hover { color: var(--accent) !important; }
+      .btn-ghost:hover { border-color: var(--accent) !important; background: var(--accent-soft) !important; }
+      .btn-primary:hover { transform: translateY(-1px); background: var(--accent-hover) !important; box-shadow: var(--glow-md) !important; }
+
+      .logo-dot {
+        width: 7px; height: 7px; border-radius: 50%;
+        background: var(--accent);
+        animation: kiba-pop 2s ease-in-out infinite;
+      }
+      @keyframes kiba-pop {
+        0%, 100% { transform: scale(1); background: var(--accent); }
+        50% { transform: scale(1.6); background: var(--c-pink); }
+      }
+
+      @media (max-width: 860px) {
+        #site-header nav { display: none !important; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #site-header { animation: none !important; }
+        .logo-dot { animation: none !important; }
+      }
     </style>
+
+    <script is:inline>
+      (function () {
+        const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        const els = document.querySelectorAll(".js-reveal");
+        if (reduce || !("IntersectionObserver" in window)) {
+          els.forEach((el) => el.classList.add("is-visible"));
+          return;
+        }
+        const io = new IntersectionObserver((entries) => {
+          entries.forEach((e) => {
+            if (!e.isIntersecting) return;
+            const el = e.target;
+            let extra = 0;
+            if (el.classList.contains("d1")) extra = 50;
+            else if (el.classList.contains("d2")) extra = 130;
+            else if (el.classList.contains("d3")) extra = 220;
+            else if (el.classList.contains("d4")) extra = 320;
+            else if (el.classList.contains("d5")) extra = 430;
+            else if (el.classList.contains("d6")) extra = 540;
+            setTimeout(() => el.classList.add("is-visible"), extra);
+            io.unobserve(el);
+          });
+        }, { threshold: 0.1, rootMargin: "0px 0px -40px 0px" });
+        els.forEach((el) => io.observe(el));
+      })();
+    </script>
   </body>
 </html>

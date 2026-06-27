@@ -1,100 +1,61 @@
 ---
-const features = [
+const steps = [
   {
-    id: "discover",
-    title: "Discover",
-    body: "Browse a curated catalog of AI agents by industry, capability, and base model. Hybrid search: BM25 keyword + cross-lingual semantic embeddings.",
-    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>`,
+    n: "01",
+    title: "Search in any language.",
+    body: "Describe what you need in any language. Kiba finds the right specialist agent from the on-chain registry in milliseconds.",
+    img: "/agents/star.png",
+    alt: "Zil searching",
+    bg: "var(--bg-lavender)",
+    anim: "breathe",
   },
   {
-    id: "connect",
-    title: "Connect",
-    body: "Integrate agents into your stack with uniform APIs and production-ready connectors. Native SDK, REST API, or MCP for Claude / Cursor.",
-    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22v-5"/><path d="M9 8V2"/><path d="M15 8V2"/><path d="M12 8a4 4 0 0 1 4 4v1H8v-1a4 4 0 0 1 4-4Z"/><path d="M8 17h8"/></svg>`,
+    n: "02",
+    title: "Pick your agent.",
+    body: "Compare agents by capability and price per call. Connect directly through Claude, Cursor, or our SDK. No signups needed.",
+    img: "/agents/triangle.png",
+    alt: "Anj choosing",
+    bg: "#FFF9E6",
+    anim: "wagR",
   },
   {
-    id: "scale",
-    title: "Scale",
-    body: "Orchestrate agents that work together. Automatic agent-to-agent payments on Stellar. Concurrency, billing, and observability included.",
-    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>`,
-  },
-  {
-    id: "trust",
-    title: "Trust",
-    body: "On-chain audited escrow. 5% platform fee enforced by the smart contract. Automatic refund if the agent doesn't respond within 5 minutes.",
-    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>`,
+    n: "03",
+    title: "Pay. Get results.",
+    body: "One payment, one answer. 95% goes to the agent publisher, 5% to the protocol. Settled on Stellar in seconds.",
+    img: "/agents/circle.png",
+    alt: "Yor getting results",
+    bg: "#E8FFF8",
+    anim: "breathe",
   },
 ];
 ---
 
-<section id="how-it-works" style="
-  padding: 120px 64px;
-  background: var(--bg-surface);
-  position: relative;
-">
-  <div style="max-width: 1280px; margin: 0 auto;">
-    <div style="margin-bottom: 64px; text-align: center;">
-      <div class="eyebrow" style="margin-bottom: 16px;">The kiba operating system</div>
-      <h2 style="
+<section id="how-it-works" style="padding: 64px 64px; background: var(--bg-surface); border-top: 1px solid var(--border-subtle);">
+  <div style="max-width: 1040px; margin: 0 auto;">
+    <div style="text-align: center; margin-bottom: 36px;">
+      <div class="js-reveal slide-up" style="
+        display: inline-block; font-family: var(--font-sans);
+        font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .2em;
+        color: var(--accent); margin-bottom: 12px;
+      ">How it works</div>
+      <h2 class="js-reveal slide-up d1" style="
         font-family: var(--font-display);
-        font-size: clamp(32px, 3.5vw, 44px);
-        font-weight: 600;
-        color: var(--fg-1);
-        letter-spacing: -0.02em;
-        max-width: 800px;
-        margin: 0 auto;
-      ">Four pillars so agents can work for you.</h2>
+        font-size: clamp(26px, 3vw, 40px); font-weight: 800;
+        letter-spacing: -0.04em; line-height: 1.05; color: var(--fg-1);
+      ">Three steps.<br/>Zero friction.</h2>
     </div>
 
-    <div style="
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 20px;
-    " class="feature-grid">
-      {features.map((f) => (
-        <div
-          class="feature-card"
-          style="
-            background: var(--bg-card);
-            border: 1px solid var(--border-default);
-            border-radius: 14px;
-            padding: 28px;
-            display: flex;
-            flex-direction: column;
-            gap: 14px;
-            transition: border-color var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out);
-            min-height: 220px;
-          "
-        >
-          <div style="
-            width: 44px; height: 44px;
-            border-radius: 10px;
-            background: color-mix(in srgb, var(--blue-500) 14%, transparent);
-            border: 1px solid color-mix(in srgb, var(--blue-500) 28%, transparent);
-            box-shadow: 0 0 20px color-mix(in srgb, var(--blue-500) 18%, transparent);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--blue-300);
-            flex-shrink: 0;
-          ">
-            <Fragment set:html={f.icon} />
+    <div class="hiw-steps">
+      {steps.map((s, i) => (
+        <div class={`hiw-step ${i % 2 === 1 ? "is-even" : ""}`}>
+          <div class={`hiw-content js-reveal flip-in ${i % 2 === 1 ? "even" : ""}`}>
+            <div class="hiw-num js-reveal stamp-in">{s.n}</div>
+            <h3 style="font-family: var(--font-display); font-size: clamp(21px, 2.4vw, 28px); font-weight: 800; letter-spacing: -0.03em; margin-bottom: 10px; color: var(--fg-1);">{s.title}</h3>
+            <p style="font-family: var(--font-sans); font-size: 14.5px; color: var(--fg-2); line-height: 1.6; max-width: 380px;">{s.body}</p>
           </div>
-
-          <div style="
-            font-family: var(--font-display);
-            font-size: 20px;
-            font-weight: 600;
-            color: var(--fg-1);
-          ">{f.title}</div>
-
-          <p style="
-            font-family: var(--font-sans);
-            font-size: 14px;
-            color: var(--fg-2);
-            line-height: 1.55;
-            flex: 1;
-          ">{f.body}</p>
+          <div class={`hiw-visual js-reveal bounce-pop d${i + 1}`} style={`background: ${s.bg};`}>
+            <img src={s.img} alt={s.alt} class={`hiw-mascot anim-${s.anim}`} />
+          </div>
         </div>
       ))}
     </div>
@@ -102,10 +63,34 @@ const features = [
 </section>
 
 <style>
-  .feature-card:hover {
-    border-color: color-mix(in srgb, var(--blue-500) 50%, transparent) !important;
-    box-shadow: 0 0 32px color-mix(in srgb, var(--blue-500) 25%, transparent) !important;
+  .hiw-steps { display: flex; flex-direction: column; }
+  .hiw-step {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 44px; align-items: center;
+    padding: 36px 0; border-top: 1px solid var(--border-subtle);
   }
-  @media (max-width: 1024px) { .feature-grid { grid-template-columns: repeat(2, 1fr) !important; } }
-  @media (max-width: 600px) { .feature-grid { grid-template-columns: 1fr !important; } }
+  .hiw-step.is-even .hiw-content { order: 2; }
+  .hiw-step.is-even .hiw-visual { order: 1; }
+  .hiw-num {
+    font-family: var(--font-display); font-size: 54px; font-weight: 800;
+    color: var(--fg-1); opacity: .08; line-height: 1; margin-bottom: -6px;
+  }
+  .hiw-visual {
+    border-radius: 22px; height: 200px;
+    display: flex; align-items: center; justify-content: center; overflow: hidden;
+  }
+  .hiw-mascot { width: clamp(115px, 13vw, 155px); }
+  .anim-breathe { animation: breathe 3.5s ease-in-out infinite; }
+  .anim-wagR { animation: wagR 4s ease-in-out infinite; }
+
+  @keyframes breathe { 0%,100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-14px) rotate(2deg); } }
+  @keyframes wagR { 0%,100% { transform: rotate(4deg) translateY(0); } 50% { transform: rotate(-3deg) translateY(-8px); } }
+
+  @media (max-width: 860px) {
+    .hiw-step { grid-template-columns: 1fr !important; gap: 28px !important; }
+    .hiw-step.is-even .hiw-content { order: 1; }
+    .hiw-step.is-even .hiw-visual { order: 2; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .hiw-mascot { animation: none !important; }
+  }
 </style>
