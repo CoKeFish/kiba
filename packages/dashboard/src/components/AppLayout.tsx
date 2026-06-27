@@ -20,7 +20,7 @@ import { useAuth } from "@/lib/auth";
 import { useMode, type DashboardMode } from "@/lib/mode";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { formatUsd, lamportsToUsd } from "@/lib/format";
+import { formatUsd, formatKibs, usdToKibs, KIBS_LABEL } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 
 const consumerNav = [
@@ -258,8 +258,13 @@ export function AppLayout() {
             >
               Balance:{" "}
               <span style={{ color: "var(--color-fg)", fontWeight: 600 }}>
-                {balance ? formatUsd(balance.balance_usd) : "—"}
+                {balance ? `${formatKibs(usdToKibs(balance.balance_usd))} ${KIBS_LABEL}` : "—"}
               </span>
+              {balance && (
+                <span style={{ color: "var(--color-fg-subtle)", marginLeft: 6 }}>
+                  (≈ {formatUsd(balance.balance_usd)})
+                </span>
+              )}
             </div>
             <Button size="sm" onClick={() => navigate("/app/billing")}>
               Top up

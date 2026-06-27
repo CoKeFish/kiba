@@ -3,7 +3,17 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Card, CardBody, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { formatUsd, lamportsToUsd, shortSig, explorerUrl } from "@/lib/format";
+import {
+  formatUsd,
+  lamportsToUsd,
+  formatKibs,
+  formatKibsLabel,
+  usdToKibs,
+  baseUnitsToKibs,
+  KIBS_LABEL,
+  shortSig,
+  explorerUrl,
+} from "@/lib/format";
 import { ArrowUpRight, Receipt, Wallet, Activity } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
@@ -55,8 +65,8 @@ export default function Overview() {
         <KPI
           icon={Wallet}
           label="Balance"
-          value={balance ? formatUsd(balance.balance_usd) : "—"}
-          hint="Available USD credits"
+          value={balance ? formatKibsLabel(usdToKibs(balance.balance_usd)) : "—"}
+          hint={balance ? `≈ ${formatUsd(balance.balance_usd)} · spendable ${KIBS_LABEL}` : `Spendable ${KIBS_LABEL}`}
         />
         <KPI
           icon={Activity}
@@ -67,8 +77,8 @@ export default function Overview() {
         <KPI
           icon={Receipt}
           label="Spend (last 5 calls)"
-          value={formatUsd(totalSpend)}
-          hint="Sum of recent agent calls"
+          value={formatKibsLabel(usdToKibs(totalSpend))}
+          hint={`≈ ${formatUsd(totalSpend)} on recent calls`}
         />
       </div>
 
@@ -122,8 +132,13 @@ export default function Overview() {
                     </div>
                   </div>
                   <div className="text-sm font-mono text-right">
-                    {t.type === "topup" ? "+" : "-"}
-                    {formatUsd(lamportsToUsd(t.amount_lamports))}
+                    <div>
+                      {t.type === "topup" ? "+" : "-"}
+                      {formatKibs(baseUnitsToKibs(t.amount_lamports))} {KIBS_LABEL}
+                    </div>
+                    <div className="text-xs text-[var(--color-fg-muted)]">
+                      ≈ {formatUsd(lamportsToUsd(t.amount_lamports))}
+                    </div>
                   </div>
                 </li>
               ))}

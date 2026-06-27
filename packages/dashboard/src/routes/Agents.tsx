@@ -6,7 +6,7 @@ import { Card, CardBody, CardHeader, CardTitle, CardDescription } from "@/compon
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { formatUsd, formatSol } from "@/lib/format";
+import { formatUsd, formatKibs, usdToKibs, KIBS_LABEL } from "@/lib/format";
 import { chain } from "@/lib/chain";
 import { serviceToName, solToUsd } from "@/components/AgentManager";
 import { ExternalLink, PlayCircle, RefreshCw, Search, Wifi, WifiOff } from "lucide-react";
@@ -192,10 +192,10 @@ export default function Agents() {
                       </div>
                       <div className="font-mono text-sm">
                         <span className="text-[var(--color-success)]">
-                          {formatUsd(solToUsd(a.pricePerCall))}
+                          {formatKibs(usdToKibs(solToUsd(a.pricePerCall)))} {KIBS_LABEL}
                         </span>{" "}
                         <span className="text-[var(--color-fg-muted)]">
-                          ({formatSol(a.pricePerCall)})
+                          (≈ {formatUsd(solToUsd(a.pricePerCall))})
                         </span>
                       </div>
                     </div>
