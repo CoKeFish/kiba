@@ -228,18 +228,26 @@ export class TrustlessWorkEscrowClient {
       trustline: this.cfg.trustline,
       milestones: [{ description: args.service }],
     };
+    // Deploy con reintentos. TW a veces responde "pending"/"missing resultMetaXdr" en el
+    // send aunque el tx SÍ se difundió: en ese caso recuperamos el contractId por
+    // engagementId (no viene en la respuesta). Cada reintento usa un engagementId ÚNICO:
+    // re-desplegar con el mismo da 400 (duplicado) y dispara recuperación lenta. Si la
+    // recuperación no lo encuentra (el tx no aterrizó), el próximo intento re-despliega.
     let escrowId: string | null = null;
-    for (let i = 0; i < 6 && !escrowId; i++) {
+    for (let attempt = 0; attempt < 3 && !escrowId; attempt++) {
+      const eid = attempt === 0 ? args.engagementId : `${args.engagementId}-r${attempt}`;
       try {
-        const deployResp = await this.http.post('/deployer/single-release', deployBody);
+        const deployResp = await this.http.post('/deployer/single-release', {
+          ...deployBody,
+          engagementId: eid,
+        });
         const sent = await this.signAndSend(this.unsignedXdr(deployResp.data, 'deploy'));
         escrowId = this.extractContractId(sent);
       } catch (err) {
-        console.warn(`[${this.label}] deploy intento ${i + 1}: ${(err as Error).message}`);
+        console.warn(`[${this.label}] deploy intento ${attempt + 1}: ${(err as Error).message}`);
       }
-      if (!escrowId) await this.sleep(3000);
+      if (!escrowId) escrowId = await this.recoverEscrowId(eid);
     }
-    if (!escrowId) escrowId = await this.recoverEscrowId(args.engagementId);
     if (!escrowId) {
       throw new Error(`[${this.label}] deploy: no se pudo obtener el contractId del escrow`);
     }
@@ -259,14 +267,13 @@ export class TrustlessWorkEscrowClient {
 
   /** Ubica el contractId de un escrow recién desplegado por engagementId (recovery). */
   private async recoverEscrowId(engagementId: string): Promise<string | null> {
+    // ~24s: suficiente para que el indexer refleje un deploy que aterrizó (pending);
+    // si no aparece, el caller re-despliega con un engagementId fresco.
     for (let i = 0; i < 12; i++) {
-      await this.sleep(4000);
       const escrows = await this.getEscrowsBySigner(this.address);
       const match = escrows.find((e) => e.engagementId === engagementId);
       if (typeof match?.contractId === 'string' && match.contractId) return match.contractId;
-      console.log(
-        `[${this.label}] recover ${i + 1}/12: ${escrows.length} escrows, sin match para ${engagementId}`,
-      );
+      await this.sleep(2000);
     }
     return null;
   }
