@@ -55,6 +55,11 @@ const MATCH_COLORS: Record<Mode, string> = {
   hybrid: "var(--blue-300)",
 };
 
+// Agentes con página de documentación dedicada en /agents/<service>.
+const DOCS_ROUTES: Record<string, string> = {
+  firecrawl: "/agents/firecrawl",
+};
+
 function serviceToName(service: string): string {
   return service
     .split(/[-_]/)
@@ -318,6 +323,24 @@ function AgentCard({ agent: a, hasQuery, index }: { agent: Agent; hasQuery: bool
         <p style={{
           fontFamily: "var(--font-sans)", fontSize: 13, color: "var(--fg-2)", lineHeight: 1.5,
         }}>{a.description}</p>
+        {DOCS_ROUTES[a.service] && (
+          <a
+            href={DOCS_ROUTES[a.service]}
+            style={{
+              fontFamily: "var(--font-sans)",
+              fontSize: 12,
+              fontWeight: 700,
+              color: accent,
+              textDecoration: "none",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              marginTop: 6,
+            }}
+          >
+            Read the docs →
+          </a>
+        )}
       </div>
 
       {/* Right: price + badge */}

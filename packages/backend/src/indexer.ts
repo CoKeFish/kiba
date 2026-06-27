@@ -36,7 +36,7 @@ const HEARTBEAT_MS = 5 * 60 * 1000;
 
 /**
  * Catálogo de demo agents — espejo de los 5 agents reales que corre el container
- * `kiba-agents` (yield-hunter, risk-auditor, translator-pro, price-oracle, code-reviewer).
+ * `kiba-agents` (yield-hunter, risk-auditor, translator-pro, price-oracle, code-reviewer, firecrawl).
  *
  * Solo se siembran si `STELLAR_CONTRACT_ID` no está configurado (modo demo). Cuando
  * hay contrato activo, el indexer lee del registry on-chain y estos quedan ignorados.
@@ -111,6 +111,21 @@ const FALLBACK_AGENTS: AgentRecord[] = [
       'Reviews TypeScript, Rust and Solidity code for bugs, style issues, and common security vulnerabilities',
     total_calls: 41,
     total_earned: 1_025_000_000,
+    created_at: NOW_TS,
+    updated_at: NOW_TS,
+    source: 'fallback',
+    deleted: 0,
+  },
+  {
+    pda: 'fallback:firecrawl',
+    service: 'firecrawl',
+    owner_wallet: 'PHASE_1_PLACEHOLDER',
+    price_per_call: 20_000, // 0.002 XLM (floor; extracción estructurada cuesta más)
+    endpoint: 'http://demo-agents:5006',
+    description:
+      'Web scraper en vivo (Firecrawl). Carga contenido dinámico que requiere render de JavaScript y lo devuelve como markdown limpio, o extrae datos estructurados (precios, stock, especificaciones) de una URL con un prompt. Ideal para precios de productos en Amazon, MercadoLibre y tiendas online.',
+    total_calls: 0,
+    total_earned: 0,
     created_at: NOW_TS,
     updated_at: NOW_TS,
     source: 'fallback',

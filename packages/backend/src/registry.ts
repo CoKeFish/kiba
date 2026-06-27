@@ -29,6 +29,7 @@ const DEFAULT_SERVICES = [
   'translator-pro',
   'price-oracle',
   'code-reviewer',
+  'firecrawl',
 ];
 
 class StellarRegistryReader implements RegistryReader {
