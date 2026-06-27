@@ -374,7 +374,35 @@ export class StellarChainClient implements ChainClient {
   }
 
   async fetchEscrow(args: FetchEscrowArgs): Promise<ChainEscrowInfo | null> {
-    return this.requireTw().getEscrow(args.escrowId);
+    const info = await this.requireTw().getEscrow(args.escrowId);
+    if (!info) return null;
+    // El indexer de TW tarda ~30s en reflejar el fondeo (fund); el balance on-chain
+    // lo refleja en ~5s. Leemos el balance USDC del contrato escrow vía RPC de Soroban
+    // y usamos el mayor → el agente detecta el fondeo rápido (sin esperar al indexer).
+    const chainBal = await this.escrowChainBalance(args.escrowId);
+    return chainBal > info.amountBaseUnits ? { ...info, amountBaseUnits: chainBal } : info;
+  }
+
+  /** Balance USDC del contrato escrow on-chain (vía el SAC del activo), en unidades base. */
+  private async escrowChainBalance(escrowId: string): Promise<bigint> {
+    if (this.asset === 'XLM' || !this.assetIssuer) return 0n;
+    try {
+      const sac = new Asset(this.asset, this.assetIssuer).contractId(this.networkPassphrase);
+      const source = new Account(this.signer.publicKey(), '0');
+      const tx = new TransactionBuilder(source, {
+        fee: BASE_FEE,
+        networkPassphrase: this.networkPassphrase,
+      })
+        .addOperation(new Contract(sac).call('balance', nativeToScVal(escrowId, { type: 'address' })))
+        .setTimeout(30)
+        .build();
+      const sim = await this.server.simulateTransaction(tx);
+      if (!rpc.Api.isSimulationSuccess(sim) || !sim.result) return 0n;
+      const bal = scValToNative(sim.result.retval);
+      return typeof bal === 'bigint' ? bal : BigInt(Math.floor(Number(bal ?? 0)));
+    } catch {
+      return 0n;
+    }
   }
 
   async claimPayment(args: ClaimPaymentArgs): Promise<string> {

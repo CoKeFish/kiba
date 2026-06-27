@@ -252,8 +252,8 @@ export class TrustlessWorkEscrowClient {
       'fund',
     );
     await this.signAndSend(fundXdr);
-    await this.waitFor(escrowId, (e) => Number(e.balance ?? 0) > 0, 'fund');
-
+    // No esperamos al indexer de TW aquí (lag ~30s): el agente verifica el fondeo
+    // leyendo el balance del escrow on-chain (rápido) antes de servir.
     return { escrowId, signature: escrowId };
   }
 
