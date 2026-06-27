@@ -48,6 +48,27 @@ function createStellarChainClient(
     keypair = StellarKeypair.fromRawEd25519Seed(seed);
   }
 
+  // Escrow vía Trustless Work. Si falta la API key, el cliente queda sin escrow
+  // (el registro de agentes contra el contrato Kiba sigue funcionando).
+  const twApiKey = process.env.TRUSTLESS_WORK_API_KEY;
+  if (!twApiKey) {
+    console.warn(
+      `[${label}] TRUSTLESS_WORK_API_KEY ausente — el escrow x402 (Trustless Work) no podrá liquidar`,
+    );
+  }
+  const tw = twApiKey
+    ? {
+        apiUrl: process.env.TRUSTLESS_WORK_API_URL ?? 'https://dev.api.trustlesswork.com',
+        apiKey: twApiKey,
+        platformAddress: process.env.TRUSTLESS_WORK_PLATFORM_ADDRESS ?? '',
+        platformFee: Number(process.env.TRUSTLESS_WORK_PLATFORM_FEE ?? '5'),
+        trustline: {
+          address: process.env.TRUSTLESS_WORK_TRUSTLINE_ADDRESS ?? '',
+          symbol: process.env.TRUSTLESS_WORK_TRUSTLINE_SYMBOL ?? 'USDC',
+        },
+      }
+    : undefined;
+
   return new StellarChainClient({
     keypair,
     contractId,
@@ -56,6 +77,7 @@ function createStellarChainClient(
     friendbotUrl,
     horizonUrl,
     label,
+    tw,
   });
 }
 
@@ -66,8 +88,10 @@ export type {
   RegisterAgentArgs,
   UpdateAgentArgs,
   OpenEscrowArgs,
+  OpenEscrowResult,
   FetchEscrowArgs,
   ClaimPaymentArgs,
   RefundEscrowArgs,
 } from './types';
 export { StellarChainClient, type StellarChainClientConfig } from './stellar';
+export { TrustlessWorkEscrowClient, type TrustlessWorkConfig } from './trustless-work';

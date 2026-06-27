@@ -31,6 +31,8 @@ export type X402Step =
   | {
       type: 'escrow_opened';
       signature: string;
+      /** Identidad del escrow (contractId de Trustless Work). */
+      escrowId?: string;
       amount: string;
       nonce: string;
       durationMs: number;
@@ -237,25 +239,26 @@ export class AgentClient {
       }
     }
 
-    // 2) Abrir escrow on-chain
+    // 2) Abrir (deploy+fund) el escrow en Trustless Work
     const tEscrow = performance.now();
     let escrowSig = 'NO_ONCHAIN_PROGRAM_ID';
+    let escrowId = '';
     if (this.chain) {
       try {
-        escrowSig = await this.chain.openEscrow({
+        const opened = await this.chain.openEscrow({
           service: manifest.service,
           payToAddress: quote.payTo,
           nonce: BigInt(quote.nonce),
           amountBaseUnits: BigInt(quote.amount),
         });
+        escrowSig = opened.signature;
+        escrowId = opened.escrowId;
       } catch (err) {
-        // La tx de open_escrow PUDO difundirse on-chain (p.ej. timeout tras broadcast) y
-        // dejar el escrow Pending. Lanzamos un error accionable con service/nonce para que
-        // el caller pueda verificar y recuperar fondos, en vez de quedar varados sin pista.
+        // El deploy/fund del escrow PUDO ejecutarse parcialmente on-chain. Lanzamos un
+        // error accionable; si quedó fondeado, se recupera vía disputa en Trustless Work.
         const e = new Error(
           `apertura de escrow para '${service}' (nonce ${quote.nonce}) falló o no confirmó. ` +
-            `Si la tx se difundió, el escrow puede quedar Pending; verifica y usa ` +
-            `client.refundEscrow('${service}', ${quote.nonce}n) tras la ventana de refund. ` +
+            `Si el escrow llegó a fondearse, recupéralo vía el flujo de disputa de Trustless Work. ` +
             `Causa: ${(err as Error).message}`,
         ) as Error & { recoverable: boolean; service: string; nonce: string };
         e.recoverable = true;
@@ -267,6 +270,7 @@ export class AgentClient {
     steps.push({
       type: 'escrow_opened',
       signature: escrowSig,
+      escrowId: escrowId || undefined,
       amount: String(quote.amount),
       nonce: String(quote.nonce),
       durationMs: stepStart(tEscrow),
@@ -278,6 +282,7 @@ export class AgentClient {
     //    localizar el escrow on-chain. En modo degradado cae al pubkey de Solana.
     const paymentHeader = Buffer.from(
       JSON.stringify({
+        escrowId,
         signature: escrowSig,
         nonce: quote.nonce,
         clientWallet: this.chain?.ownerAddress ?? this.wallet.publicKey.toBase58(),
@@ -299,13 +304,13 @@ export class AgentClient {
       // ventana del contrato). Antes esto dejaba los fondos varados sin pista de recuperación.
       if (this.chain && escrowSig !== 'NO_ONCHAIN_PROGRAM_ID') {
         const e = new Error(
-          `service '${service}' falló tras abrir el escrow (nonce ${quote.nonce}). ` +
-            `Fondos retenidos; recupéralos con client.refundEscrow('${service}', ${quote.nonce}n) ` +
-            `tras la ventana de refund. Causa: ${(err as Error).message}`,
-        ) as Error & { recoverable: boolean; service: string; nonce: string };
+          `service '${service}' falló tras abrir el escrow (escrowId ${escrowId}). ` +
+            `Fondos retenidos; recupéralos con client.refundEscrow('${escrowId}'). ` +
+            `Causa: ${(err as Error).message}`,
+        ) as Error & { recoverable: boolean; service: string; escrowId: string };
         e.recoverable = true;
         e.service = service;
-        e.nonce = String(quote.nonce);
+        e.escrowId = escrowId;
         throw e;
       }
       throw err;
@@ -361,14 +366,13 @@ export class AgentClient {
   }
 
   /**
-   * Reembolsa un escrow Pending (p.ej. si la llamada al servicio falló tras abrirlo).
-   * Solo procede tras la ventana de refund del contrato (REFUND_DELAY_SECS). Devuelve el
-   * hash/id de la transacción.
+   * Reembolsa un escrow no liberado (p.ej. si la llamada al servicio falló tras abrirlo),
+   * vía el flujo de disputa de Trustless Work. Devuelve el hash/id de la transacción.
    */
-  async refundEscrow(service: string, nonce: bigint | string): Promise<string> {
+  async refundEscrow(escrowId: string): Promise<string> {
     if (!this.chain) {
       throw new Error('refundEscrow: sin cadena configurada (modo degradado)');
     }
-    return this.chain.refundEscrow({ service, nonce: BigInt(nonce) });
+    return this.chain.refundEscrow({ escrowId });
   }
 }

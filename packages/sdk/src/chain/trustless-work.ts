@@ -1,0 +1,276 @@
+/**
+ * TrustlessWorkEscrowClient — capa de escrow sobre la API REST de Trustless Work.
+ *
+ * Trustless Work (https://www.trustlesswork.com) es escrow-as-a-service no-custodial
+ * sobre Stellar/Soroban. Modelo de uso:
+ *   1. POST a un endpoint de TW (con `x-api-key`) → devuelve una tx XDR SIN FIRMAR.
+ *   2. Se firma localmente con el Keypair (Stellar ed25519).
+ *   3. POST /helper/send-transaction con el XDR firmado → la red ejecuta.
+ *
+ * En Kiba esto REEMPLAZA el escrow del contrato Soroban propio (open/claim/refund).
+ * El contrato de Kiba se conserva SOLO para el registro de agentes (TW no tiene
+ * marketplace). Este cliente lo consume `StellarChainClient`, que delega en él sus
+ * métodos de escrow y mantiene registro/cuenta contra el contrato Kiba.
+ *
+ * Diferencia estructural clave vs. el contrato Kiba: TW DESPLIEGA UN CONTRATO POR
+ * ESCROW. La identidad del escrow es el `contractId` (no un nonce dentro de un
+ * contrato único). Por eso el SDK pasa a identificar escrows por `escrowId`.
+ *
+ * Mapeo de roles x402 → single-release escrow (automatizado, sin humano en el loop):
+ *   - receiver / serviceProvider / releaseSigner / approver = owner del agente
+ *     (el agente sirve y libera hacia sí mismo, replicando el "claim" de Kiba).
+ *   - approver = owner del agente también (auto-aprueba para no requerir confirmación
+ *     manual del cliente en cada micro-pago).
+ *   - platformAddress / disputeResolver = treasury de la plataforma (recibe el fee
+ *     y resuelve disputas/refunds).
+ *   - signer del deploy/fund = el que fondea (treasury en modo crédito / custodial
+ *     en modo wallet) — el Keypair de este cliente.
+ *
+ * NOTA (Fase 2, requiere API key de testnet): varios detalles solo se confirman
+ * contra la API viva y están marcados con `TODO(tw-phase2)`:
+ *   - el campo exacto del que sale el `contractId` en la respuesta de send-transaction;
+ *   - la coreografía de milestone (TW exige "escrow completed" antes de release):
+ *     change-milestone-status → approve-milestone → release-funds;
+ *   - el endpoint/shape de lectura del escrow (getEscrow);
+ *   - el trustline/asset soportado en testnet (probable USDC).
+ */
+import { TransactionBuilder, type Keypair } from '@stellar/stellar-sdk';
+import axios, { type AxiosInstance } from 'axios';
+import type { ChainEscrowInfo, OpenEscrowResult } from './types';
+
+export interface TrustlessWorkRoles {
+  approver: string;
+  serviceProvider: string;
+  platformAddress: string;
+  releaseSigner: string;
+  disputeResolver: string;
+  receiver: string;
+}
+
+export interface TrustlessWorkConfig {
+  /** Base URL de la API TW (testnet: https://dev.api.trustlesswork.com). */
+  apiUrl: string;
+  /** API key (header x-api-key). Se obtiene del BackOffice dApp de TW. */
+  apiKey: string;
+  /** Dirección de la plataforma: recibe el platformFee y resuelve disputas. */
+  platformAddress: string;
+  /** Comisión de la plataforma en porcentaje (5 = 5%, equivalente a 500 bps). */
+  platformFee: number;
+  /** Trustline (token) que mueve el escrow. Testnet suele ser USDC. */
+  trustline: { address: string; symbol: string };
+  /** Network passphrase para firmar el XDR. */
+  networkPassphrase: string;
+  /** Unidades base por token (para convertir baseUnits ⇄ monto decimal de TW). */
+  baseUnitsPerToken: number;
+  /** Prefijo para logs. */
+  label?: string;
+}
+
+export interface DeployAndFundArgs {
+  /** Owner del agente: receiver/serviceProvider/releaseSigner/approver. */
+  agentOwner: string;
+  /** Servicio (para title/description/milestone). */
+  service: string;
+  /** Identificador único del escrow (derivado de service+nonce). */
+  engagementId: string;
+  /** Monto a bloquear, en unidades base del activo. */
+  amountBaseUnits: bigint;
+}
+
+export class TrustlessWorkEscrowClient {
+  private readonly http: AxiosInstance;
+  private readonly label: string;
+
+  constructor(
+    private readonly keypair: Keypair,
+    private readonly cfg: TrustlessWorkConfig,
+  ) {
+    this.label = cfg.label ?? 'tw';
+    this.http = axios.create({
+      baseURL: cfg.apiUrl.replace(/\/+$/, ''),
+      timeout: 30_000,
+      headers: { 'Content-Type': 'application/json', 'x-api-key': cfg.apiKey },
+    });
+  }
+
+  /** Dirección Stellar (G...) del Keypair que firma. */
+  get address(): string {
+    return this.keypair.publicKey();
+  }
+
+  private toDecimal(amountBaseUnits: bigint): number {
+    return Number(amountBaseUnits) / this.cfg.baseUnitsPerToken;
+  }
+
+  private roles(agentOwner: string): TrustlessWorkRoles {
+    return {
+      approver: agentOwner,
+      serviceProvider: agentOwner,
+      platformAddress: this.cfg.platformAddress,
+      releaseSigner: agentOwner,
+      disputeResolver: this.cfg.platformAddress,
+      receiver: agentOwner,
+    };
+  }
+
+  /**
+   * Firma un XDR sin firmar (devuelto por la API TW) con el Keypair y lo envía vía
+   * /helper/send-transaction. Devuelve la respuesta cruda (incluye hash y, en el
+   * deploy, el contractId del escrow desplegado).
+   */
+  private async signAndSend(unsignedXdr: string): Promise<Record<string, unknown>> {
+    const tx = TransactionBuilder.fromXDR(unsignedXdr, this.cfg.networkPassphrase);
+    tx.sign(this.keypair);
+    const res = await this.http.post('/helper/send-transaction', { signedXdr: tx.toXDR() });
+    return (res.data ?? {}) as Record<string, unknown>;
+  }
+
+  /**
+   * Deploy + fund de un escrow single-release. Devuelve el contractId (escrowId) y
+   * el hash del fondeo.
+   */
+  async deployAndFund(args: DeployAndFundArgs): Promise<OpenEscrowResult> {
+    const amount = this.toDecimal(args.amountBaseUnits);
+
+    // 1) Deploy: POST /deployer/single-release → XDR sin firmar.
+    const deployResp = await this.http.post('/deployer/single-release', {
+      signer: this.address,
+      engagementId: args.engagementId,
+      title: args.service,
+      description: `Kiba x402 call: ${args.service}`,
+      roles: this.roles(args.agentOwner),
+      amount,
+      platformFee: this.cfg.platformFee,
+      trustline: this.cfg.trustline,
+      milestones: [{ description: args.service }],
+    });
+    const deploySent = await this.signAndSend(this.unsignedXdr(deployResp.data, 'deploy'));
+    const escrowId = this.extractContractId(deploySent, deployResp.data);
+    if (!escrowId) {
+      throw new Error(`[${this.label}] deploy: no se pudo extraer el contractId del escrow`);
+    }
+
+    // 2) Fund: POST /escrow/single-release/fund-escrow → XDR sin firmar.
+    const fundResp = await this.http.post('/escrow/single-release/fund-escrow', {
+      contractId: escrowId,
+      signer: this.address,
+      amount: String(amount),
+    });
+    const fundSent = await this.signAndSend(this.unsignedXdr(fundResp.data, 'fund'));
+    const signature = String(fundSent.hash ?? fundSent.txHash ?? escrowId);
+
+    return { escrowId, signature };
+  }
+
+  /**
+   * Libera los fondos al receiver. TW exige que el escrow esté "completado" antes de
+   * release; para un flujo automatizado el agente (que tiene los roles) marca el
+   * milestone y libera.
+   *
+   * TODO(tw-phase2): confirmar si hace falta change-milestone-status + approve antes
+   * de release-funds, y sus endpoints exactos. Hoy intentamos esa secuencia best-effort
+   * y, si esos endpoints no existen/!aplican, caemos directo a release-funds.
+   */
+  async release(escrowId: string): Promise<string> {
+    await this.tryComplete(escrowId);
+    const resp = await this.http.post('/escrow/single-release/release-funds', {
+      contractId: escrowId,
+      releaseSigner: this.address,
+    });
+    const sent = await this.signAndSend(this.unsignedXdr(resp.data, 'release'));
+    return String(sent.hash ?? sent.txHash ?? 'released');
+  }
+
+  /**
+   * Marca el milestone como completado/aprobado (prerequisito de release en TW).
+   * Best-effort: si el endpoint no aplica, no rompe el release.
+   * TODO(tw-phase2): fijar endpoints/bodies exactos contra la API viva.
+   */
+  private async tryComplete(escrowId: string): Promise<void> {
+    try {
+      const statusResp = await this.http.post('/escrow/single-release/change-milestone-status', {
+        contractId: escrowId,
+        milestoneIndex: 0,
+        newStatus: 'completed',
+        serviceProvider: this.address,
+      });
+      await this.signAndSend(this.unsignedXdr(statusResp.data, 'change-milestone-status'));
+      const approveResp = await this.http.post('/escrow/single-release/approve-milestone', {
+        contractId: escrowId,
+        milestoneIndex: 0,
+        approver: this.address,
+      });
+      await this.signAndSend(this.unsignedXdr(approveResp.data, 'approve-milestone'));
+    } catch (err) {
+      console.warn(
+        `[${this.label}] paso de milestone antes de release falló (puede no ser necesario): ` +
+          `${(err as Error).message}`,
+      );
+    }
+  }
+
+  /**
+   * Refund/cancelación: el funder recupera los fondos si el agente nunca liberó.
+   * En TW esto pasa por el flujo de disputa (lo resuelve el disputeResolver).
+   * TODO(tw-phase2): confirmar el endpoint de dispute/refund y el rol que firma.
+   */
+  async refund(escrowId: string): Promise<string> {
+    const resp = await this.http.post('/escrow/single-release/dispute-escrow', {
+      contractId: escrowId,
+      signer: this.address,
+    });
+    const sent = await this.signAndSend(this.unsignedXdr(resp.data, 'dispute'));
+    return String(sent.hash ?? sent.txHash ?? 'disputed');
+  }
+
+  /**
+   * Lee el escrow por contractId. Devuelve monto bloqueado + estado neutral.
+   * TODO(tw-phase2): confirmar el endpoint/shape del indexer (campos amount/flags).
+   */
+  async getEscrow(escrowId: string): Promise<ChainEscrowInfo | null> {
+    try {
+      const resp = await this.http.get('/helper/get-escrow', { params: { contractId: escrowId } });
+      const e = resp.data as
+        | { amount?: number | string; balance?: number | string; flags?: Record<string, boolean> }
+        | null
+        | undefined;
+      if (!e) return null;
+      const decimal = Number(e.amount ?? e.balance ?? 0);
+      const amountBaseUnits = BigInt(Math.round(decimal * this.cfg.baseUnitsPerToken));
+      const flags = e.flags ?? {};
+      const state: ChainEscrowInfo['state'] = flags.released
+        ? 'Completed'
+        : flags.resolved || flags.disputed
+          ? 'Refunded'
+          : 'Pending';
+      return { amountBaseUnits, state };
+    } catch (err) {
+      console.warn(`[${this.label}] getEscrow(${escrowId}) falló: ${(err as Error).message}`);
+      return null;
+    }
+  }
+
+  /** Saca el XDR sin firmar de la respuesta de TW (varios endpoints lo nombran igual). */
+  private unsignedXdr(data: unknown, step: string): string {
+    const d = (data ?? {}) as Record<string, unknown>;
+    const xdr = d.unsignedTransaction ?? d.unsignedTxXdr ?? d.xdr;
+    if (typeof xdr !== 'string' || !xdr) {
+      throw new Error(`[${this.label}] ${step}: respuesta sin unsignedTransaction`);
+    }
+    return xdr;
+  }
+
+  /** Extrae el contractId del escrow desplegado de la respuesta de deploy/send. */
+  private extractContractId(...sources: unknown[]): string | null {
+    for (const src of sources) {
+      const d = (src ?? {}) as Record<string, unknown>;
+      const id =
+        d.contractId ??
+        d.contract_id ??
+        (d.escrow as Record<string, unknown> | undefined)?.contractId ??
+        (d.data as Record<string, unknown> | undefined)?.contractId;
+      if (typeof id === 'string' && id) return id;
+    }
+    return null;
+  }
+}

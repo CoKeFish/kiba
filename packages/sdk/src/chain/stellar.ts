@@ -29,10 +29,12 @@ import type {
   RegisterAgentArgs,
   UpdateAgentArgs,
   OpenEscrowArgs,
+  OpenEscrowResult,
   FetchEscrowArgs,
   ClaimPaymentArgs,
   RefundEscrowArgs,
 } from './types';
+import { TrustlessWorkEscrowClient, type TrustlessWorkConfig } from './trustless-work';
 
 /** Stroops por XLM (7 decimales). Análogo a lamports/SOL en Solana. */
 const STROOPS_PER_XLM = 1e7;
@@ -56,6 +58,15 @@ export interface StellarChainClientConfig {
   horizonUrl?: string;
   /** Prefijo para logs. */
   label?: string;
+  /**
+   * Config de Trustless Work para el escrow. Si está presente, las ops de escrow
+   * (open/fetch/claim/refund) se liquidan vía la API de TW en vez del contrato Kiba.
+   * El registro de agentes sigue en el contrato Kiba.
+   */
+  tw?: Pick<
+    TrustlessWorkConfig,
+    'apiUrl' | 'apiKey' | 'platformAddress' | 'platformFee' | 'trustline'
+  >;
 }
 
 export class StellarChainClient implements ChainClient {
@@ -69,6 +80,8 @@ export class StellarChainClient implements ChainClient {
   private readonly networkPassphrase: string;
   private readonly friendbotUrl?: string;
   private readonly label: string;
+  /** Cliente de escrow de Trustless Work. null si no está configurado. */
+  private readonly tw: TrustlessWorkEscrowClient | null;
 
   constructor(cfg: StellarChainClientConfig) {
     this.server = new rpc.Server(cfg.rpcUrl);
@@ -80,6 +93,14 @@ export class StellarChainClient implements ChainClient {
     this.baseUnitsPerToken = cfg.baseUnitsPerToken ?? STROOPS_PER_XLM;
     this.friendbotUrl = cfg.friendbotUrl;
     this.label = cfg.label ?? 'stellar';
+    this.tw = cfg.tw
+      ? new TrustlessWorkEscrowClient(this.keypair, {
+          ...cfg.tw,
+          networkPassphrase: this.networkPassphrase,
+          baseUnitsPerToken: this.baseUnitsPerToken,
+          label: `${this.label}:tw`,
+        })
+      : null;
   }
 
   get ownerAddress(): string {
@@ -173,9 +194,6 @@ export class StellarChainClient implements ChainClient {
   }
   private i128(n: bigint): xdr.ScVal {
     return nativeToScVal(n, { type: 'i128' });
-  }
-  private u64(n: bigint): xdr.ScVal {
-    return nativeToScVal(n, { type: 'u64' });
   }
   private optI128(n?: bigint | null): xdr.ScVal {
     return n == null ? xdr.ScVal.scvVoid() : this.i128(n);
@@ -271,65 +289,38 @@ export class StellarChainClient implements ChainClient {
     return this.invoke('deregister_agent', [this.str(service)]);
   }
 
-  async openEscrow(args: OpenEscrowArgs): Promise<string> {
-    // 'this' es el cliente/pagador. payToAddress (el agent owner) queda implícito
-    // en el escrow porque el contrato lo deriva del registro del servicio.
-    return this.invoke('open_escrow', [
-      this.addr(this.ownerAddress),
-      this.str(args.service),
-      this.u64(args.nonce),
-      this.i128(args.amountBaseUnits),
-    ]);
+  private requireTw(): TrustlessWorkEscrowClient {
+    if (!this.tw) {
+      throw new Error(
+        `[${this.label}] escrow no disponible: falta config de Trustless Work ` +
+          `(TRUSTLESS_WORK_API_KEY). El escrow x402 se liquida vía Trustless Work.`,
+      );
+    }
+    return this.tw;
+  }
+
+  async openEscrow(args: OpenEscrowArgs): Promise<OpenEscrowResult> {
+    // 'this' es el cliente/pagador (funder). El escrow se despliega+fondea en Trustless
+    // Work con el owner del agente como receiver/serviceProvider/releaseSigner/approver.
+    return this.requireTw().deployAndFund({
+      agentOwner: args.payToAddress,
+      service: args.service,
+      engagementId: `${args.service}-${args.nonce}`,
+      amountBaseUnits: args.amountBaseUnits,
+    });
   }
 
   async fetchEscrow(args: FetchEscrowArgs): Promise<ChainEscrowInfo | null> {
-    // 'this' es el agent owner.
-    const e = (await this.read('get_escrow', [
-      this.addr(args.clientAddress),
-      this.addr(this.ownerAddress),
-      this.u64(args.nonce),
-    ])) as { amount: bigint; state: unknown } | null | undefined;
-    if (e == null) return null;
-    return {
-      amountBaseUnits: BigInt(e.amount),
-      state: parseEscrowState(e.state),
-    };
+    return this.requireTw().getEscrow(args.escrowId);
   }
 
   async claimPayment(args: ClaimPaymentArgs): Promise<string> {
-    // 'this' es el agent owner. El contrato lee `service` del propio escrow.
-    return this.invoke('claim_payment', [
-      this.addr(args.clientAddress),
-      this.addr(this.ownerAddress),
-      this.u64(args.nonce),
-    ]);
+    // 'this' es el agent owner (releaseSigner): libera los fondos al receiver.
+    return this.requireTw().release(args.escrowId);
   }
 
   async refundEscrow(args: RefundEscrowArgs): Promise<string> {
-    // 'this' es el cliente/pagador. El contrato keyea el escrow por (client, agent_owner,
-    // nonce); derivamos el agent_owner del registro del servicio (igual que open_escrow).
-    const agent = await this.fetchAgent(args.service);
-    if (!agent) {
-      throw new Error(`[${this.label}] refundEscrow: servicio '${args.service}' no encontrado`);
-    }
-    return this.invoke('refund_escrow', [
-      this.addr(this.ownerAddress),
-      this.addr(agent.ownerAddress),
-      this.u64(args.nonce),
-    ]);
+    // 'this' es el cliente/pagador: recupera fondos vía el flujo de disputa de TW.
+    return this.requireTw().refund(args.escrowId);
   }
-}
-
-/**
- * El estado del escrow es un enum unitario de Soroban; scValToNative puede
- * devolverlo como string, como `{tag}` o como `[symbol]` según la versión.
- * Normalizamos a la unión esperada.
- */
-function parseEscrowState(v: unknown): 'Pending' | 'Completed' | 'Refunded' {
-  const raw = Array.isArray(v)
-    ? v[0]
-    : v && typeof v === 'object' && 'tag' in (v as Record<string, unknown>)
-      ? (v as Record<string, unknown>).tag
-      : v;
-  return String(raw) as 'Pending' | 'Completed' | 'Refunded';
 }

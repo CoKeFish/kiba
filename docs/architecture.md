@@ -193,6 +193,12 @@ graph LR
 
 **Deployado en Stellar testnet**: `CDYLMRS2UTBHNTWS67NC2OPQIH2HXGS36WZYC4JUMLKZWT7XXVUUX7XF` ([stellar.expert](https://stellar.expert/explorer/testnet/contract/CDYLMRS2UTBHNTWS67NC2OPQIH2HXGS36WZYC4JUMLKZWT7XXVUUX7XF)).
 
+> **Escrow vía Trustless Work.** El escrow del pago x402 (open/fund/release/refund) se migró a
+> [Trustless Work](https://www.trustlesswork.com) (escrow-as-a-service en Stellar). Este contrato
+> queda como **registro de agentes**; sus funciones `open_escrow`/`claim_payment`/`refund_escrow`
+> ya no se invocan desde el SDK (quedan latentes). Ver [`trustless-work.md`](trustless-work.md).
+> Las secciones 4.2/4.3 describen el escrow del contrato propio (histórico/registro).
+
 ### 4.1 Storage del contrato
 
 ```mermaid

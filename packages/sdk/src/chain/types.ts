@@ -68,22 +68,27 @@ export interface OpenEscrowArgs {
   amountBaseUnits: bigint;
 }
 
+/** Resultado de abrir (deploy+fund) un escrow. */
+export interface OpenEscrowResult {
+  /** Identidad del escrow. En Trustless Work = contractId del escrow desplegado. */
+  escrowId: string;
+  /** Id/hash de la transacción de apertura (para el trace x402). */
+  signature: string;
+}
+
 export interface FetchEscrowArgs {
-  /** Dirección del cliente que abrió el escrow. */
-  clientAddress: string;
-  nonce: bigint;
+  /** Identidad del escrow (contractId en Trustless Work). */
+  escrowId: string;
 }
 
 export interface ClaimPaymentArgs {
-  clientAddress: string;
-  nonce: bigint;
-  service: string;
+  /** Identidad del escrow a liberar. */
+  escrowId: string;
 }
 
 export interface RefundEscrowArgs {
-  /** Servicio del que se abrió el escrow (se usa para derivar el agent_owner). */
-  service: string;
-  nonce: bigint;
+  /** Identidad del escrow a reembolsar. */
+  escrowId: string;
 }
 
 export interface ChainClient {
@@ -116,19 +121,19 @@ export interface ChainClient {
   /** Da de baja un agente (solo el owner). Devuelve el id/hash de la transacción. */
   deregisterAgent(service: string): Promise<string>;
 
-  /** Abre un escrow para pagar a un agente. Devuelve el id/hash de la transacción. */
-  openEscrow(args: OpenEscrowArgs): Promise<string>;
+  /** Abre (deploy+fund) un escrow. Devuelve su identidad (escrowId) + hash de la tx. */
+  openEscrow(args: OpenEscrowArgs): Promise<OpenEscrowResult>;
 
-  /** Lee el escrow (cliente → esta wallet, nonce). null si no existe. */
+  /** Lee el escrow por su identidad (escrowId). null si no existe. */
   fetchEscrow(args: FetchEscrowArgs): Promise<ChainEscrowInfo | null>;
 
-  /** Reclama el pago de un escrow tras servir. Devuelve el id/hash de la transacción. */
+  /** Libera/reclama el pago de un escrow tras servir. Devuelve el id/hash de la transacción. */
   claimPayment(args: ClaimPaymentArgs): Promise<string>;
 
   /**
-   * Reembolsa al cliente un escrow Pending tras la ventana de espera del contrato
-   * (REFUND_DELAY_SECS). Útil para recuperar fondos si la llamada al servicio falló
-   * después de abrir el escrow. Devuelve el id/hash de la transacción.
+   * Reembolsa al cliente un escrow no liberado (flujo de disputa en Trustless Work).
+   * Útil para recuperar fondos si la llamada al servicio falló después de abrir el
+   * escrow. Devuelve el id/hash de la transacción.
    */
   refundEscrow(args: RefundEscrowArgs): Promise<string>;
 }

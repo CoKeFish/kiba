@@ -8,7 +8,7 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "clean": "rm -rf dist",
-    "test": "node --import tsx --test --test-reporter=spec test/fees.test.ts test/keypair-store.test.ts test/client.test.ts test/provider.test.ts"
+    "test": "node --import tsx --test --test-reporter=spec test/fees.test.ts test/keypair-store.test.ts test/client.test.ts test/provider.test.ts test/trustless-work.test.ts"
   },
   "dependencies": {
     "@solana/web3.js": "^1.95.0",

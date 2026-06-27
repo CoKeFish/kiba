@@ -187,7 +187,7 @@ export class AgentProvider {
     }
 
     // Con pago → parsearlo y verificarlo on-chain
-    let parsed: { signature: string; nonce: string; clientWallet: string };
+    let parsed: { escrowId?: string; signature?: string; nonce?: string; clientWallet?: string };
     try {
       parsed = JSON.parse(Buffer.from(paymentHeader, 'base64').toString('utf8'));
     } catch {
@@ -216,22 +216,22 @@ export class AgentProvider {
         return;
       }
 
-      // Verifica que el escrow existe on-chain con el monto esperado. En testnet
-      // el escrow recién abierto puede tardar en propagarse al RPC del agente, así
-      // que reintentamos unas veces antes de rechazar con 402.
-      let escrow = await this.chain.fetchEscrow({
-        clientAddress: parsed.clientWallet,
-        nonce: BigInt(parsed.nonce),
-      });
+      const escrowId = parsed.escrowId;
+      if (!escrowId) {
+        res.status(400).json({ error: 'X-PAYMENT sin escrowId' });
+        return;
+      }
+
+      // Verifica que el escrow existe (Trustless Work) con el monto esperado. El
+      // escrow recién creado puede tardar en indexarse, así que reintentamos unas
+      // veces antes de rechazar con 402.
+      let escrow = await this.chain.fetchEscrow({ escrowId });
       for (let i = 0; !escrow && i < 4; i++) {
         await new Promise((r) => setTimeout(r, 1500));
-        escrow = await this.chain.fetchEscrow({
-          clientAddress: parsed.clientWallet,
-          nonce: BigInt(parsed.nonce),
-        });
+        escrow = await this.chain.fetchEscrow({ escrowId });
       }
       if (!escrow) {
-        res.status(402).json({ error: 'escrow not found on-chain' });
+        res.status(402).json({ error: 'escrow not found' });
         return;
       }
       if (escrow.state !== 'Pending') {
@@ -252,14 +252,10 @@ export class AgentProvider {
       // Pago verificado → ejecutar el servicio
       const result = await this.handler(req.body);
 
-      // Después de servir → claim del pago (con reintentos: en testnet el claim
-      // puede fallar por lag de propagación/confirmación aunque el escrow ya esté
-      // Pending). Sin esto, el agente devuelve 500 de forma intermitente.
-      const claimSig = await this.claimWithRetry({
-        clientAddress: parsed.clientWallet,
-        nonce: BigInt(parsed.nonce),
-        service: this.config.service,
-      });
+      // Después de servir → liberar el pago (con reintentos: la liberación puede
+      // fallar por lag de indexación/confirmación). Sin esto, el agente devolvería
+      // 500 de forma intermitente.
+      const claimSig = await this.claimWithRetry(escrowId);
 
       res.json({
         ...((typeof result === 'object' && result !== null) ? result : { result }),
@@ -280,24 +276,17 @@ export class AgentProvider {
    * de propagación/confirmación aunque `fetchEscrow` ya vio el escrow Pending. Si un
    * intento aterrizó pero su confirmación se perdió, lo detectamos por estado Completed.
    */
-  private async claimWithRetry(args: {
-    clientAddress: string;
-    nonce: bigint;
-    service: string;
-  }): Promise<string> {
+  private async claimWithRetry(escrowId: string): Promise<string> {
     const ATTEMPTS = 4;
     let lastErr: unknown;
     for (let i = 0; i < ATTEMPTS; i++) {
       try {
-        return await this.chain!.claimPayment(args);
+        return await this.chain!.claimPayment({ escrowId });
       } catch (err) {
         lastErr = err;
-        // ¿el claim aterrizó de todos modos? (confirmación perdida)
+        // ¿la liberación aterrizó de todos modos? (confirmación perdida)
         try {
-          const e = await this.chain!.fetchEscrow({
-            clientAddress: args.clientAddress,
-            nonce: args.nonce,
-          });
+          const e = await this.chain!.fetchEscrow({ escrowId });
           if (e && e.state === 'Completed') return 'claimed';
         } catch {
           /* ignore, reintentamos */

@@ -226,6 +226,11 @@ Soroban smart contract (Rust) deployed to Stellar testnet.
 
 Full deep dive in [`docs/architecture.md`](docs/architecture.md).
 
+> **Escrow vía Trustless Work.** El pago x402 se liquida a través de
+> [Trustless Work](https://www.trustlesswork.com) (escrow-as-a-service en Stellar). El contrato
+> de arriba queda como **registro de agentes**; el escrow (open/fund/release/refund) corre en TW.
+> Integración y detalles en [`docs/trustless-work.md`](docs/trustless-work.md).
+
 ---
 
 ## Project status

@@ -93,6 +93,13 @@ services:
       - STELLAR_RPC_URL=${STELLAR_RPC_URL:-https://soroban-testnet.stellar.org}
       - "STELLAR_NETWORK_PASSPHRASE=${STELLAR_NETWORK_PASSPHRASE:-Test SDF Network ; September 2015}"
       - STELLAR_FRIENDBOT_URL=${STELLAR_FRIENDBOT_URL:-https://friendbot.stellar.org}
+      # Trustless Work — escrow del pago x402 (los agentes liberan el escrow).
+      - TRUSTLESS_WORK_API_KEY=${TRUSTLESS_WORK_API_KEY:-}
+      - TRUSTLESS_WORK_API_URL=${TRUSTLESS_WORK_API_URL:-https://dev.api.trustlesswork.com}
+      - TRUSTLESS_WORK_PLATFORM_ADDRESS=${TRUSTLESS_WORK_PLATFORM_ADDRESS:-}
+      - TRUSTLESS_WORK_PLATFORM_FEE=${TRUSTLESS_WORK_PLATFORM_FEE:-5}
+      - TRUSTLESS_WORK_TRUSTLINE_ADDRESS=${TRUSTLESS_WORK_TRUSTLINE_ADDRESS:-}
+      - TRUSTLESS_WORK_TRUSTLINE_SYMBOL=${TRUSTLESS_WORK_TRUSTLINE_SYMBOL:-USDC}
     depends_on:
       - backend
 
@@ -121,6 +128,13 @@ services:
       - STELLAR_FRIENDBOT_URL=${STELLAR_FRIENDBOT_URL:-https://friendbot.stellar.org}
       - STELLAR_HORIZON_URL=${STELLAR_HORIZON_URL:-https://horizon-testnet.stellar.org}
       - XLM_USD_RATE=${XLM_USD_RATE:-0.12}
+      # Trustless Work — escrow del pago x402 (el gateway fondea el escrow).
+      - TRUSTLESS_WORK_API_KEY=${TRUSTLESS_WORK_API_KEY:-}
+      - TRUSTLESS_WORK_API_URL=${TRUSTLESS_WORK_API_URL:-https://dev.api.trustlesswork.com}
+      - TRUSTLESS_WORK_PLATFORM_ADDRESS=${TRUSTLESS_WORK_PLATFORM_ADDRESS:-}
+      - TRUSTLESS_WORK_PLATFORM_FEE=${TRUSTLESS_WORK_PLATFORM_FEE:-5}
+      - TRUSTLESS_WORK_TRUSTLINE_ADDRESS=${TRUSTLESS_WORK_TRUSTLINE_ADDRESS:-}
+      - TRUSTLESS_WORK_TRUSTLINE_SYMBOL=${TRUSTLESS_WORK_TRUSTLINE_SYMBOL:-USDC}
     depends_on:
       - backend
       - demo-agents
@@ -147,6 +161,13 @@ services:
       - STELLAR_RPC_URL=${STELLAR_RPC_URL:-https://soroban-testnet.stellar.org}
       - "STELLAR_NETWORK_PASSPHRASE=${STELLAR_NETWORK_PASSPHRASE:-Test SDF Network ; September 2015}"
       - STELLAR_FRIENDBOT_URL=${STELLAR_FRIENDBOT_URL:-https://friendbot.stellar.org}
+      # Trustless Work — escrow del pago x402 (liquida pagos a specialists).
+      - TRUSTLESS_WORK_API_KEY=${TRUSTLESS_WORK_API_KEY:-}
+      - TRUSTLESS_WORK_API_URL=${TRUSTLESS_WORK_API_URL:-https://dev.api.trustlesswork.com}
+      - TRUSTLESS_WORK_PLATFORM_ADDRESS=${TRUSTLESS_WORK_PLATFORM_ADDRESS:-}
+      - TRUSTLESS_WORK_PLATFORM_FEE=${TRUSTLESS_WORK_PLATFORM_FEE:-5}
+      - TRUSTLESS_WORK_TRUSTLINE_ADDRESS=${TRUSTLESS_WORK_TRUSTLINE_ADDRESS:-}
+      - TRUSTLESS_WORK_TRUSTLINE_SYMBOL=${TRUSTLESS_WORK_TRUSTLINE_SYMBOL:-USDC}
     depends_on:
       - backend
       - demo-agents
