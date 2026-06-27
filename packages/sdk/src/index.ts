@@ -24,7 +24,7 @@ export { loadOrCreateKeypair, loadKeypairFromEnvOrFile } from './keypair-store';
 // Abstracción de cadena: la interfaz ChainClient y su factory. AgentClient y
 // AgentProvider operan la blockchain solo a través de esto. Para sumar una nueva
 // cadena (ej. Stellar), se implementa ChainClient y se enruta en createChainClient.
-export { createChainClient, StellarChainClient } from './chain';
+export { createChainClient, StellarChainClient, LocalKeypairSigner } from './chain';
 export type {
   ChainClient,
   ChainAgentInfo,
@@ -35,5 +35,6 @@ export type {
   FetchEscrowArgs,
   ClaimPaymentArgs,
   StellarChainClientConfig,
+  StellarSigner,
 } from './chain';
 export type { ChainClientConfig } from './chain/index';

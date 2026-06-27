@@ -34,9 +34,10 @@
  *   - el endpoint/shape de lectura del escrow (getEscrow);
  *   - el trustline/asset soportado en testnet (probable USDC).
  */
-import { TransactionBuilder, type Keypair } from '@stellar/stellar-sdk';
+import { TransactionBuilder } from '@stellar/stellar-sdk';
 import axios, { type AxiosInstance } from 'axios';
 import type { ChainEscrowInfo, OpenEscrowResult } from './types';
+import type { StellarSigner } from './signer';
 
 export interface TrustlessWorkRoles {
   approver: string;
@@ -82,7 +83,7 @@ export class TrustlessWorkEscrowClient {
   private readonly label: string;
 
   constructor(
-    private readonly keypair: Keypair,
+    private readonly signer: StellarSigner,
     private readonly cfg: TrustlessWorkConfig,
   ) {
     this.label = cfg.label ?? 'tw';
@@ -93,9 +94,9 @@ export class TrustlessWorkEscrowClient {
     });
   }
 
-  /** Dirección Stellar (G...) del Keypair que firma. */
+  /** Dirección Stellar (G...) de quien firma. */
   get address(): string {
-    return this.keypair.publicKey();
+    return this.signer.publicKey();
   }
 
   private toDecimal(amountBaseUnits: bigint): number {
@@ -122,7 +123,7 @@ export class TrustlessWorkEscrowClient {
    */
   private async signAndSend(unsignedXdr: string): Promise<Record<string, unknown>> {
     const tx = TransactionBuilder.fromXDR(unsignedXdr, this.cfg.networkPassphrase);
-    tx.sign(this.keypair);
+    await this.signer.signTransaction(tx);
     const signedXdr = tx.toXDR();
     try {
       const res = await this.http.post('/helper/send-transaction', { signedXdr });

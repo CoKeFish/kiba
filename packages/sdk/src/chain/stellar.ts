@@ -18,7 +18,6 @@ import {
   Contract,
   Operation,
   TransactionBuilder,
-  Keypair,
   nativeToScVal,
   scValToNative,
   xdr,
@@ -37,14 +36,15 @@ import type {
   RefundEscrowArgs,
 } from './types';
 import { TrustlessWorkEscrowClient, type TrustlessWorkConfig } from './trustless-work';
+import type { StellarSigner } from './signer';
 
 /** Unidades base por token: 7 decimales en Stellar (vale para XLM nativo y para
  *  activos clásicos emitidos como USDC). */
 const STROOPS_PER_XLM = 1e7;
 
 export interface StellarChainClientConfig {
-  /** Par de claves que firma (cliente o agent owner según el rol). */
-  keypair: Keypair;
+  /** Firmante (cliente o agent owner según el rol). Local (Keypair) o remoto (Privy). */
+  signer: StellarSigner;
   /** Contract ID (C...) del contrato Kiba en Soroban. */
   contractId: string;
   /** URL del RPC de Soroban (ej. https://soroban-testnet.stellar.org). */
@@ -82,7 +82,7 @@ export class StellarChainClient implements ChainClient {
   private readonly server: rpc.Server;
   private readonly horizon: Horizon.Server;
   private readonly contract: Contract;
-  private readonly keypair: Keypair;
+  private readonly signer: StellarSigner;
   private readonly networkPassphrase: string;
   private readonly friendbotUrl?: string;
   private readonly label: string;
@@ -95,7 +95,7 @@ export class StellarChainClient implements ChainClient {
     this.server = new rpc.Server(cfg.rpcUrl);
     this.horizon = new Horizon.Server(cfg.horizonUrl ?? 'https://horizon-testnet.stellar.org');
     this.contract = new Contract(cfg.contractId);
-    this.keypair = cfg.keypair;
+    this.signer = cfg.signer;
     this.networkPassphrase = cfg.networkPassphrase;
     this.asset = cfg.asset ?? 'USDC';
     this.baseUnitsPerToken = cfg.baseUnitsPerToken ?? STROOPS_PER_XLM;
@@ -103,7 +103,7 @@ export class StellarChainClient implements ChainClient {
     this.friendbotUrl = cfg.friendbotUrl;
     this.label = cfg.label ?? 'stellar';
     this.tw = cfg.tw
-      ? new TrustlessWorkEscrowClient(this.keypair, {
+      ? new TrustlessWorkEscrowClient(this.signer, {
           ...cfg.tw,
           networkPassphrase: this.networkPassphrase,
           baseUnitsPerToken: this.baseUnitsPerToken,
@@ -113,7 +113,7 @@ export class StellarChainClient implements ChainClient {
   }
 
   get ownerAddress(): string {
-    return this.keypair.publicKey();
+    return this.signer.publicKey();
   }
 
   // ─── helpers de invocación ─────────────────────────────────
@@ -130,7 +130,7 @@ export class StellarChainClient implements ChainClient {
     let lastErr: unknown;
     for (let attempt = 0; attempt < ATTEMPTS; attempt++) {
       try {
-        const source = await this.server.getAccount(this.keypair.publicKey());
+        const source = await this.server.getAccount(this.signer.publicKey());
         const tx = new TransactionBuilder(source, {
           fee: BASE_FEE,
           networkPassphrase: this.networkPassphrase,
@@ -140,7 +140,7 @@ export class StellarChainClient implements ChainClient {
           .build();
 
         const prepared = await this.server.prepareTransaction(tx);
-        prepared.sign(this.keypair);
+        await this.signer.signTransaction(prepared);
 
         const sent = await this.server.sendTransaction(prepared);
         if (sent.status === 'ERROR') {
@@ -178,7 +178,7 @@ export class StellarChainClient implements ChainClient {
    *  Usa una cuenta efímera (seq 0) como fuente: la simulación no requiere que
    *  exista ni esté fondeada, así cualquier keypair puede leer (p.ej. el backend). */
   private async read(method: string, args: xdr.ScVal[]): Promise<unknown> {
-    const source = new Account(this.keypair.publicKey(), '0');
+    const source = new Account(this.signer.publicKey(), '0');
     const tx = new TransactionBuilder(source, {
       fee: BASE_FEE,
       networkPassphrase: this.networkPassphrase,
@@ -216,7 +216,7 @@ export class StellarChainClient implements ChainClient {
   async ensureFunds(_minToken: number, _topUpToken: number): Promise<void> {
     let exists = true;
     try {
-      await this.server.getAccount(this.keypair.publicKey());
+      await this.server.getAccount(this.signer.publicKey());
     } catch {
       exists = false; // cuenta inexistente → friendbot (testnet/futurenet)
     }
@@ -244,7 +244,7 @@ export class StellarChainClient implements ChainClient {
     if (this.asset === 'XLM' || !this.assetIssuer) return;
     let acct: Horizon.AccountResponse;
     try {
-      acct = await this.horizon.loadAccount(this.keypair.publicKey());
+      acct = await this.horizon.loadAccount(this.signer.publicKey());
     } catch {
       return; // la cuenta no existe todavía (debería correr friendbot antes)
     }
@@ -253,7 +253,7 @@ export class StellarChainClient implements ChainClient {
     );
     if (has) return;
     try {
-      const source = await this.server.getAccount(this.keypair.publicKey());
+      const source = await this.server.getAccount(this.signer.publicKey());
       const tx = new TransactionBuilder(source, {
         fee: BASE_FEE,
         networkPassphrase: this.networkPassphrase,
@@ -261,7 +261,7 @@ export class StellarChainClient implements ChainClient {
         .addOperation(Operation.changeTrust({ asset: new Asset(this.asset, this.assetIssuer) }))
         .setTimeout(30)
         .build();
-      tx.sign(this.keypair);
+      await this.signer.signTransaction(tx);
       const sent = await this.server.sendTransaction(tx);
       if (sent.status === 'ERROR') {
         console.warn(
@@ -283,7 +283,7 @@ export class StellarChainClient implements ChainClient {
 
   async getBalanceBaseUnits(): Promise<bigint> {
     try {
-      const acct = await this.horizon.loadAccount(this.keypair.publicKey());
+      const acct = await this.horizon.loadAccount(this.signer.publicKey());
       // Activo emitido (USDC) → balance del trustline; sin issuer → balance nativo (XLM).
       const entry =
         this.asset !== 'XLM' && this.assetIssuer

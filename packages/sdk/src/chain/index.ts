@@ -6,10 +6,14 @@
 import { type Keypair } from '@solana/web3.js';
 import { Keypair as StellarKeypair, Networks } from '@stellar/stellar-sdk';
 import { StellarChainClient } from './stellar';
+import { LocalKeypairSigner, type StellarSigner } from './signer';
 import type { ChainClient } from './types';
 
 export interface ChainClientConfig {
-  wallet: Keypair;
+  /** Keypair ed25519 (@solana/web3.js); deriva un firmante local Stellar. Back-compat. */
+  wallet?: Keypair;
+  /** Firmante ya construido (p.ej. Privy, firma remota). Tiene precedencia sobre `wallet`. */
+  signer?: StellarSigner;
   rpcUrl?: string;
   /** Prefijo para logs en modo degradado. */
   label?: string;
@@ -37,15 +41,22 @@ function createStellarChainClient(
   const friendbotUrl = process.env.STELLAR_FRIENDBOT_URL ?? 'https://friendbot.stellar.org';
   const horizonUrl = process.env.STELLAR_HORIZON_URL ?? 'https://horizon-testnet.stellar.org';
 
-  let keypair: StellarKeypair;
-  if (process.env.STELLAR_SECRET) {
-    keypair = StellarKeypair.fromSecret(process.env.STELLAR_SECRET);
-  } else {
+  // Firmante: explícito (Privy, firma remota) > STELLAR_SECRET (identidad única) >
+  // derivado del wallet ed25519.
+  let signer: StellarSigner;
+  if (config.signer) {
+    signer = config.signer;
+  } else if (process.env.STELLAR_SECRET) {
+    signer = new LocalKeypairSigner(StellarKeypair.fromSecret(process.env.STELLAR_SECRET));
+  } else if (config.wallet) {
     // El wallet del SDK es un keypair ed25519 (contenedor de claves de
     // @solana/web3.js). Stellar también usa ed25519 → derivamos el mismo par
     // desde el seed de 32 bytes. Misma clave, dirección en strkey (G...).
     const seed = Buffer.from(config.wallet.secretKey.slice(0, 32));
-    keypair = StellarKeypair.fromRawEd25519Seed(seed);
+    signer = new LocalKeypairSigner(StellarKeypair.fromRawEd25519Seed(seed));
+  } else {
+    console.warn(`[${label}] sin signer ni wallet — no se puede crear el ChainClient`);
+    return null;
   }
 
   // Escrow vía Trustless Work. Si falta la API key, el cliente queda sin escrow
@@ -74,7 +85,7 @@ function createStellarChainClient(
     : undefined;
 
   return new StellarChainClient({
-    keypair,
+    signer,
     contractId,
     rpcUrl,
     networkPassphrase,
@@ -101,3 +112,4 @@ export type {
 } from './types';
 export { StellarChainClient, type StellarChainClientConfig } from './stellar';
 export { TrustlessWorkEscrowClient, type TrustlessWorkConfig } from './trustless-work';
+export { LocalKeypairSigner, type StellarSigner } from './signer';

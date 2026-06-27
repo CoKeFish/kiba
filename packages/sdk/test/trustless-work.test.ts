@@ -11,6 +11,7 @@ import {
 } from '@stellar/stellar-sdk';
 import axios from 'axios';
 import { TrustlessWorkEscrowClient } from '../src/chain/trustless-work';
+import { LocalKeypairSigner, type StellarSigner } from '../src/chain/signer';
 
 /**
  * Tests del TrustlessWorkEscrowClient con la API REST de TW mockeada (sin red).
@@ -65,7 +66,7 @@ const unsigned = () => ({ status: 201, data: { unsignedTransaction: unsignedXdr(
 function makeClient() {
   const keypair = Keypair.random();
   const platform = Keypair.random().publicKey();
-  const client = new TrustlessWorkEscrowClient(keypair, {
+  const client = new TrustlessWorkEscrowClient(new LocalKeypairSigner(keypair), {
     apiUrl: 'https://dev.api.trustlesswork.com',
     apiKey: 'test-key',
     platformAddress: platform,
@@ -176,4 +177,60 @@ test('getEscrow: flag released → Completed', async () => {
   });
   const escrow = await client.getEscrow('CESCROW123');
   assert.equal(escrow!.state, 'Completed');
+});
+
+/**
+ * Firmante remoto estilo Privy: firma `tx.hash()` y la adjunta con `addSignature`,
+ * sin tener el Keypair dentro del cliente. Prueba la MITAD Stellar del spike #1
+ * (sin Privy): que firmar el hash + addSignature produce una firma que verifica
+ * contra el hash, es decir, un XDR que la red aceptaría. Lo único que queda por
+ * validar en vivo es que el `raw_sign` de Privy devuelva esa misma firma ed25519.
+ */
+class MockRemoteSigner implements StellarSigner {
+  constructor(private readonly kp: Keypair) {}
+  publicKey(): string {
+    return this.kp.publicKey();
+  }
+  async signTransaction(tx: Transaction): Promise<void> {
+    const sig = this.kp.sign(tx.hash()); // == lo que hará PrivyStellarSigner vía raw_sign
+    tx.addSignature(this.kp.publicKey(), sig.toString('base64'));
+  }
+}
+
+test('firmante remoto (hash→sign→addSignature) produce un XDR firmado válido', async () => {
+  const kp = Keypair.random();
+  const client = new TrustlessWorkEscrowClient(new MockRemoteSigner(kp), {
+    apiUrl: 'https://dev.api.trustlesswork.com',
+    apiKey: 'test-key',
+    platformAddress: Keypair.random().publicKey(),
+    platformFee: 5,
+    trustline: { address: 'GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5', symbol: 'USDC' },
+    networkPassphrase: Networks.TESTNET,
+    baseUnitsPerToken: 1e7,
+    label: 'test-remote',
+  });
+
+  postRoutes['/deployer/single-release'] = () => unsigned();
+  postRoutes['/helper/send-transaction'] = (body) => {
+    const tx = new Transaction((body as { signedXdr: string }).signedXdr, Networks.TESTNET);
+    assert.equal(tx.signatures.length, 1, 'el firmante remoto debe adjuntar 1 firma');
+    assert.ok(
+      kp.verify(tx.hash(), tx.signatures[0].signature()),
+      'la firma remota debe verificar contra el hash de la tx',
+    );
+    return { status: 201, data: { status: 'SUCCESS', contractId: 'CESCROW_REMOTE' } };
+  };
+  postRoutes['/escrow/single-release/fund-escrow'] = () => unsigned();
+  getRoutes['/helper/get-escrow-by-contract-ids'] = () => ({
+    status: 200,
+    data: [{ contractId: 'CESCROW_REMOTE', balance: 0.0005, amount: 0.0005, flags: {} }],
+  });
+
+  const { escrowId } = await client.deployAndFund({
+    agentOwner: Keypair.random().publicKey(),
+    service: 'svc',
+    engagementId: 'svc-1',
+    amountBaseUnits: 5000n,
+  });
+  assert.equal(escrowId, 'CESCROW_REMOTE');
 });
