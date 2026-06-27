@@ -164,6 +164,34 @@ export class TrustlessWorkEscrowClient {
     }
   }
 
+  /**
+   * POST a un endpoint de TW que SIMULA contra el escrow on-chain (fund/release/
+   * milestone) y devuelve el unsignedTransaction. Reintenta si el estado on-chain
+   * (deploy/fund recién enviados) todavía no confirmó → `Error(Storage, MissingValue)`.
+   */
+  private async postSim(path: string, body: object, label: string): Promise<string> {
+    let lastErr: unknown;
+    for (let i = 0; i < 6; i++) {
+      try {
+        const resp = await this.http.post(path, body);
+        return this.unsignedXdr(resp.data, label);
+      } catch (err) {
+        lastErr = err;
+        const msg = String(
+          (err as { response?: { data?: { message?: string } } }).response?.data?.message ??
+            (err as Error).message ??
+            '',
+        );
+        if (/MissingValue|non-existing|not exist|escrow not found/i.test(msg) && i < 5) {
+          await this.sleep(5000); // el deploy/fund aún no confirmó on-chain
+          continue;
+        }
+        throw err;
+      }
+    }
+    throw lastErr;
+  }
+
   /** Espera (poll) a que un escrow cumpla un predicado en el indexer. */
   private async waitFor(
     escrowId: string,
@@ -185,8 +213,10 @@ export class TrustlessWorkEscrowClient {
   async deployAndFund(args: DeployAndFundArgs): Promise<OpenEscrowResult> {
     const amount = this.toDecimal(args.amountBaseUnits);
 
-    // 1) Deploy: POST /deployer/single-release → XDR sin firmar.
-    const deployResp = await this.http.post('/deployer/single-release', {
+    // 1) Deploy. send-transaction es flaky ("missing resultMetaXdr", y a veces la tx no
+    //    aterriza), así que reintentamos el deploy completo (POST+sign+send con tx fresca)
+    //    hasta que la respuesta traiga el contractId. Último recurso: recovery por engagementId.
+    const deployBody = {
       signer: this.address,
       engagementId: args.engagementId,
       title: args.service,
@@ -196,25 +226,31 @@ export class TrustlessWorkEscrowClient {
       platformFee: this.cfg.platformFee,
       trustline: this.cfg.trustline,
       milestones: [{ description: args.service }],
-    });
-    const deploySent = await this.signAndSend(this.unsignedXdr(deployResp.data, 'deploy'));
-    // El contractId viene en la respuesta de send-transaction; si quedó "pending"
-    // (transient), el contrato igual se desplegó → lo ubicamos por engagementId.
-    let escrowId = this.extractContractId(deploySent, deployResp.data);
-    if (!escrowId) {
-      escrowId = await this.recoverEscrowId(args.engagementId);
+    };
+    let escrowId: string | null = null;
+    for (let i = 0; i < 6 && !escrowId; i++) {
+      try {
+        const deployResp = await this.http.post('/deployer/single-release', deployBody);
+        const sent = await this.signAndSend(this.unsignedXdr(deployResp.data, 'deploy'));
+        escrowId = this.extractContractId(sent);
+      } catch (err) {
+        console.warn(`[${this.label}] deploy intento ${i + 1}: ${(err as Error).message}`);
+      }
+      if (!escrowId) await this.sleep(3000);
     }
+    if (!escrowId) escrowId = await this.recoverEscrowId(args.engagementId);
     if (!escrowId) {
       throw new Error(`[${this.label}] deploy: no se pudo obtener el contractId del escrow`);
     }
 
-    // 2) Fund (lo firma el funder). Verificamos vía indexer que el balance llegó.
-    const fundResp = await this.http.post('/escrow/single-release/fund-escrow', {
-      contractId: escrowId,
-      signer: this.address,
-      amount: String(amount),
-    });
-    await this.signAndSend(this.unsignedXdr(fundResp.data, 'fund'));
+    // 2) Fund (lo firma el funder). postSim reintenta hasta que el deploy confirme
+    //    on-chain; luego verificamos vía indexer que el balance llegó.
+    const fundXdr = await this.postSim(
+      '/escrow/single-release/fund-escrow',
+      { contractId: escrowId, signer: this.address, amount },
+      'fund',
+    );
+    await this.signAndSend(fundXdr);
     await this.waitFor(escrowId, (e) => Number(e.balance ?? 0) > 0, 'fund');
 
     return { escrowId, signature: escrowId };
@@ -222,11 +258,14 @@ export class TrustlessWorkEscrowClient {
 
   /** Ubica el contractId de un escrow recién desplegado por engagementId (recovery). */
   private async recoverEscrowId(engagementId: string): Promise<string | null> {
-    for (let i = 0; i < 6; i++) {
-      await this.sleep(3000);
+    for (let i = 0; i < 12; i++) {
+      await this.sleep(4000);
       const escrows = await this.getEscrowsBySigner(this.address);
       const match = escrows.find((e) => e.engagementId === engagementId);
       if (typeof match?.contractId === 'string' && match.contractId) return match.contractId;
+      console.log(
+        `[${this.label}] recover ${i + 1}/12: ${escrows.length} escrows, sin match para ${engagementId}`,
+      );
     }
     return null;
   }
@@ -238,26 +277,26 @@ export class TrustlessWorkEscrowClient {
    */
   async release(escrowId: string): Promise<string> {
     // a) serviceProvider marca el milestone como completado.
-    const statusResp = await this.http.post('/escrow/single-release/change-milestone-status', {
-      contractId: escrowId,
-      milestoneIndex: '0',
-      newStatus: 'completed',
-      serviceProvider: this.address,
-    });
-    await this.signAndSend(this.unsignedXdr(statusResp.data, 'change-milestone-status'));
+    const statusXdr = await this.postSim(
+      '/escrow/single-release/change-milestone-status',
+      { contractId: escrowId, milestoneIndex: '0', newStatus: 'completed', serviceProvider: this.address },
+      'change-milestone-status',
+    );
+    await this.signAndSend(statusXdr);
     // b) approver aprueba el milestone.
-    const approveResp = await this.http.post('/escrow/single-release/approve-milestone', {
-      contractId: escrowId,
-      milestoneIndex: '0',
-      approver: this.address,
-    });
-    await this.signAndSend(this.unsignedXdr(approveResp.data, 'approve-milestone'));
+    const approveXdr = await this.postSim(
+      '/escrow/single-release/approve-milestone',
+      { contractId: escrowId, milestoneIndex: '0', approver: this.address },
+      'approve-milestone',
+    );
+    await this.signAndSend(approveXdr);
     // c) releaseSigner libera los fondos al receiver.
-    const relResp = await this.http.post('/escrow/single-release/release-funds', {
-      contractId: escrowId,
-      releaseSigner: this.address,
-    });
-    await this.signAndSend(this.unsignedXdr(relResp.data, 'release'));
+    const relXdr = await this.postSim(
+      '/escrow/single-release/release-funds',
+      { contractId: escrowId, releaseSigner: this.address },
+      'release',
+    );
+    await this.signAndSend(relXdr);
     await this.waitFor(escrowId, (e) => !!(e.flags as Record<string, boolean>)?.released, 'release');
     return escrowId;
   }

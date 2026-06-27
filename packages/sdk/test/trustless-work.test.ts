@@ -124,9 +124,9 @@ test('deployAndFund: payload de deploy correcto + contractId del send + fund ver
   assert.equal(deploy.roles.platformAddress, platform);
   assert.equal(deploy.roles.disputeResolver, platform);
 
-  const fund = posted['/escrow/single-release/fund-escrow'] as { contractId: string; amount: string };
+  const fund = posted['/escrow/single-release/fund-escrow'] as { contractId: string; amount: number };
   assert.equal(fund.contractId, 'CESCROW123');
-  assert.equal(fund.amount, '0.0005');
+  assert.equal(fund.amount, 0.0005);
 });
 
 test('release: change-status (idx string) → approve → release-funds', async () => {
