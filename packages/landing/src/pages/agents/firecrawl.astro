@@ -1,0 +1,278 @@
+---
+import Base from "../../layouts/Base.astro";
+
+const DASHBOARD_URL = import.meta.env.PUBLIC_DASHBOARD_URL || "https://dashboard.kiba.rodion.com.co";
+
+// ── Pricing (debe coincidir con packages/demo-agents/src/firecrawl.ts) ──
+const XLM_USD = 0.12;
+const PRICE_SCRAPE = 0.002;
+const PRICE_EXTRACT = 0.005;
+const usd = (xlm: number) => (xlm * XLM_USD).toFixed(4);
+
+// ── Payload de ejemplo (real, probado end-to-end) ──
+const mcpConfig = `{
+  "mcpServers": {
+    "kiba": {
+      "command": "npx",
+      "args": ["-y", "kiba-mcp"]
+    }
+  }
+}`;
+
+const callExample = `// A través del MCP (Claude / Cursor) o el REST API del Gateway
+call_agent({
+  service: "firecrawl",
+  payload: {
+    url: "https://www.amazon.com/dp/B0XXXXXXX",
+    prompt: "Extrae el título del producto y el precio más bajo como número",
+    proxy: "stealth"   // recomendado para sitios con anti-bot
+  }
+})`;
+
+const responseExample = `{
+  "result": {
+    "url": "https://books.toscrape.com/.../mystery_3/index.html",
+    "extracted": {
+      "title": "Tastes Like Fear (DI Marnie Rome #3)",
+      "price": 10.69
+    },
+    "markdown": "# Mystery\\n\\n32 results...",
+    "metadata": { "title": "Mystery | Books to Scrape", "statusCode": 200 },
+    "_payment": {
+      "claimed": true,
+      "amount": "50000",
+      "signature": "3d3c5ad2…f324de"
+    }
+  },
+  "cost": { "baseUnits": 50000, "usd": 0.0006 }
+}`;
+
+const fields = [
+  { name: "url", req: true, type: "string", desc: "URL de la página a cargar. Acepta sinónimos: link, page, website, target." },
+  { name: "prompt", req: false, type: "string", desc: "Instrucción en lenguaje natural para extraer datos estructurados (ej. \"extrae el precio más bajo\"). Si lo omites, recibes solo el markdown de la página." },
+  { name: "schema", req: false, type: "object", desc: "JSON Schema opcional para forzar la forma exacta de la extracción." },
+  { name: "formats", req: false, type: "string[]", desc: "Qué devolver: markdown (default), json, product, links, summary, html." },
+  { name: "onlyMainContent", req: false, type: "boolean", desc: "Quita nav/footer/ads. Default true. Ponlo en false si una página de listado se ve vacía." },
+  { name: "proxy", req: false, type: "string", desc: "'basic' | 'stealth' | 'auto'. Usa 'stealth' en sitios con anti-bot (Amazon, tiendas grandes) para atravesar bloqueos." },
+  { name: "waitFor", req: false, type: "number", desc: "ms a esperar tras la carga para que el JavaScript termine de renderizar (ej. 3000)." },
+  { name: "country", req: false, type: "string", desc: "País del proxy (ej. \"CO\", \"US\"). Mejora la geolocalización de precios y disponibilidad." },
+];
+
+const steps = [
+  { n: "1", t: "El asistente descubre el agente", d: "Tu asistente busca \"scrapear una página\" o \"precio de un producto\" en el marketplace y encuentra firecrawl por búsqueda híbrida (keyword + semántica)." },
+  { n: "2", t: "Cotización x402", d: "Hace POST al agente sin pago. El agente responde 402 Payment Required con el precio exacto para esa request (depende de si pides extracción o solo markdown)." },
+  { n: "3", t: "Pago on-chain", d: "Tu wallet custodial abre un escrow en el contrato Soroban (Stellar testnet) por el monto cotizado. No tocas claves ni firmas nada manualmente." },
+  { n: "4", t: "Scraping real", d: "Verificado el pago, el agente llama a la API de Firecrawl, que renderiza el JavaScript de la página y (si pediste un prompt) extrae los datos con un LLM." },
+  { n: "5", t: "Entrega + claim", d: "El agente devuelve el resultado y reclama el pago del escrow: 95% para el operador del agente, 5% para la tesorería de la plataforma — atómico, en una sola tx." },
+];
+
+const tips = [
+  "Para precios, apunta a la página de UN producto, no a una página de resultados de búsqueda gigante: la extracción es más precisa y barata.",
+  "Empieza con páginas de producto directas en tiendas con poca protección anti-bot: la tasa de éxito es mucho mayor que en buscadores agresivos como MercadoLibre.",
+  "Usa proxy: \"stealth\" (y opcionalmente country: \"CO\") en sitios con anti-bot fuerte como Amazon. Atraviesa la mayoría de los bloqueos a cambio de un poco más de latencia.",
+  "Sé específico en el prompt: \"devuelve el precio como número entero en COP\" funciona mejor que \"dame el precio\".",
+  "Si una página se ve vacía, prueba onlyMainContent: false — algunos listados no se reconocen como \"contenido principal\".",
+  "¿Solo quieres leer un artículo o documento? Omite el prompt y recibe markdown limpio listo para el asistente — sale más barato.",
+];
+
+const warnings = [
+  "Sitios con anti-bot muy agresivo (ej. MercadoLibre) pueden responder con CAPTCHA y bloquear el scrape incluso con proxy: \"stealth\". No está garantizado el 100% de los sitios.",
+  "Páginas enormes (resultados de búsqueda con cientos de items) pueden exceder el contexto del extractor: recibirás el markdown pero la extracción JSON puede venir vacía. Apunta a una página más específica.",
+  "Respeta los términos de uso y el robots.txt de cada sitio. Eres responsable de cómo usas el contenido que extraes.",
+  "Es un servicio de testnet con fines de demostración: no lo uses para cargas de producción ni datos sensibles.",
+];
+
+const sectionPad = "padding: 88px 24px;";
+const wrap = "max-width: 920px; margin: 0 auto;";
+const h2 = "font-family: var(--font-display); font-size: clamp(26px, 3vw, 34px); font-weight: 600; color: var(--fg-1); letter-spacing: -0.02em; margin-bottom: 16px;";
+const lead = "font-family: var(--font-sans); font-size: 16px; color: var(--fg-2); line-height: 1.65;";
+const card = "background: var(--bg-card); border: 1px solid var(--border-default); border-radius: var(--radius-lg); padding: 22px; box-shadow: var(--shadow-sm);";
+const pre = "background: var(--bg-inset); border: 1px solid var(--border-default); border-radius: var(--radius-md); padding: 18px; overflow-x: auto; font-family: var(--font-mono); font-size: 13px; line-height: 1.6; color: var(--fg-1);";
+---
+
+<Base title="Firecrawl — Web scraper en vivo · Kiba" description="Carga contenido dinámico de la web (precios de productos, páginas con render JS) y devuelve markdown limpio o datos estructurados. Agente de pago por uso sobre x402 / Stellar.">
+
+  <!-- Hero -->
+  <section style={`${sectionPad} background: radial-gradient(ellipse at top, color-mix(in srgb, var(--accent) 12%, transparent), transparent 55%), var(--bg-canvas); border-bottom: 1px solid var(--border-subtle);`}>
+    <div style={wrap}>
+      <a href="/#agents" style="font-family: var(--font-mono); font-size: 12px; color: var(--fg-3);">← Volver al marketplace</a>
+
+      <div style="display: flex; align-items: center; gap: 16px; margin-top: 24px; flex-wrap: wrap;">
+        <div style="
+          width: 56px; height: 56px; flex-shrink: 0;
+          border-radius: var(--radius-lg);
+          background: color-mix(in srgb, var(--accent) 16%, transparent);
+          border: 1px solid var(--border-accent);
+          display: flex; align-items: center; justify-content: center;
+          font-size: 28px;
+        ">🔥</div>
+        <div>
+          <h1 style="font-family: var(--font-display); font-size: clamp(34px, 5vw, 52px); font-weight: 600; color: var(--fg-1); letter-spacing: -0.03em; line-height: 1;">Firecrawl</h1>
+          <code style="font-family: var(--font-mono); font-size: 13px; color: var(--fg-3);">service: firecrawl · settles in XLM</code>
+        </div>
+      </div>
+
+      <p style="font-family: var(--font-sans); font-size: clamp(18px, 2.4vw, 22px); color: var(--fg-1); line-height: 1.5; margin-top: 28px; max-width: 720px;">
+        El web scraper que tu asistente no trae de fábrica. Carga páginas que requieren render de JavaScript y te devuelve <strong style="color: var(--accent);">markdown limpio</strong> o <strong style="color: var(--accent);">datos estructurados</strong> — precios, stock, especificaciones — de cualquier URL.
+      </p>
+
+      <div style="display: flex; gap: 12px; margin-top: 28px; flex-wrap: wrap;">
+        <a href={`${DASHBOARD_URL}/signup`} style="font-family: var(--font-sans); font-size: 15px; font-weight: 600; background: var(--accent); color: #fff; padding: 13px 26px; border-radius: 999px; text-decoration: none; box-shadow: 0 0 26px color-mix(in srgb, var(--accent) 45%, transparent);">Pruébalo gratis →</a>
+        <a href="#how-to-use" style="font-family: var(--font-sans); font-size: 15px; font-weight: 600; background: transparent; color: var(--fg-1); border: 1px solid var(--border-strong); padding: 13px 22px; border-radius: 999px; text-decoration: none;">Cómo usarlo</a>
+      </div>
+
+      <!-- price chips -->
+      <div style="display: flex; gap: 12px; margin-top: 32px; flex-wrap: wrap;">
+        <div style={`${card} padding: 14px 18px;`}>
+          <div style="font-family: var(--font-mono); font-size: 11px; color: var(--fg-3); text-transform: uppercase; letter-spacing: 0.08em;">Scrape de página</div>
+          <div style="font-family: var(--font-mono); font-size: 18px; font-weight: 600; color: var(--success); margin-top: 4px;">${usd(PRICE_SCRAPE)} <span style="color: var(--fg-3); font-size: 12px;">· {PRICE_SCRAPE} XLM</span></div>
+        </div>
+        <div style={`${card} padding: 14px 18px;`}>
+          <div style="font-family: var(--font-mono); font-size: 11px; color: var(--fg-3); text-transform: uppercase; letter-spacing: 0.08em;">Extracción estructurada</div>
+          <div style="font-family: var(--font-mono); font-size: 18px; font-weight: 600; color: var(--success); margin-top: 4px;">${usd(PRICE_EXTRACT)} <span style="color: var(--fg-3); font-size: 12px;">· {PRICE_EXTRACT} XLM</span></div>
+        </div>
+        <div style={`${card} padding: 14px 18px;`}>
+          <div style="font-family: var(--font-mono); font-size: 11px; color: var(--fg-3); text-transform: uppercase; letter-spacing: 0.08em;">Pago por uso</div>
+          <div style="font-family: var(--font-mono); font-size: 18px; font-weight: 600; color: var(--fg-1); margin-top: 4px;">x402 · Stellar</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- The problem -->
+  <section style={`${sectionPad} background: var(--bg-canvas);`}>
+    <div style={wrap}>
+      <div class="eyebrow" style="margin-bottom: 12px;">Por qué existe</div>
+      <h2 style={h2}>El caso que los asistentes no resuelven solos</h2>
+      <p style={lead}>
+        Pregúntale a Claude o ChatGPT por el <strong style="color: var(--fg-1);">precio más barato de un producto ahora mismo</strong>, o por el contenido de una página detrás de render de JavaScript, y te dará una respuesta desactualizada, inventada, o un "no puedo acceder a esa página". Los modelos no navegan en vivo y no renderizan JS.
+      </p>
+      <p style={`${lead} margin-top: 16px;`}>
+        Firecrawl cierra esa brecha. Le pasas una URL, él carga la página de verdad (ejecutando su JavaScript) y devuelve exactamente lo que necesitas: el texto limpio en markdown, o los campos que pediste — un precio, un stock, una ficha técnica. Tu asistente deja de adivinar y empieza a leer la web real.
+      </p>
+    </div>
+  </section>
+
+  <!-- How it works -->
+  <section style={`${sectionPad} background: var(--bg-surface); border-top: 1px solid var(--border-subtle); border-bottom: 1px solid var(--border-subtle);`}>
+    <div style={wrap}>
+      <div class="eyebrow" style="margin-bottom: 12px;">Cómo funciona</div>
+      <h2 style={h2}>De la pregunta al dato, pagado on-chain</h2>
+      <div style="display: flex; flex-direction: column; gap: 14px; margin-top: 28px;">
+        {steps.map((s) => (
+          <div style={`${card} display: flex; gap: 18px; align-items: flex-start;`}>
+            <div style="
+              width: 34px; height: 34px; flex-shrink: 0;
+              border-radius: 999px;
+              background: color-mix(in srgb, var(--accent) 16%, transparent);
+              border: 1px solid var(--border-accent);
+              display: flex; align-items: center; justify-content: center;
+              font-family: var(--font-mono); font-weight: 600; color: var(--accent);
+            ">{s.n}</div>
+            <div>
+              <div style="font-family: var(--font-display); font-size: 17px; font-weight: 600; color: var(--fg-1); margin-bottom: 4px;">{s.t}</div>
+              <p style="font-family: var(--font-sans); font-size: 14px; color: var(--fg-2); line-height: 1.55;">{s.d}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+      <p style={`${lead} margin-top: 24px; font-size: 14px; color: var(--fg-3);`}>
+        ⚡ Lo importante: <strong style="color: var(--fg-2);">tú nunca manejas una API key de scraping ni una wallet.</strong> Pagas en XLM (o créditos USD) y el agente se encarga del resto.
+      </p>
+    </div>
+  </section>
+
+  <!-- How to use -->
+  <section id="how-to-use" style={`${sectionPad} background: var(--bg-canvas);`}>
+    <div style={wrap}>
+      <div class="eyebrow" style="margin-bottom: 12px;">Cómo usarlo</div>
+      <h2 style={h2}>Conéctalo en dos minutos</h2>
+
+      <h3 style="font-family: var(--font-display); font-size: 18px; color: var(--fg-1); margin: 28px 0 12px;">1. Desde Claude Desktop o Cursor (MCP)</h3>
+      <p style={`${lead} margin-bottom: 14px;`}>Agrega Kiba a la configuración MCP de tu cliente. La primera llamada abre el navegador para iniciar sesión una sola vez.</p>
+      <pre style={pre}><code>{mcpConfig}</code></pre>
+
+      <h3 style="font-family: var(--font-display); font-size: 18px; color: var(--fg-1); margin: 32px 0 12px;">2. Llama al agente</h3>
+      <p style={`${lead} margin-bottom: 14px;`}>Pasa una <code style="font-family: var(--font-mono); color: var(--accent);">url</code> y, opcionalmente, un <code style="font-family: var(--font-mono); color: var(--accent);">prompt</code> de extracción.</p>
+      <pre style={pre}><code>{callExample}</code></pre>
+
+      <h3 style="font-family: var(--font-display); font-size: 18px; color: var(--fg-1); margin: 32px 0 12px;">3. Recibes el resultado</h3>
+      <p style={`${lead} margin-bottom: 14px;`}>Ejemplo real, probado end-to-end (incluye el hash de la tx de pago en Stellar):</p>
+      <pre style={pre}><code>{responseExample}</code></pre>
+
+      <!-- Params table -->
+      <h3 style="font-family: var(--font-display); font-size: 18px; color: var(--fg-1); margin: 36px 0 14px;">Parámetros del payload</h3>
+      <div style={`${card} padding: 0; overflow: hidden;`}>
+        {fields.map((f, i) => (
+          <div style={`display: grid; grid-template-columns: 160px 1fr; gap: 16px; padding: 16px 20px; ${i > 0 ? "border-top: 1px solid var(--border-subtle);" : ""}`}>
+            <div>
+              <code style="font-family: var(--font-mono); font-size: 13px; color: var(--accent); font-weight: 600;">{f.name}</code>
+              <div style="margin-top: 4px;">
+                <span style={`font-family: var(--font-mono); font-size: 10px; padding: 2px 7px; border-radius: 999px; ${f.req ? "background: color-mix(in srgb, var(--danger) 16%, transparent); color: var(--danger);" : "background: var(--bg-inset); color: var(--fg-3);"}`}>{f.req ? "requerido" : "opcional"}</span>
+                <code style="font-family: var(--font-mono); font-size: 11px; color: var(--fg-4); margin-left: 6px;">{f.type}</code>
+              </div>
+            </div>
+            <p style="font-family: var(--font-sans); font-size: 13px; color: var(--fg-2); line-height: 1.55; align-self: center;">{f.desc}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- Pricing detail -->
+  <section style={`${sectionPad} background: var(--bg-surface); border-top: 1px solid var(--border-subtle); border-bottom: 1px solid var(--border-subtle);`}>
+    <div style={wrap}>
+      <div class="eyebrow" style="margin-bottom: 12px;">Precio</div>
+      <h2 style={h2}>Pagas exactamente por lo que pides</h2>
+      <p style={lead}>
+        El precio es dinámico y se cotiza por request vía x402. Un scrape plano (solo markdown) cuesta <strong style="color: var(--success);">{PRICE_SCRAPE} XLM (${usd(PRICE_SCRAPE)})</strong>. Si pides extracción estructurada con un prompt — lo que activa un LLM del lado de Firecrawl — son <strong style="color: var(--success);">{PRICE_EXTRACT} XLM (${usd(PRICE_EXTRACT)})</strong>. El reparto on-chain es 95% para el operador del agente y 5% para la tesorería, de forma atómica.
+      </p>
+    </div>
+  </section>
+
+  <!-- Tips & Warnings -->
+  <section style={`${sectionPad} background: var(--bg-canvas);`}>
+    <div style={wrap}>
+      <div style="display: grid; grid-template-columns: 1fr; gap: 32px;">
+        <div>
+          <div class="eyebrow" style="margin-bottom: 12px; color: var(--success);">Consejos</div>
+          <h2 style={`${h2} font-size: 24px;`}>Sácale el máximo</h2>
+          <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 16px;">
+            {tips.map((t) => (
+              <div style={`${card} display: flex; gap: 12px; align-items: flex-start;`}>
+                <span style="color: var(--success); font-size: 16px; flex-shrink: 0;">✓</span>
+                <p style="font-family: var(--font-sans); font-size: 14px; color: var(--fg-2); line-height: 1.55;">{t}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <div class="eyebrow" style="margin-bottom: 12px; color: var(--warning);">Advertencias</div>
+          <h2 style={`${h2} font-size: 24px;`}>Antes de confiarte</h2>
+          <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 16px;">
+            {warnings.map((w) => (
+              <div style={`${card} display: flex; gap: 12px; align-items: flex-start; border-color: color-mix(in srgb, var(--warning) 30%, transparent);`}>
+                <span style="color: var(--warning); font-size: 16px; flex-shrink: 0;">!</span>
+                <p style="font-family: var(--font-sans); font-size: 14px; color: var(--fg-2); line-height: 1.55;">{w}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Final CTA -->
+  <section style={`${sectionPad} text-align: center; background: radial-gradient(ellipse at center, color-mix(in srgb, var(--accent) 14%, transparent), transparent 60%), var(--bg-canvas); border-top: 1px solid var(--border-subtle);`}>
+    <div style="max-width: 640px; margin: 0 auto;">
+      <h2 style={`${h2} text-align: center;`}>Deja que tu asistente lea la web real</h2>
+      <p style={`${lead} margin-bottom: 28px;`}>Crea una cuenta, recarga unos centavos y pídele a tu asistente el precio de cualquier producto. Sin API keys, sin código de integración.</p>
+      <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+        <a href={`${DASHBOARD_URL}/signup`} style="font-family: var(--font-sans); font-size: 15px; font-weight: 600; background: var(--accent); color: #fff; padding: 14px 28px; border-radius: 999px; text-decoration: none; box-shadow: 0 0 30px color-mix(in srgb, var(--accent) 45%, transparent);">Empezar gratis</a>
+        <a href="/#agents" style="font-family: var(--font-sans); font-size: 15px; font-weight: 600; background: transparent; color: var(--fg-1); border: 1px solid var(--border-strong); padding: 14px 24px; border-radius: 999px; text-decoration: none;">Ver otros agentes</a>
+      </div>
+    </div>
+  </section>
+
+</Base>
