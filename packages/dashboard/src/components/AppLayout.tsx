@@ -10,15 +10,20 @@ import {
   Coins,
   Settings as SettingsIcon,
   LogOut,
+  Wallet,
+  Tag,
+  Rocket,
+  Store,
+  ShoppingBag,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
+import { useMode, type DashboardMode } from "@/lib/mode";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { formatUsd, lamportsToUsd } from "@/lib/format";
-import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
-const nav = [
+const consumerNav = [
   { to: "/app", label: "Overview", icon: LayoutDashboard, end: true },
   { to: "/app/agents", label: "Agents", icon: Bot },
   { to: "/app/playground", label: "Playground", icon: Play },
@@ -30,9 +35,26 @@ const nav = [
   { to: "/app/settings", label: "Settings", icon: SettingsIcon },
 ];
 
+const publisherNav = [
+  { to: "/app/publisher", label: "Revenue", icon: Coins, end: true },
+  { to: "/app/publisher/agents", label: "My Agents", icon: Bot },
+  { to: "/app/publisher/analytics", label: "Analytics", icon: BarChart3 },
+  { to: "/app/publisher/payouts", label: "Payouts", icon: Wallet },
+  { to: "/app/publisher/pricing", label: "Pricing", icon: Tag },
+  { to: "/app/publisher/publish", label: "Publish", icon: Rocket },
+];
+
 export function AppLayout() {
   const { user, logout } = useAuth();
+  const { mode, setMode } = useMode();
   const navigate = useNavigate();
+
+  const nav = mode === "publisher" ? publisherNav : consumerNav;
+
+  const switchMode = (m: DashboardMode) => {
+    setMode(m);
+    navigate(m === "publisher" ? "/app/publisher" : "/app");
+  };
   const { data: balance } = useQuery({
     queryKey: ["balance"],
     queryFn: api.balance,
@@ -54,34 +76,70 @@ export function AppLayout() {
           borderRight: "1px solid var(--color-border)",
         }}
       >
-        {/* Logo */}
+        {/* Brand */}
         <div
-          className="px-5 py-4 flex items-center gap-3"
+          className="px-5 py-4 flex items-center"
           style={{ borderBottom: "1px solid var(--color-border)" }}
         >
-          <img
-            src="/logomark.png"
-            alt="Kiba"
-            style={{
-              width: 28,
-              height: 28,
-              objectFit: "contain",
-              flexShrink: 0,
-              filter: "drop-shadow(0 0 8px color-mix(in srgb, var(--color-primary) 50%, transparent))",
-            }}
-          />
           <span
             style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 5,
               fontFamily: "var(--font-display)",
-              fontSize: 16,
-              fontWeight: 400,
+              fontSize: 24,
+              fontWeight: 800,
               color: "var(--color-fg)",
-              letterSpacing: "-0.01em",
-              textTransform: "lowercase",
+              letterSpacing: "-0.06em",
             }}
           >
-            kiba
+            Kiba
+            <span className="kiba-dot" aria-hidden="true" />
           </span>
+        </div>
+
+        {/* Mode switch — Consumer ⇄ Publisher (same account) */}
+        <div className="px-3 pt-3">
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: 4,
+              padding: 4,
+              borderRadius: 999,
+              background: "var(--color-bg-soft)",
+              border: "1px solid var(--color-border)",
+            }}
+          >
+            {([
+              { m: "consumer" as DashboardMode, label: "Consumer", icon: ShoppingBag },
+              { m: "publisher" as DashboardMode, label: "Publisher", icon: Store },
+            ]).map(({ m, label, icon: Icon }) => (
+              <button
+                key={m}
+                onClick={() => switchMode(m)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                  padding: "7px 8px",
+                  borderRadius: 999,
+                  border: "none",
+                  cursor: "pointer",
+                  fontFamily: "var(--font-sans)",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  background: mode === m ? "var(--color-primary)" : "transparent",
+                  color: mode === m ? "var(--color-primary-fg)" : "var(--color-fg-subtle)",
+                  transition: "all var(--dur-fast) var(--ease-out)",
+                }}
+              >
+                <Icon size={13} />
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Nav */}
@@ -95,19 +153,16 @@ export function AppLayout() {
                 display: "flex",
                 alignItems: "center",
                 gap: 10,
-                padding: "8px 12px",
-                borderRadius: 8,
+                padding: "9px 14px",
+                borderRadius: 999,
                 textDecoration: "none",
                 fontSize: 13,
                 fontFamily: "var(--font-sans)",
-                fontWeight: isActive ? 600 : 400,
-                color: isActive ? "var(--color-fg)" : "var(--color-fg-subtle)",
+                fontWeight: isActive ? 700 : 500,
+                color: isActive ? "var(--color-primary)" : "var(--color-fg-subtle)",
                 background: isActive
-                  ? "color-mix(in srgb, var(--color-primary) 18%, transparent)"
+                  ? "color-mix(in srgb, var(--color-primary) 14%, transparent)"
                   : "transparent",
-                borderLeft: isActive
-                  ? "2px solid var(--color-primary)"
-                  : "2px solid transparent",
                 transition: "all var(--dur-fast) var(--ease-out)",
               })}
               className="nav-item"

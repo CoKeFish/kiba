@@ -115,6 +115,23 @@ export function getUser(id: number): UserRow | null {
   return (db.prepare('SELECT * FROM users WHERE id = ?').get(id) as UserRow | undefined) ?? null;
 }
 
+/**
+ * Activa el modo publisher para un user (idempotente). Mismo login/cuenta — solo
+ * habilita las superficies de publisher en el dashboard. Se llama explícitamente
+ * (POST /v1/publisher/activate) o automáticamente al registrar el primer agente.
+ */
+export function setPublisher(userId: number, name?: string): UserRow | null {
+  if (name && name.trim().length > 0) {
+    db.prepare('UPDATE users SET is_publisher = 1, publisher_name = ? WHERE id = ?').run(
+      name.trim().slice(0, 80),
+      userId,
+    );
+  } else {
+    db.prepare('UPDATE users SET is_publisher = 1 WHERE id = ?').run(userId);
+  }
+  return getUser(userId);
+}
+
 export function getUserByToken(token: string): UserRow | null {
   const row = db
     .prepare('SELECT * FROM oauth_tokens WHERE token = ? AND revoked = 0')

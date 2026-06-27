@@ -54,6 +54,7 @@ services:
     container_name: kiba-dashboard
     volumes:
       - ./packages/dashboard/src:/app/src
+      - ./packages/dashboard/public:/app/public
       - ./packages/dashboard/index.html:/app/index.html
       - ./packages/dashboard/vite.config.ts:/app/vite.config.ts
     ports:

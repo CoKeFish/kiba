@@ -106,3 +106,35 @@ body,
 .glow-lg {
   box-shadow: 0 18px 48px color-mix(in srgb, var(--color-primary) 20%, transparent);
 }
+
+/* Headings use the playful display face (Baloo 2) across the whole dashboard,
+   matching the landing + auth screens. */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+  color: var(--color-fg);
+}
+
+/* Soft lifted card shadow — the new UI is shadow-based, not flat. */
+.card-soft {
+  box-shadow:
+    0 1px 2px color-mix(in srgb, var(--color-fg) 4%, transparent),
+    0 12px 32px color-mix(in srgb, var(--color-fg) 5%, transparent);
+}
+
+/* Animated brand dot (pink ⇄ star-blue), same as the auth header. */
+.kiba-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--c-pink);
+  animation: kiba-dot-pop 2.2s ease-in-out infinite;
+}
+@keyframes kiba-dot-pop {
+  0%, 100% { transform: scale(1); background: var(--c-pink); }
+  50% { transform: scale(1.5); background: var(--color-primary); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .kiba-dot { animation: none !important; }
+}

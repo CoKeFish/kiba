@@ -121,6 +121,17 @@ function ensureColumn(table: string, column: string, ddl: string): void {
 ensureColumn('oauth_sessions', 'state', 'TEXT');
 ensureColumn('oauth_sessions', 'client_id', 'TEXT');
 ensureColumn('oauth_sessions', 'resource', 'TEXT');
+
+// Publisher mode: un mismo user/cuenta puede ser consumidor Y publisher (mismo login,
+// misma custodial wallet que recibe el 95% de cada call). `is_publisher` se activa al
+// publicar el primer agente o vía POST /v1/publisher/activate. `publisher_name` es el
+// nombre/marca visible del publisher (opcional).
+ensureColumn('users', 'is_publisher', 'INTEGER NOT NULL DEFAULT 0');
+ensureColumn('users', 'publisher_name', 'TEXT');
+// Backfill: quien ya tiene agentes registrados es publisher de facto.
+db.exec(
+  'UPDATE users SET is_publisher = 1 WHERE is_publisher = 0 AND id IN (SELECT DISTINCT user_id FROM user_agents)',
+);
 // El access token queda ligado al `resource` (audiencia) del flujo estándar
 // (RFC 8707): connectors remotos como ChatGPT mandan `resource` y el token no
 // debe ser válido contra otro recurso. NULL para tokens stdio/legacy.
@@ -134,6 +145,8 @@ export interface UserRow {
   custodial_wallet_pubkey: string;
   balance_lamports: number;
   created_at: number;
+  is_publisher: number;
+  publisher_name: string | null;
 }
 
 export interface OAuthSessionRow {

@@ -121,12 +121,23 @@ export const api = {
 
   // Platform stats — treasury balance + marketplace metrics + revenue
   platformStats: () => request<PlatformStats>("/v1/platform/stats"),
+
+  // Publisher mode — misma cuenta; habilita gestión de agentes + ingresos
+  activatePublisher: (name?: string) =>
+    request<{ is_publisher: boolean; publisher_name: string | null }>("/v1/publisher/activate", {
+      method: "POST",
+      body: JSON.stringify({ name }),
+    }),
+  publisherOverview: () => request<PublisherOverview>("/v1/publisher/overview"),
 };
 
 export type User = {
   id: string;
   email: string;
   custodial_wallet: string;
+  /** Modo publisher activo (misma cuenta). Habilita la gestión de agentes + ingresos. */
+  is_publisher?: boolean;
+  publisher_name?: string | null;
   /** Símbolo del activo de liquidación de la cadena activa. */
   asset: "SOL" | "XLM";
   /** Nombre de la unidad base (lamports/stroops). */
@@ -242,6 +253,27 @@ export type MyAgent = {
   totalEarnedLamports: number;
   totalEarnedSol: number;
   createdAt: number;
+};
+
+export type PublisherOverview = {
+  asset: "SOL" | "XLM";
+  base_unit_name: "lamports" | "stroops";
+  is_publisher: boolean;
+  publisher_name: string | null;
+  fee: { bps: number; pct: number };
+  totals: {
+    agents: number;
+    calls: number;
+    earned_asset: number;
+    earned_usd: number;
+  };
+  wallet: {
+    pubkey: string;
+    base_units: number;
+    asset_amount: number;
+    usd: number;
+  };
+  agents: MyAgent[];
 };
 
 export type X402Step =
