@@ -10,10 +10,10 @@ const KEYPAIR_PATH = process.env.KEYPAIR_PATH || '/app/data/risk-auditor.json';
 const wallet = loadKeypairFromEnvOrFile('AGENT_WALLET_SECRET', KEYPAIR_PATH);
 
 // Pricing dinámico: cobra por cada protocolo auditado.
-// Floor 0.005 XLM (cubre 1 protocolo), + 0.005 XLM por protocolo adicional.
-// Auditar 1 protocolo ≈ 0.005 XLM, 5 protocolos ≈ 0.025 XLM.
-const PRICE_FLOOR_XLM = 0.005;
-const PRICE_PER_PROTOCOL_XLM = 0.005;
+// Floor 0.005 USDC (cubre 1 protocolo), + 0.005 USDC por protocolo adicional.
+// Auditar 1 protocolo ≈ 0.005 USDC, 5 protocolos ≈ 0.025 USDC.
+const PRICE_FLOOR_USDC = 0.005;
+const PRICE_PER_PROTOCOL_USDC = 0.005;
 
 function countProtocols(req: unknown): number {
   const r = req as { protocol?: string; protocols?: string[] };
@@ -25,9 +25,9 @@ function countProtocols(req: unknown): number {
 const agent = new AgentProvider({
   wallet,
   service: 'risk-auditor',
-  pricePerCall: PRICE_FLOOR_XLM,
-  pricingNote: `${PRICE_PER_PROTOCOL_XLM} XLM por protocolo auditado (floor ${PRICE_FLOOR_XLM} XLM)`,
-  priceFn: (req: unknown) => countProtocols(req) * PRICE_PER_PROTOCOL_XLM,
+  pricePerCall: PRICE_FLOOR_USDC,
+  pricingNote: `${PRICE_PER_PROTOCOL_USDC} USDC por protocolo auditado (floor ${PRICE_FLOOR_USDC} USDC)`,
+  priceFn: (req: unknown) => countProtocols(req) * PRICE_PER_PROTOCOL_USDC,
   description:
     'Analiza el riesgo de smart contracts / protocolos Stellar (Soroban). Acepta protocolos individuales o batch. Cobra por protocolo auditado.',
   endpoint: process.env.PUBLIC_ENDPOINT || 'http://demo-agents:5002',

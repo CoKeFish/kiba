@@ -56,16 +56,20 @@ function createStellarChainClient(
       `[${label}] TRUSTLESS_WORK_API_KEY ausente — el escrow x402 (Trustless Work) no podrá liquidar`,
     );
   }
+  // USDC en testnet (Circle). El activo de liquidación de Kiba es USDC — Trustless Work no
+  // soporta XLM nativo — y el mismo issuer define el trustline del escrow y el balance on-chain.
+  const usdcIssuer =
+    process.env.TRUSTLESS_WORK_TRUSTLINE_ADDRESS ??
+    'GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5';
+  const usdcSymbol = process.env.TRUSTLESS_WORK_TRUSTLINE_SYMBOL ?? 'USDC';
+
   const tw = twApiKey
     ? {
         apiUrl: process.env.TRUSTLESS_WORK_API_URL ?? 'https://dev.api.trustlesswork.com',
         apiKey: twApiKey,
         platformAddress: process.env.TRUSTLESS_WORK_PLATFORM_ADDRESS ?? '',
         platformFee: Number(process.env.TRUSTLESS_WORK_PLATFORM_FEE ?? '5'),
-        trustline: {
-          address: process.env.TRUSTLESS_WORK_TRUSTLINE_ADDRESS ?? '',
-          symbol: process.env.TRUSTLESS_WORK_TRUSTLINE_SYMBOL ?? 'USDC',
-        },
+        trustline: { address: usdcIssuer, symbol: usdcSymbol },
       }
     : undefined;
 
@@ -77,6 +81,8 @@ function createStellarChainClient(
     friendbotUrl,
     horizonUrl,
     label,
+    asset: 'USDC',
+    assetIssuer: usdcIssuer,
     tw,
   });
 }

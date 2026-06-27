@@ -10,10 +10,10 @@ const KEYPAIR_PATH = process.env.KEYPAIR_PATH || '/app/data/price-oracle.json';
 const wallet = loadKeypairFromEnvOrFile('AGENT_WALLET_SECRET', KEYPAIR_PATH);
 
 // Pricing dinámico: cobra por cada símbolo consultado.
-// Floor 0.0005 XLM (cubre 1 símbolo), + 0.0005 XLM por símbolo extra.
-// Consulta 1 precio ≈ 0.0005 XLM, 8 precios ≈ 0.004 XLM.
-const PRICE_FLOOR_XLM = 0.0005;
-const PRICE_PER_SYMBOL_XLM = 0.0005;
+// Floor 0.0005 USDC (cubre 1 símbolo), + 0.0005 USDC por símbolo extra.
+// Consulta 1 precio ≈ 0.0005 USDC, 8 precios ≈ 0.004 USDC.
+const PRICE_FLOOR_USDC = 0.0005;
+const PRICE_PER_SYMBOL_USDC = 0.0005;
 
 function countSymbols(req: unknown): number {
   const r = req as { symbol?: string; symbols?: string[] };
@@ -25,9 +25,9 @@ function countSymbols(req: unknown): number {
 const agent = new AgentProvider({
   wallet,
   service: 'price-oracle',
-  pricePerCall: PRICE_FLOOR_XLM,
-  pricingNote: `${PRICE_PER_SYMBOL_XLM} XLM por símbolo cotizado (floor ${PRICE_FLOOR_XLM} XLM)`,
-  priceFn: (req: unknown) => countSymbols(req) * PRICE_PER_SYMBOL_XLM,
+  pricePerCall: PRICE_FLOOR_USDC,
+  pricingNote: `${PRICE_PER_SYMBOL_USDC} USDC por símbolo cotizado (floor ${PRICE_FLOOR_USDC} USDC)`,
+  priceFn: (req: unknown) => countSymbols(req) * PRICE_PER_SYMBOL_USDC,
   description:
     'Real-time cryptocurrency prices aggregated from major exchanges. Acepta símbolos individuales o batch. Cobra por símbolo cotizado.',
   endpoint: process.env.PUBLIC_ENDPOINT || 'http://demo-agents:5004',

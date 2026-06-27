@@ -47,7 +47,7 @@ const FALLBACK_AGENTS: AgentRecord[] = [
     pda: 'fallback:yield-hunter',
     service: 'yield-hunter',
     owner_wallet: 'PHASE_1_PLACEHOLDER',
-    price_per_call: 50_000, // 0.005 XLM
+    price_per_call: 50_000, // 0.005 USDC
     endpoint: 'http://demo-agents:5001',
     description: 'Encuentra el mejor APY entre protocolos DeFi en Stellar',
     total_calls: 142,
@@ -61,7 +61,7 @@ const FALLBACK_AGENTS: AgentRecord[] = [
     pda: 'fallback:risk-auditor',
     service: 'risk-auditor',
     owner_wallet: 'PHASE_1_PLACEHOLDER',
-    price_per_call: 50_000, // 0.005 XLM
+    price_per_call: 50_000, // 0.005 USDC
     endpoint: 'http://demo-agents:5002',
     description: 'Analiza el riesgo de un smart contract / protocolo Stellar',
     total_calls: 89,
@@ -75,7 +75,7 @@ const FALLBACK_AGENTS: AgentRecord[] = [
     pda: 'fallback:translator-pro',
     service: 'translator-pro',
     owner_wallet: 'PHASE_1_PLACEHOLDER',
-    price_per_call: 10_000, // 0.001 XLM
+    price_per_call: 10_000, // 0.001 USDC
     endpoint: 'http://demo-agents:5003',
     description:
       'Professional translation across English, Spanish, French, German, Japanese and Chinese',
@@ -90,7 +90,7 @@ const FALLBACK_AGENTS: AgentRecord[] = [
     pda: 'fallback:price-oracle',
     service: 'price-oracle',
     owner_wallet: 'PHASE_1_PLACEHOLDER',
-    price_per_call: 5_000, // 0.0005 XLM
+    price_per_call: 5_000, // 0.0005 USDC
     endpoint: 'http://demo-agents:5004',
     description:
       'Real-time cryptocurrency prices aggregated from major exchanges (Binance, Coinbase, Kraken)',
@@ -105,7 +105,7 @@ const FALLBACK_AGENTS: AgentRecord[] = [
     pda: 'fallback:code-reviewer',
     service: 'code-reviewer',
     owner_wallet: 'PHASE_1_PLACEHOLDER',
-    price_per_call: 50_000, // 0.005 XLM
+    price_per_call: 50_000, // 0.005 USDC
     endpoint: 'http://demo-agents:5005',
     description:
       'Reviews TypeScript, Rust and Solidity code for bugs, style issues, and common security vulnerabilities',

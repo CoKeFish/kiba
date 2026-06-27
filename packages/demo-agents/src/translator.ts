@@ -10,20 +10,20 @@ const KEYPAIR_PATH = process.env.KEYPAIR_PATH || '/app/data/translator.json';
 const wallet = loadKeypairFromEnvOrFile('AGENT_WALLET_SECRET', KEYPAIR_PATH);
 
 // Pricing dinámico: cobra por longitud del texto a traducir.
-// Floor 0.001 XLM (cubre traducciones cortas, header on-chain price_per_call),
-// + 0.000005 XLM por cada char. Una frase de 200 chars ≈ 0.002 XLM,
-// un párrafo de 1000 chars ≈ 0.006 XLM.
-const PRICE_FLOOR_XLM = 0.001;
-const PRICE_PER_CHAR_XLM = 0.000005;
+// Floor 0.001 USDC (cubre traducciones cortas, header on-chain price_per_call),
+// + 0.000005 USDC por cada char. Una frase de 200 chars ≈ 0.002 USDC,
+// un párrafo de 1000 chars ≈ 0.006 USDC.
+const PRICE_FLOOR_USDC = 0.001;
+const PRICE_PER_CHAR_USDC = 0.000005;
 
 const agent = new AgentProvider({
   wallet,
   service: 'translator-pro',
-  pricePerCall: PRICE_FLOOR_XLM,
-  pricingNote: `Floor ${PRICE_FLOOR_XLM} XLM + ${PRICE_PER_CHAR_XLM} XLM per character translated`,
+  pricePerCall: PRICE_FLOOR_USDC,
+  pricingNote: `Floor ${PRICE_FLOOR_USDC} USDC + ${PRICE_PER_CHAR_USDC} USDC per character translated`,
   priceFn: (req: unknown) => {
     const text = (req as { text?: string })?.text ?? '';
-    return PRICE_FLOOR_XLM + text.length * PRICE_PER_CHAR_XLM;
+    return PRICE_FLOOR_USDC + text.length * PRICE_PER_CHAR_USDC;
   },
   description:
     'Professional translation across English, Spanish, French, German, Japanese and Chinese. Charges by character count.',

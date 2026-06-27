@@ -23,9 +23,10 @@ export interface ChainConfig {
 const CONFIGS: Record<string, ChainConfig> = {
   stellar: {
     key: "stellar",
-    asset: "XLM",
+    // Activo de liquidación: USDC (vía Trustless Work). Stellar usa 7 decimales.
+    asset: "USDC",
     baseUnitsPerToken: 10_000_000,
-    usdRate: Number(import.meta.env.VITE_XLM_USD_RATE) || 0.12,
+    usdRate: Number(import.meta.env.VITE_USDC_USD_RATE) || 1.0,
     networkLabel: "Stellar testnet",
     explorerTx: (sig) => `https://stellar.expert/explorer/testnet/tx/${sig}`,
     explorerAddr: (addr) => `https://stellar.expert/explorer/testnet/account/${addr}`,

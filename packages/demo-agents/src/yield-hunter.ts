@@ -23,13 +23,13 @@ const PRICE_BY_RISK: Record<string, number> = {
   medium: 0.01,
   high: 0.015,
 };
-const PRICE_FLOOR_XLM = Math.min(...Object.values(PRICE_BY_RISK));
+const PRICE_FLOOR_USDC = Math.min(...Object.values(PRICE_BY_RISK));
 
 const agent = new AgentProvider({
   wallet,
   service: 'yield-hunter',
-  pricePerCall: PRICE_FLOOR_XLM,
-  pricingNote: 'low risk = 0.005 XLM · medium = 0.01 XLM · high = 0.015 XLM (más análisis cuesta más)',
+  pricePerCall: PRICE_FLOOR_USDC,
+  pricingNote: 'low risk = 0.005 USDC · medium = 0.01 USDC · high = 0.015 USDC (más análisis cuesta más)',
   priceFn: (req: unknown) => {
     const risk = (req as { riskTolerance?: string })?.riskTolerance ?? 'low';
     return PRICE_BY_RISK[risk] ?? PRICE_BY_RISK.low;

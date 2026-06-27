@@ -61,10 +61,11 @@ function serviceToName(service: string): string {
     .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
     .join(" ");
 }
-// Tasa USD demo del gateway (XLM_USD_RATE=0.12). Token desconocido → asume XLM.
-const RATES: Record<string, number> = { XLM: 0.12 };
+// Tasa USD demo: USDC ≈ 1.0 (activo de liquidación vía Trustless Work). Token
+// desconocido → asume USDC. (XLM queda solo por compat de datos antiguos.)
+const RATES: Record<string, number> = { USDC: 1.0, XLM: 0.12 };
 const priceToUsd = (price: number, token?: string) =>
-  (price * (RATES[token ?? "XLM"] ?? RATES.XLM)).toFixed(4);
+  (price * (RATES[token ?? "USDC"] ?? RATES.USDC)).toFixed(4);
 const fmtPrice = (price: number) => price.toFixed(6);
 
 export default function AgentsCatalog() {

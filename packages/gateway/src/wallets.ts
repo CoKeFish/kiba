@@ -71,7 +71,7 @@ export async function getOnChainBalance(wallet: Keypair): Promise<number> {
  */
 export interface UserBalances {
   // Chain-agnostic (preferido).
-  asset: 'SOL' | 'XLM';
+  asset: 'SOL' | 'XLM' | 'USDC';
   baseUnitName: 'lamports' | 'stroops';
   creditBaseUnits: number;
   creditUsd: number;

@@ -114,15 +114,68 @@ export class TrustlessWorkEscrowClient {
   }
 
   /**
-   * Firma un XDR sin firmar (devuelto por la API TW) con el Keypair y lo envía vía
-   * /helper/send-transaction. Devuelve la respuesta cruda (incluye hash y, en el
-   * deploy, el contractId del escrow desplegado).
+   * Firma un XDR (devuelto por la API TW) y lo envía vía /helper/send-transaction.
+   * La API a veces responde "missing resultMetaXdr" (la tx SÍ se difundió pero el
+   * resultado no estaba listo); en ese caso NO se debe re-enviar el mismo XDR (da
+   * "Bad request"), así que devolvemos { pending: true } y el caller verifica el
+   * resultado contra el indexer.
    */
   private async signAndSend(unsignedXdr: string): Promise<Record<string, unknown>> {
     const tx = TransactionBuilder.fromXDR(unsignedXdr, this.cfg.networkPassphrase);
     tx.sign(this.keypair);
-    const res = await this.http.post('/helper/send-transaction', { signedXdr: tx.toXDR() });
-    return (res.data ?? {}) as Record<string, unknown>;
+    const signedXdr = tx.toXDR();
+    try {
+      const res = await this.http.post('/helper/send-transaction', { signedXdr });
+      return (res.data ?? {}) as Record<string, unknown>;
+    } catch (err) {
+      const msg =
+        (err as { response?: { data?: { message?: string } } }).response?.data?.message ?? '';
+      if (/resultMetaXdr|not be complete/i.test(msg)) {
+        return { pending: true }; // la tx pudo aterrizar; el caller verifica vía indexer
+      }
+      throw err;
+    }
+  }
+
+  private sleep(ms: number): Promise<void> {
+    return new Promise((r) => setTimeout(r, ms));
+  }
+
+  /** GET indexer: escrows desplegados por un signer (para recovery por engagementId). */
+  private async getEscrowsBySigner(signer: string): Promise<Array<Record<string, unknown>>> {
+    try {
+      const res = await this.http.get('/helper/get-escrows-by-signer', { params: { signer } });
+      return Array.isArray(res.data) ? (res.data as Array<Record<string, unknown>>) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  /** GET indexer: un escrow por contractId (la API devuelve un array). */
+  private async getEscrowRaw(escrowId: string): Promise<Record<string, unknown> | null> {
+    try {
+      const res = await this.http.get('/helper/get-escrow-by-contract-ids', {
+        params: { contractIds: [escrowId] },
+      });
+      const arr = res.data as Array<Record<string, unknown>> | undefined;
+      return Array.isArray(arr) && arr.length ? arr[0] : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /** Espera (poll) a que un escrow cumpla un predicado en el indexer. */
+  private async waitFor(
+    escrowId: string,
+    pred: (e: Record<string, unknown>) => boolean,
+    label: string,
+  ): Promise<void> {
+    for (let i = 0; i < 8; i++) {
+      const e = await this.getEscrowRaw(escrowId);
+      if (e && pred(e)) return;
+      await this.sleep(2500);
+    }
+    console.warn(`[${this.label}] waitFor(${label}) agotó el tiempo para ${escrowId}`);
   }
 
   /**
@@ -145,109 +198,99 @@ export class TrustlessWorkEscrowClient {
       milestones: [{ description: args.service }],
     });
     const deploySent = await this.signAndSend(this.unsignedXdr(deployResp.data, 'deploy'));
-    const escrowId = this.extractContractId(deploySent, deployResp.data);
+    // El contractId viene en la respuesta de send-transaction; si quedó "pending"
+    // (transient), el contrato igual se desplegó → lo ubicamos por engagementId.
+    let escrowId = this.extractContractId(deploySent, deployResp.data);
     if (!escrowId) {
-      throw new Error(`[${this.label}] deploy: no se pudo extraer el contractId del escrow`);
+      escrowId = await this.recoverEscrowId(args.engagementId);
+    }
+    if (!escrowId) {
+      throw new Error(`[${this.label}] deploy: no se pudo obtener el contractId del escrow`);
     }
 
-    // 2) Fund: POST /escrow/single-release/fund-escrow → XDR sin firmar.
+    // 2) Fund (lo firma el funder). Verificamos vía indexer que el balance llegó.
     const fundResp = await this.http.post('/escrow/single-release/fund-escrow', {
       contractId: escrowId,
       signer: this.address,
       amount: String(amount),
     });
-    const fundSent = await this.signAndSend(this.unsignedXdr(fundResp.data, 'fund'));
-    const signature = String(fundSent.hash ?? fundSent.txHash ?? escrowId);
+    await this.signAndSend(this.unsignedXdr(fundResp.data, 'fund'));
+    await this.waitFor(escrowId, (e) => Number(e.balance ?? 0) > 0, 'fund');
 
-    return { escrowId, signature };
+    return { escrowId, signature: escrowId };
+  }
+
+  /** Ubica el contractId de un escrow recién desplegado por engagementId (recovery). */
+  private async recoverEscrowId(engagementId: string): Promise<string | null> {
+    for (let i = 0; i < 6; i++) {
+      await this.sleep(3000);
+      const escrows = await this.getEscrowsBySigner(this.address);
+      const match = escrows.find((e) => e.engagementId === engagementId);
+      if (typeof match?.contractId === 'string' && match.contractId) return match.contractId;
+    }
+    return null;
   }
 
   /**
-   * Libera los fondos al receiver. TW exige que el escrow esté "completado" antes de
-   * release; para un flujo automatizado el agente (que tiene los roles) marca el
-   * milestone y libera.
-   *
-   * TODO(tw-phase2): confirmar si hace falta change-milestone-status + approve antes
-   * de release-funds, y sus endpoints exactos. Hoy intentamos esa secuencia best-effort
-   * y, si esos endpoints no existen/!aplican, caemos directo a release-funds.
+   * Libera los fondos al receiver. En single-release TW exige el milestone "completado"
+   * y aprobado antes del release; el agente (que tiene los roles serviceProvider/approver/
+   * releaseSigner) ejecuta la secuencia. `milestoneIndex` va como STRING.
    */
   async release(escrowId: string): Promise<string> {
-    await this.tryComplete(escrowId);
-    const resp = await this.http.post('/escrow/single-release/release-funds', {
+    // a) serviceProvider marca el milestone como completado.
+    const statusResp = await this.http.post('/escrow/single-release/change-milestone-status', {
+      contractId: escrowId,
+      milestoneIndex: '0',
+      newStatus: 'completed',
+      serviceProvider: this.address,
+    });
+    await this.signAndSend(this.unsignedXdr(statusResp.data, 'change-milestone-status'));
+    // b) approver aprueba el milestone.
+    const approveResp = await this.http.post('/escrow/single-release/approve-milestone', {
+      contractId: escrowId,
+      milestoneIndex: '0',
+      approver: this.address,
+    });
+    await this.signAndSend(this.unsignedXdr(approveResp.data, 'approve-milestone'));
+    // c) releaseSigner libera los fondos al receiver.
+    const relResp = await this.http.post('/escrow/single-release/release-funds', {
       contractId: escrowId,
       releaseSigner: this.address,
     });
-    const sent = await this.signAndSend(this.unsignedXdr(resp.data, 'release'));
-    return String(sent.hash ?? sent.txHash ?? 'released');
+    await this.signAndSend(this.unsignedXdr(relResp.data, 'release'));
+    await this.waitFor(escrowId, (e) => !!(e.flags as Record<string, boolean>)?.released, 'release');
+    return escrowId;
   }
 
   /**
-   * Marca el milestone como completado/aprobado (prerequisito de release en TW).
-   * Best-effort: si el endpoint no aplica, no rompe el release.
-   * TODO(tw-phase2): fijar endpoints/bodies exactos contra la API viva.
-   */
-  private async tryComplete(escrowId: string): Promise<void> {
-    try {
-      const statusResp = await this.http.post('/escrow/single-release/change-milestone-status', {
-        contractId: escrowId,
-        milestoneIndex: 0,
-        newStatus: 'completed',
-        serviceProvider: this.address,
-      });
-      await this.signAndSend(this.unsignedXdr(statusResp.data, 'change-milestone-status'));
-      const approveResp = await this.http.post('/escrow/single-release/approve-milestone', {
-        contractId: escrowId,
-        milestoneIndex: 0,
-        approver: this.address,
-      });
-      await this.signAndSend(this.unsignedXdr(approveResp.data, 'approve-milestone'));
-    } catch (err) {
-      console.warn(
-        `[${this.label}] paso de milestone antes de release falló (puede no ser necesario): ` +
-          `${(err as Error).message}`,
-      );
-    }
-  }
-
-  /**
-   * Refund/cancelación: el funder recupera los fondos si el agente nunca liberó.
-   * En TW esto pasa por el flujo de disputa (lo resuelve el disputeResolver).
-   * TODO(tw-phase2): confirmar el endpoint de dispute/refund y el rol que firma.
+   * Refund/cancelación: el funder recupera los fondos vía el flujo de disputa de TW
+   * (lo resuelve el disputeResolver). Devuelve el escrowId.
    */
   async refund(escrowId: string): Promise<string> {
     const resp = await this.http.post('/escrow/single-release/dispute-escrow', {
       contractId: escrowId,
       signer: this.address,
     });
-    const sent = await this.signAndSend(this.unsignedXdr(resp.data, 'dispute'));
-    return String(sent.hash ?? sent.txHash ?? 'disputed');
+    await this.signAndSend(this.unsignedXdr(resp.data, 'dispute'));
+    return escrowId;
   }
 
   /**
-   * Lee el escrow por contractId. Devuelve monto bloqueado + estado neutral.
-   * TODO(tw-phase2): confirmar el endpoint/shape del indexer (campos amount/flags).
+   * Lee el escrow por contractId vía el indexer. `balance` = fondos efectivamente
+   * bloqueados; `amount` = monto declarado. El estado sale de los flags.
    */
   async getEscrow(escrowId: string): Promise<ChainEscrowInfo | null> {
-    try {
-      const resp = await this.http.get('/helper/get-escrow', { params: { contractId: escrowId } });
-      const e = resp.data as
-        | { amount?: number | string; balance?: number | string; flags?: Record<string, boolean> }
-        | null
-        | undefined;
-      if (!e) return null;
-      const decimal = Number(e.amount ?? e.balance ?? 0);
-      const amountBaseUnits = BigInt(Math.round(decimal * this.cfg.baseUnitsPerToken));
-      const flags = e.flags ?? {};
-      const state: ChainEscrowInfo['state'] = flags.released
-        ? 'Completed'
-        : flags.resolved || flags.disputed
-          ? 'Refunded'
-          : 'Pending';
-      return { amountBaseUnits, state };
-    } catch (err) {
-      console.warn(`[${this.label}] getEscrow(${escrowId}) falló: ${(err as Error).message}`);
-      return null;
-    }
+    const e = await this.getEscrowRaw(escrowId);
+    if (!e) return null;
+    const decimal = Number((e.balance as number | string) ?? (e.amount as number | string) ?? 0);
+    const amountBaseUnits = BigInt(Math.round(decimal * this.cfg.baseUnitsPerToken));
+    const flags = (e.flags ?? {}) as Record<string, boolean>;
+    const state: ChainEscrowInfo['state'] = flags.released
+      ? 'Completed'
+      : flags.resolved || flags.disputed
+        ? 'Refunded'
+        : 'Pending';
+    return { amountBaseUnits, state };
   }
 
   /** Saca el XDR sin firmar de la respuesta de TW (varios endpoints lo nombran igual). */

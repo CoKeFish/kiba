@@ -14,7 +14,9 @@ import {
   rpc,
   Horizon,
   Account,
+  Asset,
   Contract,
+  Operation,
   TransactionBuilder,
   Keypair,
   nativeToScVal,
@@ -36,7 +38,8 @@ import type {
 } from './types';
 import { TrustlessWorkEscrowClient, type TrustlessWorkConfig } from './trustless-work';
 
-/** Stroops por XLM (7 decimales). Análogo a lamports/SOL en Solana. */
+/** Unidades base por token: 7 decimales en Stellar (vale para XLM nativo y para
+ *  activos clásicos emitidos como USDC). */
 const STROOPS_PER_XLM = 1e7;
 
 export interface StellarChainClientConfig {
@@ -48,9 +51,12 @@ export interface StellarChainClientConfig {
   rpcUrl: string;
   /** Network passphrase (ej. Networks.TESTNET). */
   networkPassphrase: string;
-  /** Símbolo del activo de liquidación. Default 'XLM'. */
+  /** Símbolo del activo de liquidación. Default 'USDC'. */
   asset?: 'XLM' | 'USDC';
-  /** Unidades base por token. Default 1e7 (stroops/XLM). */
+  /** Issuer (G...) del activo emitido (USDC). Necesario para leer/crear su trustline.
+   *  Si el asset es 'XLM' (nativo) o falta el issuer, se opera sobre el balance nativo. */
+  assetIssuer?: string;
+  /** Unidades base por token. Default 1e7 (7 decimales en Stellar). */
   baseUnitsPerToken?: number;
   /** URL de friendbot para fondear en testnet (opcional). */
   friendbotUrl?: string;
@@ -80,6 +86,8 @@ export class StellarChainClient implements ChainClient {
   private readonly networkPassphrase: string;
   private readonly friendbotUrl?: string;
   private readonly label: string;
+  /** Issuer del activo emitido (USDC). undefined → opera sobre el balance nativo (XLM). */
+  private readonly assetIssuer?: string;
   /** Cliente de escrow de Trustless Work. null si no está configurado. */
   private readonly tw: TrustlessWorkEscrowClient | null;
 
@@ -89,8 +97,9 @@ export class StellarChainClient implements ChainClient {
     this.contract = new Contract(cfg.contractId);
     this.keypair = cfg.keypair;
     this.networkPassphrase = cfg.networkPassphrase;
-    this.asset = cfg.asset ?? 'XLM';
+    this.asset = cfg.asset ?? 'USDC';
     this.baseUnitsPerToken = cfg.baseUnitsPerToken ?? STROOPS_PER_XLM;
+    this.assetIssuer = cfg.assetIssuer;
     this.friendbotUrl = cfg.friendbotUrl;
     this.label = cfg.label ?? 'stellar';
     this.tw = cfg.tw
@@ -205,36 +214,90 @@ export class StellarChainClient implements ChainClient {
   // ─── ChainClient ───────────────────────────────────────────
 
   async ensureFunds(_minToken: number, _topUpToken: number): Promise<void> {
+    let exists = true;
     try {
       await this.server.getAccount(this.keypair.publicKey());
-      return; // cuenta existe y está fondeada
     } catch {
-      // cuenta inexistente → intentar friendbot (testnet/futurenet)
+      exists = false; // cuenta inexistente → friendbot (testnet/futurenet)
     }
-    if (!this.friendbotUrl) {
-      console.warn(
-        `[${this.label}] cuenta sin fondear y sin friendbot: ${this.ownerAddress}`,
-      );
-      return;
-    }
-    const res = await fetch(
-      `${this.friendbotUrl}?addr=${encodeURIComponent(this.ownerAddress)}`,
-    );
-    if (!res.ok) {
-      console.warn(`[${this.label}] friendbot falló (${res.status}) para ${this.ownerAddress}`);
-    } else {
+    if (!exists) {
+      if (!this.friendbotUrl) {
+        console.warn(`[${this.label}] cuenta sin fondear y sin friendbot: ${this.ownerAddress}`);
+        return;
+      }
+      const res = await fetch(`${this.friendbotUrl}?addr=${encodeURIComponent(this.ownerAddress)}`);
+      if (!res.ok) {
+        console.warn(`[${this.label}] friendbot falló (${res.status}) para ${this.ownerAddress}`);
+        return;
+      }
       console.log(`[${this.label}] cuenta fondeada vía friendbot → ${this.ownerAddress}`);
+    }
+    // Asegura el trustline del activo emitido (USDC) para poder recibir/retener.
+    await this.ensureTrustline();
+  }
+
+  /**
+   * Establece el trustline del activo emitido (USDC) si la cuenta aún no lo tiene.
+   * No-op para XLM nativo o si no hay issuer configurado. El gas se paga en XLM nativo.
+   */
+  async ensureTrustline(): Promise<void> {
+    if (this.asset === 'XLM' || !this.assetIssuer) return;
+    let acct: Horizon.AccountResponse;
+    try {
+      acct = await this.horizon.loadAccount(this.keypair.publicKey());
+    } catch {
+      return; // la cuenta no existe todavía (debería correr friendbot antes)
+    }
+    const has = acct.balances.some(
+      (b) => 'asset_code' in b && b.asset_code === this.asset && b.asset_issuer === this.assetIssuer,
+    );
+    if (has) return;
+    try {
+      const source = await this.server.getAccount(this.keypair.publicKey());
+      const tx = new TransactionBuilder(source, {
+        fee: BASE_FEE,
+        networkPassphrase: this.networkPassphrase,
+      })
+        .addOperation(Operation.changeTrust({ asset: new Asset(this.asset, this.assetIssuer) }))
+        .setTimeout(30)
+        .build();
+      tx.sign(this.keypair);
+      const sent = await this.server.sendTransaction(tx);
+      if (sent.status === 'ERROR') {
+        console.warn(
+          `[${this.label}] changeTrust ${this.asset} rechazado: ${JSON.stringify(sent.errorResult)}`,
+        );
+        return;
+      }
+      let result = await this.server.getTransaction(sent.hash);
+      const deadline = Date.now() + 20_000;
+      while (result.status === rpc.Api.GetTransactionStatus.NOT_FOUND && Date.now() < deadline) {
+        await new Promise((r) => setTimeout(r, 1000));
+        result = await this.server.getTransaction(sent.hash);
+      }
+      console.log(`[${this.label}] trustline ${this.asset} establecido → ${this.ownerAddress}`);
+    } catch (err) {
+      console.warn(`[${this.label}] ensureTrustline falló: ${(err as Error).message}`);
     }
   }
 
   async getBalanceBaseUnits(): Promise<bigint> {
     try {
       const acct = await this.horizon.loadAccount(this.keypair.publicKey());
-      const native = acct.balances.find((b) => b.asset_type === 'native');
-      const xlm = native ? parseFloat(native.balance) : 0;
-      return BigInt(Math.floor(xlm * this.baseUnitsPerToken));
+      // Activo emitido (USDC) → balance del trustline; sin issuer → balance nativo (XLM).
+      const entry =
+        this.asset !== 'XLM' && this.assetIssuer
+          ? acct.balances.find(
+              (b) =>
+                'asset_code' in b &&
+                b.asset_code === this.asset &&
+                b.asset_issuer === this.assetIssuer,
+            )
+          : acct.balances.find((b) => b.asset_type === 'native');
+      const amount = entry ? parseFloat(entry.balance) : 0;
+      return BigInt(Math.floor(amount * this.baseUnitsPerToken));
     } catch {
-      return 0n; // cuenta inexistente / no fondeada
+      return 0n; // cuenta inexistente / sin trustline
     }
   }
 
