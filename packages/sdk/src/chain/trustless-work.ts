@@ -142,11 +142,22 @@ export class TrustlessWorkEscrowClient {
     return new Promise((r) => setTimeout(r, ms));
   }
 
-  /** GET indexer: escrows desplegados por un signer (para recovery por engagementId). */
+  /**
+   * GET indexer: escrows desplegados por un signer (para recovery por engagementId).
+   * Pedimos los más NUEVOS primero (orderBy=createdAt desc) con pageSize alto: sin esto el
+   * endpoint devuelve una página chica (~8) y, con cientos de escrows del signer, el recién
+   * desplegado no viene y el recovery falla. (El filtro server-side ?engagementId= devuelve
+   * [] en la API dev, así que filtramos en cliente.)
+   */
   private async getEscrowsBySigner(signer: string): Promise<Array<Record<string, unknown>>> {
     try {
-      const res = await this.http.get('/helper/get-escrows-by-signer', { params: { signer } });
-      return Array.isArray(res.data) ? (res.data as Array<Record<string, unknown>>) : [];
+      const res = await this.http.get('/helper/get-escrows-by-signer', {
+        params: { signer, orderBy: 'createdAt', orderDirection: 'desc', pageSize: 50 },
+      });
+      const d: unknown = res.data;
+      const env = d as { data?: unknown[]; escrows?: unknown[] };
+      const arr = Array.isArray(d) ? d : (env?.data ?? env?.escrows ?? []);
+      return Array.isArray(arr) ? (arr as Array<Record<string, unknown>>) : [];
     } catch {
       return [];
     }
@@ -184,7 +195,7 @@ export class TrustlessWorkEscrowClient {
             '',
         );
         if (/MissingValue|non-existing|not exist|escrow not found/i.test(msg) && i < 5) {
-          await this.sleep(5000); // el deploy/fund aún no confirmó on-chain
+          await this.sleep(2000); // el deploy/fund aún no confirmó on-chain (confirma en pocos s)
           continue;
         }
         throw err;
@@ -228,25 +239,40 @@ export class TrustlessWorkEscrowClient {
       trustline: this.cfg.trustline,
       milestones: [{ description: args.service }],
     };
-    // Deploy con reintentos. TW a veces responde "pending"/"missing resultMetaXdr" en el
-    // send aunque el tx SÍ se difundió: en ese caso recuperamos el contractId por
-    // engagementId (no viene en la respuesta). Cada reintento usa un engagementId ÚNICO:
-    // re-desplegar con el mismo da 400 (duplicado) y dispara recuperación lenta. Si la
-    // recuperación no lo encuentra (el tx no aterrizó), el próximo intento re-despliega.
+    // Deploy con recuperación (verificado contra la doc oficial de TW + pruebas en vivo):
+    // /helper/send-transaction es SÍNCRONO y lee el contractId del resultMetaXdr de la tx;
+    // si el ledger no cerró aún responde "missing resultMetaXdr" (la tx SÍ aterriza, pero el
+    // contractId no viene). El contractId se genera on-chain (salt) y NO es derivable ni
+    // recuperable por txHash (TW fee-bumpea la tx → el hash cambia); la ÚNICA vía es leerlo
+    // del indexer por engagementId. Por eso usamos SIEMPRE el mismo engagementId (cambiarlo
+    // acuñaría un contrato nuevo → escrows huérfanos/doble-fondeados) y recuperamos tras cada
+    // intento; si el escrow ya existe, un re-deploy da 400 (duplicado) y lo recuperamos igual.
     let escrowId: string | null = null;
     for (let attempt = 0; attempt < 3 && !escrowId; attempt++) {
-      const eid = attempt === 0 ? args.engagementId : `${args.engagementId}-r${attempt}`;
+      let hardFail = false;
       try {
-        const deployResp = await this.http.post('/deployer/single-release', {
-          ...deployBody,
-          engagementId: eid,
-        });
-        const sent = await this.signAndSend(this.unsignedXdr(deployResp.data, 'deploy'));
-        escrowId = this.extractContractId(sent);
+        const deployResp = await this.http.post('/deployer/single-release', deployBody);
+        escrowId = this.extractContractId(
+          await this.signAndSend(this.unsignedXdr(deployResp.data, 'deploy')),
+        );
       } catch (err) {
-        console.warn(`[${this.label}] deploy intento ${attempt + 1}: ${(err as Error).message}`);
+        const msg =
+          (err as { response?: { data?: { message?: string } } }).response?.data?.message ??
+          (err as Error).message ??
+          '';
+        // tx_bad_seq / rechazo de Stellar = la tx NO aterrizó → re-desplegar (tx fresca, seq
+        // nuevo). "already exists"/duplicado = el escrow YA existe → recuperar, no re-desplegar.
+        hardFail = /bad_seq|rejected by stellar/i.test(msg) && !/exist|duplicat|already/i.test(msg);
+        console.warn(`[${this.label}] deploy intento ${attempt + 1}: ${msg}`);
       }
-      if (!escrowId) escrowId = await this.recoverEscrowId(eid);
+      if (!escrowId) {
+        // pending/duplicado → el escrow aterrizó/existe → recuperar por engagementId.
+        // tx_bad_seq (hardFail) → la tx NO aterrizó (colisión de secuencia, p.ej. llamadas
+        // concurrentes con la misma treasury); esperamos a que cierre el ledger para que el
+        // seq avance y el próximo intento re-despliegue con secuencia fresca.
+        if (hardFail) await this.sleep(3000);
+        else escrowId = await this.recoverEscrowId(args.engagementId);
+      }
     }
     if (!escrowId) {
       throw new Error(`[${this.label}] deploy: no se pudo obtener el contractId del escrow`);
@@ -267,8 +293,8 @@ export class TrustlessWorkEscrowClient {
 
   /** Ubica el contractId de un escrow recién desplegado por engagementId (recovery). */
   private async recoverEscrowId(engagementId: string): Promise<string | null> {
-    // ~24s: suficiente para que el indexer refleje un deploy que aterrizó (pending);
-    // si no aparece, el caller re-despliega con un engagementId fresco.
+    // ~24s: el indexer de TW tarda en reflejar un deploy que aterrizó (pending). Es la única
+    // vía de recuperar el contractId (no viene en el send pendiente; no es derivable por txHash).
     for (let i = 0; i < 12; i++) {
       const escrows = await this.getEscrowsBySigner(this.address);
       const match = escrows.find((e) => e.engagementId === engagementId);
@@ -287,7 +313,14 @@ export class TrustlessWorkEscrowClient {
     // a) serviceProvider marca el milestone como completado.
     const statusXdr = await this.postSim(
       '/escrow/single-release/change-milestone-status',
-      { contractId: escrowId, milestoneIndex: '0', newStatus: 'completed', serviceProvider: this.address },
+      {
+        contractId: escrowId,
+        milestoneIndex: '0',
+        newStatus: 'completed',
+        // la REST de TW lista newEvidence como required; mandarlo evita 400 intermitentes.
+        newEvidence: 'Kiba x402: service delivered',
+        serviceProvider: this.address,
+      },
       'change-milestone-status',
     );
     await this.signAndSend(statusXdr);
@@ -310,8 +343,13 @@ export class TrustlessWorkEscrowClient {
   }
 
   /**
-   * Refund/cancelación: el funder recupera los fondos vía el flujo de disputa de TW
-   * (lo resuelve el disputeResolver). Devuelve el escrowId.
+   * Refund/cancelación: ABRE una disputa sobre el escrow. OJO: en single-release esto NO
+   * devuelve los fondos por sí solo — deja la disputa abierta (fondos bloqueados). Para
+   * completarlo hace falta un segundo paso, POST /escrow/single-release/resolve-dispute
+   * { contractId, disputeResolver, distributions:[{address, amount}] } (los montos suman el
+   * balance post-fees), firmado por el disputeResolver (= cfg.platformAddress, la treasury).
+   * Pendiente de cablear con pruebas en vivo del flujo de disputa. El gateway hoy reembolsa
+   * el crédito off-chain del usuario (refundDebit en proxy.ts), no este escrow on-chain.
    */
   async refund(escrowId: string): Promise<string> {
     const resp = await this.http.post('/escrow/single-release/dispute-escrow', {
@@ -332,9 +370,11 @@ export class TrustlessWorkEscrowClient {
     const decimal = Number((e.balance as number | string) ?? (e.amount as number | string) ?? 0);
     const amountBaseUnits = BigInt(Math.round(decimal * this.cfg.baseUnitsPerToken));
     const flags = (e.flags ?? {}) as Record<string, boolean>;
+    // 'Refunded' solo cuando la disputa está RESUELTA (fondos devueltos). 'disputed' sola =
+    // disputa abierta con fondos aún bloqueados, no es un refund completo.
     const state: ChainEscrowInfo['state'] = flags.released
       ? 'Completed'
-      : flags.resolved || flags.disputed
+      : flags.resolved
         ? 'Refunded'
         : 'Pending';
     return { amountBaseUnits, state };
