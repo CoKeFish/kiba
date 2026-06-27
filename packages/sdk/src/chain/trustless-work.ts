@@ -249,7 +249,7 @@ export class TrustlessWorkEscrowClient {
     // intento; si el escrow ya existe, un re-deploy da 400 (duplicado) y lo recuperamos igual.
     let escrowId: string | null = null;
     for (let attempt = 0; attempt < 3 && !escrowId; attempt++) {
-      let hardFail = false;
+      let txBadSeq = false;
       try {
         const deployResp = await this.http.post('/deployer/single-release', deployBody);
         escrowId = this.extractContractId(
@@ -260,18 +260,22 @@ export class TrustlessWorkEscrowClient {
           (err as { response?: { data?: { message?: string } } }).response?.data?.message ??
           (err as Error).message ??
           '';
-        // tx_bad_seq / rechazo de Stellar = la tx NO aterrizó → re-desplegar (tx fresca, seq
-        // nuevo). "already exists"/duplicado = el escrow YA existe → recuperar, no re-desplegar.
-        hardFail = /bad_seq|rejected by stellar/i.test(msg) && !/exist|duplicat|already/i.test(msg);
+        // tx_bad_seq / rechazo de Stellar = la tx NO aterrizó (colisión de secuencia de la
+        // treasury, p.ej. llamadas concurrentes) → re-desplegar con seq fresco. Cualquier otro
+        // error (incl. duplicado) = el escrow puede existir → recuperar, no re-desplegar.
+        txBadSeq = /bad_seq|rejected by stellar/i.test(msg) && !/exist|duplicat|already/i.test(msg);
         console.warn(`[${this.label}] deploy intento ${attempt + 1}: ${msg}`);
       }
-      if (!escrowId) {
-        // pending/duplicado → el escrow aterrizó/existe → recuperar por engagementId.
-        // tx_bad_seq (hardFail) → la tx NO aterrizó (colisión de secuencia, p.ej. llamadas
-        // concurrentes con la misma treasury); esperamos a que cierre el ledger para que el
-        // seq avance y el próximo intento re-despliegue con secuencia fresca.
-        if (hardFail) await this.sleep(3000);
-        else escrowId = await this.recoverEscrowId(args.engagementId);
+      if (escrowId) break;
+      if (txBadSeq) {
+        await this.sleep(3000); // deja cerrar el ledger para que avance el seq, luego re-deploy
+      } else {
+        // pending/duplicado → la tx aterrizó y el escrow existe; el contractId solo sale del
+        // indexer (no es derivable ni recuperable por txHash). UNA recuperación larga; NO
+        // re-desplegamos (daría 400 duplicado / escrows huérfanos). Si el indexer no lo refleja
+        // a tiempo, fallamos y el gateway reembolsa.
+        escrowId = await this.recoverEscrowId(args.engagementId);
+        break;
       }
     }
     if (!escrowId) {
@@ -293,9 +297,10 @@ export class TrustlessWorkEscrowClient {
 
   /** Ubica el contractId de un escrow recién desplegado por engagementId (recovery). */
   private async recoverEscrowId(engagementId: string): Promise<string | null> {
-    // ~24s: el indexer de TW tarda en reflejar un deploy que aterrizó (pending). Es la única
-    // vía de recuperar el contractId (no viene en el send pendiente; no es derivable por txHash).
-    for (let i = 0; i < 12; i++) {
+    // ~60s: única vía de obtener el contractId de un deploy "pending" (no viene en la respuesta
+    // ni es derivable por txHash). El lag del indexer de TW es variable (típico ~15-25s, con
+    // cola mayor). Devuelve apenas aparece; el tope solo aplica si el indexer va muy lento.
+    for (let i = 0; i < 30; i++) {
       const escrows = await this.getEscrowsBySigner(this.address);
       const match = escrows.find((e) => e.engagementId === engagementId);
       if (typeof match?.contractId === 'string' && match.contractId) return match.contractId;
