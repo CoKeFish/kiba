@@ -177,7 +177,9 @@ export async function callOnBehalf(args: {
     const traced = await settleClient.callWithTrace(args.service, args.payload, {
       // maxPrice circuit breaker — 2x del cotizado por seguridad (en unidades del token)
       maxPrice: (lamports / BASE_UNITS_PER_TOKEN) * 2,
-      timeoutMs: 30_000,
+      // El agente espera el fondeo del escrow (~30s) + sirve + libera (release TW, lento),
+      // así que la llamada puede tardar >60s. El ticker MCP mantiene vivo el stream.
+      timeoutMs: 120_000,
     });
     result = traced.result;
     trace = traced.trace;

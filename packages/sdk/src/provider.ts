@@ -222,12 +222,22 @@ export class AgentProvider {
         return;
       }
 
-      // Verifica que el escrow existe (Trustless Work) con el monto esperado. El
-      // escrow recién creado puede tardar en indexarse, así que reintentamos unas
-      // veces antes de rechazar con 402.
+      // El precio para esta request — debe coincidir con el que cotizamos en el 402.
+      // priceFn debe ser determinista en el payload para que el doble cálculo
+      // (quote + verify) dé el mismo número.
+      const expected = await this.computeAmountBaseUnits(req.body);
+      // El escrow recién creado puede tardar en indexarse Y el fondeo (fund) puede
+      // tardar en confirmar on-chain (Trustless Work). Reintentamos hasta verlo
+      // Pending y FONDEADO (>= precio), o agotar el tiempo (~30s). Sin esto perdíamos
+      // la race entre el fund del cliente y la verificación del agente: el escrow se
+      // encontraba con balance 0 y se rechazaba con 402 sin esperar el fondeo.
       let escrow = await this.chain.fetchEscrow({ escrowId });
-      for (let i = 0; !escrow && i < 4; i++) {
-        await new Promise((r) => setTimeout(r, 1500));
+      for (
+        let i = 0;
+        i < 12 && !(escrow && escrow.state === 'Pending' && escrow.amountBaseUnits >= expected);
+        i++
+      ) {
+        await new Promise((r) => setTimeout(r, 2500));
         escrow = await this.chain.fetchEscrow({ escrowId });
       }
       if (!escrow) {
@@ -238,10 +248,6 @@ export class AgentProvider {
         res.status(402).json({ error: `escrow already ${escrow.state.toLowerCase()}` });
         return;
       }
-      // El precio para esta request — debe coincidir con el que cotizamos en el 402.
-      // priceFn debe ser determinista en el payload para que el doble cálculo
-      // (quote + verify) dé el mismo número.
-      const expected = await this.computeAmountBaseUnits(req.body);
       if (escrow.amountBaseUnits < expected) {
         res.status(402).json({
           error: `escrow amount ${escrow.amountBaseUnits} below price ${expected}`,
@@ -252,19 +258,28 @@ export class AgentProvider {
       // Pago verificado → ejecutar el servicio
       const result = await this.handler(req.body);
 
-      // Después de servir → liberar el pago (con reintentos: la liberación puede
-      // fallar por lag de indexación/confirmación). Sin esto, el agente devolvería
-      // 500 de forma intermitente.
-      const claimSig = await this.claimWithRetry(escrowId);
-
+      // El escrow está fondeado → el pago está garantizado (los fondos están bloqueados
+      // para este agente). Respondemos YA con el resultado y liberamos (release de TW,
+      // lento y a veces flaky) en BACKGROUND con reintentos: así el cliente no espera ni
+      // falla por la liberación. Si el release falla, los fondos siguen en el escrow y se
+      // pueden reintentar/recuperar — el cliente igual obtuvo su resultado.
       res.json({
         ...((typeof result === 'object' && result !== null) ? result : { result }),
         _payment: {
-          claimed: true,
-          signature: claimSig,
+          claimed: false,
+          settling: true,
+          escrowId,
           amount: escrow.amountBaseUnits.toString(),
         },
       });
+      void this.claimWithRetry(escrowId)
+        .then((sig) => console.log(`[${this.config.service}] release ${escrowId} ok: ${sig}`))
+        .catch((err) =>
+          console.error(
+            `[${this.config.service}] release ${escrowId} falló (fondos siguen en el escrow): ${(err as Error).message}`,
+          ),
+        );
+      return;
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'unknown error';
       res.status(500).json({ error: msg });

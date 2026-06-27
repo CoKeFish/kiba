@@ -1009,6 +1009,15 @@ app.delete('/v1/oauth/connections/:id', requireAuth, (req, res) => {
   }
 }
 
+// Railway pipea stdout (sin TTY) → block-buffered → los console.log por-request no se
+// vacían. Modo blocking para ver cada log al instante (debug del escrow x402).
+try {
+  (process.stdout as unknown as { _handle?: { setBlocking?: (b: boolean) => void } })._handle?.setBlocking?.(true);
+  (process.stderr as unknown as { _handle?: { setBlocking?: (b: boolean) => void } })._handle?.setBlocking?.(true);
+} catch {
+  /* noop */
+}
+
 app.listen(PORT, '0.0.0.0', () => {
   console.log('╔══════════════════════════════════════════╗');
   console.log('║  Kiba — Gateway                          ║');
@@ -1016,6 +1025,7 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`  http://localhost:${PORT}`);
   console.log(`  Master wallet: ${masterWalletPubkey()}`);
   console.log(`  DB: ${process.env.DB_PATH || '/app/data/gateway.db'}`);
+  console.log(`  asset=${ASSET}`);
   // touch db to ensure schema applied
   db.pragma('user_version');
 });

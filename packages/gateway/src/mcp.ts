@@ -180,6 +180,7 @@ export function buildMcpServer(userId: number): Server {
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
+      console.log(`[mcp-error] tool=${name}:`, err instanceof Error ? (err.stack ?? err.message) : err);
       return { content: [{ type: 'text', text: `Error: ${msg}` }], isError: true };
     } finally {
       if (ticker) clearInterval(ticker);
@@ -213,5 +214,12 @@ export async function handleMcpRequest(req: Request, res: Response): Promise<voi
   });
 
   await server.connect(transport);
-  await transport.handleRequest(req, res, req.body);
+  try {
+    await transport.handleRequest(req, res, req.body);
+  } catch (err) {
+    console.log('[mcp-transport-error]', err instanceof Error ? (err.stack ?? err.message) : err);
+    if (!res.headersSent) {
+      res.status(500).json({ error: String(err instanceof Error ? err.message : err) });
+    }
+  }
 }
