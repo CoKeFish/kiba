@@ -109,7 +109,7 @@ export function buildMcpServer(userId: number): Server {
     // stream SSE, ChatGPT corta con "Error in message stream" (y proxies como
     // Railway cierran la conexión por inactividad). Emitimos progreso cada 2s
     // mientras dura: mantiene el stream vivo. Usamos el progressToken del cliente
-    // si lo mandó; si no, uno sintético (los bytes igual evitan el corte).
+    // si lo mandó; si no, uno sintético (los bytes igual evitan el corte en ChatGPT).
     const meta = (req.params as { _meta?: { progressToken?: string | number } })._meta;
     const progressToken = meta?.progressToken ?? (name === 'call_agent' ? 'kiba' : undefined);
     let ticker: ReturnType<typeof setInterval> | undefined;
