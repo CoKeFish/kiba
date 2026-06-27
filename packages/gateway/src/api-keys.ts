@@ -4,6 +4,7 @@
  */
 import { randomBytes, createHash } from 'node:crypto';
 import { db } from './db';
+import { revokeRefreshFamilyForToken } from './oauth';
 
 interface ApiKeyRow {
   id: string;
@@ -98,6 +99,9 @@ export function revokeOAuthByPrefix(userId: number, idPrefix: string): boolean {
   const match = rows.find((r) => r.token.startsWith(idPrefix));
   if (!match) return false;
   db.prepare('UPDATE oauth_tokens SET revoked = 1 WHERE token = ?').run(match.token);
+  // Cascada: el "disconnect" del dashboard también quema la familia de refresh;
+  // si no, la conexión podría renovarse de vuelta a la vida con su refresh token.
+  revokeRefreshFamilyForToken(match.token);
   return true;
 }
 

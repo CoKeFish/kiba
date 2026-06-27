@@ -25,6 +25,7 @@ import {
   exchangeCodeForToken,
   getOAuthClient,
   getOAuthSession,
+  refreshAccessToken,
   registerOAuthClient,
   revokeToken,
 } from './oauth';
@@ -569,18 +570,33 @@ app.get('/authorize', (req, res) => {
 
 // Token endpoint estándar (authorization_code + PKCE). Reutiliza exchangeCodeForToken.
 app.post('/token', (req, res) => {
-  const { grant_type, code, code_verifier } = req.body ?? {};
-  if (grant_type !== 'authorization_code') {
-    return res.status(400).json({ error: 'unsupported_grant_type' });
+  const { grant_type, code, code_verifier, refresh_token } = req.body ?? {};
+
+  if (grant_type === 'authorization_code') {
+    if (!code || !code_verifier) {
+      return res.status(400).json({ error: 'invalid_request' });
+    }
+    const result = exchangeCodeForToken(code, code_verifier);
+    if ('error' in result) {
+      return res.status(400).json({ error: 'invalid_grant', error_description: result.error });
+    }
+    return res.json(result);
   }
-  if (!code || !code_verifier) {
-    return res.status(400).json({ error: 'invalid_request' });
+
+  // OAuth 2.1: renovación con rotación de refresh token (connectors remotos como
+  // Claude renuevan aquí cuando el access expira, sin re-abrir el navegador).
+  if (grant_type === 'refresh_token') {
+    if (!refresh_token) {
+      return res.status(400).json({ error: 'invalid_request' });
+    }
+    const result = refreshAccessToken(refresh_token);
+    if ('error' in result) {
+      return res.status(400).json(result); // { error: 'invalid_grant' }
+    }
+    return res.json(result);
   }
-  const result = exchangeCodeForToken(code, code_verifier);
-  if ('error' in result) {
-    return res.status(400).json({ error: 'invalid_grant', error_description: result.error });
-  }
-  res.json(result);
+
+  return res.status(400).json({ error: 'unsupported_grant_type' });
 });
 
 // Token revocation estándar (RFC 7009).

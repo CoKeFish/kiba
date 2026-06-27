@@ -85,10 +85,33 @@ db.exec(`
     created_at INTEGER NOT NULL
   );
 
+  -- Refresh tokens (OAuth 2.1) para connectors remotos. El access token dura 30d
+  -- y se renueva con el refresh_token (rotación + detección de reuso por familia).
+  -- Tabla separada de oauth_tokens a propósito: una "familia" abarca una secuencia
+  -- de access tokens a lo largo de ~1 año, y los refresh consumidos se conservan
+  -- (marcados con replaced_by) para detectar replay, sin contaminar la tabla de
+  -- access tokens que lee el verifier.
+  CREATE TABLE IF NOT EXISTS oauth_refresh_tokens (
+    refresh_token TEXT PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    client_name TEXT NOT NULL,
+    resource TEXT,            -- audiencia RFC 8707; espeja oauth_tokens.resource; NULL = stdio/legacy
+    access_token TEXT,        -- access token emparejado actual (cascada de revocación)
+    family_id TEXT NOT NULL,  -- linaje de rotación (constante en toda la cadena)
+    replaced_by TEXT,         -- el refresh_token que lo sucedió; NULL = cabeza/activo
+    revoked INTEGER NOT NULL DEFAULT 0,
+    expires_at INTEGER NOT NULL,
+    created_at INTEGER NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+  );
+
   CREATE INDEX IF NOT EXISTS idx_tokens_user ON oauth_tokens(user_id);
   CREATE INDEX IF NOT EXISTS idx_tx_user ON transactions(user_id);
   CREATE INDEX IF NOT EXISTS idx_apikeys_user ON api_keys(user_id);
   CREATE INDEX IF NOT EXISTS idx_apikeys_hash ON api_keys(key_hash);
+  CREATE INDEX IF NOT EXISTS idx_refresh_family ON oauth_refresh_tokens(family_id);
+  CREATE INDEX IF NOT EXISTS idx_refresh_access ON oauth_refresh_tokens(access_token);
+  CREATE INDEX IF NOT EXISTS idx_clients_name ON oauth_clients(client_name);
 
   CREATE TABLE IF NOT EXISTS user_agents (
     service TEXT PRIMARY KEY,
@@ -173,6 +196,19 @@ export interface OAuthTokenRow {
   resource: string | null;
   expires_at: number;
   revoked: number;
+  created_at: number;
+}
+
+export interface OAuthRefreshTokenRow {
+  refresh_token: string;
+  user_id: number;
+  client_name: string;
+  resource: string | null;
+  access_token: string | null;
+  family_id: string;
+  replaced_by: string | null;
+  revoked: number;
+  expires_at: number;
   created_at: number;
 }
 
