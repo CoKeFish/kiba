@@ -6,7 +6,7 @@ export const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDi
     <div
       ref={ref}
       className={cn(
-        "rounded-[14px] border bg-[var(--color-bg-card)]",
+        "rounded-[20px] border bg-[var(--color-bg-card)] card-soft",
         className,
       )}
       style={{ borderColor: "var(--color-border)" }}

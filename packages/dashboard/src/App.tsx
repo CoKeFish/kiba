@@ -11,6 +11,13 @@ import Usage from "@/routes/Usage";
 import Billing from "@/routes/Billing";
 import Settings from "@/routes/Settings";
 import Platform from "@/routes/Platform";
+import PublisherOverview from "@/routes/publisher/Overview";
+import PublisherAgents from "@/routes/publisher/Agents";
+import PublisherAnalytics from "@/routes/publisher/Analytics";
+import PublisherPayouts from "@/routes/publisher/Payouts";
+import PublisherPricing from "@/routes/publisher/Pricing";
+import PublisherPublish from "@/routes/publisher/Publish";
+import { PublisherGate } from "@/components/PublisherGate";
 import { useAuth } from "@/lib/auth";
 
 function Protected({ children }: { children: React.ReactNode }) {
@@ -42,6 +49,14 @@ export default function App() {
         <Route path="billing" element={<Billing />} />
         <Route path="platform" element={<Platform />} />
         <Route path="settings" element={<Settings />} />
+
+        {/* Publisher area — same account, gated by "Become a publisher" onboarding */}
+        <Route path="publisher" element={<PublisherGate><PublisherOverview /></PublisherGate>} />
+        <Route path="publisher/agents" element={<PublisherGate><PublisherAgents /></PublisherGate>} />
+        <Route path="publisher/analytics" element={<PublisherGate><PublisherAnalytics /></PublisherGate>} />
+        <Route path="publisher/payouts" element={<PublisherGate><PublisherPayouts /></PublisherGate>} />
+        <Route path="publisher/pricing" element={<PublisherGate><PublisherPricing /></PublisherGate>} />
+        <Route path="publisher/publish" element={<PublisherGate><PublisherPublish /></PublisherGate>} />
       </Route>
       <Route path="/" element={<Navigate to="/app" replace />} />
       <Route path="*" element={<Navigate to="/app" replace />} />

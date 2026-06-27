@@ -1,84 +1,96 @@
 @import "tailwindcss";
-@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Manrope:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap");
 
 /* ============================================================
    KIBA — DESIGN TOKENS
-   Dark-first, electric-blue brand.
+   Light-first, playful, star-blue brand with multicolor mascots.
+   Token NAMES are kept from the previous dark theme so existing
+   components inherit the new look automatically.
    ============================================================ */
 
 :root {
-  /* Raw palette */
-  --ink-1000: #000208;
-  --ink-950:  #02050E;
-  --ink-900:  #050B1B;
-  --ink-800:  #0A1228;
-  --ink-700:  #121C3A;
-  --ink-600:  #1B2750;
-  --ink-500:  #2A3868;
+  /* Neutral / paper scale (light) */
+  --ink-1000: #100C1B;
+  --ink-950:  #16111F;
+  --ink-900:  #1E1830;
+  --ink-800:  #2A2440;
+  --ink-700:  #4A455C;
+  --ink-600:  #6B6678;
+  --ink-500:  #908BA0;
 
-  --blue-1000: #011467;
-  --blue-900:  #0A2EAD;
-  --blue-700:  #1A4DE0;
-  --blue-500:  #2060F6;
-  --blue-400:  #4F86FF;
-  --blue-300:  #7AA3FF;
-  --blue-200:  #B5C9FF;
-  --blue-100:  #E6EEFF;
+  /* Brand ramp — star blue (#4FA3C7) for buttons, links, accents */
+  --blue-1000: #1A4F6B;
+  --blue-900:  #236688;
+  --blue-700:  #3589AD;
+  --blue-500:  #4FA3C7;
+  --blue-400:  #6BB5D4;
+  --blue-300:  #8EC8E0;
+  --blue-200:  #C5E4F2;
+  --blue-100:  #E8F4FA;
 
-  --paper-50:  #F7F8FB;
-  --paper-100: #ECEFF6;
-  --paper-200: #D6DCEA;
-  --paper-300: #A9B4CC;
-  --paper-400: #7B89A8;
-  --paper-500: #5A688A;
-  --paper-600: #3F4B6A;
+  --paper-50:  #FFFFFF;
+  --paper-100: #FFFFFF;
+  --paper-200: #F8FAFC;
+  --paper-300: #EEF2F6;
+  --paper-400: #E2E8F0;
+  --paper-500: #9A95AC;
+  --paper-600: #6B6678;
+
+  /* Playful accent palette (mascots) */
+  --c-blue:   #4FA3C7;
+  --c-teal:   #00D1C2;
+  --c-yellow: #FFD54A;
+  --c-pink:   #FF6EC7;
+  --c-purple: #6C48FF;
+  --c-green:  #4FB94F;
 
   /* Semantic */
-  --success: #2ED39A;
-  --warning: #F5B544;
-  --danger:  #FF5571;
+  --success: #22C55E;
+  --warning: #F5A524;
+  --danger:  #F5556E;
   --info:    var(--blue-400);
 
   /* Background */
-  --bg-canvas:   var(--ink-950);
-  --bg-surface:  var(--ink-900);
-  --bg-card:     var(--ink-800);
-  --bg-elevated: var(--ink-700);
-  --bg-inset:    var(--ink-600);
+  --bg-canvas:   #FFFFFF;
+  --bg-surface:  #FFFFFF;
+  --bg-card:     #FFFFFF;
+  --bg-elevated: #FFFFFF;
+  --bg-inset:    #F8FAFC;
+  --bg-lavender: #E8F4FA;
+  --bg-ink:      #0B0B12;
 
   /* Foreground */
-  --fg-1: var(--paper-50);
-  --fg-2: var(--paper-300);
-  --fg-3: var(--paper-400);
-  --fg-4: var(--paper-500);
+  --fg-1: #0B0B12;
+  --fg-2: #66626F;
+  --fg-3: #8E89A0;
+  --fg-4: #B9B5C6;
 
   /* Accent */
   --accent:         var(--blue-500);
   --accent-hover:   var(--blue-400);
   --accent-pressed: var(--blue-700);
-  --accent-soft:    color-mix(in srgb, var(--blue-500) 14%, transparent);
-  --accent-on:      var(--paper-50);
+  --accent-soft:    color-mix(in srgb, var(--blue-500) 10%, transparent);
+  --accent-on:      #FFFFFF;
 
   /* Borders */
-  --border-subtle:  color-mix(in srgb, var(--blue-200) 8%, transparent);
-  --border-default: color-mix(in srgb, var(--blue-200) 14%, transparent);
-  --border-strong:  color-mix(in srgb, var(--blue-200) 24%, transparent);
+  --border-subtle:  color-mix(in srgb, var(--ink-900) 7%, transparent);
+  --border-default: color-mix(in srgb, var(--ink-900) 11%, transparent);
+  --border-strong:  color-mix(in srgb, var(--ink-900) 18%, transparent);
   --border-accent:  var(--blue-500);
 
-  /* Glow */
-  --glow-sm: 0 0 12px color-mix(in srgb, var(--blue-500) 45%, transparent);
-  --glow-md: 0 0 32px color-mix(in srgb, var(--blue-500) 38%, transparent);
-  --glow-lg: 0 0 64px color-mix(in srgb, var(--blue-500) 32%, transparent);
-  --glow-xl: 0 0 120px color-mix(in srgb, var(--blue-500) 28%, transparent);
+  /* Glow — soft star-blue ambient lifts */
+  --glow-sm: 0 4px 14px color-mix(in srgb, var(--blue-500) 16%, transparent);
+  --glow-md: 0 10px 30px color-mix(in srgb, var(--blue-500) 18%, transparent);
+  --glow-lg: 0 18px 48px color-mix(in srgb, var(--blue-500) 20%, transparent);
+  --glow-xl: 0 30px 80px color-mix(in srgb, var(--blue-500) 18%, transparent);
 
-  /* Shadows */
-  --shadow-sm: 0 1px 2px rgba(0,0,0,.4), 0 1px 1px rgba(0,0,0,.3);
-  --shadow-md: 0 6px 16px rgba(0,0,0,.5), 0 2px 4px rgba(0,0,0,.4);
-  --shadow-lg: 0 20px 48px rgba(0,0,0,.55), 0 4px 12px rgba(0,0,0,.4);
+  /* Shadows — neutral, soft */
+  --shadow-sm: 0 1px 2px rgba(26, 20, 38, .06), 0 1px 3px rgba(26, 20, 38, .05);
+  --shadow-md: 0 6px 18px rgba(26, 20, 38, .08), 0 2px 6px rgba(26, 20, 38, .05);
+  --shadow-lg: 0 20px 48px rgba(26, 20, 38, .12), 0 6px 16px rgba(26, 20, 38, .07);
 
   /* Typography */
-  --font-display: "Outfit", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-sans:    "Manrope", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Baloo 2", ui-rounded, "Segoe UI", system-ui, cursive, sans-serif;
+  --font-sans:    "Space Grotesk", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono:    "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
 
   --text-xs:   12px;
@@ -101,7 +113,7 @@
   --tracking-snug:   -0.01em;
   --tracking-normal: 0;
   --tracking-wide:   0.04em;
-  --tracking-wider:  0.16em;
+  --tracking-wider:  0.14em;
 
   /* Spacing */
   --space-1: 4px;
@@ -116,13 +128,13 @@
   --space-10: 72px;
   --space-11: 96px;
 
-  /* Radii */
-  --radius-xs:   4px;
-  --radius-sm:   6px;
-  --radius-md:   10px;
-  --radius-lg:   14px;
-  --radius-xl:   20px;
-  --radius-2xl:  28px;
+  /* Radii — rounder for the playful look */
+  --radius-xs:   6px;
+  --radius-sm:   10px;
+  --radius-md:   14px;
+  --radius-lg:   20px;
+  --radius-xl:   26px;
+  --radius-2xl:  34px;
   --radius-pill: 999px;
 
   /* Motion */
@@ -138,22 +150,22 @@
   --color-fg:            var(--fg-1);
   --color-fg-muted:      var(--fg-2);
   --color-border:        var(--border-default);
-  --color-brand-purple: var(--blue-500);
-  --color-brand-green:  var(--success);
+  --color-brand-purple:  var(--blue-500);
+  --color-brand-green:   var(--success);
 }
 
 /* ============================================================
    TAILWIND THEME OVERRIDES
    ============================================================ */
 @theme {
-  --color-bg: #02050E;
-  --color-bg-soft: #050B1B;
-  --color-fg: #F7F8FB;
-  --color-fg-muted: #A9B4CC;
-  --color-border: #1B2750;
-  --color-accent: #2060F6;
-  --font-sans: "Manrope", ui-sans-serif, system-ui, -apple-system, sans-serif;
-  --font-display: "Outfit", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --color-bg: #FFFFFF;
+  --color-bg-soft: #FFFFFF;
+  --color-fg: #0B0B12;
+  --color-fg-muted: #66626F;
+  --color-border: #E4EEF4;
+  --color-accent: #4FA3C7;
+  --font-sans: "Space Grotesk", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-display: "Baloo 2", ui-rounded, "Segoe UI", system-ui, cursive, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
 }
 
@@ -175,9 +187,9 @@ html, body {
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-display);
   color: var(--fg-1);
-  letter-spacing: var(--tracking-tight);
+  letter-spacing: -0.03em;
   line-height: var(--leading-tight);
-  font-weight: 600;
+  font-weight: 800;
   margin: 0;
 }
 
@@ -189,18 +201,17 @@ p { margin: 0; color: var(--fg-2); line-height: var(--leading-normal); }
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: var(--tracking-wider);
-  color: var(--blue-300);
+  color: var(--accent);
 }
 
 .wordmark {
   font-family: var(--font-display);
-  font-weight: 400;
+  font-weight: 600;
   letter-spacing: -0.01em;
-  text-transform: lowercase;
 }
 
-a { color: var(--blue-300); text-decoration: none; transition: color var(--dur-fast) var(--ease-out); }
-a:hover { color: var(--blue-200); }
+a { color: var(--accent); text-decoration: none; transition: color var(--dur-fast) var(--ease-out); }
+a:hover { color: var(--accent-hover); }
 
 code, kbd, samp, pre {
   font-family: var(--font-mono);
@@ -208,11 +219,11 @@ code, kbd, samp, pre {
 }
 
 ::selection {
-  background: color-mix(in srgb, var(--blue-500) 55%, transparent);
-  color: var(--paper-50);
+  background: color-mix(in srgb, var(--blue-500) 22%, transparent);
+  color: var(--fg-1);
 }
 
-/* Brand hairline with glow */
+/* Brand hairline */
 .brand-rule {
   position: relative;
   height: 1px;
@@ -224,7 +235,7 @@ code, kbd, samp, pre {
   left: 50%; top: 50%;
   width: 60%; height: 6px;
   transform: translate(-50%, -50%);
-  background: radial-gradient(ellipse at center, var(--accent) 0%, transparent 70%);
+  background: radial-gradient(ellipse at center, color-mix(in srgb, var(--accent) 40%, transparent) 0%, transparent 70%);
   filter: blur(2px);
-  opacity: .9;
+  opacity: .8;
 }

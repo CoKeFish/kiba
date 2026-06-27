@@ -1,0 +1,109 @@
+---
+const DASHBOARD_URL = import.meta.env.PUBLIC_DASHBOARD_URL || "https://dashboard.kiba.rodion.com.co";
+
+const agents = [
+  {
+    name: "Token Insights",
+    usd: "0.5000",
+    xlm: "0.003000",
+    desc: "On-chain token analytics and smart insights.",
+    tag: "DeFi",
+    tagColor: "var(--c-purple)",
+    avatar: "/agents/star.png",
+  },
+  {
+    name: "Wallet Health",
+    usd: "0.3500",
+    xlm: "0.002000",
+    desc: "Portfolio analysis and risk scoring.",
+    tag: "Analytics",
+    tagColor: "var(--c-green)",
+    avatar: "/agents/circle.png",
+  },
+  {
+    name: "News Summarizer",
+    usd: "0.2000",
+    xlm: "0.001200",
+    desc: "Summarize crypto news in any language.",
+    tag: "Content",
+    tagColor: "var(--c-pink)",
+    avatar: "/agents/heart.png",
+  },
+  {
+    name: "Tx Simulator",
+    usd: "0.3000",
+    xlm: "0.001800",
+    desc: "Simulate Stellar transactions before you send.",
+    tag: "Dev Tools",
+    tagColor: "var(--c-yellow)",
+    avatar: "/agents/triangle.png",
+  },
+];
+---
+
+<section style="padding: 56px 64px; background: var(--bg-canvas);">
+  <div style="max-width: 1240px; margin: 0 auto;">
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px;">
+      <h2 class="js-reveal slide-up" style="
+        font-family: var(--font-display); font-size: clamp(22px, 2.4vw, 30px);
+        font-weight: 800; letter-spacing: -0.03em; color: var(--fg-1);
+      ">Featured <span style="color: var(--accent);">agents</span></h2>
+      <a href={`${DASHBOARD_URL}/agents`} class="js-reveal slide-up d1" style="
+        font-family: var(--font-sans); font-size: 14px; font-weight: 700;
+        color: var(--accent); text-decoration: none;
+      ">View all →</a>
+    </div>
+
+    <div style="
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px;
+    " class="featured-grid">
+      {agents.map((a, i) => (
+        <div class={`featured-card js-reveal tilt-in hover-lift d${i + 1}`} style="
+          background: var(--bg-card);
+          border: 1px solid var(--border-default);
+          border-radius: var(--radius-lg);
+          padding: 22px;
+          display: flex; flex-direction: column; gap: 12px;
+          transition: transform var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out);
+        ">
+          <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;">
+            <div style="display: flex; align-items: center; gap: 12px; min-width: 0;">
+              <div style="
+                width: 46px; height: 46px; border-radius: 14px; flex-shrink: 0;
+                background: var(--bg-inset);
+                display: flex; align-items: center; justify-content: center; overflow: hidden;
+              ">
+                <img src={a.avatar} alt="" style="width: 38px; height: 38px; object-fit: contain;" />
+              </div>
+              <div style="font-family: var(--font-display); font-size: 15.5px; font-weight: 700; color: var(--fg-1);">{a.name}</div>
+            </div>
+            <div style="text-align: right; flex-shrink: 0;">
+              <div style="font-family: var(--font-mono); font-size: 14px; font-weight: 600; color: var(--accent);">${a.usd}</div>
+              <div style="font-family: var(--font-mono); font-size: 10.5px; color: var(--fg-3);">{a.xlm} XLM</div>
+            </div>
+          </div>
+
+          <p style="font-family: var(--font-sans); font-size: 13.5px; color: var(--fg-2); line-height: 1.5; flex: 1;">{a.desc}</p>
+
+          <span style={`
+            align-self: flex-start;
+            font-family: var(--font-sans); font-size: 11.5px; font-weight: 700;
+            padding: 4px 12px; border-radius: 999px;
+            background: color-mix(in srgb, ${a.tagColor} 16%, transparent);
+            color: color-mix(in srgb, ${a.tagColor} 72%, #000);
+          `}>{a.tag}</span>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+<style>
+  .featured-card:hover {
+    transform: translateY(-5px) rotate(-0.8deg);
+    border-color: color-mix(in srgb, var(--accent) 45%, transparent) !important;
+    box-shadow: var(--glow-md) !important;
+  }
+  @media (max-width: 1024px) { .featured-grid { grid-template-columns: repeat(2, 1fr) !important; } }
+  @media (max-width: 560px) { .featured-grid { grid-template-columns: 1fr !important; } }
+</style>

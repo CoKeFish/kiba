@@ -5,7 +5,15 @@ import { Card, CardBody, CardHeader, CardTitle, CardDescription } from "@/compon
 import { Badge } from "@/components/ui/badge";
 import { Table, Tbody, Td, Th, Thead, Tr } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { formatUsd, lamportsToUsd, shortSig, explorerUrl } from "@/lib/format";
+import {
+  formatUsd,
+  lamportsToUsd,
+  formatKibs,
+  baseUnitsToKibs,
+  KIBS_LABEL,
+  shortSig,
+  explorerUrl,
+} from "@/lib/format";
 import { format } from "date-fns";
 import { ExternalLink } from "lucide-react";
 
@@ -102,10 +110,13 @@ export default function Transactions() {
                       </Badge>
                     </Td>
                     <Td className="text-right font-mono">
-                      <span className={t.type === "topup" ? "text-[var(--color-success)]" : ""}>
+                      <div className={t.type === "topup" ? "text-[var(--color-success)]" : ""}>
                         {t.type === "topup" ? "+" : "-"}
-                        {formatUsd(lamportsToUsd(t.amount_lamports))}
-                      </span>
+                        {formatKibs(baseUnitsToKibs(t.amount_lamports))} {KIBS_LABEL}
+                      </div>
+                      <div className="text-xs text-[var(--color-fg-muted)]">
+                        ≈ {formatUsd(lamportsToUsd(t.amount_lamports))}
+                      </div>
                     </Td>
                     <Td>
                       {t.tx_signature ? (

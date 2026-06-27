@@ -54,8 +54,8 @@ const tiers = [
 ">
   <div style="max-width: 1280px; margin: 0 auto;">
     <div style="margin-bottom: 64px; text-align: center;">
-      <div class="eyebrow" style="margin-bottom: 16px;">Pricing</div>
-      <h2 style="
+      <div class="eyebrow js-reveal blur-up" style="margin-bottom: 16px;">Pricing</div>
+      <h2 class="js-reveal elastic-up d1" style="
         font-family: var(--font-display);
         font-size: clamp(32px, 3.5vw, 44px);
         font-weight: 600;
@@ -69,8 +69,8 @@ const tiers = [
       grid-template-columns: repeat(3, 1fr);
       gap: 20px;
     " class="pricing-grid">
-      {tiers.map((t) => (
-        <div style={`
+      {tiers.map((t, i) => (
+        <div class={`js-reveal tilt-in d${i + 1} hover-lift`} style={`
           background: var(--bg-card);
           border: 1px solid ${t.featured ? 'var(--accent)' : 'var(--border-default)'};
           border-radius: 14px;

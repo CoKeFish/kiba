@@ -15,8 +15,15 @@ import {
 } from "recharts";
 import { api, type Transaction } from "@/lib/api";
 import { Card, CardBody, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { formatUsd, lamportsToUsd } from "@/lib/format";
-import { Activity, DollarSign, Layers } from "lucide-react";
+import {
+  formatUsd,
+  lamportsToUsd,
+  formatKibs,
+  formatKibsLabel,
+  usdToKibs,
+  KIBS_LABEL,
+} from "@/lib/format";
+import { Activity, Layers, Sparkles } from "lucide-react";
 
 const PALETTE = ["#9945FF", "#14F195", "#FFA500", "#5cf", "#f765", "#ff79c6"];
 
@@ -69,7 +76,8 @@ export default function Usage() {
         const [bm, bd] = b.day.split("/").map(Number);
         return am === bm ? ad - bd : am - bm;
       })
-      .slice(-14);
+      .slice(-14)
+      .map((d) => ({ ...d, kibs: usdToKibs(d.usd) }));
   }, [calls]);
 
   const byAgent = useMemo(() => {
@@ -77,7 +85,8 @@ export default function Usage() {
     for (const t of calls) {
       const k = t.service || "unknown";
       if (!buckets[k]) buckets[k] = { name: k, value: 0, calls: 0 };
-      buckets[k].value += lamportsToUsd(t.amount_lamports);
+      // value en Kibs (display) — el pie y el tooltip muestran Kibs.
+      buckets[k].value += usdToKibs(lamportsToUsd(t.amount_lamports));
       buckets[k].calls += 1;
     }
     return Object.values(buckets).sort((a, b) => b.value - a.value);
@@ -101,12 +110,14 @@ export default function Usage() {
                 <p className="text-xs text-[var(--color-fg-muted)] uppercase tracking-wider mb-2">
                   Total spent
                 </p>
-                <p className="text-2xl font-semibold font-mono">{formatUsd(stats.totalSpent)}</p>
+                <p className="text-2xl font-semibold font-mono">
+                  {formatKibsLabel(usdToKibs(stats.totalSpent))}
+                </p>
                 <p className="text-xs text-[var(--color-fg-muted)] mt-1">
-                  Across {calls.length} call{calls.length !== 1 ? "s" : ""}
+                  ≈ {formatUsd(stats.totalSpent)} · {calls.length} call{calls.length !== 1 ? "s" : ""}
                 </p>
               </div>
-              <DollarSign className="w-5 h-5 text-[var(--color-fg-muted)]" />
+              <Sparkles className="w-5 h-5 text-[var(--color-fg-muted)]" />
             </div>
           </CardBody>
         </Card>
@@ -146,7 +157,7 @@ export default function Usage() {
       <div className="grid lg:grid-cols-2 gap-4">
         <Card>
           <CardHeader>
-            <CardTitle>Daily spend (USD)</CardTitle>
+            <CardTitle>Daily spend ({KIBS_LABEL})</CardTitle>
             <CardDescription>
               {dailySpend.length === 0 ? "No calls yet" : `Last ${dailySpend.length} day(s)`}
             </CardDescription>
@@ -169,9 +180,9 @@ export default function Usage() {
                         border: "1px solid var(--color-border)",
                         borderRadius: 6,
                       }}
-                      formatter={(v: number) => formatUsd(v)}
+                      formatter={(v: number) => `${formatKibs(v)} ${KIBS_LABEL}`}
                     />
-                    <Bar dataKey="usd" fill="var(--color-primary)" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="kibs" fill="var(--color-primary)" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -215,7 +226,7 @@ export default function Usage() {
                         border: "1px solid var(--color-border)",
                         borderRadius: 6,
                       }}
-                      formatter={(v: number, name) => [formatUsd(v), name as string]}
+                      formatter={(v: number, name) => [`${formatKibs(v)} ${KIBS_LABEL}`, name as string]}
                     />
                     <Legend wrapperStyle={{ fontSize: 12 }} />
                   </PieChart>

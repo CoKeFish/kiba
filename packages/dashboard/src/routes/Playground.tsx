@@ -5,7 +5,7 @@ import { api, type Agent, type X402Trace, type X402Step } from "@/lib/api";
 import { Card, CardBody, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { formatUsd, shortSig, explorerUrl } from "@/lib/format";
+import { formatKibs, formatKibsLabel, usdToKibs, KIBS_LABEL, shortSig, explorerUrl } from "@/lib/format";
 import { chain } from "@/lib/chain";
 import {
   Play,
@@ -181,7 +181,7 @@ export default function Playground() {
               </option>
               {agents.map((a) => (
                 <option key={a.service} value={a.service}>
-                  {a.service} — {formatUsd(solToUsd(a.pricePerCall))}/call
+                  {a.service} — {formatKibsLabel(usdToKibs(solToUsd(a.pricePerCall)))}/call
                 </option>
               ))}
             </select>
@@ -211,7 +211,7 @@ export default function Playground() {
             <div className="text-xs text-[var(--color-fg-muted)]">
               Floor{" "}
               {selected
-                ? formatUsd(solToUsd(selected.pricePerCall))
+                ? formatKibsLabel(usdToKibs(solToUsd(selected.pricePerCall)))
                 : "—"}{" "}
               · actual price quoted by agent based on payload
             </div>
@@ -248,7 +248,11 @@ export default function Playground() {
                       <AlertCircle className="w-4 h-4 text-[var(--color-danger)]" />
                     )}
                     <span className="font-mono text-sm">{h.service}</span>
-                    {h.cost && <Badge tone="info">{formatUsd(h.cost.usd)}</Badge>}
+                    {h.cost && (
+                      <Badge tone="info">
+                        {formatKibs(usdToKibs(h.cost.usd))} {KIBS_LABEL}
+                      </Badge>
+                    )}
                     <span className="text-xs text-[var(--color-fg-muted)] font-mono">
                       {h.durationMs.toFixed(0)}ms
                     </span>

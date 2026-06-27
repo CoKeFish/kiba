@@ -5,7 +5,18 @@ import { Card, CardBody, CardHeader, CardTitle, CardDescription } from "@/compon
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { formatUsd, lamportsToUsd, baseUnitsToUsd, shortSig, explorerUrl } from "@/lib/format";
+import {
+  formatUsd,
+  lamportsToUsd,
+  baseUnitsToUsd,
+  formatKibs,
+  formatKibsLabel,
+  usdToKibs,
+  baseUnitsToKibs,
+  KIBS_LABEL,
+  shortSig,
+  explorerUrl,
+} from "@/lib/format";
 import { format } from "date-fns";
 import { CreditCard, Wallet, ExternalLink, AlertCircle } from "lucide-react";
 
@@ -27,8 +38,9 @@ export default function Billing() {
   const mutation = useMutation({
     mutationFn: (n: number) => api.topup(n),
     onSuccess: (data) => {
+      const newBaseUnits = data.new_balance_base_units ?? data.new_balance_lamports;
       setSuccess(
-        `+ ${formatUsd(amount)} added · new balance ${formatUsd(baseUnitsToUsd(data.new_balance_base_units ?? data.new_balance_lamports))}`,
+        `+ ${formatKibsLabel(usdToKibs(amount))} added · new balance ${formatKibsLabel(baseUnitsToKibs(newBaseUnits))} (≈ ${formatUsd(baseUnitsToUsd(newBaseUnits))})`,
       );
       setError(null);
       qc.invalidateQueries({ queryKey: ["balance"] });
@@ -70,9 +82,11 @@ export default function Billing() {
               Available balance
             </p>
             <p className="text-3xl font-semibold font-mono">
-              {balance ? formatUsd(balance.balance_usd) : "—"}
+              {balance ? formatKibsLabel(usdToKibs(balance.balance_usd)) : "—"}
             </p>
-            <p className="text-xs text-[var(--color-fg-muted)] mt-1">USD credits, used for agent calls</p>
+            <p className="text-xs text-[var(--color-fg-muted)] mt-1">
+              {balance ? `≈ ${formatUsd(balance.balance_usd)} · ${KIBS_LABEL} are spent on agent calls` : `${KIBS_LABEL} are spent on agent calls`}
+            </p>
           </div>
           <Wallet className="w-8 h-8 text-[var(--color-fg-muted)]" />
         </CardBody>
@@ -83,7 +97,8 @@ export default function Billing() {
         <CardHeader>
           <CardTitle>Top up</CardTitle>
           <CardDescription>
-            Demo mode — clicking adds USD credits instantly. Production would route through Stripe Checkout.
+            Pay in dollars — we convert to {KIBS_LABEL} instantly ($1 = {formatKibs(usdToKibs(1))}{" "}
+            {KIBS_LABEL}). Demo mode adds them instantly; production would route through Stripe Checkout.
           </CardDescription>
         </CardHeader>
         <CardBody className="space-y-4">
@@ -110,6 +125,14 @@ export default function Billing() {
               />
             </div>
           </div>
+          {amount > 0 && (
+            <div className="text-sm text-[var(--color-fg-muted)]">
+              {formatUsd(amount)} →{" "}
+              <span className="font-semibold text-[var(--color-fg)]">
+                {formatKibsLabel(usdToKibs(amount))}
+              </span>
+            </div>
+          )}
           {error && (
             <div className="flex items-center gap-2 text-sm text-[var(--color-danger)]">
               <AlertCircle className="w-4 h-4" />
@@ -125,7 +148,9 @@ export default function Billing() {
             className="w-full sm:w-auto"
           >
             <CreditCard className="w-4 h-4" />
-            {mutation.isPending ? "Processing…" : `Add ${formatUsd(amount)} (mock)`}
+            {mutation.isPending
+              ? "Processing…"
+              : `Add ${formatKibsLabel(usdToKibs(amount))} (${formatUsd(amount)})`}
           </Button>
         </CardBody>
       </Card>
@@ -171,8 +196,11 @@ export default function Billing() {
                         <ExternalLink className="w-3 h-3" />
                       </a>
                     )}
-                    <span className="font-mono text-sm text-[var(--color-success)]">
-                      + {formatUsd(lamportsToUsd(t.amount_lamports))}
+                    <span className="font-mono text-sm text-[var(--color-success)] text-right">
+                      <div>+ {formatKibsLabel(baseUnitsToKibs(t.amount_lamports))}</div>
+                      <div className="text-xs text-[var(--color-fg-muted)]">
+                        ≈ {formatUsd(lamportsToUsd(t.amount_lamports))}
+                      </div>
                     </span>
                   </div>
                 </li>

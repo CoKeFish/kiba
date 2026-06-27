@@ -23,7 +23,7 @@ services:
       - "STELLAR_NETWORK_PASSPHRASE=${STELLAR_NETWORK_PASSPHRASE:-Test SDF Network ; September 2015}"
       - STELLAR_FRIENDBOT_URL=${STELLAR_FRIENDBOT_URL:-https://friendbot.stellar.org}
       - STELLAR_HORIZON_URL=${STELLAR_HORIZON_URL:-https://horizon-testnet.stellar.org}
-      - STELLAR_SERVICES=${STELLAR_SERVICES:-yield-hunter,risk-auditor,translator-pro,price-oracle,code-reviewer}
+      - STELLAR_SERVICES=${STELLAR_SERVICES:-yield-hunter,risk-auditor,translator-pro,price-oracle,code-reviewer,firecrawl}
 
   landing:
     build:
@@ -54,6 +54,7 @@ services:
     container_name: kiba-dashboard
     volumes:
       - ./packages/dashboard/src:/app/src
+      - ./packages/dashboard/public:/app/public
       - ./packages/dashboard/index.html:/app/index.html
       - ./packages/dashboard/vite.config.ts:/app/vite.config.ts
     ports:
@@ -84,6 +85,7 @@ services:
       - "5003:5003"  # translator-pro
       - "5004:5004"  # price-oracle
       - "5005:5005"  # code-reviewer
+      - "5006:5006"  # firecrawl
     environment:
       - NODE_ENV=development
       - BACKEND_URL=http://backend:4000
@@ -100,6 +102,8 @@ services:
       - TRUSTLESS_WORK_PLATFORM_FEE=${TRUSTLESS_WORK_PLATFORM_FEE:-5}
       - TRUSTLESS_WORK_TRUSTLINE_ADDRESS=${TRUSTLESS_WORK_TRUSTLINE_ADDRESS:-}
       - TRUSTLESS_WORK_TRUSTLINE_SYMBOL=${TRUSTLESS_WORK_TRUSTLINE_SYMBOL:-USDC}
+      # Firecrawl (agente real de web scraping). Key gratis en firecrawl.dev.
+      - FIRECRAWL_API_KEY=${FIRECRAWL_API_KEY:-}
     depends_on:
       - backend
 

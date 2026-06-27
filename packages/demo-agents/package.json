@@ -3,17 +3,19 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "concurrently \"npm:dev:yield\" \"npm:dev:risk\" \"npm:dev:translator\" \"npm:dev:price\" \"npm:dev:code\"",
+    "dev": "concurrently \"npm:dev:yield\" \"npm:dev:risk\" \"npm:dev:translator\" \"npm:dev:price\" \"npm:dev:code\" \"npm:dev:firecrawl\"",
     "dev:yield": "tsx watch src/yield-hunter.ts",
     "dev:risk": "tsx watch src/risk-auditor.ts",
     "dev:translator": "tsx watch src/translator.ts",
     "dev:price": "tsx watch src/price-oracle.ts",
     "dev:code": "tsx watch src/code-reviewer.ts",
+    "dev:firecrawl": "tsx watch src/firecrawl.ts",
     "start:yield": "tsx src/yield-hunter.ts",
     "start:risk": "tsx src/risk-auditor.ts",
     "start:translator": "tsx src/translator.ts",
     "start:price": "tsx src/price-oracle.ts",
     "start:code": "tsx src/code-reviewer.ts",
+    "start:firecrawl": "tsx src/firecrawl.ts",
     "build": "tsc"
   },
   "dependencies": {

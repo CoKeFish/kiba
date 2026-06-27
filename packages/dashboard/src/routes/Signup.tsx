@@ -1,15 +1,17 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { Eye, EyeOff, Lock, Mail } from "lucide-react";
 import { useAuth } from "@/lib/auth";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { AuthShell } from "@/components/auth/AuthShell";
+
+import { TitleSparks } from "@/components/auth/TitleSparks";
 
 export default function Signup() {
   const navigate = useNavigate();
   const { signup } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -32,114 +34,41 @@ export default function Signup() {
   };
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 24,
-        background:
-          "radial-gradient(ellipse at 30% 40%, color-mix(in srgb, var(--color-primary) 12%, transparent), transparent 55%), var(--color-bg)",
-      }}
+    <AuthShell
+      headerPrompt="Already have an account?"
+      headerLinkLabel="Log in"
+      headerLinkTo="/login"
+      mascot="triangle"
     >
-      <div style={{ width: "100%", maxWidth: 380 }}>
-        {/* Brand mark */}
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            marginBottom: 40,
-            gap: 12,
-          }}
-        >
-          <img
-            src="/logomark.png"
-            alt="Kiba"
-            style={{
-              width: 72,
-              height: 72,
-              objectFit: "contain",
-              filter: "drop-shadow(0 0 24px color-mix(in srgb, var(--color-primary) 55%, transparent))",
-            }}
-          />
-          <div
-            style={{
-              fontFamily: "var(--font-display)",
-              fontSize: 22,
-              fontWeight: 400,
-              color: "var(--color-fg)",
-              letterSpacing: "-0.01em",
-              textTransform: "lowercase",
-            }}
-          >
-            kiba
-          </div>
+      <div className="auth-card">
+        <div className="auth-title-wrap">
+          <h1 className="auth-title">
+            <span className="auth-title-create">
+              Create
+              <svg className="auth-squiggle" viewBox="0 0 72 12" aria-hidden="true">
+                <path d="M2 9 C14 2, 28 10, 42 5 S62 7, 70 4" />
+              </svg>
+            </span>{" "}
+            <span className="auth-title-account">
+              account
+              <TitleSparks />
+            </span>
+          </h1>
         </div>
+        <p className="auth-subtitle">Start calling agents in seconds.</p>
 
-        {/* Free credit badge */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 8,
-            padding: "6px 16px",
-            borderRadius: 999,
-            border: "1px solid var(--color-border)",
-            background: "var(--color-accent)",
-            width: "fit-content",
-            margin: "0 auto 24px",
-          }}
-        >
-          <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--color-success)", boxShadow: "0 0 8px var(--color-success)", flexShrink: 0, display: "inline-block" }} />
-          <span style={{ fontFamily: "var(--font-sans)", fontSize: 12, color: "var(--color-fg-subtle)" }}>
-            $5 free credit on sign-up
-          </span>
-        </div>
-
-        {/* Card */}
-        <div
-          style={{
-            background: "var(--color-bg-card)",
-            border: "1px solid var(--color-border)",
-            borderRadius: 16,
-            overflow: "hidden",
-          }}
-        >
-          <div style={{ padding: "24px 28px 0" }}>
-            <h1
-              style={{
-                fontFamily: "var(--font-display)",
-                fontSize: 22,
-                fontWeight: 600,
-                color: "var(--color-fg)",
-                marginBottom: 4,
-                letterSpacing: "-0.01em",
-              }}
-            >
-              Create account
-            </h1>
-            <p
-              style={{
-                fontFamily: "var(--font-sans)",
-                fontSize: 13,
-                color: "var(--color-fg-subtle)",
-                marginBottom: 24,
-              }}
-            >
-              Start calling agents in seconds.
-            </p>
-          </div>
-
-          <form onSubmit={onSubmit} style={{ padding: "0 28px 28px", display: "flex", flexDirection: "column", gap: 16 }}>
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              <Label htmlFor="email" style={{ fontFamily: "var(--font-sans)", fontSize: 12, color: "var(--color-fg-subtle)" }}>
-                Email
-              </Label>
-              <Input
+        <form onSubmit={onSubmit}>
+          <div className="auth-field">
+            <label className="auth-label" htmlFor="email">
+              Email
+            </label>
+            <div className="auth-input-wrap">
+              <span className="auth-input-icon">
+                <Mail size={18} strokeWidth={2} />
+              </span>
+              <input
                 id="email"
+                className="auth-input"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -148,13 +77,20 @@ export default function Signup() {
                 placeholder="you@example.com"
               />
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              <Label htmlFor="password" style={{ fontFamily: "var(--font-sans)", fontSize: 12, color: "var(--color-fg-subtle)" }}>
-                Password
-              </Label>
-              <Input
+          </div>
+
+          <div className="auth-field">
+            <label className="auth-label" htmlFor="password">
+              Password
+            </label>
+            <div className="auth-input-wrap">
+              <span className="auth-input-icon">
+                <Lock size={18} strokeWidth={2} />
+              </span>
+              <input
                 id="password"
-                type="password"
+                className="auth-input"
+                type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -162,34 +98,34 @@ export default function Signup() {
                 autoComplete="new-password"
                 placeholder="8+ characters"
               />
-            </div>
-            {error && (
-              <p style={{ fontFamily: "var(--font-sans)", fontSize: 13, color: "var(--color-danger)" }}>
-                {error}
-              </p>
-            )}
-            <Button type="submit" size="lg" className="w-full" disabled={loading} style={{ marginTop: 4 }}>
-              {loading ? "Creating…" : "Create account →"}
-            </Button>
-            <p
-              style={{
-                fontFamily: "var(--font-sans)",
-                fontSize: 12,
-                color: "var(--color-fg-subtle)",
-                textAlign: "center",
-              }}
-            >
-              Already have an account?{" "}
-              <Link
-                to="/login"
-                style={{ color: "var(--color-primary)", textDecoration: "none", fontWeight: 600 }}
+              <button
+                type="button"
+                className="auth-input-toggle"
+                onClick={() => setShowPassword((v) => !v)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
               >
-                Log in
-              </Link>
-            </p>
-          </form>
-        </div>
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+          </div>
+
+          {error && <p className="auth-error">{error}</p>}
+
+          <button type="submit" className="auth-submit" disabled={loading}>
+            {loading ? "Creating…" : "Create account →"}
+          </button>
+
+          <div className="auth-divider">
+            <span className="auth-divider-line" />
+            <span className="auth-divider-text">or</span>
+            <span className="auth-divider-line" />
+          </div>
+
+          <p className="auth-footer-link">
+            Already have an account? <Link to="/login">Log in</Link>
+          </p>
+        </form>
       </div>
-    </div>
+    </AuthShell>
   );
 }

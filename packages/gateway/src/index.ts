@@ -16,6 +16,7 @@ import {
   createUser,
   getUser,
   getUserByToken,
+  setPublisher,
   signJwt,
   verifyJwt,
 } from './auth';
@@ -235,6 +236,8 @@ app.post('/signup', (req, res) => {
         email: result.email,
         custodial_wallet: result.custodial_wallet_pubkey,
         balance_lamports: result.balance_lamports,
+        is_publisher: !!result.is_publisher,
+        publisher_name: result.publisher_name ?? null,
         created_at: result.created_at,
       },
     });
@@ -267,6 +270,8 @@ app.post('/login', (req, res) => {
         email: user.email,
         custodial_wallet: user.custodial_wallet_pubkey,
         balance_lamports: user.balance_lamports,
+        is_publisher: !!user.is_publisher,
+        publisher_name: user.publisher_name ?? null,
         created_at: user.created_at,
       },
     });
@@ -628,6 +633,8 @@ app.get('/v1/me', requireAuth, async (req, res) => {
     id: String(user.id),
     email: user.email,
     custodial_wallet: user.custodial_wallet_pubkey,
+    is_publisher: !!user.is_publisher,
+    publisher_name: user.publisher_name ?? null,
     // Chain context (preferido para integraciones nuevas).
     asset: balances.asset,
     base_unit_name: balances.baseUnitName,
@@ -783,6 +790,58 @@ app.get('/v1/platform/stats', requireAuth, async (_req, res) => {
   }
 });
 
+// ─── Publisher mode ───────────────────────────────────────────────
+// Misma cuenta/login que el consumidor; "publisher" solo habilita las
+// superficies de gestión de agentes + ingresos en el dashboard.
+
+app.post('/v1/publisher/activate', requireAuth, (req, res) => {
+  const name = typeof req.body?.name === 'string' ? req.body.name : undefined;
+  const user = setPublisher(req.bearerUser!.id, name);
+  if (!user) return res.status(404).json({ error: 'user not found' });
+  res.json({ is_publisher: true, publisher_name: user.publisher_name ?? null });
+});
+
+/**
+ * Resumen del publisher: ingresos agregados, # de calls, agentes con sus stats
+ * on-chain, y el saldo real de la custodial wallet (donde aterriza el 95%).
+ */
+app.get('/v1/publisher/overview', requireAuth, async (req, res) => {
+  try {
+    const userId = req.bearerUser!.id;
+    const user = getUser(userId);
+    if (!user) return res.status(404).json({ error: 'user not found' });
+    const [agents, walletBaseUnits] = await Promise.all([
+      listMyAgents(userId),
+      getOnChainBalance(loadUserWallet(userId)).catch(() => 0),
+    ]);
+    const totalCalls = agents.reduce((s, a) => s + (a.totalCalls || 0), 0);
+    // totalEarnedSol ya viene en unidades del activo (alias legacy, valor correcto).
+    const earnedAsset = agents.reduce((s, a) => s + (a.totalEarnedSol || 0), 0);
+    res.json({
+      asset: ASSET,
+      base_unit_name: BASE_UNIT_NAME,
+      is_publisher: !!user.is_publisher,
+      publisher_name: user.publisher_name ?? null,
+      fee: { bps: PLATFORM_FEE_BPS, pct: PLATFORM_FEE_BPS / 100 },
+      totals: {
+        agents: agents.length,
+        calls: totalCalls,
+        earned_asset: earnedAsset,
+        earned_usd: earnedAsset * ASSET_USD_RATE,
+      },
+      wallet: {
+        pubkey: user.custodial_wallet_pubkey,
+        base_units: walletBaseUnits,
+        asset_amount: walletBaseUnits / BASE_UNITS_PER_TOKEN,
+        usd: lamportsToUsd(walletBaseUnits),
+      },
+      agents,
+    });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
 // ─── Agent management (registry CRUD) ─────────────────────────────
 // El user firma con su custodial wallet → on-chain queda como owner.
 
@@ -807,6 +866,8 @@ app.post('/v1/agents', requireAuth, async (req, res) => {
 
   try {
     const result = await registerAgent(req.bearerUser!.id, input);
+    // Publicar un agente convierte al user en publisher (idempotente).
+    setPublisher(req.bearerUser!.id);
     res.status(201).json(result);
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'unknown error';

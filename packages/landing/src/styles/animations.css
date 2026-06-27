@@ -1,0 +1,138 @@
+/* ============================================================
+   KIBA — PLAYFUL MOTION SYSTEM
+   Scroll reveals + hero load sequence helpers
+   ============================================================ */
+
+/* ── Scroll reveal base ── */
+.js-reveal { will-change: transform, opacity; }
+
+.from-left {
+  opacity: 0;
+  transform: translateX(-90px) rotate(-10deg);
+  transition: opacity 0.65s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.65s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.from-right {
+  opacity: 0;
+  transform: translateX(90px) rotate(10deg);
+  transition: opacity 0.65s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.65s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.from-bottom {
+  opacity: 0;
+  transform: translateY(50px);
+  transition: opacity 0.55s ease, transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.pop-in {
+  opacity: 0;
+  transform: scale(0.78) translateY(26px);
+  transition: opacity 0.45s ease, transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.slide-up {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.5s ease, transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.flip-in {
+  opacity: 0;
+  transform: perspective(500px) rotateY(-22deg) translateX(-18px);
+  transition: opacity 0.55s ease, transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.flip-in.even {
+  transform: perspective(500px) rotateY(22deg) translateX(18px);
+}
+
+/* ── Creative variants ── */
+.wiggle-left {
+  opacity: 0;
+  transform: translateY(22px) rotate(-7deg) scale(0.94);
+  transition: opacity 0.5s ease, transform 0.55s cubic-bezier(0.34, 1.45, 0.64, 1);
+}
+.wiggle-right {
+  opacity: 0;
+  transform: translateY(22px) rotate(7deg) scale(0.94);
+  transition: opacity 0.5s ease, transform 0.55s cubic-bezier(0.34, 1.45, 0.64, 1);
+}
+.stamp-in {
+  opacity: 0;
+  transform: scale(0.55) rotate(-6deg);
+  transition: opacity 0.4s ease, transform 0.55s cubic-bezier(0.34, 1.65, 0.64, 1);
+}
+.blur-up {
+  opacity: 0;
+  transform: translateY(18px);
+  filter: blur(8px);
+  transition: opacity 0.55s ease, transform 0.6s cubic-bezier(0.22, 1, 0.36, 1),
+    filter 0.6s ease;
+}
+.tilt-in {
+  opacity: 0;
+  transform: perspective(700px) rotateX(12deg) translateY(28px) scale(0.92);
+  transition: opacity 0.5s ease, transform 0.65s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.bounce-pop {
+  opacity: 0;
+  transform: scale(0.7) translateY(30px);
+  transition: opacity 0.45s ease, transform 0.6s cubic-bezier(0.34, 1.7, 0.64, 1);
+}
+.elastic-up {
+  opacity: 0;
+  transform: translateY(40px) scaleY(0.88);
+  transform-origin: bottom center;
+  transition: opacity 0.5s ease, transform 0.7s cubic-bezier(0.34, 1.45, 0.64, 1);
+}
+
+.is-visible {
+  opacity: 1 !important;
+  transform: none !important;
+  filter: none !important;
+}
+
+/* Stagger delays */
+.d1 { transition-delay: 0.05s !important; }
+.d2 { transition-delay: 0.13s !important; }
+.d3 { transition-delay: 0.22s !important; }
+.d4 { transition-delay: 0.32s !important; }
+.d5 { transition-delay: 0.43s !important; }
+.d6 { transition-delay: 0.55s !important; }
+
+/* ── Hover micro-interactions ── */
+.hover-lift {
+  transition: transform var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out);
+}
+.hover-lift:hover {
+  transform: translateY(-4px) rotate(-0.5deg);
+}
+.hover-wiggle:hover {
+  animation: kiba-wiggle 0.45s ease;
+}
+@keyframes kiba-wiggle {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-2deg); }
+  75% { transform: rotate(2deg); }
+}
+
+/* ── CTA glow pulse ── */
+.cta-glow-pulse {
+  animation: cta-glow-breathe 4s ease-in-out infinite;
+}
+.cta-glow-pulse:nth-of-type(2) {
+  animation-delay: -2s;
+}
+@keyframes cta-glow-breathe {
+  0%, 100% { opacity: 0.28; transform: scale(1); }
+  50% { opacity: 0.45; transform: scale(1.08); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .js-reveal {
+    opacity: 1 !important;
+    transform: none !important;
+    filter: none !important;
+    transition: none !important;
+  }
+  .cta-glow-pulse,
+  .hover-wiggle:hover {
+    animation: none !important;
+  }
+}
