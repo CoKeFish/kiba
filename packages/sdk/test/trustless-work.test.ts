@@ -157,6 +157,46 @@ test('release: change-status (idx string) → approve → release-funds', async 
   assert.equal(sig, 'CESCROW123');
 });
 
+test('settle: self-release — treasury en approver/serviceProvider/releaseSigner, agente receiver', async () => {
+  const { client, keypair, platform } = makeClient();
+  const receiver = Keypair.random().publicKey();
+
+  postRoutes['/deployer/single-release'] = () => unsigned();
+  postRoutes['/helper/send-transaction'] = () => ({
+    status: 201,
+    data: { status: 'SUCCESS', contractId: 'CSETTLE1' },
+  });
+  postRoutes['/escrow/single-release/fund-escrow'] = () => unsigned();
+  postRoutes['/escrow/single-release/change-milestone-status'] = () => unsigned();
+  postRoutes['/escrow/single-release/approve-milestone'] = () => unsigned();
+  postRoutes['/escrow/single-release/release-funds'] = () => unsigned();
+  getRoutes['/helper/get-escrow-by-contract-ids'] = () => ({
+    status: 200,
+    data: [{ contractId: 'CSETTLE1', flags: { released: true } }],
+  });
+
+  const escrowId = await client.settle({
+    receiver,
+    service: 'settle-test',
+    engagementId: 'settle-1',
+    amountBaseUnits: 5000n,
+  });
+  assert.equal(escrowId, 'CSETTLE1');
+
+  // Roles self-release: la treasury (este signer) toma approver/serviceProvider/releaseSigner;
+  // el agente es SOLO el receiver. Así la treasury libera sin la llave del agente.
+  const deploy = posted['/deployer/single-release'] as { roles: Record<string, string> };
+  assert.equal(deploy.roles.receiver, receiver);
+  assert.equal(deploy.roles.releaseSigner, keypair.publicKey());
+  assert.equal(deploy.roles.serviceProvider, keypair.publicKey());
+  assert.equal(deploy.roles.approver, keypair.publicKey());
+  assert.equal(deploy.roles.platformAddress, platform);
+
+  // release-funds lo firma la treasury (releaseSigner = este signer), no el agente.
+  const rel = posted['/escrow/single-release/release-funds'] as { releaseSigner: string };
+  assert.equal(rel.releaseSigner, keypair.publicKey());
+});
+
 test('getEscrow: mapea balance/flags al ChainEscrowInfo neutral', async () => {
   const { client } = makeClient();
   getRoutes['/helper/get-escrow-by-contract-ids'] = () => ({

@@ -16,16 +16,11 @@
  */
 import axios from 'axios';
 import { AgentClient, type X402Trace } from '@kiba/sdk';
-import { attachSignature, debit, getBalance, lamportsToUsd } from './billing';
+import { debit, getBalance, lamportsToUsd } from './billing';
 import { db } from './db';
-import {
-  ensureTreasuryFunded,
-  getMasterWallet,
-  loadUserSigner,
-  masterWalletPubkey,
-  userOnChainBalance,
-} from './wallets';
+import { loadUserSigner, masterWalletPubkey, userOnChainBalance } from './wallets';
 import { BASE_UNITS_PER_TOKEN } from './chain';
+import { recordEarning } from './settlement';
 
 const WALLET_TX_FEE_BUFFER = 5_000_000;
 
@@ -122,15 +117,21 @@ export async function callOnBehalf(args: {
   const lamports = Number(quote.amount);
   const virtualBalance = getBalance(args.userId);
 
-  // 2. Cascada — decide modo y prepara fondos antes de la llamada.
-  let mode: 'virtual' | 'wallet-direct';
-  let debitResult: { newBalance: number; transactionId: number } | null = null;
-  // Cliente que firma/paga el escrow on-chain. Crédito → treasury de la plataforma;
-  // wallet → custodial del usuario.
-  let settleClient: AgentClient;
+  // 2. Cascada — decide modo según el crédito disponible.
 
+  // ── MODO CRÉDITO (off-chain, camino caliente) ─────────────────────────────
+  // El usuario tiene crédito → debita crédito (off-chain) y llama al agente por la VÍA DE
+  // CONFIANZA (X-Platform-Auth, SIN escrow per-call). La ganancia del agente se acredita en el
+  // ledger y se liquida on-chain por LOTES (settlement.ts). Instantáneo: sin deploy/TW/indexer.
   if (virtualBalance >= lamports) {
-    mode = 'virtual';
+    const platformAuth = process.env.PLATFORM_CALL_SECRET;
+    if (!platformAuth) {
+      // Fail-closed: sin el secreto no podemos usar la vía de confianza (y no queremos caer al
+      // escrow per-call silenciosamente). El operador debe setear PLATFORM_CALL_SECRET.
+      throw new Error(
+        'PLATFORM_CALL_SECRET no configurado: el modo crédito off-chain requiere la vía de confianza',
+      );
+    }
 
     const debited = debit({
       userId: args.userId,
@@ -138,91 +139,93 @@ export async function callOnBehalf(args: {
       service: args.service,
       metadata: {
         mode: 'virtual',
+        settlement: 'deferred',
         floorPricePerCall: manifest.pricePerCall,
         dynamicAmountLamports: lamports,
       },
     });
     if (!debited.ok) throw new Error(`debit failed: ${debited.error}`);
-    debitResult = debited;
 
+    const t0 = Date.now();
+    let result: unknown;
     try {
-      // La plataforma adelanta la liquidación on-chain desde su treasury → el
-      // wallet del usuario NO se toca. El usuario "pagó" consumiendo crédito.
-      await ensureTreasuryFunded();
+      result = await client.callTrusted(manifest.endpoint, args.payload, {
+        platformAuth,
+        timeoutMs: 120_000,
+      });
     } catch (err) {
-      refundDebit(args.userId, lamports, args.service, `treasury funding failed: ${(err as Error).message}`);
+      // El agente no entregó (o rechazó la vía de confianza) → reembolsa el crédito.
+      refundDebit(args.userId, lamports, args.service, (err as Error).message);
       throw err;
     }
-    settleClient = new AgentClient({ wallet: getMasterWallet() });
-  } else {
-    mode = 'wallet-direct';
 
-    const onChain = await userOnChainBalance(args.userId);
-    const required = lamports + WALLET_TX_FEE_BUFFER;
-    if (onChain < required) {
-      throw new Error(
-        `insufficient funds: credit ${virtualBalance} + wallet ${onChain} < ${required} (price ${lamports} + fee buffer ${WALLET_TX_FEE_BUFFER})`,
-      );
-    }
-    settleClient = client; // la custodial del usuario paga
+    // Acredita la ganancia del agente con el precio COMPLETO (el 95/5 se aplica al liquidar
+    // vía TW). Solo tras una llamada exitosa → un fallo nunca acumula ganancia.
+    recordEarning({ service: args.service, payTo: quote.payTo, lamports });
+
+    // Trace mínimo (sin escrow): solo discover + service_responded — los únicos step types
+    // que el dashboard conoce. No hay signature on-chain por llamada (la liquidación es aparte).
+    const elapsed = Math.max(1, Date.now() - t0);
+    const trace: X402Trace = {
+      service: manifest.service,
+      endpoint: manifest.endpoint,
+      totalDurationMs: elapsed,
+      steps: [
+        {
+          type: 'discover',
+          service: manifest.service,
+          endpoint: manifest.endpoint,
+          pricePerCall: manifest.pricePerCall,
+          durationMs: 1,
+          timestamp: t0,
+        },
+        { type: 'service_responded', status: 200, durationMs: elapsed, timestamp: Date.now() },
+      ],
+    };
+
+    return {
+      result,
+      cost: { lamports, usd: lamportsToUsd(lamports) },
+      mode: 'virtual',
+      paidWith: 'credit',
+      newBalance: { lamports: debited.newBalance, usd: lamportsToUsd(debited.newBalance) },
+      trace,
+    };
   }
 
-  // 3. Llamada única al servicio. callWithTrace devuelve el resultado + un
-  //    timeline de los 4 steps del handshake x402 (discover, 402_received,
-  //    escrow_opened, service_responded). El monto del escrow coincide con
-  //    `lamports` porque priceFn es determinista en el payload.
-  let result: unknown;
-  let trace: X402Trace;
-  try {
-    const traced = await settleClient.callWithTrace(args.service, args.payload, {
-      // maxPrice circuit breaker — 2x del cotizado por seguridad (en unidades del token)
-      maxPrice: (lamports / BASE_UNITS_PER_TOKEN) * 2,
-      // El agente espera el fondeo del escrow (~30s) + sirve + libera (release TW, lento),
-      // así que la llamada puede tardar >60s. El ticker MCP mantiene vivo el stream.
-      timeoutMs: 120_000,
-    });
-    result = traced.result;
-    trace = traced.trace;
-  } catch (err) {
-    if (mode === 'virtual') {
-      refundDebit(args.userId, lamports, args.service, (err as Error).message);
-    }
-    throw err;
+  // ── MODO WALLET-DIRECT (no-custodial, escrow per-call on-chain) ───────────
+  // Sin crédito suficiente → la custodial del usuario paga directo el escrow on-chain.
+  // Sin cambios respecto al flujo previo: este modo conserva la liquidación x402 per-call.
+  const onChain = await userOnChainBalance(args.userId);
+  const required = lamports + WALLET_TX_FEE_BUFFER;
+  if (onChain < required) {
+    throw new Error(
+      `insufficient funds: credit ${virtualBalance} + wallet ${onChain} < ${required} (price ${lamports} + fee buffer ${WALLET_TX_FEE_BUFFER})`,
+    );
   }
 
-  // 4. Post-pago: estampar la signature on-chain.
-  //    - Virtual: el row ya existe (lo creó debit()) — UPDATE para backfill la sig.
-  //    - Wallet-direct: insertamos el row ahora (no había debit) con la sig en el INSERT.
-  //    En ambos casos la sig sale del trace; preferimos el claim (prueba que el agente
-  //    cobró) sobre el escrow (prueba que el cliente fundó).
-  const onChainSig = pickOnChainSignature(trace);
-  if (mode === 'virtual' && debitResult && onChainSig) {
-    attachSignature(debitResult.transactionId, onChainSig);
-  }
-  if (mode === 'wallet-direct') {
-    recordWalletDirectCall({
-      userId: args.userId,
-      lamports,
-      service: args.service,
-      floorPricePerCall: manifest.pricePerCall,
-      signature: onChainSig,
-    });
-  }
+  const traced = await client.callWithTrace(args.service, args.payload, {
+    // maxPrice circuit breaker — 2x del cotizado por seguridad (en unidades del token)
+    maxPrice: (lamports / BASE_UNITS_PER_TOKEN) * 2,
+    timeoutMs: 120_000,
+  });
+  const onChainSig = pickOnChainSignature(traced.trace);
+  recordWalletDirectCall({
+    userId: args.userId,
+    lamports,
+    service: args.service,
+    floorPricePerCall: manifest.pricePerCall,
+    signature: onChainSig,
+  });
 
-  // Saldo del bucket efectivamente cobrado: crédito (virtual) o wallet on-chain
-  // (wallet-direct). Así el desglose es claro: en virtual el wallet no se movió.
-  const newBalanceLamports =
-    mode === 'virtual' && debitResult
-      ? debitResult.newBalance
-      : await userOnChainBalance(args.userId);
-
+  const newBalanceLamports = await userOnChainBalance(args.userId);
   return {
-    result,
+    result: traced.result,
     cost: { lamports, usd: lamportsToUsd(lamports) },
-    mode,
-    paidWith: mode === 'virtual' ? 'credit' : 'wallet',
+    mode: 'wallet-direct',
+    paidWith: 'wallet',
     newBalance: { lamports: newBalanceLamports, usd: lamportsToUsd(newBalanceLamports) },
-    trace,
+    trace: traced.trace,
   };
 }
 

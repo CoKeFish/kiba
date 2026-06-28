@@ -1,3 +1,4 @@
+import { timingSafeEqual } from 'node:crypto';
 import express, { type Express, type Request, type Response } from 'express';
 import type { AgentConfig, ProviderHandler } from './types';
 import { createChainClient, type ChainClient } from './chain';
@@ -169,6 +170,25 @@ export class AgentProvider {
       return;
     }
 
+    // Vía de confianza: el gateway de la plataforma (mismo operador) puede invocar el
+    // servicio SIN escrow per-call presentando un secreto compartido (X-Platform-Auth). El
+    // pago se concilia off-chain y se liquida por lotes. Fail-closed: si PLATFORM_CALL_SECRET
+    // no está seteado, se ignora el header y se exige el flujo x402 normal (abajo).
+    const platformSecret = process.env.PLATFORM_CALL_SECRET;
+    const platformAuth = req.header('X-Platform-Auth');
+    if (platformSecret && platformAuth && safeEqual(platformAuth, platformSecret)) {
+      try {
+        const result = await this.handler(req.body);
+        res.json({
+          ...(typeof result === 'object' && result !== null ? result : { result }),
+          _payment: { claimed: false, trusted: true },
+        });
+      } catch (err) {
+        res.status(500).json({ error: err instanceof Error ? err.message : 'unknown error' });
+      }
+      return;
+    }
+
     const paymentHeader = req.header('X-PAYMENT');
 
     // Sin pago → devolver 402 con quote (eventualmente dinámico)
@@ -318,4 +338,11 @@ function generateNonce(): bigint {
   const ts = BigInt(Date.now());
   const rand = BigInt(Math.floor(Math.random() * 1_000_000));
   return (ts << 20n) | rand;
+}
+
+/** Comparación de strings en tiempo constante (guard de longitud + timingSafeEqual). */
+function safeEqual(a: string, b: string): boolean {
+  const ba = Buffer.from(a);
+  const bb = Buffer.from(b);
+  return ba.length === bb.length && timingSafeEqual(ba, bb);
 }

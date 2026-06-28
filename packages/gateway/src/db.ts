@@ -120,6 +120,35 @@ db.exec(`
     FOREIGN KEY (user_id) REFERENCES users(id)
   );
   CREATE INDEX IF NOT EXISTS idx_user_agents_user ON user_agents(user_id);
+
+  -- Ledger off-chain de ganancias de agentes: en modo crédito cada call_agent acredita aquí
+  -- el precio COMPLETO de la llamada (sin tocar la cadena). settlement_id IS NULL = acumulado
+  -- (pendiente de liquidar). Se liquida por lotes vía Trustless Work (ver settlement.ts).
+  CREATE TABLE IF NOT EXISTS agent_earnings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    service TEXT NOT NULL,
+    pay_to TEXT NOT NULL,
+    amount_lamports INTEGER NOT NULL,
+    settlement_id INTEGER,
+    settled_at INTEGER,
+    created_at INTEGER NOT NULL
+  );
+
+  -- Liquidaciones on-chain: un escrow TW por payout (en lotes). status: pending|settled|failed.
+  CREATE TABLE IF NOT EXISTS settlements (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    service TEXT NOT NULL,
+    pay_to TEXT NOT NULL,
+    amount_lamports INTEGER NOT NULL,
+    escrow_id TEXT,
+    signature TEXT,
+    status TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    settled_at INTEGER
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_earnings_settlement ON agent_earnings(settlement_id);
+  CREATE INDEX IF NOT EXISTS idx_earnings_service ON agent_earnings(service);
 `);
 
 // Migración idempotente: añade expires_at a api_keys en DBs creadas antes de esta columna.
@@ -244,4 +273,30 @@ export interface TransactionRow {
   signature: string | null;
   metadata: string | null;
   created_at: number;
+}
+
+export interface AgentEarningRow {
+  id: number;
+  service: string;
+  /** dirección Stellar (G...) del agente que recibe el pago en la liquidación. */
+  pay_to: string;
+  /** precio COMPLETO de la llamada en unidades base (el 95/5 se aplica al liquidar vía TW). */
+  amount_lamports: number;
+  /** id de la liquidación que reclamó esta fila; NULL = acumulado (pendiente). */
+  settlement_id: number | null;
+  /** timestamp de confirmación on-chain de la liquidación; NULL hasta que liquida. */
+  settled_at: number | null;
+  created_at: number;
+}
+
+export interface SettlementRow {
+  id: number;
+  service: string;
+  pay_to: string;
+  amount_lamports: number;
+  escrow_id: string | null;
+  signature: string | null;
+  status: 'pending' | 'settled' | 'failed';
+  created_at: number;
+  settled_at: number | null;
 }

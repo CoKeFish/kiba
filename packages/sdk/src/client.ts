@@ -340,6 +340,25 @@ export class AgentClient {
   }
 
   /**
+   * Llamada de CONFIANZA (plataforma): invoca el servicio del agente SIN abrir escrow,
+   * presentando el secreto compartido `X-Platform-Auth`. El agente sirve directo y el pago se
+   * concilia off-chain (liquidación por lotes vía settlement). Para uso del gateway (mismo
+   * operador) que ya debitó el crédito del usuario ANTES de llamar. Lanza si el agente no
+   * responde 2xx (p.ej. secreto ausente/erróneo → 402/503) para que el caller reembolse.
+   */
+  async callTrusted<TRes = unknown>(
+    endpoint: string,
+    payload: unknown,
+    options: { platformAuth: string; timeoutMs?: number },
+  ): Promise<TRes> {
+    const resp = await axios.post(`${endpoint}/service`, payload, {
+      headers: { 'X-Platform-Auth': options.platformAuth },
+      timeout: options.timeoutMs ?? 120_000,
+    });
+    return resp.data as TRes;
+  }
+
+  /**
    * Descubre un servicio. Phase 2: lee directamente del registry on-chain
    * con fallback al backend de descubrimiento.
    */

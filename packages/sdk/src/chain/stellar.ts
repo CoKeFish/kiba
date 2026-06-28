@@ -34,6 +34,7 @@ import type {
   FetchEscrowArgs,
   ClaimPaymentArgs,
   RefundEscrowArgs,
+  SettlePayoutArgs,
 } from './types';
 import { TrustlessWorkEscrowClient, type TrustlessWorkConfig } from './trustless-work';
 import type { StellarSigner } from './signer';
@@ -369,6 +370,17 @@ export class StellarChainClient implements ChainClient {
       agentOwner: args.payToAddress,
       service: args.service,
       engagementId: `${args.service}-${args.nonce}`,
+      amountBaseUnits: args.amountBaseUnits,
+    });
+  }
+
+  async settlePayout(args: SettlePayoutArgs): Promise<string> {
+    // Liquidación por lotes: 'this' es la treasury (funder + releaseSigner). Paga al agente
+    // (receiver) las ganancias acumuladas off-chain vía un escrow self-release de TW.
+    return this.requireTw().settle({
+      receiver: args.receiver,
+      service: args.service,
+      engagementId: args.engagementId,
       amountBaseUnits: args.amountBaseUnits,
     });
   }

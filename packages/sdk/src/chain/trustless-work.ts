@@ -76,6 +76,9 @@ export interface DeployAndFundArgs {
   engagementId: string;
   /** Monto a bloquear, en unidades base del activo. */
   amountBaseUnits: bigint;
+  /** Roles del escrow; por defecto `roles(agentOwner)`. Para liquidación self-release se pasan
+   *  roles con la treasury como approver/serviceProvider/releaseSigner y el agente como receiver. */
+  roles?: TrustlessWorkRoles;
 }
 
 export class TrustlessWorkEscrowClient {
@@ -111,6 +114,23 @@ export class TrustlessWorkEscrowClient {
       releaseSigner: agentOwner,
       disputeResolver: this.cfg.platformAddress,
       receiver: agentOwner,
+    };
+  }
+
+  /**
+   * Roles para una liquidación SELF-RELEASE: la treasury (este signer) toma
+   * approver/serviceProvider/releaseSigner y el agente es solo el receiver. Permite que la
+   * treasury haga deploy+fund+complete+approve+release SOLA (sin la llave del agente), para
+   * pagar por lotes las ganancias acumuladas off-chain.
+   */
+  private selfReleaseRoles(receiver: string): TrustlessWorkRoles {
+    return {
+      approver: this.address,
+      serviceProvider: this.address,
+      platformAddress: this.cfg.platformAddress,
+      releaseSigner: this.address,
+      disputeResolver: this.cfg.platformAddress,
+      receiver,
     };
   }
 
@@ -264,7 +284,7 @@ export class TrustlessWorkEscrowClient {
       engagementId: args.engagementId,
       title: args.service,
       description: `Kiba x402 call: ${args.service}`,
-      roles: this.roles(args.agentOwner),
+      roles: args.roles ?? this.roles(args.agentOwner),
       amount,
       platformFee: this.cfg.platformFee,
       trustline: this.cfg.trustline,
@@ -323,6 +343,30 @@ export class TrustlessWorkEscrowClient {
     // No esperamos al indexer de TW aquí (lag ~30s): el agente verifica el fondeo
     // leyendo el balance del escrow on-chain (rápido) antes de servir.
     return { escrowId, signature: escrowId };
+  }
+
+  /**
+   * Liquidación por lotes (self-release): la treasury (este signer) fondea Y libera un escrow
+   * cuyo único receiver es el agente. Paga las ganancias acumuladas off-chain SIN la llave del
+   * agente — `release()` ya firma sus 3 pasos con `this.address` (= treasury), que coincide con
+   * los roles self-release. TW aplica el platformFee → ~95% al agente, ~5% de vuelta a
+   * platformAddress (= treasury). Devuelve el escrowId (identidad on-chain del payout).
+   */
+  async settle(args: {
+    receiver: string;
+    service: string;
+    engagementId: string;
+    amountBaseUnits: bigint;
+  }): Promise<string> {
+    const { escrowId } = await this.deployAndFund({
+      agentOwner: args.receiver,
+      service: args.service,
+      engagementId: args.engagementId,
+      amountBaseUnits: args.amountBaseUnits,
+      roles: this.selfReleaseRoles(args.receiver),
+    });
+    await this.release(escrowId);
+    return escrowId;
   }
 
   /** Ubica el contractId de un escrow recién desplegado por engagementId (recovery). */

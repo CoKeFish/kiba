@@ -91,6 +91,17 @@ export interface RefundEscrowArgs {
   escrowId: string;
 }
 
+export interface SettlePayoutArgs {
+  /** Dirección Stellar (G...) del agente que recibe el pago. */
+  receiver: string;
+  /** Servicio (para title/description del escrow de liquidación). */
+  service: string;
+  /** Identificador único del escrow de liquidación. */
+  engagementId: string;
+  /** Monto total a pagar (acumulado), en unidades base. TW aplica el platformFee (95/5). */
+  amountBaseUnits: bigint;
+}
+
 export interface ChainClient {
   /** Símbolo del activo de liquidación (va en el manifest y la quote x402). */
   readonly asset: 'SOL' | 'USDC' | 'XLM';
@@ -136,4 +147,11 @@ export interface ChainClient {
    * escrow. Devuelve el id/hash de la transacción.
    */
   refundEscrow(args: RefundEscrowArgs): Promise<string>;
+
+  /**
+   * Liquidación por lotes: paga a un agente (receiver) un monto acumulado off-chain vía un
+   * escrow self-release de Trustless Work (la treasury fondea y libera). Devuelve el escrowId
+   * del payout (su identidad on-chain).
+   */
+  settlePayout(args: SettlePayoutArgs): Promise<string>;
 }

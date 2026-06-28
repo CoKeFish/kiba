@@ -124,6 +124,40 @@ test('POST /service con X-PAYMENT válido (modo degradado, sin verificación) �
   assert.equal(data._payment?.mode, 'degraded-no-onchain-verification');
 });
 
+// ─── vía de confianza (X-Platform-Auth) ────────────────────────
+
+test('POST /service con X-Platform-Auth válido → 200 sin escrow + _payment.trusted', async () => {
+  process.env.PLATFORM_CALL_SECRET = 'test-secret-123';
+  try {
+    const r = await fetch(`${baseUrl}/service`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Platform-Auth': 'test-secret-123' },
+      body: JSON.stringify({ text: 'trusted' }),
+    });
+    assert.equal(r.status, 200);
+    const data = (await r.json()) as { echoed: { text: string }; _payment?: { trusted?: boolean } };
+    assert.equal(data.echoed.text, 'trusted');
+    assert.equal(data._payment?.trusted, true);
+  } finally {
+    delete process.env.PLATFORM_CALL_SECRET;
+  }
+});
+
+test('POST /service con X-Platform-Auth incorrecto → cae al flujo x402 (402)', async () => {
+  process.env.PLATFORM_CALL_SECRET = 'test-secret-123';
+  try {
+    const r = await fetch(`${baseUrl}/service`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Platform-Auth': 'wrong' },
+      body: JSON.stringify({ text: 'x' }),
+    });
+    // Secreto no coincide → se ignora el header → flujo x402 normal → 402 (sin X-PAYMENT).
+    assert.equal(r.status, 402);
+  } finally {
+    delete process.env.PLATFORM_CALL_SECRET;
+  }
+});
+
 test('POST /service con X-PAYMENT inválido (no base64 JSON) → 400', async () => {
   const r = await fetch(`${baseUrl}/service`, {
     method: 'POST',

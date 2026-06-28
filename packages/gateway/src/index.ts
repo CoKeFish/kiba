@@ -40,6 +40,7 @@ import {
 import { handleMcpRequest } from './mcp';
 import { getBalance, getTransactions, lamportsToUsd, topup } from './billing';
 import { callOnBehalf, listAgents, masterWalletPubkey } from './proxy';
+import { settleAgent, settleAllDue } from './settlement';
 import { getMasterWallet, getOnChainBalance, getUserBalances, userOnChainBalance } from './wallets';
 import { ASSET, ASSET_USD_RATE, BASE_UNITS_PER_TOKEN } from './chain';
 import { BASE_UNIT_NAME } from './wallets';
@@ -841,6 +842,22 @@ app.get('/v1/publisher/overview', requireAuth, async (req, res) => {
   }
 });
 
+// Liquidación BAJO DEMANDA: paga on-chain (vía TW, por lotes) el acumulado de los agentes del
+// caller. Respeta SETTLEMENT_MIN_PAYOUT (los que no llegan al mínimo se omiten).
+app.post('/v1/publisher/settle', requireAuth, async (req, res) => {
+  try {
+    const userId = req.bearerUser!.id;
+    const agents = await listMyAgents(userId);
+    const settlements = [];
+    for (const a of agents) {
+      settlements.push(await settleAgent(a.service));
+    }
+    res.json({ settlements });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
 // ─── Agent management (registry CRUD) ─────────────────────────────
 // El user firma con su custodial wallet → on-chain queda como owner.
 
@@ -1029,3 +1046,18 @@ app.listen(PORT, '0.0.0.0', () => {
   // touch db to ensure schema applied
   db.pragma('user_version');
 });
+
+// Liquidación PROGRAMADA (opcional): si SETTLEMENT_INTERVAL_MS está seteado, liquida por lotes
+// a todos los agentes con acumulado >= mínimo. Vacío = solo bajo demanda (POST /v1/publisher/settle).
+const SETTLEMENT_INTERVAL_MS = Number(process.env.SETTLEMENT_INTERVAL_MS);
+if (SETTLEMENT_INTERVAL_MS > 0) {
+  setInterval(() => {
+    void settleAllDue()
+      .then((r) => {
+        const paid = r.filter((x) => x.status === 'settled').length;
+        if (paid) console.log(`[settlement] lote programado: ${paid} liquidados`);
+      })
+      .catch((err) => console.error('[settlement] job falló:', (err as Error).message));
+  }, SETTLEMENT_INTERVAL_MS);
+  console.log(`[settlement] job programado cada ${SETTLEMENT_INTERVAL_MS}ms`);
+}
