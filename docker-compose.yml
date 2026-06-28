@@ -145,6 +145,11 @@ services:
       - PLATFORM_CALL_SECRET=${PLATFORM_CALL_SECRET:-}
       - SETTLEMENT_MIN_PAYOUT=${SETTLEMENT_MIN_PAYOUT:-10000000}
       - SETTLEMENT_INTERVAL_MS=${SETTLEMENT_INTERVAL_MS:-}
+      # Privy server wallets (no-custodial) para las wallets de usuario. Sin estas, las
+      # wallets caen al keypair custodial local (legacy).
+      - PRIVY_APP_ID=${PRIVY_APP_ID:-}
+      - PRIVY_APP_SECRET=${PRIVY_APP_SECRET:-}
+      - PRIVY_API_URL=${PRIVY_API_URL:-https://api.privy.io/v1}
     depends_on:
       - backend
       - demo-agents
