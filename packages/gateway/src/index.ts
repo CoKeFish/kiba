@@ -940,6 +940,14 @@ app.delete('/v1/agents/:service', requireAuth, async (req, res) => {
 app.post('/v1/call', requireAuth, async (req, res) => {
   const { service, payload } = req.body ?? {};
   if (!service) return res.status(400).json({ error: 'service required' });
+  // Validación de schema: rechaza campos desconocidos (p.ej. `input` en vez de `payload`) ANTES
+  // de cobrar. Sin esto, un campo mal escrito pasaba con payload vacío y cobraba igual.
+  const unknownFields = Object.keys(req.body ?? {}).filter((k) => k !== 'service' && k !== 'payload');
+  if (unknownFields.length > 0) {
+    return res.status(400).json({
+      error: `campo(s) no reconocido(s): ${unknownFields.join(', ')}. Los datos del servicio van en 'payload'.`,
+    });
+  }
 
   try {
     const result = await callOnBehalf({

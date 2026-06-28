@@ -69,6 +69,7 @@ const TOOLS = [
         },
       },
       required: ['service'],
+      additionalProperties: false,
     },
   },
   {
@@ -117,7 +118,16 @@ export function buildMcpServer(userId: number): Server {
           return jsonResult(await listAgents(q));
         }
         case 'call_agent': {
-          const { service, payload } = (args ?? {}) as { service?: string; payload?: unknown };
+          const a = (args ?? {}) as Record<string, unknown>;
+          // Validación de schema: rechaza campos desconocidos (p.ej. `input` en vez de `payload`)
+          // ANTES de cobrar. Sin esto, un campo mal escrito pasaba con payload vacío y cobraba.
+          const unknown = Object.keys(a).filter((k) => k !== 'service' && k !== 'payload');
+          if (unknown.length > 0) {
+            throw new Error(
+              `campo(s) no reconocido(s): ${unknown.join(', ')}. Los datos del servicio van en 'payload'.`,
+            );
+          }
+          const { service, payload } = a as { service?: string; payload?: unknown };
           if (!service) throw new Error('service required');
           const out = (await callOnBehalf({ userId, service, payload: payload ?? {} })) as unknown as {
             cost?: { lamports: number; usd: number };
