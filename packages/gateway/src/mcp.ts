@@ -102,30 +102,13 @@ export function buildMcpServer(userId: number): Server {
 
   server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: TOOLS as unknown as object[] }));
 
-  server.setRequestHandler(CallToolRequestSchema, async (req, extra): Promise<ToolResult> => {
+  server.setRequestHandler(CallToolRequestSchema, async (req): Promise<ToolResult> => {
     const { name, arguments: args } = req.params;
 
-    // call_agent tarda ~10-20s (liquidación x402 on-chain). Sin tráfico en el
-    // stream SSE, ChatGPT corta con "Error in message stream" (y proxies como
-    // Railway cierran la conexión por inactividad). Emitimos progreso cada 2s
-    // mientras dura: mantiene el stream vivo. Usamos el progressToken del cliente
-    // si lo mandó; si no, uno sintético (los bytes igual evitan el corte en ChatGPT).
-    const meta = (req.params as { _meta?: { progressToken?: string | number } })._meta;
-    const progressToken = meta?.progressToken ?? (name === 'call_agent' ? 'kiba' : undefined);
-    let ticker: ReturnType<typeof setInterval> | undefined;
-    if (name === 'call_agent' && progressToken !== undefined) {
-      let progress = 0;
-      ticker = setInterval(() => {
-        progress += 1;
-        void extra
-          .sendNotification({
-            method: 'notifications/progress',
-            params: { progressToken, progress, message: 'Liquidando pago on-chain…' },
-          })
-          .catch(() => {});
-      }, 2000);
-    }
-
+    // call_agent ahora es off-chain (~1s): devolvemos JSON directo (enableJsonResponse en el
+    // transport), sin streaming/keep-alive. Antes emitíamos progreso por SSE cada 2s para que
+    // call_agent (lento, ~40s on-chain) no cortara en ChatGPT/proxies; ese ticker enviaba un
+    // progressToken sintético no solicitado que algunos clientes rechazan (→ 500). Ya no aplica.
     try {
       switch (name) {
         case 'list_agents': {
@@ -182,8 +165,6 @@ export function buildMcpServer(userId: number): Server {
       const msg = err instanceof Error ? err.message : String(err);
       console.log(`[mcp-error] tool=${name}:`, err instanceof Error ? (err.stack ?? err.message) : err);
       return { content: [{ type: 'text', text: `Error: ${msg}` }], isError: true };
-    } finally {
-      if (ticker) clearInterval(ticker);
     }
   });
 
@@ -206,7 +187,13 @@ export async function handleMcpRequest(req: Request, res: Response): Promise<voi
   }
 
   const server = buildMcpServer(userId);
-  const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
+  // enableJsonResponse: respuesta JSON directa (no SSE). call_agent ya es rápido (off-chain),
+  // así que no necesitamos streaming/keep-alive; JSON es más simple y compatible con todos los
+  // clientes (evita el 500 del conector por la respuesta SSE + progress no solicitado).
+  const transport = new StreamableHTTPServerTransport({
+    sessionIdGenerator: undefined,
+    enableJsonResponse: true,
+  });
 
   res.on('close', () => {
     void transport.close();
