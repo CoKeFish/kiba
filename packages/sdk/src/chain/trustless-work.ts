@@ -204,6 +204,37 @@ export class TrustlessWorkEscrowClient {
     throw lastErr;
   }
 
+  /**
+   * postSim + signAndSend con reintento ante tx_bad_seq. Pasos consecutivos del mismo signer
+   * (deploy→fund de la treasury; change→approve→release del agente) pueden colisionar en la
+   * secuencia de la cuenta. Ante tx_bad_seq reconstruimos el XDR (postSim trae una secuencia
+   * fresca) tras una pausa para que cierre el ledger. "pending" del send NO es error (la tx
+   * aterrizó). Devuelve la respuesta del send (o {pending}).
+   */
+  private async postSimAndSend(
+    path: string,
+    body: object,
+    label: string,
+  ): Promise<Record<string, unknown>> {
+    for (let attempt = 0; ; attempt++) {
+      try {
+        const xdr = await this.postSim(path, body, label);
+        return await this.signAndSend(xdr);
+      } catch (err) {
+        const msg =
+          (err as { response?: { data?: { message?: string } } }).response?.data?.message ??
+          (err as Error).message ??
+          '';
+        if (/bad_seq|rejected by stellar/i.test(msg) && attempt < 3) {
+          console.warn(`[${this.label}] ${label} tx_bad_seq, reintento ${attempt + 1}`);
+          await this.sleep(3000);
+          continue;
+        }
+        throw err;
+      }
+    }
+  }
+
   /** Espera (poll) a que un escrow cumpla un predicado en el indexer. */
   private async waitFor(
     escrowId: string,
@@ -284,12 +315,11 @@ export class TrustlessWorkEscrowClient {
 
     // 2) Fund (lo firma el funder). postSim reintenta hasta que el deploy confirme
     //    on-chain; luego verificamos vía indexer que el balance llegó.
-    const fundXdr = await this.postSim(
+    await this.postSimAndSend(
       '/escrow/single-release/fund-escrow',
       { contractId: escrowId, signer: this.address, amount },
       'fund',
     );
-    await this.signAndSend(fundXdr);
     // No esperamos al indexer de TW aquí (lag ~30s): el agente verifica el fondeo
     // leyendo el balance del escrow on-chain (rápido) antes de servir.
     return { escrowId, signature: escrowId };
@@ -316,7 +346,7 @@ export class TrustlessWorkEscrowClient {
    */
   async release(escrowId: string): Promise<string> {
     // a) serviceProvider marca el milestone como completado.
-    const statusXdr = await this.postSim(
+    await this.postSimAndSend(
       '/escrow/single-release/change-milestone-status',
       {
         contractId: escrowId,
@@ -328,21 +358,18 @@ export class TrustlessWorkEscrowClient {
       },
       'change-milestone-status',
     );
-    await this.signAndSend(statusXdr);
     // b) approver aprueba el milestone.
-    const approveXdr = await this.postSim(
+    await this.postSimAndSend(
       '/escrow/single-release/approve-milestone',
       { contractId: escrowId, milestoneIndex: '0', approver: this.address },
       'approve-milestone',
     );
-    await this.signAndSend(approveXdr);
     // c) releaseSigner libera los fondos al receiver.
-    const relXdr = await this.postSim(
+    await this.postSimAndSend(
       '/escrow/single-release/release-funds',
       { contractId: escrowId, releaseSigner: this.address },
       'release',
     );
-    await this.signAndSend(relXdr);
     await this.waitFor(escrowId, (e) => !!(e.flags as Record<string, boolean>)?.released, 'release');
     return escrowId;
   }
