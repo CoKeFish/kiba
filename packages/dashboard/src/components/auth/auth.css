@@ -144,10 +144,10 @@
 }
 .auth-mascot--heart {
   /* mano sobre el borde del card */
-  left: -176px;
+  left: -118px;
   top: 28%;
   transform: translateY(-34%);
-  width: 200px;
+  width: 140px;
   height: auto;
   z-index: 2;
 }
@@ -442,8 +442,8 @@
     transform: translateY(-40%) rotate(-14deg);
   }
   .auth-mascot--heart {
-    left: -132px;
-    width: 152px;
+    left: -92px;
+    width: 108px;
     transform: translateY(-32%);
   }
   .auth-card-wrap {

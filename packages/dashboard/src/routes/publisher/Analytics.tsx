@@ -1,15 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { Card, CardBody, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { formatUsd } from "@/lib/format";
 import { serviceToName, solToUsd } from "@/components/AgentManager";
+import { Activity, Bot, Coins } from "lucide-react";
+import "./publisher.css";
 
 const BAR_COLORS = [
   "var(--color-primary)",
   "var(--color-success)",
   "#FFD54A",
   "#FF6EC7",
-  "#6C48FF",
+  "var(--c-purple)",
   "#00D1C2",
 ];
 
@@ -23,91 +24,139 @@ export default function PublisherAnalytics() {
   const agents = (data?.agents ?? []).slice().sort((a, b) => b.totalCalls - a.totalCalls);
   const maxCalls = Math.max(1, ...agents.map((a) => a.totalCalls));
   const totalCalls = data?.totals.calls ?? 0;
+  const feePct = data?.fee.pct ?? 5;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Analytics</h1>
-        <p className="text-sm text-[var(--color-fg-muted)]">
-          Usage across your agents — calls served and revenue share.
-        </p>
+    <div className="pub-page">
+      <header className="pub-head">
+        <div className="pub-head__copy">
+          <h1 className="pub-title">Analytics</h1>
+          <p className="pub-subtitle">Usage across your agents — calls served and revenue share.</p>
+        </div>
+      </header>
+
+      <div className="pub-kpis pub-kpis--3">
+        <article className="pub-kpi">
+          <div className="pub-kpi__row">
+            <div>
+              <p className="pub-kpi__label">Total calls</p>
+              <p className="pub-kpi__value">{isLoading ? "—" : totalCalls.toLocaleString()}</p>
+            </div>
+            <div className="pub-kpi__icon" style={{ background: "color-mix(in srgb, var(--color-primary) 14%, transparent)", color: "var(--color-primary)" }}>
+              <Activity size={20} />
+            </div>
+          </div>
+        </article>
+        <article className="pub-kpi">
+          <div className="pub-kpi__row">
+            <div>
+              <p className="pub-kpi__label">Total revenue</p>
+              <p className="pub-kpi__value pub-kpi__value--ok">
+                {isLoading ? "—" : formatUsd(data?.totals.earned_usd ?? 0)}
+              </p>
+            </div>
+            <div className="pub-kpi__icon" style={{ background: "color-mix(in srgb, var(--color-success) 14%, transparent)", color: "var(--color-success)" }}>
+              <Coins size={20} />
+            </div>
+          </div>
+        </article>
+        <article className="pub-kpi">
+          <div className="pub-kpi__row">
+            <div>
+              <p className="pub-kpi__label">Active agents</p>
+              <p className="pub-kpi__value">{isLoading ? "—" : String(data?.totals.agents ?? 0)}</p>
+            </div>
+            <div className="pub-kpi__icon" style={{ background: "color-mix(in srgb, var(--c-purple) 14%, transparent)", color: "var(--c-purple)" }}>
+              <Bot size={20} />
+            </div>
+          </div>
+        </article>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Calls by agent</CardTitle>
-          <CardDescription>
-            {totalCalls.toLocaleString()} total call{totalCalls !== 1 ? "s" : ""} served
-          </CardDescription>
-        </CardHeader>
-        <CardBody className="space-y-4">
-          {isLoading ? (
-            <p className="text-sm text-[var(--color-fg-muted)] py-6 text-center">Loading…</p>
-          ) : agents.length === 0 ? (
-            <p className="text-sm text-[var(--color-fg-muted)] py-6 text-center">
-              No data yet. Once your agents start serving paid calls, usage shows up here.
+      <section className="pub-card">
+        <div className="pub-card__head">
+          <div>
+            <h2 className="pub-card__title">Calls over time</h2>
+            <p className="pub-card__desc">
+              {totalCalls.toLocaleString()} total call{totalCalls !== 1 ? "s" : ""} served
             </p>
+          </div>
+        </div>
+        <div className="pub-card__body">
+          {isLoading ? (
+            <p className="pub-loading">Loading analytics…</p>
+          ) : agents.length === 0 ? (
+            <div className="pub-empty">
+              <img src="/agents/circulo.png" alt="" aria-hidden className="pub-empty__mascot" />
+              <p className="pub-empty__title">No analytics yet</p>
+              <p className="pub-empty__text">
+                Once your agents start serving paid calls, usage shows up here.
+              </p>
+            </div>
           ) : (
-            agents.map((a, i) => {
-              const pct = (a.totalCalls / maxCalls) * 100;
-              const share = totalCalls > 0 ? (a.totalCalls / totalCalls) * 100 : 0;
-              return (
-                <div key={a.service} className="space-y-1">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="font-medium">{serviceToName(a.service)}</span>
-                    <span className="font-mono text-xs text-[var(--color-fg-muted)]">
-                      {a.totalCalls.toLocaleString()} calls · {share.toFixed(0)}% ·{" "}
-                      <span className="text-[var(--color-success)]">
-                        {formatUsd(solToUsd(a.totalEarnedSol))}
+            <div className="pub-bars">
+              {agents.map((a, i) => {
+                const pct = (a.totalCalls / maxCalls) * 100;
+                const share = totalCalls > 0 ? (a.totalCalls / totalCalls) * 100 : 0;
+                return (
+                  <div key={a.service}>
+                    <div className="pub-bar-row__head">
+                      <span className="pub-bar-row__name">{serviceToName(a.service)}</span>
+                      <span className="pub-bar-row__meta">
+                        {a.totalCalls.toLocaleString()} calls · {share.toFixed(0)}% ·{" "}
+                        <span style={{ color: "var(--color-success)" }}>
+                          {formatUsd(solToUsd(a.totalEarnedSol))}
+                        </span>
                       </span>
-                    </span>
+                    </div>
+                    <div className="pub-bar-track">
+                      <div
+                        className="pub-bar-fill"
+                        style={{
+                          width: `${Math.max(2, pct)}%`,
+                          background: BAR_COLORS[i % BAR_COLORS.length],
+                        }}
+                      />
+                    </div>
                   </div>
-                  <div
-                    className="h-2.5 rounded-full overflow-hidden"
-                    style={{ background: "var(--color-bg)" }}
-                  >
-                    <div
-                      className="h-full rounded-full transition-all"
-                      style={{
-                        width: `${Math.max(2, pct)}%`,
-                        background: BAR_COLORS[i % BAR_COLORS.length],
-                      }}
-                    />
-                  </div>
-                </div>
-              );
-            })
+                );
+              })}
+            </div>
           )}
-        </CardBody>
-      </Card>
+        </div>
+      </section>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Revenue by agent</CardTitle>
-        </CardHeader>
-        <CardBody>
+      <section className="pub-card">
+        <div className="pub-card__head">
+          <div>
+            <h2 className="pub-card__title">Revenue by agent</h2>
+            <p className="pub-card__desc">Top performers by lifetime earnings.</p>
+          </div>
+        </div>
+        <div className="pub-card__body">
           {agents.length === 0 ? (
-            <p className="text-sm text-[var(--color-fg-muted)] py-4 text-center">No revenue yet.</p>
+            <div className="pub-empty">
+              <img src="/agents/estrella.png" alt="" aria-hidden className="pub-empty__mascot" />
+              <p className="pub-empty__text">No revenue yet.</p>
+            </div>
           ) : (
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <div className="pub-tiles">
               {agents.map((a) => (
-                <div
-                  key={a.service}
-                  className="rounded-md border border-[var(--color-border)] p-3"
-                >
-                  <div className="text-sm font-medium truncate">{serviceToName(a.service)}</div>
-                  <div className="text-lg font-semibold text-[var(--color-success)] font-mono">
-                    {formatUsd(solToUsd(a.totalEarnedSol))}
-                  </div>
-                  <div className="text-xs text-[var(--color-fg-muted)] font-mono">
-                    {a.totalCalls.toLocaleString()} calls
-                  </div>
-                </div>
+                <article key={a.service} className="pub-tile">
+                  <p className="pub-tile__name">{serviceToName(a.service)}</p>
+                  <p className="pub-tile__value">{formatUsd(solToUsd(a.totalEarnedSol))}</p>
+                  <p className="pub-tile__hint">{a.totalCalls.toLocaleString()} calls</p>
+                </article>
               ))}
             </div>
           )}
-        </CardBody>
-      </Card>
+        </div>
+      </section>
+
+      <p className="pub-banner">
+        <strong>Success rate:</strong> Publishers keep {100 - feePct}% of every paid call — visible
+        on-chain after each transaction.
+      </p>
     </div>
   );
 }

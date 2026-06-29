@@ -262,7 +262,7 @@ export function AppLayout() {
               </span>
               {balance && (
                 <span style={{ color: "var(--color-fg-subtle)", marginLeft: 6 }}>
-                  (≈ {formatUsd(balance.balance_usd)})
+                  (= {formatUsd(balance.balance_usd)})
                 </span>
               )}
             </div>
@@ -274,7 +274,7 @@ export function AppLayout() {
 
         <main
           className="flex-1 overflow-y-auto"
-          style={{ padding: 24, background: "var(--color-bg)" }}
+          style={{ padding: 24, background: "#f4f7fb" }}
         >
           <Outlet />
         </main>

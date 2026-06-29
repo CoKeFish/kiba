@@ -1,10 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { Card, CardBody, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import {
   formatUsd,
   lamportsToUsd,
@@ -18,10 +14,24 @@ import {
   explorerUrl,
 } from "@/lib/format";
 import { format } from "date-fns";
-import { CreditCard, Wallet, ExternalLink, AlertCircle } from "lucide-react";
+import {
+  AlertCircle,
+  CreditCard,
+  ExternalLink,
+  FileText,
+  Wallet,
+  Zap,
+} from "lucide-react";
 import { BrebTopup } from "@/components/BrebTopup";
+import "./billing.css";
 
 const QUICK_AMOUNTS = [5, 10, 25, 50, 100];
+
+const MASCOTS = {
+  circulo: "/agents/circulo.png",
+  triangulo: "/agents/triangulo.png",
+  morado: "/agents/morado.png",
+} as const;
 
 export default function Billing() {
   const qc = useQueryClient();
@@ -67,152 +77,180 @@ export default function Billing() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Billing</h1>
-        <p className="text-sm text-[var(--color-fg-muted)]">
-          Top up credits and review your invoices.
-        </p>
-      </div>
+    <div className="billing-page">
+      <header className="billing-head">
+        <h1 className="billing-title">Billing</h1>
+        <p className="billing-subtitle">Top up credits and review your invoices.</p>
+      </header>
 
-      {/* Balance card */}
-      <Card>
-        <CardBody className="flex items-center justify-between">
-          <div>
-            <p className="text-xs text-[var(--color-fg-muted)] uppercase tracking-wider mb-2">
-              Available balance
-            </p>
-            <p className="text-3xl font-semibold font-mono">
-              {balance ? formatKibsLabel(usdToKibs(balance.balance_usd)) : "—"}
-            </p>
-            <p className="text-xs text-[var(--color-fg-muted)] mt-1">
-              {balance ? `≈ ${formatUsd(balance.balance_usd)} · ${KIBS_LABEL} are spent on agent calls` : `${KIBS_LABEL} are spent on agent calls`}
-            </p>
-          </div>
-          <Wallet className="w-8 h-8 text-[var(--color-fg-muted)]" />
-        </CardBody>
-      </Card>
+      <div className="billing-grid">
+        <div>
+          <section className="billing-card billing-balance">
+            <div className="billing-balance__row">
+              <div>
+                <p className="billing-balance__label">Available balance</p>
+                <p className="billing-balance__value">
+                  {balance ? formatKibsLabel(usdToKibs(balance.balance_usd)) : "—"}
+                </p>
+                <p className="billing-balance__hint">
+                  {balance
+                    ? `≈ ${formatUsd(balance.balance_usd)} · ${KIBS_LABEL} are spent on agent calls`
+                    : `${KIBS_LABEL} are spent on agent calls`}
+                </p>
+              </div>
+              <div className="billing-balance__icon">
+                <Wallet size={22} strokeWidth={2} />
+              </div>
+            </div>
+          </section>
 
-      {/* Top up */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Top up</CardTitle>
-          <CardDescription>
-            Pay in dollars — we convert to {KIBS_LABEL} instantly ($1 = {formatKibs(usdToKibs(1))}{" "}
-            {KIBS_LABEL}). Demo mode adds them instantly; production would route through Stripe Checkout.
-          </CardDescription>
-        </CardHeader>
-        <CardBody className="space-y-4">
-          <div className="flex flex-wrap gap-2">
+          <section className="billing-tip">
+            <p>
+              <strong>Kibs power your agents</strong> — Top up anytime to keep your agents running
+              smoothly.
+            </p>
+            <img src={MASCOTS.circulo} alt="" aria-hidden className="billing-tip__mascot" />
+          </section>
+        </div>
+
+        <section className="billing-card billing-topup">
+          <img src={MASCOTS.triangulo} alt="" aria-hidden className="billing-topup__mascot" />
+          <h2 className="billing-card__title">
+            <Zap size={18} strokeWidth={2.25} />
+            Top up
+          </h2>
+          <p className="billing-card__desc">
+            Pay in dollars — we convert to {KIBS_LABEL} instantly ($1 ={" "}
+            {formatKibs(usdToKibs(1))} {KIBS_LABEL}). Demo mode adds them instantly; production
+            would route through Stripe Checkout.
+          </p>
+
+          <div className="billing-amounts">
             {QUICK_AMOUNTS.map((q) => (
-              <Button
+              <button
                 key={q}
-                size="sm"
-                variant={amount === q ? "default" : "subtle"}
+                type="button"
+                className={`billing-amount${amount === q ? " is-active" : ""}`}
                 onClick={() => setAmount(q)}
               >
                 ${q}
-              </Button>
+              </button>
             ))}
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-[var(--color-fg-muted)]">Custom $</span>
-              <Input
+            <label className="billing-custom">
+              Custom ($)
+              <input
                 type="number"
                 min={1}
                 max={1000}
                 value={amount}
                 onChange={(e) => setAmount(Number(e.target.value))}
-                className="w-24"
               />
-            </div>
+            </label>
           </div>
+
           {amount > 0 && (
-            <div className="text-sm text-[var(--color-fg-muted)]">
+            <div className="billing-convert">
               {formatUsd(amount)} →{" "}
-              <span className="font-semibold text-[var(--color-fg)]">
-                {formatKibsLabel(usdToKibs(amount))}
-              </span>
+              <strong>{formatKibsLabel(usdToKibs(amount))}</strong>
             </div>
           )}
+
           {error && (
-            <div className="flex items-center gap-2 text-sm text-[var(--color-danger)]">
-              <AlertCircle className="w-4 h-4" />
+            <div className="billing-alert billing-alert--err">
+              <AlertCircle size={16} />
               {error}
             </div>
           )}
-          {success && (
-            <div className="text-sm text-[var(--color-success)] font-mono">{success}</div>
-          )}
-          <Button
+          {success && <div className="billing-alert billing-alert--ok">{success}</div>}
+
+          <button
+            type="button"
+            className="billing-submit"
             onClick={() => submit(amount)}
             disabled={mutation.isPending || amount <= 0}
-            className="w-full sm:w-auto"
           >
-            <CreditCard className="w-4 h-4" />
+            <CreditCard size={16} />
             {mutation.isPending
               ? "Processing…"
               : `Add ${formatKibsLabel(usdToKibs(amount))} (${formatUsd(amount)})`}
-          </Button>
-        </CardBody>
-      </Card>
+          </button>
+        </section>
+      </div>
 
-      {/* Bre-B (Colombia) — recarga local sin wallet */}
       <BrebTopup />
 
-      {/* Invoices history */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Invoices</CardTitle>
-          <CardDescription>
-            {topups.length === 0 ? "No top-ups yet" : `${topups.length} top-up(s)`}
-          </CardDescription>
-        </CardHeader>
-        <CardBody className="p-0">
-          {topups.length === 0 ? (
-            <p className="text-sm text-[var(--color-fg-muted)] text-center py-8">
-              Your top-ups will appear here.
+      <section className="billing-card">
+        <div className="billing-invoices__head">
+          <div>
+            <h2 className="billing-card__title">
+              <FileText size={18} strokeWidth={2.25} />
+              Invoices
+            </h2>
+            <p className="billing-card__desc" style={{ marginBottom: 0 }}>
+              {topups.length === 0
+                ? "No top-ups yet"
+                : `${topups.length} top-up${topups.length !== 1 ? "s" : ""}`}
             </p>
+          </div>
+        </div>
+        <div className="billing-invoices__body">
+          {topups.length === 0 ? (
+            <div className="billing-empty">
+              <img src={MASCOTS.morado} alt="" aria-hidden className="billing-empty__mascot" />
+              <p className="billing-empty__text">Your top-ups will appear here.</p>
+            </div>
           ) : (
-            <ul>
-              {topups.map((t) => (
-                <li
-                  key={t.id}
-                  className="flex items-center justify-between py-3 px-6 border-b border-[var(--color-border)] last:border-0"
-                >
-                  <div className="flex items-center gap-3">
-                    <Badge tone="success">topup</Badge>
-                    <div>
-                      <div className="text-sm font-mono">{t.service || "fake-stripe"}</div>
-                      <div className="text-xs text-[var(--color-fg-muted)]">
-                        {format(new Date(t.created_at * 1000), "MMM d, HH:mm:ss")}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    {t.tx_signature && (
-                      <a
-                        href={explorerUrl(t.tx_signature)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs font-mono text-[var(--color-primary)] hover:underline flex items-center gap-1"
-                      >
-                        {shortSig(t.tx_signature)}
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
-                    )}
-                    <span className="font-mono text-sm text-[var(--color-success)] text-right">
-                      <div>+ {formatKibsLabel(baseUnitsToKibs(t.amount_lamports))}</div>
-                      <div className="text-xs text-[var(--color-fg-muted)]">
+            <div className="billing-table-wrap">
+              <table className="billing-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Description</th>
+                    <th>Type</th>
+                    <th>Amount ({KIBS_LABEL})</th>
+                    <th>Amount (USD)</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {topups.map((t) => (
+                    <tr key={t.id}>
+                      <td className="billing-table__muted">
+                        {format(new Date(t.created_at * 1000), "MMM d, yyyy HH:mm")}
+                      </td>
+                      <td>
+                        <div>{t.service || "fake-stripe"}</div>
+                        {t.tx_signature && (
+                          <a
+                            href={explorerUrl(t.tx_signature)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="billing-link billing-table__mono"
+                            style={{ fontSize: 11 }}
+                          >
+                            {shortSig(t.tx_signature)}
+                            <ExternalLink size={12} />
+                          </a>
+                        )}
+                      </td>
+                      <td>
+                        <span className="billing-badge">topup</span>
+                      </td>
+                      <td className="billing-table__mono billing-table__ok">
+                        + {formatKibsLabel(baseUnitsToKibs(t.amount_lamports))}
+                      </td>
+                      <td className="billing-table__muted">
                         ≈ {formatUsd(lamportsToUsd(t.amount_lamports))}
-                      </div>
-                    </span>
-                  </div>
-                </li>
-              ))}
-            </ul>
+                      </td>
+                      <td className="billing-table__ok">Completed</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
-        </CardBody>
-      </Card>
+        </div>
+      </section>
     </div>
   );
 }

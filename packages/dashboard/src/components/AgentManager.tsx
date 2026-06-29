@@ -1,22 +1,13 @@
 /**
- * Componentes reutilizables de gestión de agentes (lado publisher):
- *   - RegisterAgentForm  → publica un agente on-chain (custodial wallet firma)
- *   - MyAgentsSection    → lista los agentes del user con edit/delete inline
- *   - EditAgentRow       → edición de precio/endpoint/descripción
- *
- * Extraídos de routes/Agents.tsx para compartirlos entre el browse del consumidor
- * y las rutas del dashboard de publisher.
+ * Componentes reutilizables de gestión de agentes (lado publisher).
  */
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, type MyAgent } from "@/lib/api";
-import { Card, CardBody, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { formatUsd } from "@/lib/format";
 import { chain } from "@/lib/chain";
 import { ChevronDown, ChevronUp, ExternalLink, Pencil, Trash2, X } from "lucide-react";
+import "./agent-manager.css";
 
 export const solToUsd = (sol: number) => sol * chain.usdRate;
 export const usdToLamports = (usd: number) =>
@@ -32,17 +23,12 @@ export function serviceToName(service: string): string {
 const explorerWallet = (addr: string) => chain.explorerAddr(addr);
 const explorerTx = (sig: string) => chain.explorerTx(sig);
 
-// Presets de precio basados en el tipo de servicio agéntico
 export const PRICING_PRESETS: { label: string; usd: number; hint: string }[] = [
   { label: "Quick lookup", usd: 0.01, hint: "Conversion, fetch, simple query" },
   { label: "Standard agent", usd: 0.1, hint: "Single LLM call, basic reasoning" },
   { label: "Premium agent", usd: 0.5, hint: "Multi-step reasoning, code review" },
   { label: "Heavy compute", usd: 2.0, hint: "Long-running task, complex inference" },
 ];
-
-// ════════════════════════════════════════════════════════════════
-//   RegisterAgentForm
-// ════════════════════════════════════════════════════════════════
 
 export function RegisterAgentForm({ onSuccess }: { onSuccess?: () => void }) {
   const qc = useQueryClient();
@@ -82,57 +68,44 @@ export function RegisterAgentForm({ onSuccess }: { onSuccess?: () => void }) {
 
   if (success) {
     return (
-      <Card className="border-[var(--color-success)]">
-        <CardBody className="space-y-3">
-          <div className="flex items-center gap-2 text-[var(--color-success)] font-semibold">
-            ✓ Agent registered on-chain
+      <div className="am-card am-card--success">
+        <div className="am-card__body">
+          <p className="am-success-title">✓ Agent registered on-chain</p>
+          <div className="am-proof">
+            <span className="am-proof__label">PDA</span>
+            <a href={explorerWallet(success.pda)} target="_blank" rel="noopener noreferrer">
+              {success.pda.slice(0, 8)}…{success.pda.slice(-8)}
+              <ExternalLink size={12} />
+            </a>
           </div>
-          <div className="text-sm space-y-2">
-            <div className="font-mono text-xs flex items-center justify-between border border-[var(--color-border)] rounded-md p-2">
-              <span className="text-[var(--color-fg-muted)]">PDA:</span>
-              <a
-                href={explorerWallet(success.pda)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[var(--color-primary)] hover:underline flex items-center gap-1"
-              >
-                {success.pda.slice(0, 8)}…{success.pda.slice(-8)}
-                <ExternalLink className="w-3 h-3" />
-              </a>
-            </div>
-            <div className="font-mono text-xs flex items-center justify-between border border-[var(--color-border)] rounded-md p-2">
-              <span className="text-[var(--color-fg-muted)]">Signature:</span>
-              <a
-                href={explorerTx(success.signature)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[var(--color-primary)] hover:underline flex items-center gap-1"
-              >
-                {success.signature.slice(0, 8)}…{success.signature.slice(-8)}
-                <ExternalLink className="w-3 h-3" />
-              </a>
-            </div>
+          <div className="am-proof">
+            <span className="am-proof__label">Signature</span>
+            <a href={explorerTx(success.signature)} target="_blank" rel="noopener noreferrer">
+              {success.signature.slice(0, 8)}…{success.signature.slice(-8)}
+              <ExternalLink size={12} />
+            </a>
           </div>
-        </CardBody>
-      </Card>
+        </div>
+      </div>
     );
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Register a new agent</CardTitle>
-        <CardDescription>
+    <div className="am-card">
+      <div className="am-card__head">
+        <h3 className="am-card__title">Register a new agent</h3>
+        <p className="am-card__desc">
           Your custodial wallet signs the on-chain <code>register_agent</code> instruction.
           Payments from clients (95%) land in this wallet directly.
-        </CardDescription>
-      </CardHeader>
-      <CardBody>
-        <form onSubmit={onSubmit} className="space-y-4">
-          <div>
-            <Label htmlFor="service">Service slug</Label>
-            <Input
+        </p>
+      </div>
+      <div className="am-card__body">
+        <form onSubmit={onSubmit} className="am-form">
+          <div className="am-field">
+            <label htmlFor="service">Service slug</label>
+            <input
               id="service"
+              className="am-input"
               type="text"
               value={service}
               onChange={(e) => setService(e.target.value)}
@@ -140,15 +113,14 @@ export function RegisterAgentForm({ onSuccess }: { onSuccess?: () => void }) {
               maxLength={32}
               required
             />
-            <p className="text-xs text-[var(--color-fg-muted)] mt-1">
-              Lowercase, alphanumeric, dashes/underscores allowed. Max 32 chars.
-            </p>
+            <p className="am-hint">Lowercase, alphanumeric, dashes/underscores allowed. Max 32 chars.</p>
           </div>
 
-          <div>
-            <Label htmlFor="endpoint">Endpoint URL</Label>
-            <Input
+          <div className="am-field">
+            <label htmlFor="endpoint">Endpoint URL</label>
+            <input
               id="endpoint"
+              className="am-input"
               type="url"
               value={endpoint}
               onChange={(e) => setEndpoint(e.target.value)}
@@ -156,63 +128,52 @@ export function RegisterAgentForm({ onSuccess }: { onSuccess?: () => void }) {
               maxLength={256}
               required
             />
-            <p className="text-xs text-[var(--color-fg-muted)] mt-1">
-              The HTTP endpoint clients hit. Must implement the x402 handshake.
-            </p>
+            <p className="am-hint">The HTTP endpoint clients hit. Must implement the x402 handshake.</p>
           </div>
 
-          <div>
-            <Label htmlFor="description">Description</Label>
+          <div className="am-field">
+            <label htmlFor="description">Description</label>
             <textarea
               id="description"
+              className="am-textarea"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="What does this agent do? Be specific about inputs and outputs."
               maxLength={512}
               required
               rows={3}
-              className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
             />
-            <p className="text-xs text-[var(--color-fg-muted)] mt-1">
-              {description.length} / 512 chars. This helps the discovery indexer.
-            </p>
+            <p className="am-hint">{description.length} / 512 chars. This helps the discovery indexer.</p>
           </div>
 
-          <div>
-            <Label>Floor price per call</Label>
-            <p className="text-xs text-[var(--color-fg-muted)] mb-2">
+          <div className="am-field">
+            <label>Floor price per call</label>
+            <p className="am-hint" style={{ marginBottom: 10 }}>
               On-chain minimum. Your agent can charge more per request via{" "}
-              <code className="font-mono">priceFn</code> in the SDK (e.g. per char, per line).
+              <code>priceFn</code> in the SDK.
             </p>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-1">
+            <div className="am-presets">
               {PRICING_PRESETS.map((p) => (
                 <button
                   key={p.label}
                   type="button"
+                  className={`am-preset${priceUsd === p.usd ? " is-active" : ""}`}
                   onClick={() => setPriceUsd(p.usd)}
-                  className={`text-left rounded-md border px-3 py-2 transition-colors ${
-                    priceUsd === p.usd
-                      ? "border-[var(--color-primary)] bg-[color-mix(in_srgb,var(--color-primary)_10%,transparent)]"
-                      : "border-[var(--color-border)] hover:border-[var(--color-primary)]"
-                  }`}
                 >
-                  <div className="text-sm font-medium">{p.label}</div>
-                  <div className="text-xs text-[var(--color-success)] font-mono">
-                    ${p.usd.toFixed(2)}
-                  </div>
-                  <div className="text-xs text-[var(--color-fg-muted)] mt-1 leading-tight">
-                    {p.hint}
-                  </div>
+                  <p className="am-preset__title">{p.label}</p>
+                  <p className="am-preset__price">${p.usd.toFixed(2)}</p>
+                  <p className="am-preset__hint">{p.hint}</p>
                 </button>
               ))}
             </div>
-            <div className="mt-3 flex items-center gap-3">
-              <div className="flex-1">
-                <Label htmlFor="custom-price" className="text-xs text-[var(--color-fg-muted)]">
+            <div className="am-custom-price">
+              <div className="am-custom-price__input">
+                <label htmlFor="custom-price" className="am-label">
                   Custom (USD)
-                </Label>
-                <Input
+                </label>
+                <input
                   id="custom-price"
+                  className="am-input"
                   type="number"
                   min={0.001}
                   step={0.001}
@@ -220,75 +181,79 @@ export function RegisterAgentForm({ onSuccess }: { onSuccess?: () => void }) {
                   onChange={(e) => setPriceUsd(Number(e.target.value) || 0)}
                 />
               </div>
-              <div className="text-xs text-[var(--color-fg-muted)] font-mono pt-5">
+              <div className="am-custom-price__meta">
                 = {(lamports / chain.baseUnitsPerToken).toFixed(6)} {chain.asset}
-                <br />
-                = {lamports.toLocaleString()} base units
+                <br />= {lamports.toLocaleString()} base units
               </div>
             </div>
           </div>
 
-          {submitError && (
-            <div className="rounded-md border border-[var(--color-danger)] bg-[color-mix(in_srgb,var(--color-danger)_10%,transparent)] p-3 text-sm text-[var(--color-danger)]">
-              {submitError}
-            </div>
-          )}
+          {submitError && <div className="am-error">{submitError}</div>}
 
-          <div className="flex justify-end gap-2 pt-2 border-t border-[var(--color-border)]">
-            <Button type="submit" variant="default" disabled={mutation.isPending}>
+          <div className="am-form-actions">
+            <button type="submit" className="am-btn am-btn--primary" disabled={mutation.isPending}>
               {mutation.isPending ? "Registering on-chain…" : "Register agent"}
-            </Button>
+            </button>
           </div>
         </form>
-      </CardBody>
-    </Card>
+      </div>
+    </div>
   );
 }
-
-// ════════════════════════════════════════════════════════════════
-//   MyAgentsSection
-// ════════════════════════════════════════════════════════════════
 
 export function MyAgentsSection({
   agents,
   collapsible = true,
+  layout = "list",
+  emptyMascot,
 }: {
   agents: MyAgent[];
   collapsible?: boolean;
+  layout?: "list" | "grid";
+  emptyMascot?: string;
 }) {
   const [expanded, setExpanded] = useState(true);
 
   return (
-    <Card className="border-[var(--color-primary)]">
-      <CardHeader
-        className={collapsible ? "cursor-pointer flex items-center justify-between flex-row" : "flex items-center justify-between flex-row"}
+    <div className="am-card am-card--accent">
+      <div
+        className={`am-card__head am-card__head--row${collapsible ? " am-card__head--clickable" : ""}`}
         onClick={collapsible ? () => setExpanded((v) => !v) : undefined}
+        onKeyDown={collapsible ? (e) => e.key === "Enter" && setExpanded((v) => !v) : undefined}
+        role={collapsible ? "button" : undefined}
+        tabIndex={collapsible ? 0 : undefined}
       >
         <div>
-          <CardTitle>My agents</CardTitle>
-          <CardDescription>
+          <h3 className="am-card__title">My agents</h3>
+          <p className="am-card__desc">
             {agents.length} agent{agents.length !== 1 ? "s" : ""} owned by your custodial wallet ·
             Total earned:{" "}
-            <span className="text-[var(--color-success)] font-mono">
+            <strong style={{ color: "var(--color-success)", fontFamily: "var(--font-mono)" }}>
               {formatUsd(solToUsd(agents.reduce((sum, a) => sum + a.totalEarnedSol, 0)))}
-            </span>
-          </CardDescription>
+            </strong>
+          </p>
         </div>
-        {collapsible &&
-          (expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />)}
-      </CardHeader>
+        {collapsible && (expanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />)}
+      </div>
       {(!collapsible || expanded) && (
-        <CardBody className="space-y-3">
+        <div className="am-card__body">
           {agents.length === 0 ? (
-            <p className="text-sm text-[var(--color-fg-muted)] text-center py-6">
-              No agents yet. Publish your first one to start earning.
-            </p>
+            <div className="am-empty">
+              {emptyMascot && (
+                <img src={emptyMascot} alt="" aria-hidden className="am-empty__mascot" />
+              )}
+              <p>No agents yet. Publish your first one to start earning.</p>
+            </div>
           ) : (
-            agents.map((a) => <MyAgentRow key={a.service} agent={a} />)
+            <div className={`am-agents${layout === "grid" ? " am-agents--grid" : ""}`}>
+              {agents.map((a) => (
+                <MyAgentRow key={a.service} agent={a} />
+              ))}
+            </div>
           )}
-        </CardBody>
+        </div>
       )}
-    </Card>
+    </div>
   );
 }
 
@@ -322,72 +287,64 @@ function MyAgentRow({ agent }: { agent: MyAgent }) {
   }
 
   return (
-    <div className="rounded-md border border-[var(--color-border)] p-3 space-y-2">
-      <div className="flex items-start justify-between gap-3">
+    <div className="am-agent">
+      <div className="am-agent__top">
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <span className="font-medium">{serviceToName(agent.service)}</span>
-            <span className="font-mono text-xs text-[var(--color-fg-muted)]">{agent.service}</span>
-          </div>
-          <p className="text-sm text-[var(--color-fg-muted)] mt-1 line-clamp-2">
-            {agent.description}
-          </p>
-          <div className="flex items-center gap-4 mt-2 text-xs flex-wrap">
+          <h4 className="am-agent__name">
+            {serviceToName(agent.service)}
+            <span className="am-agent__slug">{agent.service}</span>
+          </h4>
+          <p className="am-agent__desc">{agent.description}</p>
+          <div className="am-agent__stats">
             <span>
-              <span className="text-[var(--color-fg-muted)]">Price:</span>{" "}
-              <span className="text-[var(--color-success)] font-mono">
-                {formatUsd(solToUsd(agent.pricePerCallSol))}
-              </span>
+              Price: <strong>{formatUsd(solToUsd(agent.pricePerCallSol))}</strong>
             </span>
             <span>
-              <span className="text-[var(--color-fg-muted)]">Calls:</span>{" "}
-              <span className="font-mono">{agent.totalCalls.toLocaleString()}</span>
+              Calls: <strong style={{ color: "var(--color-fg)" }}>{agent.totalCalls.toLocaleString()}</strong>
             </span>
             <span>
-              <span className="text-[var(--color-fg-muted)]">Earned:</span>{" "}
-              <span className="text-[var(--color-success)] font-mono">
-                {formatUsd(solToUsd(agent.totalEarnedSol))}
-              </span>
+              Earned: <strong>{formatUsd(solToUsd(agent.totalEarnedSol))}</strong>
             </span>
             <a
               href={explorerWallet(agent.owner)}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-[var(--color-primary)] hover:underline inline-flex items-center gap-1 font-mono"
+              className="pub-link"
+              style={{ fontSize: 11 }}
             >
-              owner <ExternalLink className="w-3 h-3" />
+              owner <ExternalLink size={12} />
             </a>
           </div>
         </div>
-        <div className="flex flex-col gap-1 shrink-0">
-          <Button size="sm" variant="ghost" onClick={() => setEditing(true)}>
-            <Pencil className="w-3 h-3" />
+        <div className="am-agent__actions">
+          <button type="button" className="am-btn am-btn--ghost am-btn--sm" onClick={() => setEditing(true)}>
+            <Pencil size={13} />
             Edit
-          </Button>
+          </button>
           {confirmDelete ? (
-            <div className="flex items-center gap-1">
-              <Button
-                size="sm"
-                variant="destructive"
+            <div style={{ display: "flex", gap: 4 }}>
+              <button
+                type="button"
+                className="am-btn am-btn--danger am-btn--sm"
                 onClick={() => deleteMut.mutate()}
                 disabled={deleteMut.isPending}
               >
-                {deleteMut.isPending ? "..." : "Confirm"}
-              </Button>
-              <Button size="sm" variant="ghost" onClick={() => setConfirmDelete(false)}>
-                <X className="w-3 h-3" />
-              </Button>
+                {deleteMut.isPending ? "…" : "Confirm"}
+              </button>
+              <button type="button" className="am-btn am-btn--ghost am-btn--sm" onClick={() => setConfirmDelete(false)}>
+                <X size={13} />
+              </button>
             </div>
           ) : (
-            <Button size="sm" variant="ghost" onClick={() => setConfirmDelete(true)}>
-              <Trash2 className="w-3 h-3" />
+            <button type="button" className="am-btn am-btn--ghost am-btn--sm" onClick={() => setConfirmDelete(true)}>
+              <Trash2 size={13} />
               Delete
-            </Button>
+            </button>
           )}
         </div>
       </div>
       {deleteMut.isError && (
-        <div className="text-xs text-[var(--color-danger)]">
+        <div className="am-error" style={{ marginTop: 10 }}>
           {(deleteMut.error as Error).message}
         </div>
       )}
@@ -421,52 +378,59 @@ function EditAgentRow({
   });
 
   return (
-    <div className="rounded-md border border-[var(--color-primary)] p-3 space-y-3">
-      <div className="text-sm font-medium">Editing {agent.service}</div>
-      <div>
-        <Label htmlFor={`ep-${agent.service}`}>Endpoint</Label>
-        <Input
-          id={`ep-${agent.service}`}
-          type="url"
-          value={endpoint}
-          onChange={(e) => setEndpoint(e.target.value)}
-        />
-      </div>
-      <div>
-        <Label htmlFor={`desc-${agent.service}`}>Description</Label>
-        <textarea
-          id={`desc-${agent.service}`}
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          rows={2}
-          maxLength={512}
-          className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
-        />
-      </div>
-      <div>
-        <Label htmlFor={`price-${agent.service}`}>Floor price (USD)</Label>
-        <Input
-          id={`price-${agent.service}`}
-          type="number"
-          min={0.001}
-          step={0.001}
-          value={priceUsd}
-          onChange={(e) => setPriceUsd(Number(e.target.value) || 0)}
-        />
-        <p className="text-xs text-[var(--color-fg-muted)] mt-1 font-mono">
-          = {(usdToLamports(priceUsd) / chain.baseUnitsPerToken).toFixed(6)} {chain.asset}
-        </p>
-      </div>
-      {mut.isError && (
-        <div className="text-xs text-[var(--color-danger)]">{(mut.error as Error).message}</div>
-      )}
-      <div className="flex justify-end gap-2">
-        <Button size="sm" variant="ghost" onClick={onCancel}>
-          Cancel
-        </Button>
-        <Button size="sm" variant="default" onClick={() => mut.mutate()} disabled={mut.isPending}>
-          {mut.isPending ? "Saving on-chain…" : "Save"}
-        </Button>
+    <div className="am-agent am-agent--edit">
+      <p className="am-edit-title">Editing {agent.service}</p>
+      <div className="am-form">
+        <div className="am-field">
+          <label htmlFor={`ep-${agent.service}`}>Endpoint</label>
+          <input
+            id={`ep-${agent.service}`}
+            className="am-input"
+            type="url"
+            value={endpoint}
+            onChange={(e) => setEndpoint(e.target.value)}
+          />
+        </div>
+        <div className="am-field">
+          <label htmlFor={`desc-${agent.service}`}>Description</label>
+          <textarea
+            id={`desc-${agent.service}`}
+            className="am-textarea"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            rows={2}
+            maxLength={512}
+          />
+        </div>
+        <div className="am-field">
+          <label htmlFor={`price-${agent.service}`}>Floor price (USD)</label>
+          <input
+            id={`price-${agent.service}`}
+            className="am-input"
+            type="number"
+            min={0.001}
+            step={0.001}
+            value={priceUsd}
+            onChange={(e) => setPriceUsd(Number(e.target.value) || 0)}
+          />
+          <p className="am-hint">
+            = {(usdToLamports(priceUsd) / chain.baseUnitsPerToken).toFixed(6)} {chain.asset}
+          </p>
+        </div>
+        {mut.isError && <div className="am-error">{(mut.error as Error).message}</div>}
+        <div className="am-edit-actions">
+          <button type="button" className="am-btn am-btn--ghost am-btn--sm" onClick={onCancel}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="am-btn am-btn--primary am-btn--sm"
+            onClick={() => mut.mutate()}
+            disabled={mut.isPending}
+          >
+            {mut.isPending ? "Saving…" : "Save"}
+          </button>
+        </div>
       </div>
     </div>
   );

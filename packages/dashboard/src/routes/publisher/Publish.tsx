@@ -1,43 +1,84 @@
-import { useNavigate } from "react-router-dom";
-import { Card, CardBody, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Link } from "react-router-dom";
 import { RegisterAgentForm } from "@/components/AgentManager";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, Circle, Rocket } from "lucide-react";
+import "./publisher.css";
 
-const CHECKLIST = [
-  "Expose an HTTP endpoint that implements the x402 handshake (respond 402 with a quote, then serve once the escrow is verified).",
-  "The easiest path: build it with @kiba/sdk's AgentProvider — it handles 402, on-chain verification and claim for you.",
-  "Pick a clear, lowercase service slug and a precise description (it powers semantic discovery).",
-  "Set a floor price. Your agent can charge more per request via dynamic pricing (priceFn).",
+const STEPS = [
+  { id: "identity", label: "Agent identity", hint: "Name, service slug and category" },
+  { id: "desc", label: "Description", hint: "What your agent does for users" },
+  { id: "endpoint", label: "Endpoint / integration", hint: "URL the gateway calls on each request" },
+  { id: "pricing", label: "Pricing", hint: "Price per call in SOL" },
+  { id: "review", label: "Review & publish", hint: "Register on-chain from your wallet" },
+];
+
+const TIPS = [
+  "Pick a short service slug — it becomes the public API path.",
+  "Start with a low price while you test; you can raise it anytime.",
+  "Your endpoint must respond within the gateway timeout.",
+  "Descriptions show up in the consumer marketplace.",
 ];
 
 export default function PublisherPublish() {
-  const navigate = useNavigate();
   return (
-    <div className="space-y-6 max-w-3xl">
-      <div>
-        <h1 className="text-2xl font-semibold">Publish an agent</h1>
-        <p className="text-sm text-[var(--color-fg-muted)]">
-          Register your agent on-chain. Your custodial wallet becomes its owner and receives the
-          payments.
-        </p>
-      </div>
+    <div className="pub-page">
+      <header className="pub-head">
+        <div className="pub-head__copy">
+          <h1 className="pub-title">Publish</h1>
+          <p className="pub-subtitle">
+            Register a new agent on-chain. One form — identity, endpoint, pricing and go live.
+          </p>
+        </div>
+        <div className="pub-actions">
+          <Link to="/app/publisher/agents" className="pub-btn pub-btn--secondary pub-btn--sm">
+            My agents
+          </Link>
+        </div>
+      </header>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Before you publish</CardTitle>
-          <CardDescription>Make sure your endpoint is ready.</CardDescription>
-        </CardHeader>
-        <CardBody className="space-y-2">
-          {CHECKLIST.map((c) => (
-            <div key={c} className="flex items-start gap-2 text-sm text-[var(--color-fg-muted)]">
-              <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0 text-[var(--color-success)]" />
-              <span>{c}</span>
+      <div className="pub-publish-grid">
+        <aside className="pub-card pub-checklist">
+          <div className="pub-card__head">
+            <div>
+              <h2 className="pub-card__title">Publish checklist</h2>
+              <p className="pub-card__desc">Everything you need before going live.</p>
             </div>
-          ))}
-        </CardBody>
-      </Card>
+          </div>
+          <div className="pub-card__body">
+            <ul className="pub-checklist__list">
+              {STEPS.map((s, i) => (
+                <li key={s.id} className="pub-checklist__item">
+                  {i === 0 ? (
+                    <CheckCircle2 size={18} className="pub-checklist__icon pub-checklist__icon--done" />
+                  ) : (
+                    <Circle size={18} className="pub-checklist__icon" />
+                  )}
+                  <div>
+                    <p className="pub-checklist__label">{s.label}</p>
+                    <p className="pub-checklist__hint">{s.hint}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </aside>
 
-      <RegisterAgentForm onSuccess={() => navigate("/app/publisher")} />
+        <div className="pub-publish-main">
+          <RegisterAgentForm />
+        </div>
+
+        <aside className="pub-card pub-tips">
+          <img src="/agents/estrella.png" alt="" aria-hidden className="pub-tips__mascot" />
+          <div className="pub-tips__head">
+            <Rocket size={18} />
+            <span>Publisher tips</span>
+          </div>
+          <ul className="pub-tips__list">
+            {TIPS.map((t) => (
+              <li key={t}>{t}</li>
+            ))}
+          </ul>
+        </aside>
+      </div>
     </div>
   );
 }

@@ -1,0 +1,73 @@
+import type { Agent } from "@/lib/api";
+
+/** Catálogo demo — visible cuando el backend no tiene agentes indexados (local sin Docker/on-chain). */
+export const DEMO_AGENTS: Agent[] = [
+  {
+    service: "translator-pro",
+    description: "Multilingual translations with cultural nuance.",
+    endpoint: "http://demo-agents:5003",
+    pricePerCall: 0.15,
+    ownerWallet: "PHASE_1_PLACEHOLDER",
+    acceptedToken: "USDC",
+    totalCalls: 312,
+    totalEarned: 0,
+    createdAt: Math.floor(Date.now() / 1000),
+    source: "fallback",
+  },
+  {
+    service: "price-oracle",
+    description: "Real-time price data from decentralized sources.",
+    endpoint: "http://demo-agents:5004",
+    pricePerCall: 0.075,
+    ownerWallet: "PHASE_1_PLACEHOLDER",
+    acceptedToken: "USDC",
+    totalCalls: 2104,
+    totalEarned: 0,
+    createdAt: Math.floor(Date.now() / 1000),
+    source: "fallback",
+  },
+  {
+    service: "yield-hunter",
+    description: "Finds the best yields across DeFi protocols.",
+    endpoint: "http://demo-agents:5001",
+    pricePerCall: 0.125,
+    ownerWallet: "PHASE_1_PLACEHOLDER",
+    acceptedToken: "USDC",
+    totalCalls: 142,
+    totalEarned: 0,
+    createdAt: Math.floor(Date.now() / 1000),
+    source: "fallback",
+  },
+  {
+    service: "risk-auditor",
+    description: "Audits smart contracts and flags potential risks.",
+    endpoint: "http://demo-agents:5002",
+    pricePerCall: 0.2,
+    ownerWallet: "PHASE_1_PLACEHOLDER",
+    acceptedToken: "USDC",
+    totalCalls: 89,
+    totalEarned: 0,
+    createdAt: Math.floor(Date.now() / 1000),
+    source: "fallback",
+  },
+  {
+    service: "code-reviewer",
+    description: "Reviews code quality and best practices.",
+    endpoint: "http://demo-agents:5005",
+    pricePerCall: 0.12,
+    ownerWallet: "PHASE_1_PLACEHOLDER",
+    acceptedToken: "USDC",
+    totalCalls: 41,
+    totalEarned: 0,
+    createdAt: Math.floor(Date.now() / 1000),
+    source: "fallback",
+  },
+];
+
+export const DEMO_AGENT_TAGS: Record<string, "semantic" | "hybrid" | "keyword"> = {
+  "translator-pro": "semantic",
+  "price-oracle": "hybrid",
+  "yield-hunter": "semantic",
+  "risk-auditor": "hybrid",
+  "code-reviewer": "keyword",
+};

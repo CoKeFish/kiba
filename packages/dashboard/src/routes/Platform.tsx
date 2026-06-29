@@ -1,236 +1,292 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { Card, CardBody, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { formatUsd } from "@/lib/format";
 import { chain } from "@/lib/chain";
 import {
-  Coins,
+  formatUsd,
+  formatKibsLabel,
+  usdToKibs,
+  shortSig,
+} from "@/lib/format";
+import {
+  Check,
+  Copy,
   ExternalLink,
+  Percent,
+  Phone,
   RefreshCw,
   TrendingUp,
   Users,
-  Zap,
+  Wallet,
 } from "lucide-react";
+import "./platform.css";
+
+const MASCOTS = {
+  cuadrado: "/agents/cuadrado.png",
+  triangulo: "/agents/triangulo.png",
+  circulo: "/agents/circulo.png",
+  morado: "/agents/morado.png",
+} as const;
+
+const DOCS_URL = "https://github.com/CoKeFish/kiba/tree/main/docs";
 
 function explorerWallet(addr: string): string {
   return chain.explorerAddr(addr);
 }
 
-function StatCard({
-  icon: Icon,
-  label,
-  value,
-  hint,
-  highlight,
-}: {
-  icon: typeof Coins;
-  label: string;
-  value: string;
-  hint?: string;
-  highlight?: boolean;
-}) {
+function TreasurySparkline() {
   return (
-    <Card className={highlight ? "border-[var(--color-success)]" : ""}>
-      <CardBody>
-        <div className="flex items-start justify-between">
-          <div>
-            <p className="text-xs text-[var(--color-fg-muted)] uppercase tracking-wider mb-2">
-              {label}
-            </p>
-            <p
-              className={`text-2xl font-semibold font-mono ${
-                highlight ? "text-[var(--color-success)]" : ""
-              }`}
-            >
-              {value}
-            </p>
-            {hint && <p className="text-xs text-[var(--color-fg-muted)] mt-1">{hint}</p>}
-          </div>
-          <Icon className="w-5 h-5 text-[var(--color-fg-muted)]" />
-        </div>
-      </CardBody>
-    </Card>
+    <div className="platform-spark" aria-hidden="true">
+      <svg viewBox="0 0 140 72" fill="none">
+        <path
+          d="M4 58 C 28 54, 36 48, 52 42 S 78 28, 96 22 S 118 12, 136 8"
+          stroke="var(--color-primary)"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+        />
+        <circle cx="136" cy="8" r="5" fill="var(--color-primary)" />
+      </svg>
+    </div>
   );
 }
 
 export default function Platform() {
-  const { data, isFetching, refetch } = useQuery({
+  const [copied, setCopied] = useState(false);
+  const { data, isFetching, refetch, isLoading } = useQuery({
     queryKey: ["platform-stats"],
     queryFn: api.platformStats,
     refetchInterval: 15_000,
   });
 
-  if (!data) {
+  async function copyAddress(addr: string) {
+    await navigator.clipboard.writeText(addr);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  }
+
+  if (isLoading || !data) {
     return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-semibold">Platform Revenue</h1>
-          <p className="text-sm text-[var(--color-fg-muted)]">Loading marketplace stats…</p>
-        </div>
+      <div className="platform-page">
+        <header className="platform-head">
+          <div>
+            <h1 className="platform-title">Platform Revenue</h1>
+            <p className="platform-subtitle">Loading marketplace stats…</p>
+          </div>
+        </header>
+        <p className="platform-loading">Fetching on-chain treasury data…</p>
       </div>
     );
   }
 
   const { treasury, fee, marketplace, lifetime } = data;
+  const agentHint =
+    marketplace.total_agents > marketplace.total_agents_on_chain
+      ? `+ ${marketplace.total_agents - marketplace.total_agents_on_chain} fallback`
+      : "Active and verified";
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
+    <div className="platform-page">
+      <header className="platform-head">
         <div>
-          <h1 className="text-2xl font-semibold">Platform Revenue</h1>
-          <p className="text-sm text-[var(--color-fg-muted)]">
-            On-chain treasury · {fee.pct}% commission per call · auto-refreshes every 15s
+          <h1 className="platform-title">Platform Revenue</h1>
+          <p className="platform-subtitle">
+            Treasury overview and the {fee.pct}% commission Kiba earns on agent usage.
           </p>
         </div>
-        <Button size="sm" variant="ghost" onClick={() => refetch()} disabled={isFetching}>
-          <RefreshCw className={`w-3 h-3 ${isFetching ? "animate-spin" : ""}`} />
+        <button
+          type="button"
+          className="platform-refresh"
+          onClick={() => refetch()}
+          disabled={isFetching}
+        >
+          <RefreshCw size={14} className={isFetching ? "is-spinning" : ""} />
           Refresh
-        </Button>
-      </div>
+        </button>
+      </header>
 
-      {/* Treasury big card */}
-      <Card className="border-[var(--color-success)]">
-        <CardHeader className="flex items-start justify-between flex-row gap-2">
-          <div>
-            <CardTitle>Treasury balance</CardTitle>
-            <CardDescription>
-              Master wallet of the marketplace · receives {fee.pct}% of every claim_payment
-              automatically, on-chain
-            </CardDescription>
+      <section className="platform-treasury">
+        <div className="platform-treasury__top">
+          <div className="platform-treasury__label-row">
+            <p className="platform-treasury__label">Kiba treasury</p>
+            <span className="platform-live">Live</span>
           </div>
-          <Badge tone="success">live</Badge>
-        </CardHeader>
-        <CardBody className="space-y-3">
-          <div className="flex items-baseline gap-3">
-            <span className="text-4xl font-bold font-mono text-[var(--color-success)]">
-              {formatUsd(treasury.usd, 2)}
-            </span>
-            <span className="font-mono text-[var(--color-fg-muted)]">
-              ({treasury.asset_amount.toFixed(4)} {chain.asset})
-            </span>
-          </div>
-          <div className="flex items-center justify-between pt-3 border-t border-[var(--color-border)] text-xs">
-            <span className="text-[var(--color-fg-muted)]">Treasury address</span>
-            <a
-              href={explorerWallet(treasury.pubkey)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-mono text-[var(--color-primary)] hover:underline flex items-center gap-1"
-            >
-              {treasury.pubkey.slice(0, 8)}…{treasury.pubkey.slice(-8)}
-              <ExternalLink className="w-3 h-3" />
-            </a>
-          </div>
-        </CardBody>
-      </Card>
-
-      {/* Marketplace metrics */}
-      <div>
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-[var(--color-fg-muted)] mb-3">
-          Marketplace activity
-        </h2>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard
-            icon={Users}
-            label="Agents on-chain"
-            value={marketplace.total_agents_on_chain.toString()}
-            hint={
-              marketplace.total_agents > marketplace.total_agents_on_chain
-                ? `+ ${marketplace.total_agents - marketplace.total_agents_on_chain} fallback`
-                : "All registered on-chain"
-            }
-          />
-          <StatCard
-            icon={Zap}
-            label="Total calls"
-            value={marketplace.total_calls.toLocaleString()}
-            hint="Claims completed across all agents"
-          />
-          <StatCard
-            icon={TrendingUp}
-            label="Lifetime volume"
-            value={formatUsd(lifetime.total_volume_usd, 2)}
-            hint={`${lifetime.total_volume_asset.toFixed(4)} ${chain.asset} gross`}
-          />
-          <StatCard
-            icon={Coins}
-            label="Lifetime fees"
-            value={formatUsd(lifetime.estimated_fees_usd, 2)}
-            hint={`${lifetime.estimated_fees_asset.toFixed(6)} ${chain.asset} @ ${fee.pct}%`}
-            highlight
-          />
+          <Wallet size={20} strokeWidth={2} style={{ color: "var(--color-fg-muted)" }} />
         </div>
+        <div className="platform-treasury__body">
+          <div className="platform-treasury__metrics">
+            <p className="platform-treasury__value">
+              {formatKibsLabel(usdToKibs(treasury.usd))}
+            </p>
+            <p className="platform-treasury__hint">
+              ≈ {formatUsd(treasury.usd, 2)} · {treasury.asset_amount.toFixed(4)} {chain.asset}
+            </p>
+            <div className="platform-treasury__addr">
+              <span className="platform-treasury__addr-label">Treasury address</span>
+              <a
+                href={explorerWallet(treasury.pubkey)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="platform-treasury__addr-link"
+              >
+                {shortSig(treasury.pubkey, 5)}
+                <ExternalLink size={12} />
+              </a>
+              <button
+                type="button"
+                className="platform-copy-btn"
+                onClick={() => copyAddress(treasury.pubkey)}
+                aria-label="Copy treasury address"
+              >
+                {copied ? <Check size={14} /> : <Copy size={14} />}
+              </button>
+            </div>
+          </div>
+          <TreasurySparkline />
+        </div>
+      </section>
+
+      <div className="platform-kpis">
+        <article className="platform-kpi">
+          <div className="platform-kpi__row">
+            <div>
+              <p className="platform-kpi__label">Agents on-chain</p>
+              <p className="platform-kpi__value">
+                {marketplace.total_agents_on_chain.toLocaleString()}
+              </p>
+              <p className="platform-kpi__hint">{agentHint}</p>
+            </div>
+            <div
+              className="platform-kpi__icon"
+              style={{
+                background: "color-mix(in srgb, var(--c-purple) 14%, transparent)",
+                color: "var(--c-purple)",
+              }}
+            >
+              <Users size={20} strokeWidth={2} />
+            </div>
+          </div>
+        </article>
+
+        <article className="platform-kpi">
+          <div className="platform-kpi__row">
+            <div>
+              <p className="platform-kpi__label">Total calls</p>
+              <p className="platform-kpi__value">
+                {marketplace.total_calls.toLocaleString()}
+              </p>
+              <p className="platform-kpi__hint">Lifetime agent calls</p>
+            </div>
+            <div
+              className="platform-kpi__icon"
+              style={{
+                background: "color-mix(in srgb, var(--color-primary) 14%, transparent)",
+                color: "var(--color-primary)",
+              }}
+            >
+              <Phone size={20} strokeWidth={2} />
+            </div>
+          </div>
+        </article>
+
+        <article className="platform-kpi">
+          <div className="platform-kpi__row">
+            <div>
+              <p className="platform-kpi__label">Lifetime volume</p>
+              <p className="platform-kpi__value">
+                {formatKibsLabel(usdToKibs(lifetime.total_volume_usd))}
+              </p>
+              <p className="platform-kpi__hint">
+                ≈ {formatUsd(lifetime.total_volume_usd, 2)}
+              </p>
+            </div>
+            <div
+              className="platform-kpi__icon"
+              style={{
+                background: "color-mix(in srgb, var(--color-success) 14%, transparent)",
+                color: "var(--color-success)",
+              }}
+            >
+              <TrendingUp size={20} strokeWidth={2} />
+            </div>
+          </div>
+        </article>
+
+        <article className="platform-kpi">
+          <div className="platform-kpi__row">
+            <div>
+              <p className="platform-kpi__label">Lifetime fees ({fee.pct}%)</p>
+              <p className="platform-kpi__value platform-kpi__value--fees">
+                {formatKibsLabel(usdToKibs(lifetime.estimated_fees_usd))}
+              </p>
+              <p className="platform-kpi__hint">
+                ≈ {formatUsd(lifetime.estimated_fees_usd, 2)}
+              </p>
+            </div>
+            <div
+              className="platform-kpi__icon"
+              style={{
+                background: "color-mix(in srgb, #f59e0b 14%, transparent)",
+                color: "#d97706",
+              }}
+            >
+              <Percent size={20} strokeWidth={2} />
+            </div>
+          </div>
+        </article>
       </div>
 
-      {/* How it works */}
-      <Card>
-        <CardHeader>
-          <CardTitle>How the {fee.pct}% commission works</CardTitle>
-          <CardDescription>
-            Hardcoded in the smart contract. No off-chain accounting needed.
-          </CardDescription>
-        </CardHeader>
-        <CardBody>
-          <ol className="space-y-3 text-sm">
-            <li className="flex items-start gap-3">
-              <span className="shrink-0 w-6 h-6 rounded-full bg-[var(--color-accent)] flex items-center justify-center text-xs font-mono">
-                1
-              </span>
-              <div>
-                Client calls an agent → agent returns HTTP <code className="font-mono">402</code>{" "}
-                with quote.
-              </div>
-            </li>
-            <li className="flex items-start gap-3">
-              <span className="shrink-0 w-6 h-6 rounded-full bg-[var(--color-accent)] flex items-center justify-center text-xs font-mono">
-                2
-              </span>
-              <div>
-                Client signs <code className="font-mono">open_escrow</code>, locking {chain.asset} in the
-                escrow.
-              </div>
-            </li>
-            <li className="flex items-start gap-3">
-              <span className="shrink-0 w-6 h-6 rounded-full bg-[var(--color-accent)] flex items-center justify-center text-xs font-mono">
-                3
-              </span>
-              <div>
-                Client retries with proof of payment, agent verifies on-chain, runs the service.
-              </div>
-            </li>
-            <li className="flex items-start gap-3">
-              <span className="shrink-0 w-6 h-6 rounded-full bg-[var(--color-success)]/20 text-[var(--color-success)] flex items-center justify-center text-xs font-mono">
-                4
-              </span>
-              <div>
-                <div className="font-medium">
-                  Agent signs <code className="font-mono">claim_payment</code>:
-                </div>
-                <ul className="mt-1 space-y-1 ml-4 text-[var(--color-fg-muted)]">
-                  <li>
-                    →{" "}
-                    <span className="text-[var(--color-fg)] font-mono">
-                      {(100 - fee.pct).toFixed(0)}%
-                    </span>{" "}
-                    transferido al wallet del agent owner
-                  </li>
-                  <li>
-                    →{" "}
-                    <span className="text-[var(--color-success)] font-mono">{fee.pct}%</span>{" "}
-                    transferido al treasury (
-                    <span className="font-mono">
-                      {treasury.pubkey.slice(0, 4)}…{treasury.pubkey.slice(-4)}
-                    </span>
-                    ) — <strong>esta es nuestra revenue</strong>
-                  </li>
-                </ul>
-              </div>
-            </li>
-          </ol>
-        </CardBody>
-      </Card>
+      <section className="platform-commission">
+        <h2 className="platform-commission__title">
+          How the {fee.pct}% commission works
+        </h2>
+        <p className="platform-commission__desc">
+          Hardcoded in the smart contract. No off-chain accounting needed.
+        </p>
+
+        <div className="platform-steps">
+          <article className="platform-step">
+            <img src={MASCOTS.cuadrado} alt="" aria-hidden className="platform-step__mascot" />
+            <h3 className="platform-step__title">Agents get calls</h3>
+            <p className="platform-step__text">
+              Users call agents on the Kiba platform and pay for the service.
+            </p>
+          </article>
+          <article className="platform-step">
+            <img src={MASCOTS.triangulo} alt="" aria-hidden className="platform-step__mascot" />
+            <h3 className="platform-step__title">Value flows on-chain</h3>
+            <p className="platform-step__text">
+              Payments are settled on-chain in {chain.asset}. Agents receive{" "}
+              {(100 - fee.pct).toFixed(0)}% of the payment.
+            </p>
+          </article>
+          <article className="platform-step">
+            <img src={MASCOTS.circulo} alt="" aria-hidden className="platform-step__mascot" />
+            <h3 className="platform-step__title">Kiba earns {fee.pct}%</h3>
+            <p className="platform-step__text">
+              Kiba automatically collects a {fee.pct}% commission and routes it to the treasury.
+            </p>
+          </article>
+        </div>
+
+        <p className="platform-banner">
+          <strong>Transparent. On-chain. Sustainable.</strong> All fees are visible on-chain and
+          used to improve the platform for everyone.
+        </p>
+      </section>
+
+      <section className="platform-cta">
+        <div>
+          <p className="platform-cta__text">
+            Treasury funds are used to support ecosystem growth, platform reliability, and future
+            rewards for the community.
+          </p>
+          <a href={DOCS_URL} target="_blank" rel="noreferrer" className="platform-cta-btn">
+            Learn more
+            <ExternalLink size={14} />
+          </a>
+        </div>
+        <img src={MASCOTS.morado} alt="" aria-hidden className="platform-cta__mascot" />
+      </section>
     </div>
   );
 }

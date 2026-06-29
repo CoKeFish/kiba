@@ -1,37 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { api } from "@/lib/api";
-import { Card, CardBody, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { formatUsd } from "@/lib/format";
 import { chain } from "@/lib/chain";
 import { serviceToName, solToUsd } from "@/components/AgentManager";
-import { Bot, Coins, Activity, Wallet, Plus, ExternalLink } from "lucide-react";
+import { Activity, Bot, Coins, ExternalLink, Plus, Wallet } from "lucide-react";
+import "./publisher.css";
 
-function Stat({
-  icon: Icon,
-  label,
-  value,
-  sub,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  value: string;
-  sub?: string;
-}) {
-  return (
-    <Card>
-      <CardBody className="space-y-1">
-        <div className="flex items-center gap-2 text-xs text-[var(--color-fg-muted)] uppercase tracking-wider">
-          <Icon className="w-3.5 h-3.5" />
-          {label}
-        </div>
-        <div className="text-2xl font-semibold">{value}</div>
-        {sub && <div className="text-xs text-[var(--color-fg-muted)] font-mono">{sub}</div>}
-      </CardBody>
-    </Card>
-  );
-}
+const MASCOT = "/agents/triangulo.png";
 
 export default function PublisherOverview() {
   const { data, isLoading } = useQuery({
@@ -40,110 +16,150 @@ export default function PublisherOverview() {
     refetchInterval: 20_000,
   });
 
+  const feePct = data?.fee.pct ?? 5;
+  const netPct = 100 - feePct;
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-semibold">Revenue</h1>
-          <p className="text-sm text-[var(--color-fg-muted)]">
-            Your agents earn 95% of every paid call, settled on {chain.networkLabel}.
+    <div className="pub-page">
+      <header className="pub-head">
+        <div className="pub-head__copy">
+          <h1 className="pub-title">Revenue</h1>
+          <p className="pub-subtitle">
+            Your agents earn {netPct}% of every paid call, settled on {chain.networkLabel}.
           </p>
         </div>
-        <Link to="/app/publisher/publish">
-          <Button size="sm">
-            <Plus className="w-3 h-3" />
+        <div className="pub-actions">
+          <Link to="/app/publisher/publish" className="pub-btn pub-btn--primary pub-btn--sm">
+            <Plus size={16} />
             Publish agent
-          </Button>
-        </Link>
-      </div>
+          </Link>
+        </div>
+      </header>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Stat
-          icon={Coins}
-          label="Lifetime earned"
-          value={isLoading ? "—" : formatUsd(data?.totals.earned_usd ?? 0)}
-          sub={data ? `${(data.totals.earned_asset ?? 0).toFixed(6)} ${data.asset}` : undefined}
-        />
-        <Stat
-          icon={Activity}
-          label="Calls served"
-          value={isLoading ? "—" : (data?.totals.calls ?? 0).toLocaleString()}
-        />
-        <Stat
-          icon={Bot}
-          label="Agents"
-          value={isLoading ? "—" : String(data?.totals.agents ?? 0)}
-        />
-        <Stat
-          icon={Wallet}
-          label="In wallet"
-          value={isLoading ? "—" : formatUsd(data?.wallet.usd ?? 0)}
-          sub={data ? `${(data.wallet.asset_amount ?? 0).toFixed(4)} ${data.asset}` : undefined}
-        />
-      </div>
+      <section className="pub-card pub-hero">
+        <div className="pub-hero__label-row">
+          <p className="pub-hero__label">Total revenue</p>
+          <span className="pub-live">Live</span>
+        </div>
+        <p className="pub-hero__value pub-hero__value--success">
+          {isLoading ? "—" : formatUsd(data?.totals.earned_usd ?? 0)}
+        </p>
+        <p className="pub-hero__hint">
+          {data
+            ? `${(data.totals.earned_asset ?? 0).toFixed(6)} ${data.asset} · after ${feePct}% platform fee`
+            : "Lifetime earnings from your agents"}
+        </p>
+      </section>
 
-      {/* Per-agent revenue */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Per-agent revenue</CardTitle>
-          <CardDescription>
-            On-chain totals per agent. Platform fee: {data ? data.fee.pct : 5}% · you keep{" "}
-            {data ? 100 - data.fee.pct : 95}%.
-          </CardDescription>
-        </CardHeader>
-        <CardBody>
-          {isLoading ? (
-            <p className="text-sm text-[var(--color-fg-muted)] py-6 text-center">Loading…</p>
-          ) : !data || data.agents.length === 0 ? (
-            <div className="text-center py-10 space-y-3">
-              <p className="text-sm text-[var(--color-fg-muted)]">
-                You haven't published any agents yet.
+      <div className="pub-kpis">
+        <article className="pub-kpi">
+          <div className="pub-kpi__row">
+            <div>
+              <p className="pub-kpi__label">Calls completed</p>
+              <p className="pub-kpi__value">
+                {isLoading ? "—" : (data?.totals.calls ?? 0).toLocaleString()}
               </p>
-              <Link to="/app/publisher/publish">
-                <Button size="sm" variant="default">
-                  <Plus className="w-3 h-3" />
-                  Publish your first agent
-                </Button>
+              <p className="pub-kpi__hint">Lifetime agent calls</p>
+            </div>
+            <div className="pub-kpi__icon" style={{ background: "color-mix(in srgb, var(--color-primary) 14%, transparent)", color: "var(--color-primary)" }}>
+              <Activity size={20} />
+            </div>
+          </div>
+        </article>
+        <article className="pub-kpi">
+          <div className="pub-kpi__row">
+            <div>
+              <p className="pub-kpi__label">Active agents</p>
+              <p className="pub-kpi__value">{isLoading ? "—" : String(data?.totals.agents ?? 0)}</p>
+              <p className="pub-kpi__hint">Published on-chain</p>
+            </div>
+            <div className="pub-kpi__icon" style={{ background: "color-mix(in srgb, var(--c-purple) 14%, transparent)", color: "var(--c-purple)" }}>
+              <Bot size={20} />
+            </div>
+          </div>
+        </article>
+        <article className="pub-kpi">
+          <div className="pub-kpi__row">
+            <div>
+              <p className="pub-kpi__label">Net earnings</p>
+              <p className="pub-kpi__value pub-kpi__value--ok">
+                {isLoading ? "—" : formatUsd(data?.totals.earned_usd ?? 0)}
+              </p>
+              <p className="pub-kpi__hint">You keep {netPct}%</p>
+            </div>
+            <div className="pub-kpi__icon" style={{ background: "color-mix(in srgb, var(--color-success) 14%, transparent)", color: "var(--color-success)" }}>
+              <Coins size={20} />
+            </div>
+          </div>
+        </article>
+        <article className="pub-kpi">
+          <div className="pub-kpi__row">
+            <div>
+              <p className="pub-kpi__label">In wallet</p>
+              <p className="pub-kpi__value">{isLoading ? "—" : formatUsd(data?.wallet.usd ?? 0)}</p>
+              <p className="pub-kpi__hint">
+                {data ? `${(data.wallet.asset_amount ?? 0).toFixed(4)} ${data.asset}` : "Available balance"}
+              </p>
+            </div>
+            <div className="pub-kpi__icon" style={{ background: "color-mix(in srgb, #f59e0b 14%, transparent)", color: "#d97706" }}>
+              <Wallet size={20} />
+            </div>
+          </div>
+        </article>
+      </div>
+
+      <section className="pub-card">
+        <div className="pub-card__head">
+          <div>
+            <h2 className="pub-card__title">Recent activity</h2>
+            <p className="pub-card__desc">
+              Per-agent revenue on-chain. Platform fee: {feePct}% · you keep {netPct}%.
+            </p>
+          </div>
+        </div>
+        <div className="pub-card__body pub-card__body--flush-top">
+          {isLoading ? (
+            <p className="pub-loading">Loading activity…</p>
+          ) : !data || data.agents.length === 0 ? (
+            <div className="pub-empty">
+              <img src="/agents/cuadrado.png" alt="" aria-hidden className="pub-empty__mascot" />
+              <p className="pub-empty__title">No agent activity yet</p>
+              <p className="pub-empty__text">Publish your first agent to start earning per call.</p>
+              <Link to="/app/publisher/publish" className="pub-btn pub-btn--primary pub-btn--sm" style={{ marginTop: 8 }}>
+                <Plus size={14} />
+                Publish your first agent
               </Link>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+            <div className="pub-table-wrap">
+              <table className="pub-table">
                 <thead>
-                  <tr className="text-left text-xs text-[var(--color-fg-muted)] uppercase tracking-wider border-b border-[var(--color-border)]">
-                    <th className="py-2 pr-4 font-medium">Agent</th>
-                    <th className="py-2 pr-4 font-medium text-right">Price</th>
-                    <th className="py-2 pr-4 font-medium text-right">Calls</th>
-                    <th className="py-2 pr-4 font-medium text-right">Earned</th>
-                    <th className="py-2 font-medium text-right">Links</th>
+                  <tr>
+                    <th>Agent</th>
+                    <th className="is-right">Price</th>
+                    <th className="is-right">Calls</th>
+                    <th className="is-right">Earned</th>
+                    <th className="is-right">Links</th>
                   </tr>
                 </thead>
                 <tbody>
                   {data.agents.map((a) => (
-                    <tr key={a.service} className="border-b border-[var(--color-border)] last:border-0">
-                      <td className="py-3 pr-4">
-                        <div className="font-medium">{serviceToName(a.service)}</div>
-                        <div className="font-mono text-xs text-[var(--color-fg-muted)]">
-                          {a.service}
-                        </div>
+                    <tr key={a.service}>
+                      <td>
+                        <div>{serviceToName(a.service)}</div>
+                        <div className="pub-table__slug">{a.service}</div>
                       </td>
-                      <td className="py-3 pr-4 text-right font-mono text-[var(--color-success)]">
-                        {formatUsd(solToUsd(a.pricePerCallSol))}
-                      </td>
-                      <td className="py-3 pr-4 text-right font-mono">
-                        {a.totalCalls.toLocaleString()}
-                      </td>
-                      <td className="py-3 pr-4 text-right font-mono text-[var(--color-success)]">
-                        {formatUsd(solToUsd(a.totalEarnedSol))}
-                      </td>
-                      <td className="py-3 text-right">
+                      <td className="is-right pub-table__ok">{formatUsd(solToUsd(a.pricePerCallSol))}</td>
+                      <td className="is-right">{a.totalCalls.toLocaleString()}</td>
+                      <td className="is-right pub-table__ok">{formatUsd(solToUsd(a.totalEarnedSol))}</td>
+                      <td className="is-right">
                         <a
                           href={chain.explorerAddr(a.owner)}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-[var(--color-primary)] hover:underline inline-flex items-center gap-1"
+                          className="pub-link"
                         >
-                          explorer <ExternalLink className="w-3 h-3" />
+                          Explorer <ExternalLink size={12} />
                         </a>
                       </td>
                     </tr>
@@ -152,8 +168,19 @@ export default function PublisherOverview() {
               </table>
             </div>
           )}
-        </CardBody>
-      </Card>
+        </div>
+      </section>
+
+      <section className="pub-cta">
+        <div>
+          <p className="pub-cta__text">How you earn as a publisher</p>
+          <p className="pub-cta__sub">
+            Users pay per call via x402. {netPct}% lands in your wallet automatically — Kiba keeps a{" "}
+            {feePct}% platform fee on every transaction.
+          </p>
+        </div>
+        <img src={MASCOT} alt="" aria-hidden className="pub-cta__mascot" />
+      </section>
     </div>
   );
 }

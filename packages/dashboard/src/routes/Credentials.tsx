@@ -1,25 +1,54 @@
 import { useState, type FormEvent } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { Card, CardBody, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Table, Tbody, Td, Th, Thead, Tr } from "@/components/ui/table";
 import { format } from "date-fns";
-import { Trash2, KeyRound, Plug, Copy, Check } from "lucide-react";
+import { BookOpen, Check, Copy, Trash2 } from "lucide-react";
+import "./credentials.css";
+
+const MASCOTS = {
+  cuadradoPeek: "/agents/cuadrado-peek.png",
+  estrella: "/agents/estrella.png",
+  moradoSentado: "/agents/morado-sentado.png",
+} as const;
+
+const HELP_MASCOTS = [
+  "/agents/triangulo.png",
+  "/agents/circulo.png",
+  "/agents/corazon.png",
+] as const;
+
+const DOCS_URL = "https://github.com/CoKeFish/kiba/tree/main/docs";
 
 export default function Credentials() {
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-semibold">Credentials</h1>
-        <p className="text-sm text-[var(--color-fg-muted)]">
-          Manage who can pay agents on your behalf — API keys and OAuth-connected apps.
+    <div className="credentials-page">
+      <header className="credentials-head">
+        <h1 className="credentials-title">Credentials</h1>
+        <p className="credentials-subtitle">
+          Manage who can pay agents on your behalf using API keys and OAuth-connected apps.
         </p>
-      </div>
+      </header>
+
       <ApiKeysSection />
       <OAuthSection />
+
+      <section className="cred-cta">
+        <div>
+          <p className="cred-cta__text">
+            Need help securing your workspace? Learn best practices for API keys, permissions, and
+            integrating trusted apps.
+          </p>
+          <a href={DOCS_URL} target="_blank" rel="noreferrer" className="cred-cta-btn">
+            <BookOpen size={16} />
+            View docs
+          </a>
+        </div>
+        <div className="cred-cta__mascots" aria-hidden="true">
+          {HELP_MASCOTS.map((src) => (
+            <img key={src} src={src} alt="" className="cred-cta__mascot" />
+          ))}
+        </div>
+      </section>
     </div>
   );
 }
@@ -61,91 +90,100 @@ function ApiKeysSection() {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center gap-2">
-          <KeyRound className="w-4 h-4" />
-          <CardTitle>API Keys</CardTitle>
-        </div>
-        <CardDescription>
-          Long-lived secrets for direct REST API access. Use as <code>Authorization: Bearer ...</code>.
-        </CardDescription>
-      </CardHeader>
-      <CardBody className="space-y-4">
-        <form onSubmit={onCreate} className="flex gap-2">
-          <Input
+    <section className="cred-card">
+      <div className="cred-card__head">
+        <h2 className="cred-card__title">API Keys</h2>
+        <p className="cred-card__desc">
+          Long-lived secrets for direct REST API access. Use as{" "}
+          <code>Authorization: Bearer …</code>.
+        </p>
+      </div>
+      <div className="cred-card__body">
+        <form onSubmit={onCreate} className="cred-form">
+          <input
+            className="cred-input"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Key name (e.g. production-server)"
+            placeholder="Enter key name"
           />
-          <Button type="submit" disabled={createMut.isPending}>
-            {createMut.isPending ? "Creating…" : "Create key"}
-          </Button>
+          <div className="cred-create-wrap">
+            <img
+              src={MASCOTS.cuadradoPeek}
+              alt=""
+              aria-hidden
+              className="cred-create-wrap__mascot"
+            />
+            <button type="submit" className="cred-create-btn" disabled={createMut.isPending}>
+              {createMut.isPending ? "Creating…" : "Create key"}
+            </button>
+          </div>
         </form>
 
         {newSecret && (
-          <div className="rounded-md border border-[var(--color-success)]/40 bg-[var(--color-success)]/10 p-3">
-            <p className="text-xs text-[var(--color-fg-muted)] mb-2">
-              Copy this now — it won't be shown again.
-            </p>
-            <div className="flex items-center gap-2">
-              <code className="flex-1 font-mono text-xs px-3 py-2 rounded bg-[var(--color-bg)] border border-[var(--color-border)] break-all">
-                {newSecret}
-              </code>
-              <Button size="sm" variant="subtle" onClick={copy}>
-                {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-              </Button>
+          <div className="cred-secret">
+            <p className="cred-secret__hint">Copy this now — it won&apos;t be shown again.</p>
+            <div className="cred-secret__row">
+              <code className="cred-secret__code">{newSecret}</code>
+              <button type="button" className="cred-copy-btn" onClick={copy} aria-label="Copy key">
+                {copied ? <Check size={16} /> : <Copy size={16} />}
+              </button>
             </div>
           </div>
         )}
 
         {isLoading ? (
-          <p className="text-sm text-[var(--color-fg-muted)]">Loading…</p>
+          <p className="cred-empty__text">Loading…</p>
         ) : keys.length === 0 ? (
-          <p className="text-sm text-[var(--color-fg-muted)] text-center py-6">
-            No API keys yet. Create one above.
-          </p>
+          <div className="cred-empty">
+            <img src={MASCOTS.estrella} alt="" aria-hidden className="cred-empty__mascot" />
+            <p className="cred-empty__text">
+              No API keys yet. Create your first API key to get started.
+            </p>
+          </div>
         ) : (
-          <Table>
-            <Thead>
-              <Tr>
-                <Th>Name</Th>
-                <Th>Prefix</Th>
-                <Th>Created</Th>
-                <Th>Last used</Th>
-                <Th></Th>
-              </Tr>
-            </Thead>
-            <Tbody>
-              {keys.map((k) => (
-                <Tr key={k.id}>
-                  <Td className="font-medium">{k.name}</Td>
-                  <Td className="font-mono text-xs text-[var(--color-fg-muted)]">{k.prefix}…</Td>
-                  <Td className="text-xs text-[var(--color-fg-muted)]">
-                    {format(new Date(k.created_at * 1000), "MMM d, yyyy")}
-                  </Td>
-                  <Td className="text-xs text-[var(--color-fg-muted)]">
-                    {k.last_used_at
-                      ? format(new Date(k.last_used_at * 1000), "MMM d, HH:mm")
-                      : "Never"}
-                  </Td>
-                  <Td className="text-right">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => revokeMut.mutate(k.id)}
-                      disabled={revokeMut.isPending}
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </Button>
-                  </Td>
-                </Tr>
-              ))}
-            </Tbody>
-          </Table>
+          <div className="cred-table-wrap">
+            <table className="cred-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Prefix</th>
+                  <th>Created</th>
+                  <th>Last used</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {keys.map((k) => (
+                  <tr key={k.id}>
+                    <td>{k.name}</td>
+                    <td className="cred-table__mono cred-table__muted">{k.prefix}…</td>
+                    <td className="cred-table__muted">
+                      {format(new Date(k.created_at * 1000), "MMM d, yyyy")}
+                    </td>
+                    <td className="cred-table__muted">
+                      {k.last_used_at
+                        ? format(new Date(k.last_used_at * 1000), "MMM d, HH:mm")
+                        : "Never"}
+                    </td>
+                    <td style={{ textAlign: "right" }}>
+                      <button
+                        type="button"
+                        className="cred-icon-btn"
+                        onClick={() => revokeMut.mutate(k.id)}
+                        disabled={revokeMut.isPending}
+                        aria-label={`Revoke ${k.name}`}
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
-      </CardBody>
-    </Card>
+      </div>
+    </section>
   );
 }
 
@@ -161,67 +199,73 @@ function OAuthSection() {
   });
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center gap-2">
-          <Plug className="w-4 h-4" />
-          <CardTitle>Connected apps</CardTitle>
-        </div>
-        <CardDescription>
-          Apps you've authorized via OAuth (Claude Desktop, Cursor, MCP clients). Revoke access at any
-          time.
-        </CardDescription>
-      </CardHeader>
-      <CardBody className="p-0">
+    <section className="cred-card">
+      <div className="cred-card__head">
+        <h2 className="cred-card__title">Connected apps</h2>
+        <p className="cred-card__desc">
+          Apps you&apos;ve authorized via OAuth (Claude Desktop, Cursor, MCP clients). Revoke access
+          at any time.
+        </p>
+      </div>
+      <div className="cred-card__body">
         {isLoading ? (
-          <p className="p-6 text-sm text-[var(--color-fg-muted)]">Loading…</p>
+          <p className="cred-empty__text">Loading…</p>
         ) : conns.length === 0 ? (
-          <p className="p-10 text-sm text-[var(--color-fg-muted)] text-center">
-            No connected apps yet. Install <code>kiba-mcp</code> in Claude or Cursor to see
-            them here.
-          </p>
+          <div className="cred-empty">
+            <img
+              src={MASCOTS.moradoSentado}
+              alt=""
+              aria-hidden
+              className="cred-empty__mascot cred-empty__mascot--sitting"
+            />
+            <p className="cred-empty__text">
+              No connected apps installed yet. When you authorize an app, it will appear here.
+            </p>
+          </div>
         ) : (
-          <Table>
-            <Thead>
-              <Tr>
-                <Th>App</Th>
-                <Th>Scope</Th>
-                <Th>Connected</Th>
-                <Th>Last used</Th>
-                <Th></Th>
-              </Tr>
-            </Thead>
-            <Tbody>
-              {conns.map((c) => (
-                <Tr key={c.id}>
-                  <Td className="font-medium">{c.client_name}</Td>
-                  <Td>
-                    <Badge tone="info">{c.scope}</Badge>
-                  </Td>
-                  <Td className="text-xs text-[var(--color-fg-muted)]">
-                    {format(new Date(c.created_at * 1000), "MMM d, yyyy")}
-                  </Td>
-                  <Td className="text-xs text-[var(--color-fg-muted)]">
-                    {c.last_used_at
-                      ? format(new Date(c.last_used_at * 1000), "MMM d, HH:mm")
-                      : "Never"}
-                  </Td>
-                  <Td className="text-right">
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => revokeMut.mutate(c.id)}
-                      disabled={revokeMut.isPending}
-                    >
-                      Revoke
-                    </Button>
-                  </Td>
-                </Tr>
-              ))}
-            </Tbody>
-          </Table>
+          <div className="cred-table-wrap">
+            <table className="cred-table">
+              <thead>
+                <tr>
+                  <th>App</th>
+                  <th>Scope</th>
+                  <th>Connected</th>
+                  <th>Last used</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {conns.map((c) => (
+                  <tr key={c.id}>
+                    <td>{c.client_name}</td>
+                    <td>
+                      <span className="cred-badge">{c.scope}</span>
+                    </td>
+                    <td className="cred-table__muted">
+                      {format(new Date(c.created_at * 1000), "MMM d, yyyy")}
+                    </td>
+                    <td className="cred-table__muted">
+                      {c.last_used_at
+                        ? format(new Date(c.last_used_at * 1000), "MMM d, HH:mm")
+                        : "Never"}
+                    </td>
+                    <td style={{ textAlign: "right" }}>
+                      <button
+                        type="button"
+                        className="cred-revoke-btn"
+                        onClick={() => revokeMut.mutate(c.id)}
+                        disabled={revokeMut.isPending}
+                      >
+                        Revoke
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
-      </CardBody>
-    </Card>
+      </div>
+    </section>
   );
 }
