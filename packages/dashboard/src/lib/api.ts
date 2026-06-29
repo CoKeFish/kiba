@@ -132,10 +132,10 @@ export const api = {
 
   // Pagos fiat (Bre-B / PSP) → créditos. Recargas locales sin wallet.
   paymentsConfig: () => request<PaymentsConfig>("/v1/payments/config"),
-  createBrebCharge: (amountCop: number) =>
+  createBrebCharge: (amountCop: number, redirectUrl?: string) =>
     request<PaymentCharge>("/v1/payments/breb/charge", {
       method: "POST",
-      body: JSON.stringify({ amountCop }),
+      body: JSON.stringify({ amountCop, redirectUrl }),
     }),
   getCharge: (id: string) => request<PaymentCharge>(`/v1/payments/charge/${encodeURIComponent(id)}`),
   simulateBreb: (chargeId: string) =>
@@ -143,6 +143,17 @@ export const api = {
       "/v1/payments/breb/simulate",
       { method: "POST", body: JSON.stringify({ chargeId }) },
     ),
+  // Wompi (redirect): tras volver del checkout con ?id=, confirma y acredita.
+  verifyWompi: (chargeId: string, transactionId: string) =>
+    request<{
+      charge: PaymentCharge;
+      status: string;
+      new_balance_usd: number;
+      new_balance_kibs: number;
+    }>("/v1/payments/wompi/verify", {
+      method: "POST",
+      body: JSON.stringify({ chargeId, transactionId }),
+    }),
 };
 
 export type User = {
@@ -274,6 +285,7 @@ export type PaymentsConfig = {
   kibs_per_usd: number;
   sandbox: boolean;
   provider: string;
+  mode: "qr" | "redirect";
   methods: { id: string; label: string; country: string }[];
 };
 
@@ -285,7 +297,12 @@ export type PaymentCharge = {
   amount_usd: number;
   kibs: number;
   status: "pending" | "paid" | "expired";
-  detail: { llave?: string; qrPayload?: string; instructions?: string };
+  detail: {
+    llave?: string;
+    qrPayload?: string;
+    instructions?: string;
+    checkoutUrl?: string;
+  };
   created_at: number;
   paid_at: number | null;
 };

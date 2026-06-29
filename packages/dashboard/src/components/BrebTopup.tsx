@@ -1,9 +1,10 @@
 /**
- * Recarga con Bre-B (Colombia) — UI sobre el payment provider del gateway.
+ * Recarga fiat (Colombia) sobre el payment provider del gateway.
  *
- * Flujo: elegir monto en COP → generar cobro → mostrar QR + llave Bre-B →
- * el usuario paga por su app bancaria. En sandbox un botón simula el webhook
- * del PSP para acreditar los Kibs y refrescar el saldo.
+ * Dos modos según el provider activo:
+ *   - sandbox (bre-b-sandbox): QR + llave Bre-B + botón "simular pago" (webhook simulado).
+ *   - redirect (wompi): redirige al Web Checkout real de Wompi; al volver con `?id=`
+ *     verifica la transacción contra la API y acredita los Kibs.
  */
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -13,7 +14,15 @@ import { Card, CardBody, CardHeader, CardTitle, CardDescription } from "@/compon
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatKibs, formatUsd } from "@/lib/format";
-import { CheckCircle2, Copy, QrCode, RefreshCw, Smartphone, X } from "lucide-react";
+import {
+  CheckCircle2,
+  Copy,
+  ExternalLink,
+  QrCode,
+  RefreshCw,
+  Smartphone,
+  X,
+} from "lucide-react";
 
 const COP = new Intl.NumberFormat("es-CO", {
   style: "currency",
@@ -22,21 +31,36 @@ const COP = new Intl.NumberFormat("es-CO", {
 });
 
 const QUICK_COP = [20_000, 50_000, 100_000, 200_000];
+const PENDING_KEY = "kiba.payments.pending";
 
 export function BrebTopup() {
   const qc = useQueryClient();
   const [amountCop, setAmountCop] = useState<number>(50_000);
   const [charge, setCharge] = useState<PaymentCharge | null>(null);
   const [copied, setCopied] = useState(false);
+  const [verifyMsg, setVerifyMsg] = useState<string | null>(null);
 
   const { data: config } = useQuery({ queryKey: ["payments-config"], queryFn: api.paymentsConfig });
+  const isRedirect = config?.mode === "redirect";
 
   const kibsFor = (cop: number) =>
     config ? Math.round((cop / config.cop_usd_rate) * config.kibs_per_usd) : 0;
 
   const create = useMutation({
-    mutationFn: () => api.createBrebCharge(amountCop),
-    onSuccess: (c) => setCharge(c),
+    mutationFn: () => api.createBrebCharge(amountCop, `${window.location.origin}/app/billing`),
+    onSuccess: (c) => {
+      if (c.detail.checkoutUrl) {
+        // Redirect provider (Wompi): guardamos el cobro y vamos al checkout.
+        try {
+          localStorage.setItem(PENDING_KEY, JSON.stringify({ chargeId: c.id }));
+        } catch {
+          /* ignore */
+        }
+        window.location.href = c.detail.checkoutUrl;
+      } else {
+        setCharge(c);
+      }
+    },
   });
 
   const simulate = useMutation({
@@ -48,9 +72,52 @@ export function BrebTopup() {
     },
   });
 
-  // Poll del estado mientras está pendiente (cubre el pago real por el banco).
+  // Retorno del checkout de Wompi: ?id=<txId> + cobro guardado → verificar y acreditar.
   useEffect(() => {
-    if (!charge || charge.status !== "pending") return;
+    const params = new URLSearchParams(window.location.search);
+    const txId = params.get("id");
+    let pending: { chargeId?: string } = {};
+    try {
+      pending = JSON.parse(localStorage.getItem(PENDING_KEY) || "{}");
+    } catch {
+      /* ignore */
+    }
+    if (!txId || !pending.chargeId) return;
+
+    (async () => {
+      setVerifyMsg("Verificando tu pago…");
+      try {
+        const r = await api.verifyWompi(pending.chargeId!, txId);
+        setCharge(r.charge);
+        if (r.status === "APPROVED") {
+          qc.invalidateQueries({ queryKey: ["balance"] });
+          qc.invalidateQueries({ queryKey: ["transactions"] });
+          setVerifyMsg(null);
+        } else {
+          setVerifyMsg(`El pago quedó en estado ${r.status}. Puedes intentar de nuevo.`);
+        }
+      } catch (e) {
+        setVerifyMsg((e as Error).message);
+      } finally {
+        localStorage.removeItem(PENDING_KEY);
+        // Limpia el ?id= de la URL sin recargar.
+        window.history.replaceState({}, "", window.location.pathname);
+      }
+    })();
+  }, [qc]);
+
+  const copyLlave = () => {
+    const llave = charge?.detail.llave;
+    if (!llave) return;
+    navigator.clipboard?.writeText(llave).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  };
+
+  // Poll del estado mientras está pendiente (sandbox / pago real por banco).
+  useEffect(() => {
+    if (!charge || charge.status !== "pending" || charge.detail.checkoutUrl) return;
     const t = setInterval(async () => {
       try {
         const fresh = await api.getCharge(charge.id);
@@ -66,22 +133,14 @@ export function BrebTopup() {
     return () => clearInterval(t);
   }, [charge, qc]);
 
-  const copyLlave = () => {
-    const llave = charge?.detail.llave;
-    if (!llave) return;
-    navigator.clipboard?.writeText(llave).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    });
-  };
-
   const reset = () => {
     setCharge(null);
+    setVerifyMsg(null);
     create.reset();
     simulate.reset();
   };
 
-  // ── Estado: cobro pagado ──
+  // ── Estado: pagado ──
   if (charge && charge.status === "paid") {
     return (
       <Card className="border-[var(--color-success)]">
@@ -103,8 +162,23 @@ export function BrebTopup() {
     );
   }
 
-  // ── Estado: cobro pendiente (mostrar QR + llave) ──
-  if (charge) {
+  // ── Estado: verificando el retorno de Wompi ──
+  if (verifyMsg) {
+    return (
+      <Card>
+        <CardBody className="space-y-3 text-center py-8">
+          <RefreshCw className="w-7 h-7 text-[var(--color-primary)] mx-auto animate-spin" />
+          <p className="text-sm text-[var(--color-fg-muted)]">{verifyMsg}</p>
+          <Button variant="ghost" size="sm" onClick={reset} className="mx-auto">
+            Volver
+          </Button>
+        </CardBody>
+      </Card>
+    );
+  }
+
+  // ── Estado: cobro QR pendiente (sandbox) ──
+  if (charge && charge.detail.qrPayload) {
     return (
       <Card>
         <CardHeader className="flex items-center justify-between flex-row">
@@ -112,7 +186,9 @@ export function BrebTopup() {
             <CardTitle>Paga con Bre-B</CardTitle>
             <CardDescription>
               {COP.format(charge.amount_cop)} ·{" "}
-              <span className="text-[var(--color-fg)] font-medium">{formatKibs(charge.kibs)} Kibs</span>
+              <span className="text-[var(--color-fg)] font-medium">
+                {formatKibs(charge.kibs)} Kibs
+              </span>
             </CardDescription>
           </div>
           <Button variant="ghost" size="sm" onClick={reset}>
@@ -122,18 +198,14 @@ export function BrebTopup() {
         <CardBody className="space-y-4">
           <div className="flex flex-col sm:flex-row gap-5 items-center sm:items-start">
             <div className="rounded-2xl border border-[var(--color-border)] p-3 bg-white shrink-0">
-              {charge.detail.qrPayload ? (
-                <QRCodeSVG value={charge.detail.qrPayload} size={148} level="M" />
-              ) : (
-                <QrCode className="w-36 h-36 text-[var(--color-fg-subtle)]" />
-              )}
+              <QRCodeSVG value={charge.detail.qrPayload} size={148} level="M" />
             </div>
             <div className="space-y-3 flex-1 w-full">
               <div className="flex items-start gap-2 text-sm text-[var(--color-fg-muted)]">
                 <Smartphone className="w-4 h-4 mt-0.5 shrink-0 text-[var(--color-primary)]" />
                 <span>
-                  Abre tu app bancaria, escanea el QR o paga a la llave Bre-B. La
-                  acreditación es automática.
+                  Abre tu app bancaria, escanea el QR o paga a la llave Bre-B. La acreditación es
+                  automática.
                 </span>
               </div>
               <div>
@@ -160,19 +232,15 @@ export function BrebTopup() {
               Esperando el pago…
             </span>
             {config?.sandbox && (
-              <Button
-                size="sm"
-                onClick={() => simulate.mutate(charge.id)}
-                disabled={simulate.isPending}
-              >
+              <Button size="sm" onClick={() => simulate.mutate(charge.id)} disabled={simulate.isPending}>
                 {simulate.isPending ? "Simulando…" : "Simular pago recibido"}
               </Button>
             )}
           </div>
           {config?.sandbox && (
             <p className="text-xs text-[var(--color-fg-subtle)]">
-              Modo sandbox: no hay cobro real. El botón simula el webhook del PSP que
-              confirmaría un pago Bre-B real.
+              Modo sandbox: no hay cobro real. El botón simula el webhook del PSP que confirmaría un
+              pago Bre-B real.
             </p>
           )}
           {simulate.isError && (
@@ -190,9 +258,11 @@ export function BrebTopup() {
         <CardTitle className="flex items-center gap-2">
           Recarga con Bre-B
           <Badge tone="info">Colombia</Badge>
+          {config && !config.sandbox && <Badge tone="success">Wompi</Badge>}
         </CardTitle>
         <CardDescription>
           Paga en pesos desde tu banco (sin wallet ni cripto). Convertimos a Kibs al instante.
+          {isRedirect && " Te llevamos al checkout seguro de Wompi."}
         </CardDescription>
       </CardHeader>
       <CardBody className="space-y-4">
@@ -230,7 +300,9 @@ export function BrebTopup() {
             <span className="font-semibold text-[var(--color-fg)]">
               {formatKibs(kibsFor(amountCop))} Kibs
             </span>{" "}
-            <span className="text-xs">(≈ {formatUsd(config ? amountCop / config.cop_usd_rate : 0)})</span>
+            <span className="text-xs">
+              (≈ {formatUsd(config ? amountCop / config.cop_usd_rate : 0)})
+            </span>
           </div>
         )}
 
@@ -239,8 +311,14 @@ export function BrebTopup() {
         )}
 
         <Button onClick={() => create.mutate()} disabled={create.isPending || amountCop < 1000}>
-          <QrCode className="w-4 h-4" />
-          {create.isPending ? "Generando…" : "Generar pago Bre-B"}
+          {isRedirect ? <ExternalLink className="w-4 h-4" /> : <QrCode className="w-4 h-4" />}
+          {create.isPending
+            ? isRedirect
+              ? "Redirigiendo…"
+              : "Generando…"
+            : isRedirect
+              ? "Pagar con Wompi"
+              : "Generar pago Bre-B"}
         </Button>
       </CardBody>
     </Card>

@@ -150,6 +150,14 @@ services:
       - PRIVY_APP_ID=${PRIVY_APP_ID:-}
       - PRIVY_APP_SECRET=${PRIVY_APP_SECRET:-}
       - PRIVY_API_URL=${PRIVY_API_URL:-https://api.privy.io/v1}
+      # Pagos fiat → créditos. Sin WOMPI_* el provider cae a bre-b-sandbox.
+      - PAYMENT_PROVIDER=${PAYMENT_PROVIDER:-bre-b-sandbox}
+      - COP_USD_RATE=${COP_USD_RATE:-4000}
+      - PUBLIC_DASHBOARD_URL=${PUBLIC_DASHBOARD_URL:-http://localhost:3020}
+      - WOMPI_PUBLIC_KEY=${WOMPI_PUBLIC_KEY:-}
+      - WOMPI_INTEGRITY_SECRET=${WOMPI_INTEGRITY_SECRET:-}
+      - WOMPI_EVENTS_SECRET=${WOMPI_EVENTS_SECRET:-}
+      - WOMPI_API_URL=${WOMPI_API_URL:-https://sandbox.wompi.co/v1}
     depends_on:
       - backend
       - demo-agents
