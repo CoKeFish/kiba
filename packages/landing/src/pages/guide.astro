@@ -1,0 +1,294 @@
+---
+import Base from "../layouts/Base.astro";
+
+const DASHBOARD_URL = import.meta.env.PUBLIC_DASHBOARD_URL || "https://dashboard.kiba.rodion.com.co";
+const GATEWAY_URL = import.meta.env.PUBLIC_GATEWAY_URL || "https://gateway-production-be17.up.railway.app";
+// Instalador de un clic (Windows) — kiba MCP en Claude Desktop / Cursor / Claude Code.
+const INSTALLER_URL = "https://github.com/CoKeFish/kiba/releases/latest/download/Kiba-Installer-0.1.0-x64-setup.exe";
+const MCP_URL = `${GATEWAY_URL.replace(/\/+$/, "")}/mcp`;
+---
+
+<Base
+  title="How to use Kiba — Guide"
+  description="Download the one-click installer, or connect Kiba to Claude or ChatGPT on the web — then discover and pay agents from your chat."
+>
+  <section class="guide">
+    <header class="guide-head">
+      <h1>How to use Kiba</h1>
+      <p>
+        Three ways to start. Download the one-click installer, or connect Kiba to Claude or
+        ChatGPT on the web — then discover and pay agents straight from your chat.
+      </p>
+    </header>
+
+    <!-- 1 · Download installer -->
+    <article class="guide-card">
+      <div class="guide-card__num">1</div>
+      <div class="guide-card__body">
+        <h2>Download the installer <span class="guide-beta">Windows · one-click</span></h2>
+        <p>
+          Installs the kiba server into <strong>Claude Desktop, Cursor and Claude Code</strong>
+          automatically — per-user, no admin required.
+        </p>
+        <a class="guide-btn" href={INSTALLER_URL} title="Windows installer (.exe)">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+          Download for Windows
+        </a>
+        <p class="guide-note">On macOS / Linux? Connect on the web (below) or add the MCP config manually.</p>
+      </div>
+    </article>
+
+    <!-- 2 · Claude (web) -->
+    <article class="guide-card">
+      <div class="guide-card__num">2</div>
+      <div class="guide-card__body">
+        <h2>Connect to Claude <span class="guide-beta">web &amp; desktop</span></h2>
+        <p>Paste one URL — nothing to install. It asks you to sign in to Kiba (OAuth), no API keys.</p>
+        <div class="guide-url">
+          <code>{MCP_URL}</code>
+          <button class="guide-copy" type="button" data-copy={MCP_URL}>Copy</button>
+        </div>
+        <ol>
+          <li>Settings → Connectors → “Add custom connector”</li>
+          <li>Paste the connector URL above</li>
+          <li>Click “Add” and sign in to Kiba to authorize</li>
+        </ol>
+      </div>
+    </article>
+
+    <!-- 3 · ChatGPT (web) -->
+    <article class="guide-card">
+      <div class="guide-card__num">3</div>
+      <div class="guide-card__body">
+        <h2>Connect to ChatGPT <span class="guide-beta">beta</span></h2>
+        <p>Same connector URL, via Developer mode.</p>
+        <div class="guide-url">
+          <code>{MCP_URL}</code>
+          <button class="guide-copy" type="button" data-copy={MCP_URL}>Copy</button>
+        </div>
+        <ol>
+          <li>Settings → Apps &amp; Connectors → Advanced settings → enable “Developer mode”</li>
+          <li>Connectors → “Create”, name it and paste the URL</li>
+          <li>Click “Create” and authorize (OAuth)</li>
+        </ol>
+      </div>
+    </article>
+
+    <p class="guide-foot">
+      Need an account? <a href={`${DASHBOARD_URL}/signup`}>Create one free</a> — $5 of credit to start.
+    </p>
+  </section>
+
+  <style>
+    .guide {
+      max-width: 820px;
+      margin: 0 auto;
+      padding: 64px 24px 96px;
+    }
+    .guide-head {
+      text-align: center;
+      margin-bottom: 38px;
+    }
+    .guide-head h1 {
+      font-family: var(--font-display);
+      font-size: clamp(30px, 4vw, 44px);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      color: var(--fg-1);
+      margin: 0 0 12px;
+    }
+    .guide-head p {
+      font-family: var(--font-sans);
+      font-size: 16px;
+      color: var(--fg-2);
+      margin: 0 auto;
+      max-width: 580px;
+      line-height: 1.55;
+    }
+
+    .guide-card {
+      display: flex;
+      gap: 18px;
+      align-items: flex-start;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 22px;
+      padding: 26px 28px;
+      box-shadow: var(--shadow-sm);
+      margin-bottom: 18px;
+    }
+    .guide-card__num {
+      flex-shrink: 0;
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--accent);
+      color: #fff;
+      font-family: var(--font-display);
+      font-size: 18px;
+      font-weight: 800;
+      box-shadow: var(--glow-sm);
+    }
+    .guide-card__body {
+      flex: 1;
+      min-width: 0;
+    }
+    .guide-card__body h2 {
+      font-family: var(--font-display);
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: var(--fg-1);
+      margin: 4px 0 6px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .guide-card__body p {
+      font-family: var(--font-sans);
+      font-size: 14.5px;
+      color: var(--fg-2);
+      margin: 0 0 14px;
+      line-height: 1.55;
+    }
+
+    .guide-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      background: var(--accent);
+      color: #fff;
+      font-family: var(--font-sans);
+      font-size: 15px;
+      font-weight: 700;
+      padding: 13px 24px;
+      border-radius: 999px;
+      text-decoration: none;
+      box-shadow: var(--glow-sm);
+      transition: transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+    }
+    .guide-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: var(--glow-md);
+    }
+    .guide-note {
+      font-size: 12.5px !important;
+      color: var(--fg-3) !important;
+      margin: 12px 0 0 !important;
+    }
+
+    .guide-url {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+    .guide-url code {
+      flex: 1;
+      min-width: 220px;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: var(--fg-1);
+      background: var(--bg-inset);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 12px 14px;
+      word-break: break-all;
+    }
+    .guide-copy {
+      flex-shrink: 0;
+      cursor: pointer;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      font-family: var(--font-sans);
+      font-size: 14px;
+      font-weight: 700;
+      padding: 0 18px;
+      height: 44px;
+      border-radius: 999px;
+      transition: background var(--dur-fast) var(--ease-out);
+    }
+    .guide-copy:hover {
+      background: var(--accent-hover);
+    }
+
+    .guide-card ol {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 11px;
+      counter-reset: step;
+    }
+    .guide-card ol li {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      font-family: var(--font-sans);
+      font-size: 14px;
+      color: var(--fg-2);
+      line-height: 1.45;
+      counter-increment: step;
+    }
+    .guide-card ol li::before {
+      content: counter(step);
+      flex-shrink: 0;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .guide-beta {
+      font-family: var(--font-sans);
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      background: var(--accent-soft);
+      color: var(--accent);
+      padding: 3px 10px;
+      border-radius: 999px;
+    }
+
+    .guide-foot {
+      text-align: center;
+      margin-top: 28px;
+      font-family: var(--font-sans);
+      font-size: 14px;
+      color: var(--fg-2);
+    }
+    .guide-foot a {
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .guide-foot a:hover {
+      text-decoration: underline;
+    }
+  </style>
+
+  <script is:inline>
+    document.querySelectorAll(".guide-copy").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        navigator.clipboard.writeText(btn.getAttribute("data-copy") || "");
+        const prev = btn.textContent;
+        btn.textContent = "Copied";
+        setTimeout(() => { btn.textContent = prev; }, 1500);
+      });
+    });
+  </script>
+</Base>
