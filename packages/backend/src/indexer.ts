@@ -204,6 +204,16 @@ export class Indexer {
     }
 
     try {
+      // Re-siembra el set conocido del reader con lo que ya hay en DB (source=chain): así un
+      // agente sobrevive a reinicios aunque su evento de registro quede fuera de la ventana de
+      // retención del RPC. La vigencia se confirma con get_agent dentro de listAgents().
+      if (this.reader.addKnownServices) {
+        const knownInDb = listAgents(db, { limit: 10_000 })
+          .filter((a) => a.source === 'chain')
+          .map((a) => a.service);
+        if (knownInDb.length) this.reader.addKnownServices(knownInDb);
+      }
+
       const { agents: onChain, failed } = await this.reader.listAgents();
       if (failed.length > 0) {
         console.warn(`[indexer] ${failed.length} servicio(s) con lectura fallida — NO se borrarán: ${failed.join(', ')}`);

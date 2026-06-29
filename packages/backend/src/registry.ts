@@ -1,8 +1,11 @@
 /**
  * RegistryReader — lectura del registro de agentes (Stellar/Soroban).
  *
- * Soroban no tiene enumeración de cuentas → leemos una lista conocida de servicios
- * (env STELLAR_SERVICES) con get_agent vía la abstracción ChainClient del SDK.
+ * Soroban no enumera el storage, así que el catálogo se descubre de forma ABIERTA por
+ * eventos del contrato (`listRegisteredServices` del SDK, vía getEvents): cualquier
+ * agente que se registre on-chain aparece solo, sin allowlist ni aprobación. La env
+ * STELLAR_SERVICES queda solo como SEED (servicios conocidos de arranque). La vigencia
+ * de cada nombre se confirma con get_agent.
  */
 import { Keypair } from '@solana/web3.js';
 import { createChainClient, type ChainClient } from '@kiba/sdk';
@@ -19,6 +22,12 @@ export interface RegistryReader {
    * para no perder agentes vivos ante un fallo parcial de RPC.
    */
   listAgents(): Promise<{ agents: AgentRecord[]; failed: string[] }>;
+  /**
+   * Agrega nombres de servicio al set conocido (p.ej. los que ya están en la DB, para
+   * que sobrevivan a reinicios aunque su evento de registro quede fuera de la ventana
+   * de retención del RPC). Idempotente.
+   */
+  addKnownServices?(names: string[]): void;
   /** Suscripción opcional a cambios live. Devuelve un unsubscribe. */
   subscribe?(onChange: () => void): () => void;
 }
@@ -37,19 +46,40 @@ class StellarRegistryReader implements RegistryReader {
   readonly asset: string;
   readonly label = 'stellar';
 
+  /** Set de servicios conocidos: crece con el seed (env), la DB y el descubrimiento por eventos. */
+  private readonly known: Set<string>;
+
   constructor(
     private readonly chain: ChainClient,
-    private readonly services: string[],
+    seedServices: string[],
   ) {
     this.baseUnitsPerToken = chain.baseUnitsPerToken;
     this.asset = chain.asset;
+    this.known = new Set(seedServices);
+  }
+
+  addKnownServices(names: string[]): void {
+    for (const n of names) if (n) this.known.add(n);
   }
 
   async listAgents(): Promise<{ agents: AgentRecord[]; failed: string[] }> {
     const now = Math.floor(Date.now() / 1000);
     const out: AgentRecord[] = [];
     const failed: string[] = [];
-    for (const service of this.services) {
+
+    // Descubrimiento ABIERTO: lee los eventos del contrato para encontrar cualquier
+    // agente registrado (sin allowlist). Best-effort — si falla, seguimos con lo conocido.
+    if (this.chain.listRegisteredServices) {
+      try {
+        const windowLedgers = Number(process.env.STELLAR_EVENT_WINDOW_LEDGERS) || undefined;
+        const discovered = await this.chain.listRegisteredServices({ windowLedgers });
+        this.addKnownServices(discovered);
+      } catch (err) {
+        console.warn('[registry:stellar] descubrimiento por eventos falló:', (err as Error).message);
+      }
+    }
+
+    for (const service of this.known) {
       try {
         const a = await this.chain.fetchAgent(service);
         if (!a) continue;
@@ -79,9 +109,9 @@ class StellarRegistryReader implements RegistryReader {
     }
     // Si fallaron TODAS las lecturas es un fallo de RPC (no "0 agentes"): lanzar para
     // que el indexer NO reconcilie y NO borre el catálogo por un parpadeo de RPC.
-    if (this.services.length > 0 && failed.length === this.services.length) {
+    if (this.known.size > 0 && failed.length === this.known.size) {
       throw new Error(
-        `[registry:stellar] todas las lecturas fallaron (${failed.length}/${this.services.length}) — RPC caído`,
+        `[registry:stellar] todas las lecturas fallaron (${failed.length}/${this.known.size}) — RPC caído`,
       );
     }
     // `failed` (fallo parcial) viaja al indexer para que NO borre esos servicios.
@@ -107,10 +137,12 @@ export function createRegistryReader(): RegistryReader | null {
   // Keypair efímero: las lecturas Soroban no requieren cuenta fondeada.
   const cc = createChainClient({ wallet: Keypair.generate(), label: 'backend' });
   if (!cc) return null;
-  const services = (process.env.STELLAR_SERVICES ?? DEFAULT_SERVICES.join(','))
+  // STELLAR_SERVICES es solo un SEED de arranque; el descubrimiento real es por eventos
+  // del contrato (cualquier agente registrado aparece sin estar en esta lista).
+  const seed = (process.env.STELLAR_SERVICES ?? DEFAULT_SERVICES.join(','))
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean);
-  console.log(`[registry] Stellar reader sobre ${services.length} servicios`);
-  return new StellarRegistryReader(cc, services);
+  console.log(`[registry] Stellar reader — descubrimiento por eventos (seed: ${seed.length} servicios)`);
+  return new StellarRegistryReader(cc, seed);
 }

@@ -42,6 +42,21 @@ pub struct Agent {
 
 /// Llaves de almacenamiento. Sustituyen a los PDAs de Solana:
 ///   - Agent ← seeded por `service` (1 por servicio).
+///
+/// MODELO DE CONFIANZA DEL NOMBRE (anti-squatting): `service` es un nombre GLOBAL,
+/// first-come. `owner.require_auth()` en register/update/deregister garantiza que SOLO
+/// el dueño puede crear/modificar/borrar SU registro (no se puede secuestrar uno ajeno).
+/// Lo que este registro permisivo NO impide es que alguien reserve una marca libre antes
+/// que su dueño legítimo. Mitigaciones por capas, sin migrar este contrato:
+///   - El SDK (`AgentClient discover({verifyEndpoint})`) verifica que el endpoint registrado
+///     sirva un /manifest con el MISMO service+owner → detecta registros que apuntan al
+///     endpoint de otro (endpoint hijack).
+///   - El binding de escrow del provider EXIGE ser el `receiver` antes de servir → un
+///     registro que apunte al endpoint de la víctima no puede cobrarle su trabajo.
+///   - La curación del backend de descubrimiento (reputación/verificación) es la capa de
+///     anti-squatting de marca recomendada para producción.
+/// Endurecimiento futuro (cambio mayor, rompe el lookup por nombre desnudo): namespacing
+/// por (owner, service) + alias humano resuelto por el backend curado, y/o stake anti-spam.
 #[contracttype]
 #[derive(Clone)]
 pub enum DataKey {

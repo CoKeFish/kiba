@@ -28,7 +28,7 @@ app.get('/health', (_req, res) => {
   res.json({
     ok: true,
     service: 'orchestrator-agent',
-    wallet: wallet.publicKey.toBase58(),
+    wallet: wallet.publicKey(),
     backend: process.env.BACKEND_URL,
     contractId: process.env.STELLAR_CONTRACT_ID,
   });
@@ -57,7 +57,7 @@ app.post('/intent', async (req, res) => {
       intent,
       plan: tasks,
       results,
-      walletUsed: wallet.publicKey.toBase58(),
+      walletUsed: wallet.publicKey(),
       durationMs: Date.now() - startedAt,
     });
   } catch (err) {
@@ -79,7 +79,7 @@ app.post('/intent', async (req, res) => {
     console.log('╚══════════════════════════════════════════╝');
     console.log(`  http://localhost:${PORT}/health`);
     console.log(`  POST http://localhost:${PORT}/intent`);
-    console.log(`  wallet: ${wallet.publicKey.toBase58()}`);
+    console.log(`  wallet: ${wallet.publicKey()}`);
     console.log(`  backend: ${process.env.BACKEND_URL ?? '(not set)'}`);
     console.log(`  contractId: ${process.env.STELLAR_CONTRACT_ID ?? '(not set)'}`);
   });
