@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Plug, Copy, Check, ArrowRight, ExternalLink } from "lucide-react";
+import { Plug, Terminal, Copy, Check, ArrowRight, ExternalLink } from "lucide-react";
 import "./connect.css";
 
 /**
@@ -12,32 +12,67 @@ const MCP_URL =
   (import.meta.env.VITE_MCP_URL as string | undefined) ??
   "https://gateway-production-be17.up.railway.app/mcp";
 
+/** Base del gateway (sin /mcp) para el adaptador stdio `kiba-mcp` (KIBA_URL). */
+const GATEWAY_BASE = MCP_URL.replace(/\/mcp\/?$/, "");
+
+const INSTALL_CONFIG = JSON.stringify(
+  {
+    mcpServers: {
+      kiba: {
+        command: "npx",
+        args: ["-y", "kiba-mcp"],
+        env: { KIBA_URL: GATEWAY_BASE },
+      },
+    },
+  },
+  null,
+  2,
+);
+
 const CLAUDE_STEPS = [
   "Settings → Connectors → “Add custom connector”",
-  "Pega la URL del conector de arriba",
-  "Pulsa “Add” e inicia sesión en Kiba para autorizar",
+  "Paste the connector URL above",
+  "Click “Add” and sign in to Kiba to authorize",
 ];
 
 const CHATGPT_STEPS = [
-  "Settings → Apps & Connectors → Advanced settings → activa “Developer mode”",
-  "Connectors → “Create”, pon un nombre y pega la URL",
-  "Pulsa “Create” y autoriza (OAuth)",
+  "Settings → Apps & Connectors → Advanced settings → enable “Developer mode”",
+  "Connectors → “Create”, name it and paste the URL",
+  "Click “Create” and authorize (OAuth)",
 ];
 
-function CopyableUrl() {
+function useCopy() {
   const [copied, setCopied] = useState(false);
-  const copy = () => {
-    navigator.clipboard.writeText(MCP_URL);
+  const copy = (text: string) => {
+    navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   };
+  return { copied, copy };
+}
+
+function CopyableUrl() {
+  const { copied, copy } = useCopy();
   return (
     <div className="connect-url-row">
       <code className="connect-url-code">{MCP_URL}</code>
-      <button type="button" className="connect-copy-btn" onClick={copy} aria-label="Copiar URL del conector">
+      <button type="button" className="connect-copy-btn" onClick={() => copy(MCP_URL)} aria-label="Copy connector URL">
         {copied ? <Check size={15} /> : <Copy size={15} />}
-        {copied ? "Copiado" : "Copiar"}
+        {copied ? "Copied" : "Copy"}
       </button>
+    </div>
+  );
+}
+
+function CopyableConfig() {
+  const { copied, copy } = useCopy();
+  return (
+    <div className="connect-code">
+      <button type="button" className="connect-code__copy" onClick={() => copy(INSTALL_CONFIG)} aria-label="Copy config">
+        {copied ? <Check size={14} /> : <Copy size={14} />}
+        {copied ? "Copied" : "Copy"}
+      </button>
+      <pre className="connect-code__pre">{INSTALL_CONFIG}</pre>
     </div>
   );
 }
@@ -61,7 +96,7 @@ function StepCard({
           {beta && <span className="connect-beta">Beta</span>}
         </div>
         <a href={href} target="_blank" rel="noopener noreferrer" className="connect-open-link">
-          Abrir <ExternalLink size={13} />
+          Open <ExternalLink size={13} />
         </a>
       </div>
       <ol className="connect-steps-list">
@@ -77,21 +112,23 @@ function StepCard({
 }
 
 /**
- * Panel para conectar la cuenta de Kiba a Claude / ChatGPT vía el conector MCP remoto.
+ * Panel para empezar a usar Kiba: conectar por web (Claude/ChatGPT) o instalar
+ * el adaptador en el editor (Cursor, Claude Code, Claude Desktop).
  * - `compact`: banner para la home (lleva a /app/connect).
- * - completo: URL + pasos lado a lado (página dedicada).
+ * - completo: las dos opciones con pasos.
  */
 export function ConnectPanel({ compact = false }: { compact?: boolean }) {
   if (compact) {
     return (
       <section className="connect-banner">
         <div className="connect-banner__copy">
-          <h3 className="connect-banner__title">Conecta Kiba a Claude y ChatGPT</h3>
+          <h3 className="connect-banner__title">Get started with Kiba</h3>
           <p className="connect-banner__text">
-            Añádelo como conector y descubre y paga agentes desde tu chat, sin salir del asistente.
+            Connect it to Claude or ChatGPT, or install it in your editor — then discover and pay
+            agents straight from your chat.
           </p>
           <Link to="/app/connect" className="connect-banner__btn">
-            Conectar <ArrowRight size={16} />
+            Get started <ArrowRight size={16} />
           </Link>
         </div>
         <img src="/agents/estrella.png" alt="" aria-hidden className="connect-banner__mascot" />
@@ -100,28 +137,62 @@ export function ConnectPanel({ compact = false }: { compact?: boolean }) {
   }
 
   return (
-    <>
-      <div className="connect-url-card">
-        <p className="connect-url-card__label">
-          <Plug size={16} /> URL del conector (MCP)
-        </p>
-        <p className="connect-url-card__desc">
-          Pega esta URL en Claude o ChatGPT. Te pedirá iniciar sesión en Kiba (OAuth) — no necesitas
-          API keys ni configurar nada más.
-        </p>
-        <CopyableUrl />
-      </div>
+    <div className="connect-methods">
+      {/* Method 1 — web (Claude / ChatGPT) */}
+      <section className="connect-method">
+        <div className="connect-method__head">
+          <span className="connect-method__num">1</span>
+          <div>
+            <h2 className="connect-method__title">Use it in Claude or ChatGPT (web)</h2>
+            <p className="connect-method__sub">
+              Paste one URL — nothing to install. Works in Claude (web &amp; desktop) and ChatGPT.
+            </p>
+          </div>
+        </div>
 
-      <div className="connect-steps">
-        <StepCard title="Claude" steps={CLAUDE_STEPS} href="https://claude.ai" />
-        <StepCard title="ChatGPT" steps={CHATGPT_STEPS} href="https://chatgpt.com" beta />
-      </div>
+        <div className="connect-url-card">
+          <p className="connect-url-card__label">
+            <Plug size={16} /> Connector URL (MCP)
+          </p>
+          <p className="connect-url-card__desc">
+            It asks you to sign in to Kiba (OAuth) — no API keys, no extra setup.
+          </p>
+          <CopyableUrl />
+        </div>
+
+        <div className="connect-steps">
+          <StepCard title="Claude" steps={CLAUDE_STEPS} href="https://claude.ai" />
+          <StepCard title="ChatGPT" steps={CHATGPT_STEPS} href="https://chatgpt.com" beta />
+        </div>
+      </section>
+
+      {/* Method 2 — install (IDE / CLI) */}
+      <section className="connect-method">
+        <div className="connect-method__head">
+          <span className="connect-method__num">2</span>
+          <div>
+            <h2 className="connect-method__title">Install in your editor (Cursor, Claude Code, Claude Desktop)</h2>
+            <p className="connect-method__sub">Add the kiba-mcp server to your MCP config.</p>
+          </div>
+        </div>
+
+        <div className="connect-url-card">
+          <p className="connect-url-card__label">
+            <Terminal size={16} /> MCP config (npx kiba-mcp)
+          </p>
+          <p className="connect-url-card__desc">
+            Add this to your MCP settings (e.g. <code>~/.claude.json</code> or your IDE), then restart.
+            On first use your browser opens to sign in to Kiba.
+          </p>
+          <CopyableConfig />
+        </div>
+      </section>
 
       <p className="connect-foot">
-        Una vez autorizado, la conexión aparece en{" "}
-        <Link to="/app/credentials">Credentials → Connected apps</Link>, donde puedes revocarla
-        cuando quieras.
+        Authorized apps show up under{" "}
+        <Link to="/app/credentials">Credentials → Connected apps</Link>, where you can revoke them
+        anytime.
       </p>
-    </>
+    </div>
   );
 }

@@ -4,9 +4,10 @@ export default function Connect() {
   return (
     <div className="connect-page">
       <header className="connect-head">
-        <h1 className="connect-title">Conecta tu asistente</h1>
+        <h1 className="connect-title">Get started</h1>
         <p className="connect-subtitle">
-          Añade Kiba como conector MCP en Claude o ChatGPT y descubre y paga agentes desde tu chat.
+          Use Kiba from Claude or ChatGPT, or install it in your editor — then discover and pay
+          agents straight from your chat.
         </p>
       </header>
       <ConnectPanel />

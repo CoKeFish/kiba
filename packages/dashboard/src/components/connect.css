@@ -1,4 +1,4 @@
-/* Connect — conectar Kiba a Claude/ChatGPT (alineado al rediseño Agent Friends) */
+/* Get started / Connect — conectar o instalar Kiba (alineado al rediseño Agent Friends) */
 
 .connect-page {
   display: flex;
@@ -29,7 +29,60 @@
   max-width: 640px;
 }
 
-/* ── URL card ── */
+/* ── Method sections (1 = web, 2 = install) ── */
+.connect-methods {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.connect-method {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.connect-method__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.connect-method__num {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 700;
+  background: var(--color-primary);
+  color: #fff;
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--color-primary) 30%, transparent);
+}
+
+.connect-method__title {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin: 2px 0 2px;
+  color: var(--color-fg);
+}
+
+.connect-method__sub {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--color-fg-subtle);
+  margin: 0;
+  max-width: 560px;
+  line-height: 1.45;
+}
+
+/* ── URL / install card ── */
 .connect-url-card {
   border-radius: 20px;
   border: 1px solid var(--color-border);
@@ -105,6 +158,47 @@
 
 .connect-copy-btn:hover {
   opacity: 0.92;
+}
+
+/* ── Code block (install config) ── */
+.connect-code {
+  position: relative;
+}
+
+.connect-code__pre {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--color-fg);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  padding: 16px 18px;
+  overflow-x: auto;
+}
+
+.connect-code__copy {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: #fff;
+  color: var(--color-fg-subtle);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.connect-code__copy:hover {
+  color: var(--color-fg);
 }
 
 /* ── Step cards (Claude / ChatGPT) ── */
@@ -269,7 +363,7 @@
   font-size: 14px;
   color: var(--color-fg-subtle);
   margin: 0 0 14px;
-  max-width: 440px;
+  max-width: 460px;
 }
 
 .connect-banner__btn {

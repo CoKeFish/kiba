@@ -26,7 +26,7 @@ import { Button } from "@/components/ui/button";
 
 const consumerNav = [
   { to: "/app", label: "Overview", icon: LayoutDashboard, end: true },
-  { to: "/app/connect", label: "Connect", icon: Plug },
+  { to: "/app/connect", label: "Get started", icon: Plug },
   { to: "/app/agents", label: "Agents", icon: Bot },
   { to: "/app/playground", label: "Playground", icon: Play },
   { to: "/app/usage", label: "Usage", icon: BarChart3 },
