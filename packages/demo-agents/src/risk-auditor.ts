@@ -31,6 +31,10 @@ const agent = new AgentProvider({
   description:
     'Analiza el riesgo de smart contracts / protocolos Stellar (Soroban). Acepta protocolos individuales o batch. Cobra por protocolo auditado.',
   endpoint: process.env.PUBLIC_ENDPOINT || 'http://demo-agents:5002',
+  // Acepta llamadas firmadas por la plataforma (gateway), verificando con la clave PÚBLICA publicada.
+  platform: process.env.KIBA_PLATFORM_PUBLIC_KEY
+    ? { publicKey: process.env.KIBA_PLATFORM_PUBLIC_KEY }
+    : undefined,
 });
 
 interface RiskRequest {

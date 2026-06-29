@@ -18,7 +18,13 @@ import axios from 'axios';
 import { AgentClient, type X402Trace } from '@kiba/sdk';
 import { debit, getBalance, lamportsToUsd } from './billing';
 import { db } from './db';
-import { loadUserSigner, masterWalletPubkey, userOnChainBalance } from './wallets';
+import {
+  getPlatformSigner,
+  loadUserSigner,
+  masterWalletPubkey,
+  platformPublicKey,
+  userOnChainBalance,
+} from './wallets';
 import { BASE_UNITS_PER_TOKEN } from './chain';
 import { recordEarning } from './settlement';
 
@@ -121,17 +127,12 @@ export async function callOnBehalf(args: {
 
   // ── MODO CRÉDITO (off-chain, camino caliente) ─────────────────────────────
   // El usuario tiene crédito → debita crédito (off-chain) y llama al agente por la VÍA DE
-  // CONFIANZA (X-Platform-Auth, SIN escrow per-call). La ganancia del agente se acredita en el
-  // ledger y se liquida on-chain por LOTES (settlement.ts). Instantáneo: sin deploy/TW/indexer.
+  // CONFIANZA: la plataforma FIRMA la llamada con su clave privada y el agente la verifica con
+  // la clave PÚBLICA publicada (sin secreto compartido, SIN escrow per-call). La ganancia del
+  // agente se acredita y se liquida on-chain por LOTES (settlement.ts). Instantáneo.
   if (virtualBalance >= lamports) {
-    const platformAuth = process.env.PLATFORM_CALL_SECRET;
-    if (!platformAuth) {
-      // Fail-closed: sin el secreto no podemos usar la vía de confianza (y no queremos caer al
-      // escrow per-call silenciosamente). El operador debe setear PLATFORM_CALL_SECRET.
-      throw new Error(
-        'PLATFORM_CALL_SECRET no configurado: el modo crédito off-chain requiere la vía de confianza',
-      );
-    }
+    // Firmante de la plataforma (asimétrico). Deriva de la treasury si no hay KIBA_PLATFORM_SECRET.
+    const platformSigner = getPlatformSigner();
 
     const debited = debit({
       userId: args.userId,
@@ -149,12 +150,13 @@ export async function callOnBehalf(args: {
     const t0 = Date.now();
     let result: unknown;
     try {
-      result = await client.callTrusted(manifest.endpoint, args.payload, {
-        platformAuth,
+      result = await client.callSigned(manifest.endpoint, args.payload, {
+        signer: platformSigner,
+        service: args.service,
         timeoutMs: 120_000,
       });
     } catch (err) {
-      // El agente no entregó (o rechazó la vía de confianza) → reembolsa el crédito.
+      // El agente no entregó (o rechazó la firma de la plataforma) → reembolsa el crédito.
       refundDebit(args.userId, lamports, args.service, (err as Error).message);
       throw err;
     }
@@ -230,4 +232,4 @@ export async function callOnBehalf(args: {
 }
 
 // Re-export para que index.ts lo siga importando desde aquí
-export { masterWalletPubkey };
+export { masterWalletPubkey, platformPublicKey };

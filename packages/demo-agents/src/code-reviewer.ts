@@ -28,6 +28,10 @@ const agent = new AgentProvider({
   description:
     'Reviews TypeScript, Rust and Solidity code for bugs, style issues, and common security vulnerabilities. Charges by line count.',
   endpoint: process.env.PUBLIC_ENDPOINT || 'http://demo-agents:5005',
+  // Acepta llamadas firmadas por la plataforma (gateway), verificando con la clave PÚBLICA publicada.
+  platform: process.env.KIBA_PLATFORM_PUBLIC_KEY
+    ? { publicKey: process.env.KIBA_PLATFORM_PUBLIC_KEY }
+    : undefined,
 });
 
 interface ReviewRequest {

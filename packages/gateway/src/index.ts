@@ -47,7 +47,7 @@ import {
   verifyCharge as verifyChargeRouted,
   COP_USD_RATE,
 } from './payments';
-import { callOnBehalf, listAgents, masterWalletPubkey } from './proxy';
+import { callOnBehalf, listAgents, masterWalletPubkey, platformPublicKey } from './proxy';
 import { settleAgent, settleAllDue } from './settlement';
 import { getMasterWallet, getOnChainBalance, getUserBalances, userOnChainBalance } from './wallets';
 import { ASSET, ASSET_USD_RATE, BASE_UNITS_PER_TOKEN } from './chain';
@@ -1227,6 +1227,7 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log('╚══════════════════════════════════════════╝');
   console.log(`  http://localhost:${PORT}`);
   console.log(`  Master wallet: ${masterWalletPubkey()}`);
+  console.log(`  Platform auth key (set as KIBA_PLATFORM_PUBLIC_KEY on agents): ${platformPublicKey()}`);
   console.log(`  DB: ${process.env.DB_PATH || '/app/data/gateway.db'}`);
   console.log(`  asset=${ASSET}`);
   // touch db to ensure schema applied

@@ -37,6 +37,10 @@ const agent = new AgentProvider({
   description:
     'Encuentra el mejor APY entre protocolos DeFi en Stellar. Pricing escalado por profundidad de análisis.',
   endpoint: process.env.PUBLIC_ENDPOINT || 'http://demo-agents:5001',
+  // Acepta llamadas firmadas por la plataforma (gateway), verificando con la clave PÚBLICA publicada.
+  platform: process.env.KIBA_PLATFORM_PUBLIC_KEY
+    ? { publicKey: process.env.KIBA_PLATFORM_PUBLIC_KEY }
+    : undefined,
 });
 
 const MOCK_YIELDS = [

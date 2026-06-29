@@ -31,6 +31,10 @@ const agent = new AgentProvider({
   description:
     'Real-time cryptocurrency prices aggregated from major exchanges. Acepta símbolos individuales o batch. Cobra por símbolo cotizado.',
   endpoint: process.env.PUBLIC_ENDPOINT || 'http://demo-agents:5004',
+  // Acepta llamadas firmadas por la plataforma (gateway), verificando con la clave PÚBLICA publicada.
+  platform: process.env.KIBA_PLATFORM_PUBLIC_KEY
+    ? { publicKey: process.env.KIBA_PLATFORM_PUBLIC_KEY }
+    : undefined,
 });
 
 interface PriceRequest {

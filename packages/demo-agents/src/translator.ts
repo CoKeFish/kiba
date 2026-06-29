@@ -28,6 +28,10 @@ const agent = new AgentProvider({
   description:
     'Professional translation across English, Spanish, French, German, Japanese and Chinese. Charges by character count.',
   endpoint: process.env.PUBLIC_ENDPOINT || 'http://demo-agents:5003',
+  // Acepta llamadas firmadas por la plataforma (gateway), verificando con la clave PÚBLICA publicada.
+  platform: process.env.KIBA_PLATFORM_PUBLIC_KEY
+    ? { publicKey: process.env.KIBA_PLATFORM_PUBLIC_KEY }
+    : undefined,
 });
 
 interface TranslateRequest {
@@ -66,7 +70,7 @@ const LANG_ALIASES: Record<string, string> = {
 };
 
 agent.serve<TranslateRequest, TranslateResponse>(async (req) => {
-  const r = req as Record<string, unknown>;
+  const r = req as unknown as Record<string, unknown>;
   const text = String(r.text ?? r.q ?? r.input ?? r.content ?? '');
   const toRaw = String(
     r.to ?? r.target ?? r.target_language ?? r.targetLang ?? r.targetLanguage ?? r.lang ?? 'en',

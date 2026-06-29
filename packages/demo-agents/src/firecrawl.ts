@@ -28,10 +28,10 @@ const REQUEST_TIMEOUT_MS = Number(process.env.FIRECRAWL_TIMEOUT_MS) || 60_000;
 
 // Pricing dinámico: un scrape simple (markdown) es barato; la extracción
 // estructurada (json/product) usa un LLM en el lado de Firecrawl y cuesta más.
-//   - scrape plano           → floor 0.002 XLM
-//   - extracción estructurada → 0.005 XLM (prompt/schema o formato product/json)
-const PRICE_SCRAPE_XLM = 0.002;
-const PRICE_EXTRACT_XLM = 0.005;
+//   - scrape plano           → floor 0.002 USDC
+//   - extracción estructurada → 0.005 USDC (prompt/schema o formato product/json)
+const PRICE_SCRAPE_USDC = 0.002;
+const PRICE_EXTRACT_USDC = 0.005;
 
 /** ¿la request pide extracción estructurada (LLM) y no solo markdown? */
 function wantsExtraction(req: unknown): boolean {
@@ -46,12 +46,16 @@ function wantsExtraction(req: unknown): boolean {
 const agent = new AgentProvider({
   wallet,
   service: 'firecrawl',
-  pricePerCall: PRICE_SCRAPE_XLM,
-  pricingNote: `Scrape de página ${PRICE_SCRAPE_XLM} XLM · extracción estructurada (precio/datos con prompt) ${PRICE_EXTRACT_XLM} XLM`,
-  priceFn: (req: unknown) => (wantsExtraction(req) ? PRICE_EXTRACT_XLM : PRICE_SCRAPE_XLM),
+  pricePerCall: PRICE_SCRAPE_USDC,
+  pricingNote: `Scrape de página ${PRICE_SCRAPE_USDC} USDC · extracción estructurada (precio/datos con prompt) ${PRICE_EXTRACT_USDC} USDC`,
+  priceFn: (req: unknown) => (wantsExtraction(req) ? PRICE_EXTRACT_USDC : PRICE_SCRAPE_USDC),
   description:
     'Web scraper en vivo (Firecrawl). Carga contenido dinámico que requiere render de JavaScript y lo devuelve como markdown limpio, o extrae datos estructurados (precios, stock, especificaciones) de una URL con un prompt. Ideal para precios de productos en Amazon, MercadoLibre y tiendas online, artículos detrás de paywalls de render, y páginas que los asistentes no pueden leer solos. Web scraping, price scraping, product data extraction.',
   endpoint: process.env.PUBLIC_ENDPOINT || 'http://demo-agents:5006',
+  // Acepta llamadas firmadas por la plataforma (gateway), verificando con la clave PÚBLICA publicada.
+  platform: process.env.KIBA_PLATFORM_PUBLIC_KEY
+    ? { publicKey: process.env.KIBA_PLATFORM_PUBLIC_KEY }
+    : undefined,
 });
 
 interface FirecrawlRequest {

@@ -11,7 +11,14 @@
  */
 import { Keypair } from '@solana/web3.js';
 import { Keypair as StellarKeypair } from '@stellar/stellar-sdk';
-import { loadOrCreateKeypair, LocalKeypairSigner, type StellarSigner } from '@kiba/sdk';
+import {
+  LocalKeypairSigner,
+  LocalPlatformSigner,
+  type StellarSigner,
+  type PlatformCallSigner,
+} from '@kiba/sdk';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname } from 'node:path';
 import { getBalance, lamportsToSol, lamportsToUsd } from './billing';
 import { ASSET, chainClientFor, chainClientForSigner } from './chain';
 import { db } from './db';
@@ -22,19 +29,53 @@ export const BASE_UNIT_NAME: 'lamports' | 'stroops' = 'stroops';
 
 const MASTER_KEYPAIR_PATH = process.env.MASTER_KEYPAIR_PATH || '/app/data/master-wallet.json';
 
+/** Carga/crea el keypair (64-byte secretKey ed25519) de la treasury en disco. */
+function loadOrCreateSolanaKeypair(path: string): Keypair {
+  if (existsSync(path)) {
+    const arr = JSON.parse(readFileSync(path, 'utf8')) as number[];
+    return Keypair.fromSecretKey(Uint8Array.from(arr));
+  }
+  const kp = Keypair.generate();
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, JSON.stringify(Array.from(kp.secretKey)), { mode: 0o600 });
+  return kp;
+}
+
 function loadMasterWallet(): Keypair {
   const fromEnv = process.env.MASTER_WALLET_SECRET;
   if (fromEnv) {
     const arr = JSON.parse(fromEnv) as number[];
     return Keypair.fromSecretKey(Uint8Array.from(arr));
   }
-  return loadOrCreateKeypair(MASTER_KEYPAIR_PATH);
+  return loadOrCreateSolanaKeypair(MASTER_KEYPAIR_PATH);
 }
 
 const masterWallet = loadMasterWallet();
 
 export function getMasterWallet(): Keypair {
   return masterWallet;
+}
+
+/**
+ * Firmante de la plataforma para las llamadas de confianza (asimétrico): firma cada
+ * llamada con la clave PRIVADA; los agentes verifican con la clave PÚBLICA publicada
+ * (sin secreto compartido). Usa KIBA_PLATFORM_SECRET (S...) si está; si no, deriva el
+ * keypair Stellar del seed de la treasury (misma identidad on-chain que el platformAddress).
+ */
+let platformSigner: PlatformCallSigner | null = null;
+export function getPlatformSigner(): PlatformCallSigner {
+  if (platformSigner) return platformSigner;
+  const secret = process.env.KIBA_PLATFORM_SECRET;
+  const kp = secret
+    ? StellarKeypair.fromSecret(secret)
+    : StellarKeypair.fromRawEd25519Seed(Buffer.from(masterWallet.secretKey.slice(0, 32)));
+  platformSigner = new LocalPlatformSigner(kp);
+  return platformSigner;
+}
+
+/** Clave PÚBLICA de la plataforma (G...) que los agentes configuran para verificar. */
+export function platformPublicKey(): string {
+  return getPlatformSigner().publicKey();
 }
 
 export function masterWalletPubkey(): string {
