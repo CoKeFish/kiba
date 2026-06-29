@@ -49,8 +49,13 @@
 .auth-brand {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
   text-decoration: none;
+}
+.auth-brand-logo {
+  height: 28px;
+  width: auto;
+  display: block;
+  object-fit: contain;
 }
 .auth-brand-text {
   font-family: var(--font-display);

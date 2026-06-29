@@ -32,7 +32,7 @@ const navLinks = [
     <meta property="og:description" content={description} />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -55,17 +55,10 @@ const navLinks = [
     ">
       <!-- Brand -->
       <a href="/" class="kiba-brand" aria-label="Kiba home" style="
-        display: inline-flex; align-items: center; gap: 5px;
+        display: inline-flex; align-items: center;
         text-decoration: none; position: relative;
       ">
-        <span style="
-          font-family: var(--font-display);
-          font-size: 26px;
-          font-weight: 800;
-          letter-spacing: -0.06em;
-          color: var(--fg-1);
-        ">Kiba</span>
-        <span class="logo-dot" aria-hidden="true"></span>
+        <img src="/logo.png" alt="Kiba" class="kiba-logo" />
       </a>
 
       <!-- Nav links -->
@@ -141,14 +134,11 @@ const navLinks = [
       .btn-ghost:hover { border-color: var(--accent) !important; background: var(--accent-soft) !important; }
       .btn-primary:hover { transform: translateY(-1px); background: var(--accent-hover) !important; box-shadow: var(--glow-md) !important; }
 
-      .logo-dot {
-        width: 7px; height: 7px; border-radius: 50%;
-        background: var(--accent);
-        animation: kiba-pop 2s ease-in-out infinite;
-      }
-      @keyframes kiba-pop {
-        0%, 100% { transform: scale(1); background: var(--accent); }
-        50% { transform: scale(1.6); background: var(--c-pink); }
+      .kiba-logo {
+        height: 28px;
+        width: auto;
+        display: block;
+        object-fit: contain;
       }
 
       @media (max-width: 860px) {
@@ -156,7 +146,6 @@ const navLinks = [
       }
       @media (prefers-reduced-motion: reduce) {
         #site-header { animation: none !important; }
-        .logo-dot { animation: none !important; }
       }
     </style>
 

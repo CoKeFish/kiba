@@ -1,4 +1,4 @@
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   BarChart3,
@@ -81,21 +81,9 @@ export function AppLayout() {
           className="px-5 py-4 flex items-center"
           style={{ borderBottom: "1px solid var(--color-border)" }}
         >
-          <span
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 5,
-              fontFamily: "var(--font-display)",
-              fontSize: 24,
-              fontWeight: 800,
-              color: "var(--color-fg)",
-              letterSpacing: "-0.06em",
-            }}
-          >
-            Kiba
-            <span className="kiba-dot" aria-hidden="true" />
-          </span>
+          <Link to="/app" className="kiba-brand-link" aria-label="Kiba home">
+            <img src="/logo.png" alt="Kiba" className="kiba-logo" />
+          </Link>
         </div>
 
         {/* Mode switch — Consumer ⇄ Publisher (same account) */}

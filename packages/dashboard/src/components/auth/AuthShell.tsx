@@ -35,8 +35,7 @@ export function AuthShell({
 
       <header className="auth-header">
         <Link to="/" className="auth-brand" aria-label="Kiba home">
-          <span className="auth-brand-text">Kiba</span>
-          <span className="auth-brand-dot" aria-hidden="true" />
+          <img src="/logo.png" alt="Kiba" className="auth-brand-logo" />
         </Link>
         <div className="auth-header-cta">
           <span className="auth-header-prompt">{headerPrompt}</span>

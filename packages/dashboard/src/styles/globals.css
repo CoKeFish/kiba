@@ -122,6 +122,20 @@ h1, h2, h3, h4, h5, h6 {
     0 12px 32px color-mix(in srgb, var(--color-fg) 5%, transparent);
 }
 
+/* Brand logo — shared across sidebar and auth */
+.kiba-brand-link {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+.kiba-logo {
+  height: 28px;
+  width: auto;
+  display: block;
+  object-fit: contain;
+}
+
 /* Animated brand dot (pink ⇄ star-blue), same as the auth header. */
 .kiba-dot {
   display: inline-block;
