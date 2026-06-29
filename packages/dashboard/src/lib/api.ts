@@ -129,6 +129,20 @@ export const api = {
       body: JSON.stringify({ name }),
     }),
   publisherOverview: () => request<PublisherOverview>("/v1/publisher/overview"),
+
+  // Pagos fiat (Bre-B / PSP) → créditos. Recargas locales sin wallet.
+  paymentsConfig: () => request<PaymentsConfig>("/v1/payments/config"),
+  createBrebCharge: (amountCop: number) =>
+    request<PaymentCharge>("/v1/payments/breb/charge", {
+      method: "POST",
+      body: JSON.stringify({ amountCop }),
+    }),
+  getCharge: (id: string) => request<PaymentCharge>(`/v1/payments/charge/${encodeURIComponent(id)}`),
+  simulateBreb: (chargeId: string) =>
+    request<{ charge: PaymentCharge; new_balance_usd: number; new_balance_kibs: number }>(
+      "/v1/payments/breb/simulate",
+      { method: "POST", body: JSON.stringify({ chargeId }) },
+    ),
 };
 
 export type User = {
@@ -253,6 +267,27 @@ export type MyAgent = {
   totalEarnedLamports: number;
   totalEarnedSol: number;
   createdAt: number;
+};
+
+export type PaymentsConfig = {
+  cop_usd_rate: number;
+  kibs_per_usd: number;
+  sandbox: boolean;
+  provider: string;
+  methods: { id: string; label: string; country: string }[];
+};
+
+export type PaymentCharge = {
+  id: string;
+  method: string;
+  reference: string;
+  amount_cop: number;
+  amount_usd: number;
+  kibs: number;
+  status: "pending" | "paid" | "expired";
+  detail: { llave?: string; qrPayload?: string; instructions?: string };
+  created_at: number;
+  paid_at: number | null;
 };
 
 export type PublisherOverview = {

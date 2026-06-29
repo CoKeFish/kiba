@@ -19,6 +19,7 @@ import {
 } from "@/lib/format";
 import { format } from "date-fns";
 import { CreditCard, Wallet, ExternalLink, AlertCircle } from "lucide-react";
+import { BrebTopup } from "@/components/BrebTopup";
 
 const QUICK_AMOUNTS = [5, 10, 25, 50, 100];
 
@@ -154,6 +155,9 @@ export default function Billing() {
           </Button>
         </CardBody>
       </Card>
+
+      {/* Bre-B (Colombia) — recarga local sin wallet */}
+      <BrebTopup />
 
       {/* Invoices history */}
       <Card>

@@ -195,6 +195,27 @@ ensureColumn('oauth_tokens', 'resource', 'TEXT');
 ensureColumn('users', 'privy_wallet_id', 'TEXT');
 ensureColumn('users', 'stellar_address', 'TEXT');
 
+// Cargos de pago fiat (Bre-B / PSP). Un "charge" es una intención de recarga:
+// se crea pending, el usuario paga por el PSP (en sandbox lo simulamos), y al
+// confirmarse se acreditan créditos. Idempotente por `status` (pending→paid).
+db.exec(`
+  CREATE TABLE IF NOT EXISTS payment_charges (
+    id TEXT PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    provider TEXT NOT NULL,
+    method TEXT NOT NULL,
+    reference TEXT NOT NULL,
+    amount_cop INTEGER NOT NULL,
+    amount_usd REAL NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    metadata TEXT,
+    created_at INTEGER NOT NULL,
+    paid_at INTEGER,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_charges_user ON payment_charges(user_id);
+`);
+
 export interface UserRow {
   id: number;
   email: string;

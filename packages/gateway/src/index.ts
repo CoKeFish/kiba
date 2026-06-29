@@ -39,6 +39,7 @@ import {
 } from './mcp-oauth';
 import { handleMcpRequest } from './mcp';
 import { getBalance, getTransactions, lamportsToUsd, topup } from './billing';
+import { getPaymentProvider, COP_USD_RATE } from './payments';
 import { callOnBehalf, listAgents, masterWalletPubkey } from './proxy';
 import { settleAgent, settleAllDue } from './settlement';
 import { getMasterWallet, getOnChainBalance, getUserBalances, userOnChainBalance } from './wallets';
@@ -344,6 +345,80 @@ function handleTopup(req: Request, res: Response) {
 
 app.post('/topup', requireAuth, handleTopup);
 app.post('/v1/topup', requireAuth, handleTopup);
+
+// ─── Pagos fiat (Bre-B / PSP) → créditos ──────────────────────────
+// Recargas para usuarios locales (Colombia) sin wallet ni web3. El provider
+// abstrae la pasarela; hoy corre el sandbox de Bre-B (ver payments.ts).
+
+function chargeToJson(c: import('./payments').Charge) {
+  return {
+    id: c.id,
+    method: c.method,
+    reference: c.reference,
+    amount_cop: c.amountCop,
+    amount_usd: c.amountUsd,
+    kibs: c.kibs,
+    status: c.status,
+    detail: c.detail,
+    created_at: c.createdAt,
+    paid_at: c.paidAt,
+  };
+}
+
+app.get('/v1/payments/config', requireAuth, (_req, res) => {
+  const p = getPaymentProvider();
+  res.json({
+    cop_usd_rate: COP_USD_RATE,
+    kibs_per_usd: 10_000,
+    sandbox: p.sandbox,
+    provider: p.id,
+    methods: [{ id: 'bre-b', label: 'Bre-B', country: 'CO' }],
+  });
+});
+
+app.post('/v1/payments/breb/charge', requireAuth, (req, res) => {
+  const amountCop = Math.floor(Number(req.body?.amountCop));
+  if (!Number.isFinite(amountCop) || amountCop < 1000) {
+    return res.status(400).json({ error: 'amountCop must be at least 1000 COP' });
+  }
+  if (amountCop > 4_000_000) {
+    return res.status(400).json({ error: 'amountCop capped at 4,000,000 COP in demo mode' });
+  }
+  try {
+    const charge = getPaymentProvider().createCharge({ userId: req.bearerUser!.id, amountCop });
+    res.status(201).json(chargeToJson(charge));
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : 'unknown error' });
+  }
+});
+
+app.get('/v1/payments/charge/:id', requireAuth, (req, res) => {
+  const charge = getPaymentProvider().getCharge(String(req.params.id), req.bearerUser!.id);
+  if (!charge) return res.status(404).json({ error: 'charge not found' });
+  res.json(chargeToJson(charge));
+});
+
+/**
+ * Sandbox: simula que el usuario pagó por su app bancaria (representa el webhook
+ * del PSP). En producción esto lo dispararía el webhook firmado del PSP, no el cliente.
+ */
+app.post('/v1/payments/breb/simulate', requireAuth, (req, res) => {
+  const p = getPaymentProvider();
+  if (!p.sandbox) return res.status(400).json({ error: 'simulate only available in sandbox' });
+  const chargeId = String(req.body?.chargeId ?? '');
+  if (!chargeId) return res.status(400).json({ error: 'chargeId required' });
+  try {
+    const { charge, newBalanceUsd } = p.confirmCharge(chargeId, req.bearerUser!.id);
+    res.json({
+      charge: chargeToJson(charge),
+      new_balance_usd: newBalanceUsd,
+      new_balance_kibs: Math.round(newBalanceUsd * 10_000),
+    });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'unknown error';
+    res.status(msg.includes('not found') ? 404 : 400).json({ error: msg });
+  }
+});
 
 // ═══════════════════════════════════════════════════════════════
 //   OAuth 2.0 PKCE
