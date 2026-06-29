@@ -324,6 +324,42 @@
   text-decoration: underline;
 }
 
+/* ── Download (installer) ── */
+.connect-download-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 22px;
+  border-radius: 999px;
+  background: var(--color-primary);
+  color: #fff;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--color-primary) 32%, transparent);
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+
+.connect-download-btn:hover {
+  opacity: 0.92;
+}
+
+.connect-download-note {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--color-fg-muted);
+  margin: 10px 0 0;
+}
+
+.connect-or {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-fg-subtle);
+  margin: 2px 0 0;
+}
+
 /* ── Compact banner (home Overview) ── */
 .connect-banner {
   position: relative;

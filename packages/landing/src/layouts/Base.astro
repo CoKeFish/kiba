@@ -13,6 +13,8 @@ const {
 } = Astro.props;
 
 const DASHBOARD_URL = import.meta.env.PUBLIC_DASHBOARD_URL || "https://dashboard.kiba.rodion.com.co";
+// Instalador de un clic (Windows) — kiba MCP en Claude Desktop / Cursor / Claude Code.
+const INSTALLER_URL = "https://github.com/CoKeFish/kiba/releases/latest/download/Kiba-Installer-0.1.0-x64-setup.exe";
 
 const navLinks = [
   { label: "Agents", href: "#agents" },
@@ -97,6 +99,26 @@ const navLinks = [
             transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
           "
         >Sign in</a>
+        <a
+          href={INSTALLER_URL}
+          title="Windows one-click installer (.exe)"
+          style="
+            display: inline-flex; align-items: center; gap: 7px;
+            font-family: var(--font-sans);
+            font-size: 14px;
+            font-weight: 700;
+            background: transparent;
+            color: var(--fg-1);
+            border: 1.5px solid var(--border-strong);
+            padding: 9px 18px;
+            border-radius: 999px;
+            text-decoration: none;
+            transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+          "
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+          Download
+        </a>
         <a
           href={`${DASHBOARD_URL}/signup`}
           class="btn-primary"

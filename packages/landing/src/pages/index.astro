@@ -9,6 +9,8 @@ import Footer from "../components/Footer.astro";
 
 const BACKEND_URL = import.meta.env.PUBLIC_BACKEND_URL || "https://kiba-data.rodion.com.co";
 const DASHBOARD_URL = import.meta.env.PUBLIC_DASHBOARD_URL || "https://dashboard.kiba.rodion.com.co";
+// Instalador de un clic (Windows) — kiba MCP en Claude Desktop / Cursor / Claude Code.
+const INSTALLER_URL = "https://github.com/CoKeFish/kiba/releases/latest/download/Kiba-Installer-0.1.0-x64-setup.exe";
 
 const featurePills = [
   "Hybrid search",
@@ -92,18 +94,35 @@ const featurePills = [
           Create a free account and connect your first agent in under five minutes.
         </p>
       </div>
-      <a
-        href={`${DASHBOARD_URL}/signup`}
-        class="btn-cta"
-        style="
-          position: relative; z-index: 2;
-          font-family: var(--font-sans); font-size: 15px; font-weight: 700;
-          background: #fff; color: var(--fg-1);
-          padding: 15px 34px; border-radius: 999px; text-decoration: none;
-          white-space: nowrap;
-          transition: transform var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
-        "
-      >Start exploring →</a>
+      <div style="position: relative; z-index: 2; display: flex; gap: 12px; flex-wrap: wrap;">
+        <a
+          href={`${DASHBOARD_URL}/signup`}
+          class="btn-cta"
+          style="
+            font-family: var(--font-sans); font-size: 15px; font-weight: 700;
+            background: #fff; color: var(--fg-1);
+            padding: 15px 34px; border-radius: 999px; text-decoration: none;
+            white-space: nowrap;
+            transition: transform var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+          "
+        >Start exploring →</a>
+        <a
+          href={INSTALLER_URL}
+          title="Windows one-click installer (.exe)"
+          style="
+            display: inline-flex; align-items: center; gap: 8px;
+            font-family: var(--font-sans); font-size: 15px; font-weight: 700;
+            background: rgba(255,255,255,.12); color: #fff;
+            border: 1.5px solid rgba(255,255,255,.45);
+            padding: 15px 26px; border-radius: 999px; text-decoration: none;
+            white-space: nowrap;
+            transition: background var(--dur-fast) var(--ease-out);
+          "
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+          Download
+        </a>
+      </div>
     </div>
   </section>
 

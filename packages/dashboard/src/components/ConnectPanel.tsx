@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Plug, Terminal, Copy, Check, ArrowRight, ExternalLink } from "lucide-react";
+import { Plug, Terminal, Copy, Check, ArrowRight, ExternalLink, Download } from "lucide-react";
 import "./connect.css";
 
 /**
@@ -14,6 +14,10 @@ const MCP_URL =
 
 /** Base del gateway (sin /mcp) para el adaptador stdio `kiba-mcp` (KIBA_URL). */
 const GATEWAY_BASE = MCP_URL.replace(/\/mcp\/?$/, "");
+
+/** Instalador de un clic (Windows) publicado en los releases del repo. */
+const INSTALLER_URL =
+  "https://github.com/CoKeFish/kiba/releases/latest/download/Kiba-Installer-0.1.0-x64-setup.exe";
 
 const INSTALL_CONFIG = JSON.stringify(
   {
@@ -172,9 +176,32 @@ export function ConnectPanel({ compact = false }: { compact?: boolean }) {
           <span className="connect-method__num">2</span>
           <div>
             <h2 className="connect-method__title">Install in your editor (Cursor, Claude Code, Claude Desktop)</h2>
-            <p className="connect-method__sub">Add the kiba-mcp server to your MCP config.</p>
+            <p className="connect-method__sub">
+              Get the one-click installer, or add the server to your MCP config manually.
+            </p>
           </div>
         </div>
+
+        <div className="connect-url-card">
+          <p className="connect-url-card__label">
+            <Download size={16} /> One-click installer (Windows)
+          </p>
+          <p className="connect-url-card__desc">
+            Installs the kiba server into Claude Desktop, Cursor and Claude Code automatically —
+            per-user, no admin required.
+          </p>
+          <a
+            className="connect-download-btn"
+            href={INSTALLER_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <Download size={16} /> Download for Windows
+          </a>
+          <p className="connect-download-note">macOS / Linux? Use the manual config below.</p>
+        </div>
+
+        <p className="connect-or">Or add it manually (any OS):</p>
 
         <div className="connect-url-card">
           <p className="connect-url-card__label">
