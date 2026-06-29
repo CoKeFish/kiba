@@ -1,0 +1,74 @@
+name: publish-kiba-installer
+
+# Buildea el instalador Tauri (NSIS .exe + .msi) y publica un GitHub release al
+# pushear un tag `installer-v*`. Sin firma de código (Windows SmartScreen mostrará
+# aviso; "More info -> Run anyway"). Los assets se renombran a un nombre ESTABLE sin
+# versión para que `releases/latest/download/Kiba-Installer-x64-setup.exe` no se
+# rompa entre versiones (los botones Download apuntan a ese nombre fijo).
+#
+# Para liberar una versión del instalador:
+#   1) sube `version` en packages/installer/src-tauri/tauri.conf.json
+#   2) commit + push a main
+#   3) git tag installer-v<version> && git push origin installer-v<version>
+
+on:
+  push:
+    tags:
+      - 'installer-v*'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write # crear el release + subir assets
+
+jobs:
+  build-release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: packages/installer/src-tauri
+
+      - name: Install Tauri CLI
+        working-directory: packages/installer
+        run: npm install --no-audit --no-fund
+
+      - name: Build installer (nsis + msi)
+        working-directory: packages/installer
+        run: npm run build
+
+      - name: Collect + rename bundles (stable names)
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="packages/installer/src-tauri/target/release/bundle"
+          mkdir -p dist
+          cp "$(ls "$base"/nsis/*-setup.exe | head -1)" "dist/Kiba-Installer-x64-setup.exe"
+          cp "$(ls "$base"/msi/*.msi | head -1)" "dist/Kiba-Installer-x64.msi"
+          ls -la dist
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: kiba-installer
+          path: dist/*
+
+      - name: Publish GitHub release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Kiba Installer ${{ github.ref_name }}
+          body: |
+            One-click MCP installer for Kiba. Installs the kiba MCP server in
+            Claude Desktop, Cursor and Claude Code. Per-user, no admin required.
+            Apunta al gateway de producción vivo.
+
+            Descarga: **Kiba-Installer-x64-setup.exe** (o el .msi).
+          files: |
+            dist/Kiba-Installer-x64-setup.exe
+            dist/Kiba-Installer-x64.msi

@@ -25,7 +25,7 @@ import { dirname, join } from 'node:path';
 import { homedir } from 'node:os';
 import open from 'open';
 
-const GATEWAY_URL = process.env.KIBA_URL || 'https://kiba-api.rodion.com.co';
+const GATEWAY_URL = process.env.KIBA_URL || 'https://gateway-production-be17.up.railway.app';
 const TOKEN_PATH = process.env.KIBA_TOKEN_PATH || join(homedir(), '.config', 'kiba', 'token.json');
 const CLIENT_NAME = process.env.KIBA_CLIENT_NAME || 'kiba-mcp';
 // Headless / CI / server-side: si KIBA_API_KEY está seteado, lo usamos
