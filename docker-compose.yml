@@ -161,6 +161,10 @@ services:
       # Stripe (tarjeta internacional). Llaves de test instantáneas en dashboard.stripe.com.
       - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-}
       - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-}
+      # PayPal (cuenta/tarjeta). Credenciales sandbox en developer.paypal.com.
+      - PAYPAL_CLIENT_ID=${PAYPAL_CLIENT_ID:-}
+      - PAYPAL_SECRET=${PAYPAL_SECRET:-}
+      - PAYPAL_API_URL=${PAYPAL_API_URL:-https://api-m.sandbox.paypal.com}
     depends_on:
       - backend
       - demo-agents

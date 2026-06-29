@@ -49,6 +49,18 @@ function stripeConfigured(): boolean {
   return Boolean(STRIPE_SECRET_KEY);
 }
 
+// ── PayPal ── (tarjeta/cuenta PayPal; credenciales sandbox instantáneas, sin KYC)
+const PAYPAL_CLIENT_ID = process.env.PAYPAL_CLIENT_ID || '';
+const PAYPAL_SECRET = process.env.PAYPAL_SECRET || '';
+const PAYPAL_API_URL = (process.env.PAYPAL_API_URL || 'https://api-m.sandbox.paypal.com').replace(
+  /\/+$/,
+  '',
+);
+
+function paypalConfigured(): boolean {
+  return Boolean(PAYPAL_CLIENT_ID && PAYPAL_SECRET);
+}
+
 export const copToUsd = (cop: number) => cop / COP_USD_RATE;
 export const copToKibs = (cop: number) => Math.round(copToUsd(cop) * KIBS_PER_USD);
 const sha256 = (s: string) => createHash('sha256').update(s).digest('hex');
@@ -547,6 +559,141 @@ class StripeProvider implements PaymentProvider {
   }
 }
 
+// ─── PayPal provider (cuenta/tarjeta internacional) ────────────
+
+interface PayPalOrder {
+  id: string;
+  status?: string;
+  links?: { rel: string; href: string }[];
+  purchase_units?: { reference_id?: string; custom_id?: string }[];
+}
+
+class PayPalProvider implements PaymentProvider {
+  readonly id = 'paypal';
+  readonly sandbox = PAYPAL_API_URL.includes('sandbox');
+  readonly label = 'PayPal';
+  readonly country = 'Intl';
+  readonly mode = 'redirect' as const;
+
+  private token: { value: string; exp: number } | null = null;
+
+  private async accessToken(): Promise<string> {
+    if (this.token && this.token.exp > Date.now() + 60_000) return this.token.value;
+    const res = await fetch(`${PAYPAL_API_URL}/v1/oauth2/token`, {
+      method: 'POST',
+      headers: {
+        Authorization: 'Basic ' + Buffer.from(`${PAYPAL_CLIENT_ID}:${PAYPAL_SECRET}`).toString('base64'),
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: 'grant_type=client_credentials',
+    });
+    const j = (await res.json().catch(() => ({}))) as { access_token?: string; expires_in?: number };
+    if (!res.ok || !j.access_token) throw new Error(`PayPal auth failed (${res.status})`);
+    this.token = { value: j.access_token, exp: Date.now() + (j.expires_in ?? 3000) * 1000 };
+    return this.token.value;
+  }
+
+  private async api(path: string, method: 'GET' | 'POST', body?: object): Promise<any> {
+    const res = await fetch(`${PAYPAL_API_URL}${path}`, {
+      method,
+      headers: {
+        Authorization: `Bearer ${await this.accessToken()}`,
+        'Content-Type': 'application/json',
+      },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+    return { ok: res.ok, status: res.status, json };
+  }
+
+  async createCharge({ userId, amountCop, redirectUrl }: CreateChargeInput): Promise<Charge> {
+    const amountUsd = copToUsd(amountCop);
+    const reference = `KIBA-${randomBytes(8).toString('hex').toUpperCase()}`;
+    const charge = insertCharge({
+      userId,
+      provider: this.id,
+      method: 'paypal',
+      reference,
+      amountCop,
+      amountUsd,
+      detail: {},
+    });
+
+    const redirect = redirectUrl || DEFAULT_REDIRECT;
+    const { ok, status, json } = await this.api('/v2/checkout/orders', 'POST', {
+      intent: 'CAPTURE',
+      purchase_units: [
+        {
+          reference_id: reference,
+          custom_id: reference,
+          amount: { currency_code: 'USD', value: amountUsd.toFixed(2) },
+        },
+      ],
+      application_context: {
+        return_url: redirect,
+        cancel_url: `${redirect}?canceled=1`,
+        user_action: 'PAY_NOW',
+        shipping_preference: 'NO_SHIPPING',
+        brand_name: 'Kiba',
+      },
+    });
+    const order = json as PayPalOrder;
+    if (!ok || !order.id) {
+      throw new Error(`PayPal create order failed (${status})`);
+    }
+    const approve = order.links?.find((l) => l.rel === 'approve' || l.rel === 'payer-action');
+    if (!approve) throw new Error('PayPal approve link missing');
+
+    mergeChargeDetail(charge.id, { checkoutUrl: approve.href, orderId: order.id });
+    return loadCharge(charge.id, userId)!;
+  }
+
+  getCharge(id: string, userId: number): Charge | null {
+    return loadCharge(id, userId);
+  }
+
+  async verifyCharge({
+    chargeId,
+    userId,
+    providerTxId,
+  }: {
+    chargeId: string;
+    userId: number;
+    providerTxId: string;
+  }): Promise<VerifyResult> {
+    const charge = loadCharge(chargeId, userId);
+    if (!charge) throw new Error('charge not found');
+    if (charge.status === 'paid') {
+      return { charge, newBalanceUsd: lamportsToUsd(getBalance(userId)), status: 'COMPLETED' };
+    }
+
+    // Captura la orden (providerTxId = orderId que vuelve como ?token=).
+    let cap = await this.api(`/v2/checkout/orders/${encodeURIComponent(providerTxId)}/capture`, 'POST', {});
+    let order = cap.json as PayPalOrder;
+    // Si ya estaba capturada, consultamos el estado real (idempotencia).
+    if (!cap.ok) {
+      const got = await this.api(`/v2/checkout/orders/${encodeURIComponent(providerTxId)}`, 'GET');
+      order = got.json as PayPalOrder;
+    }
+
+    const ref = order.purchase_units?.[0]?.reference_id ?? order.purchase_units?.[0]?.custom_id;
+    if (ref && ref !== charge.reference) throw new Error('reference mismatch');
+
+    if (order.status === 'COMPLETED') {
+      applyCredit(chargeId);
+    } else if (order.status === 'VOIDED') {
+      db.prepare(
+        "UPDATE payment_charges SET status = 'expired' WHERE id = ? AND status = 'pending'",
+      ).run(chargeId);
+    }
+    return {
+      charge: loadCharge(chargeId, userId)!,
+      newBalanceUsd: lamportsToUsd(getBalance(userId)),
+      status: order.status ?? 'pending',
+    };
+  }
+}
+
 // ─── Registry (múltiples métodos a la vez) ─────────────────────
 //
 // Se ofrecen TODOS los métodos disponibles simultáneamente (no uno solo): el
@@ -563,6 +710,8 @@ function build(id: string): PaymentProvider | null {
       return wompiConfigured() ? new WompiProvider() : null;
     case 'stripe':
       return stripeConfigured() ? new StripeProvider() : null;
+    case 'paypal':
+      return paypalConfigured() ? new PayPalProvider() : null;
     default:
       return null;
   }
@@ -573,6 +722,7 @@ function availableIds(): string[] {
   const ids = ['bre-b-sandbox'];
   if (wompiConfigured()) ids.push('wompi');
   if (stripeConfigured()) ids.push('stripe');
+  if (paypalConfigured()) ids.push('paypal');
   return ids.sort((a, b) => (a === PROVIDER ? -1 : b === PROVIDER ? 1 : 0));
 }
 

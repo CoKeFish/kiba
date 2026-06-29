@@ -90,8 +90,8 @@ export function BrebTopup() {
   // Retorno del checkout de Wompi: ?id=<txId> + cobro guardado → verificar y acreditar.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    // Wompi devuelve ?id=<txId>; Stripe ?session_id=<sessionId>.
-    const txId = params.get("id") || params.get("session_id");
+    // Wompi devuelve ?id=<txId>; Stripe ?session_id=<id>; PayPal ?token=<orderId>.
+    const txId = params.get("id") || params.get("session_id") || params.get("token");
     let pending: { chargeId?: string } = {};
     try {
       pending = JSON.parse(localStorage.getItem(PENDING_KEY) || "{}");
