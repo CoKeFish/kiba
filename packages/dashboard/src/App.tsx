@@ -3,6 +3,7 @@ import { AppLayout } from "@/components/AppLayout";
 import Login from "@/routes/Login";
 import Signup from "@/routes/Signup";
 import Overview from "@/routes/Overview";
+import Connect from "@/routes/Connect";
 import Transactions from "@/routes/Transactions";
 import Credentials from "@/routes/Credentials";
 import Agents from "@/routes/Agents";
@@ -41,6 +42,7 @@ export default function App() {
         }
       >
         <Route index element={<Overview />} />
+        <Route path="connect" element={<Connect />} />
         <Route path="usage" element={<Usage />} />
         <Route path="transactions" element={<Transactions />} />
         <Route path="agents" element={<Agents />} />

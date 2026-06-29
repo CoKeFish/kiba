@@ -24,6 +24,7 @@ import {
   Plus,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { ConnectPanel } from "@/components/ConnectPanel";
 import "./overview.css";
 
 const MASCOTS = {
@@ -88,6 +89,8 @@ export default function Overview() {
           className="overview-welcome__mascot"
         />
       </section>
+
+      <ConnectPanel compact />
 
       <div className="overview-kpis">
         <article className="overview-kpi">
