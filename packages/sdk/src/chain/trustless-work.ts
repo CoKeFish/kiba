@@ -36,8 +36,24 @@
  */
 import { TransactionBuilder } from '@stellar/stellar-sdk';
 import axios, { type AxiosInstance } from 'axios';
-import type { ChainEscrowInfo, OpenEscrowResult } from './types';
+import type { ChainEscrowInfo, EscrowRoles, OpenEscrowResult } from './types';
 import type { StellarSigner } from './signer';
+
+/** Extrae los roles del escrow del shape del indexer de TW (sin asumir todos presentes). */
+function parseRoles(raw: unknown): EscrowRoles | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const r = raw as Record<string, unknown>;
+  const str = (v: unknown): string | undefined => (typeof v === 'string' && v ? v : undefined);
+  const roles: EscrowRoles = {
+    receiver: str(r.receiver),
+    serviceProvider: str(r.serviceProvider),
+    approver: str(r.approver),
+    releaseSigner: str(r.releaseSigner),
+    platformAddress: str(r.platformAddress),
+    disputeResolver: str(r.disputeResolver),
+  };
+  return Object.values(roles).some((v) => v !== undefined) ? roles : undefined;
+}
 
 export interface TrustlessWorkRoles {
   approver: string;
@@ -438,7 +454,9 @@ export class TrustlessWorkEscrowClient {
 
   /**
    * Lee el escrow por contractId vía el indexer. `balance` = fondos efectivamente
-   * bloqueados; `amount` = monto declarado. El estado sale de los flags.
+   * bloqueados; `amount` = monto declarado. El estado sale de los flags. Expone los
+   * `roles` (en particular `receiver`) para que el provider verifique que el escrow
+   * lo nombra a él como cobrador antes de servir.
    */
   async getEscrow(escrowId: string): Promise<ChainEscrowInfo | null> {
     const e = await this.getEscrowRaw(escrowId);
@@ -453,7 +471,8 @@ export class TrustlessWorkEscrowClient {
       : flags.resolved
         ? 'Refunded'
         : 'Pending';
-    return { amountBaseUnits, state };
+    const roles = parseRoles(e.roles);
+    return { amountBaseUnits, state, receiver: roles?.receiver, roles };
   }
 
   /** Saca el XDR sin firmar de la respuesta de TW (varios endpoints lo nombran igual). */

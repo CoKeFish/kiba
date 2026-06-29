@@ -1,23 +1,69 @@
 {
   "name": "@kiba/sdk",
   "version": "0.1.0",
-  "description": "SDK para integrar agentes IA al Kiba marketplace",
+  "description": "Open SDK for building paid AI agents on the Kiba marketplace (Stellar/Soroban + Trustless Work escrow + x402).",
+  "license": "MIT",
+  "author": "Kiba",
+  "homepage": "https://github.com/CoKeFish/kiba/tree/main/packages/sdk#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/CoKeFish/kiba.git",
+    "directory": "packages/sdk"
+  },
+  "bugs": {
+    "url": "https://github.com/CoKeFish/kiba/issues"
+  },
+  "keywords": [
+    "stellar",
+    "soroban",
+    "x402",
+    "agent",
+    "ai-agent",
+    "payments",
+    "usdc",
+    "escrow",
+    "trustless-work",
+    "marketplace"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "type": "commonjs",
   "main": "src/index.ts",
   "types": "src/index.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
-    "build": "tsc",
-    "dev": "tsc --watch",
-    "clean": "rm -rf dist",
-    "test": "node --import tsx --test --test-reporter=spec test/fees.test.ts test/keypair-store.test.ts test/client.test.ts test/provider.test.ts test/trustless-work.test.ts"
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsc -w -p tsconfig.build.json",
+    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
+    "test": "node --import tsx --test --test-reporter=spec test/fees.test.ts test/config.test.ts test/keypair-store.test.ts test/platform-auth.test.ts test/client.test.ts test/provider.test.ts test/trustless-work.test.ts test/events.test.ts test/integration.test.ts",
+    "prepack": "npm run clean && npm run build && node scripts/pkg-dist.mjs apply",
+    "postpack": "node scripts/pkg-dist.mjs restore"
   },
   "dependencies": {
-    "@solana/web3.js": "^1.95.0",
     "@stellar/stellar-sdk": "^15.1.0",
-    "axios": "^1.7.0",
-    "express": "^4.19.0"
+    "axios": "^1.7.0"
+  },
+  "peerDependencies": {
+    "express": "^4.19.0 || ^5.0.0"
+  },
+  "peerDependenciesMeta": {
+    "express": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@types/express": "^4.17.21",
+    "@types/node": "^20.12.0",
+    "express": "^4.19.0",
+    "tsx": "^4.7.0",
     "typescript": "^5.4.0"
   }
 }

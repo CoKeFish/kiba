@@ -353,6 +353,68 @@ export class StellarChainClient implements ChainClient {
     return this.invoke('deregister_agent', [this.str(service)]);
   }
 
+  /**
+   * Enumera los servicios registrados leyendo los eventos del contrato vía el RPC
+   * (`getEvents`). Soroban no enumera el storage, así que reconstruimos el set vivo a
+   * partir de los eventos `agent_registered` / `agent_deregistered` (último gana). Es un
+   * descubrimiento BEST-EFFORT acotado por la ventana de retención del RPC: úsalo para
+   * encontrar nombres y confirma la vigencia con `fetchAgent`. Permissionless: solo lee
+   * datos públicos on-chain, cualquiera puede indexar sin permiso de nadie.
+   */
+  async listRegisteredServices(
+    opts: { windowLedgers?: number; maxPages?: number } = {},
+  ): Promise<string[]> {
+    const windowLedgers = opts.windowLedgers ?? 17_280; // ~1 día a 5s/ledger
+    const maxPages = opts.maxPages ?? 20;
+    let latest: number;
+    try {
+      latest = (await this.server.getLatestLedger()).sequence;
+    } catch (err) {
+      console.warn(`[${this.label}] getLatestLedger falló: ${(err as Error).message}`);
+      return [];
+    }
+    const startLedger = Math.max(1, latest - windowLedgers);
+    const contractId = this.contract.contractId();
+    const filters = [{ type: 'contract' as const, contractIds: [contractId] }];
+
+    // service → ¿registrado? Procesamos en orden ascendente de ledger (incl. páginas):
+    // el último evento gana, así una re-registración tras un deregister queda viva.
+    const state = new Map<string, boolean>();
+    let cursor: string | undefined;
+    try {
+      for (let page = 0; page < maxPages; page++) {
+        const res = await this.server.getEvents(
+          cursor ? { filters, cursor } : { filters, startLedger },
+        );
+        for (const ev of res.events) {
+          const topic0 = ev.topic?.[0];
+          if (!topic0) continue;
+          let name: unknown;
+          try {
+            name = scValToNative(topic0);
+          } catch {
+            continue;
+          }
+          if (name !== 'agent_registered' && name !== 'agent_deregistered') continue;
+          const v = scValToNative(ev.value);
+          const svc = typeof v === 'string' ? v : Array.isArray(v) ? v[0] : undefined;
+          if (typeof svc === 'string' && svc) state.set(svc, name === 'agent_registered');
+        }
+        // NO romper en páginas vacías: el RPC de Soroban escanea hacia adelante en bloques
+        // acotados y puede devolver páginas vacías ANTES de llegar a ledgers con eventos.
+        // Solo paramos cuando el cursor se agota (vacío) o no avanza.
+        const prevCursor = cursor;
+        cursor = res.cursor;
+        if (!cursor || cursor === prevCursor) break;
+      }
+    } catch (err) {
+      // Fuera de la ventana de retención / RPC caído: devolvemos lo que llevamos. El
+      // indexer igual conserva los nombres ya conocidos (seed/DB) y confirma con fetchAgent.
+      console.warn(`[${this.label}] getEvents falló: ${(err as Error).message}`);
+    }
+    return [...state.entries()].filter(([, live]) => live).map(([svc]) => svc);
+  }
+
   private requireTw(): TrustlessWorkEscrowClient {
     if (!this.tw) {
       throw new Error(

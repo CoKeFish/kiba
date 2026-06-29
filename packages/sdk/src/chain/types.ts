@@ -9,8 +9,8 @@
  * Convenciones neutrales a la cadena:
  *  - Direcciones: strings en el formato nativo de la cadena (base58 en Solana,
  *    G... en Stellar). Quien implementa traduce.
- *  - Montos: `bigint` en las unidades base mínimas del activo (lamports en SOL).
- *    Usa `baseUnitsPerToken` para convertir a/desde el valor decimal del token.
+ *  - Montos: `bigint` en las unidades base mínimas del activo (stroops en Stellar:
+ *    7 decimales, para XLM y USDC). Usa `baseUnitsPerToken` para convertir a/desde el decimal.
  *  - Identificadores de transacción: strings opacos (signature en Solana,
  *    hash en Stellar).
  */
@@ -18,7 +18,7 @@
 /** Un agente tal como vive en el registro on-chain, en forma neutral. */
 export interface ChainAgentInfo {
   service: string;
-  /** Precio base por llamada, en unidades base del activo (ej. lamports). */
+  /** Precio base por llamada, en unidades base del activo (stroops). */
   pricePerCallBaseUnits: bigint;
   description: string;
   endpoint: string;
@@ -37,12 +37,31 @@ export interface ChainAgentInfo {
   totalEarnedBaseUnits?: bigint;
 }
 
+/** Roles de un escrow (quién cobra, quién libera, etc.). En forma neutral. */
+export interface EscrowRoles {
+  /** Quien recibe los fondos al liberar. El provider EXIGE que sea su propia dirección. */
+  receiver?: string;
+  serviceProvider?: string;
+  approver?: string;
+  releaseSigner?: string;
+  platformAddress?: string;
+  disputeResolver?: string;
+}
+
 /** Estado de un escrow de pago, en forma neutral. */
 export interface ChainEscrowInfo {
   /** Monto bloqueado, en unidades base del activo. */
   amountBaseUnits: bigint;
   /** 'Pending' = abierto sin reclamar; 'Completed' = pagado; 'Refunded' = devuelto. */
   state: 'Pending' | 'Completed' | 'Refunded';
+  /**
+   * Dirección que cobra al liberar el escrow. El provider la usa para verificar que
+   * el escrow presentado lo nombra a ÉL como receiver (evita reusar el escrow de otro
+   * agente). undefined si la capa de escrow no la expone.
+   */
+  receiver?: string;
+  /** Roles completos del escrow, cuando la capa de escrow los expone. */
+  roles?: EscrowRoles;
 }
 
 export interface RegisterAgentArgs {
@@ -104,8 +123,8 @@ export interface SettlePayoutArgs {
 
 export interface ChainClient {
   /** Símbolo del activo de liquidación (va en el manifest y la quote x402). */
-  readonly asset: 'SOL' | 'USDC' | 'XLM';
-  /** Unidades base por token: 1e9 (lamports/SOL), 1e7 (stroops/XLM), etc. */
+  readonly asset: 'USDC' | 'XLM';
+  /** Unidades base por token: 1e7 (stroops, 7 decimales en Stellar). */
   readonly baseUnitsPerToken: number;
   /** Dirección de la wallet asociada a este cliente, formato nativo. */
   readonly ownerAddress: string;
@@ -122,6 +141,14 @@ export interface ChainClient {
 
   /** Lee un agente del registro. null si no existe. */
   fetchAgent(service: string): Promise<ChainAgentInfo | null>;
+
+  /**
+   * Enumera los nombres de servicio actualmente registrados, leyendo los eventos del
+   * contrato (Soroban no enumera el storage). Acotado por la ventana de retención de
+   * eventos del RPC — combínalo con un índice persistente para no perder registros
+   * viejos. Opcional: implementaciones que no soporten eventos lo omiten.
+   */
+  listRegisteredServices?(opts?: { windowLedgers?: number; maxPages?: number }): Promise<string[]>;
 
   /** Registra un agente nuevo. Devuelve el id/hash de la transacción. */
   registerAgent(args: RegisterAgentArgs): Promise<string>;

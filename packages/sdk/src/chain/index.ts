@@ -1,100 +1,98 @@
 /**
- * Factory de ChainClient (Stellar/Soroban). Devuelve `null` en "modo degradado"
- * (sin STELLAR_CONTRACT_ID): el agente sigue sirviendo y el cliente sigue el
- * handshake x402, pero sin liquidación on-chain.
+ * ChainClient factory (Stellar/Soroban). Returns `null` in "degraded mode" (no
+ * contractId resolved): the agent still serves and the client still runs the x402
+ * handshake, but without on-chain settlement.
+ *
+ * Config-first: all chain settings come from explicit options, falling back to
+ * environment, then the network preset (see {@link resolveChainConfig}). Nothing is
+ * read at module load, so two clients with different config can coexist in one
+ * process.
  */
-import { type Keypair } from '@solana/web3.js';
-import { Keypair as StellarKeypair, Networks } from '@stellar/stellar-sdk';
+import { Keypair as StellarKeypair } from '@stellar/stellar-sdk';
 import { StellarChainClient } from './stellar';
 import { LocalKeypairSigner, type StellarSigner } from './signer';
 import type { ChainClient } from './types';
+import { resolveChainConfig, type ChainOptions } from '../config';
 
-export interface ChainClientConfig {
-  /** Keypair ed25519 (@solana/web3.js); deriva un firmante local Stellar. Back-compat. */
-  wallet?: Keypair;
-  /** Firmante ya construido (p.ej. Privy, firma remota). Tiene precedencia sobre `wallet`. */
+/**
+ * A wallet accepted by the SDK. Either a Stellar `Keypair`, or any object exposing
+ * a 64-byte ed25519 `secretKey` (e.g. a `@solana/web3.js` Keypair) whose first 32
+ * bytes are the seed — the Stellar address is derived from that seed, so the same
+ * key yields the same `G...` address it always had.
+ */
+export type WalletLike = StellarKeypair | { secretKey: Uint8Array };
+
+export interface ChainClientConfig extends ChainOptions {
+  /** Keypair (Stellar, or a structural ed25519 keypair). Used to derive a local signer. */
+  wallet?: WalletLike;
+  /** Pre-built signer (e.g. Privy, remote signing). Takes precedence over `secret`/`wallet`. */
   signer?: StellarSigner;
-  rpcUrl?: string;
-  /** Prefijo para logs en modo degradado. */
+  /** Explicit Stellar secret (S...). Precedence: signer > secret > STELLAR_SECRET env > wallet. */
+  secret?: string;
+  /** Log prefix for degraded-mode warnings. */
   label?: string;
 }
 
-/**
- * Crea el ChainClient (Stellar/Soroban), o `null` si no hay cadena configurada.
- */
-export function createChainClient(config: ChainClientConfig): ChainClient | null {
-  return createStellarChainClient(config, config.label ?? 'chain');
+function isStellarKeypair(w: WalletLike): w is StellarKeypair {
+  return (
+    typeof (w as StellarKeypair).rawSecretKey === 'function' &&
+    typeof (w as StellarKeypair).publicKey === 'function'
+  );
 }
 
-function createStellarChainClient(
-  config: ChainClientConfig,
-  label: string,
-): ChainClient | null {
-  const contractId = process.env.STELLAR_CONTRACT_ID;
+/** Derive a local Stellar signer from a Stellar or structural ed25519 keypair. */
+export function walletToSigner(wallet: WalletLike): LocalKeypairSigner {
+  if (isStellarKeypair(wallet)) return new LocalKeypairSigner(wallet);
+  const seed = Buffer.from(wallet.secretKey.slice(0, 32));
+  return new LocalKeypairSigner(StellarKeypair.fromRawEd25519Seed(seed));
+}
+
+/**
+ * Create the Stellar/Soroban ChainClient, or `null` if no chain is configured
+ * (no contractId) or no signer can be derived.
+ */
+export function createChainClient(config: ChainClientConfig): ChainClient | null {
+  const label = config.label ?? 'chain';
+  const contractId = config.contractId ?? process.env.STELLAR_CONTRACT_ID;
   if (!contractId) {
-    console.warn(`[${label}] CHAIN=stellar pero falta STELLAR_CONTRACT_ID — modo degradado`);
+    console.warn(`[${label}] no contractId (pass contractId or set STELLAR_CONTRACT_ID) — degraded mode`);
     return null;
   }
 
-  const rpcUrl = process.env.STELLAR_RPC_URL ?? 'https://soroban-testnet.stellar.org';
-  const networkPassphrase = process.env.STELLAR_NETWORK_PASSPHRASE ?? Networks.TESTNET;
-  const friendbotUrl = process.env.STELLAR_FRIENDBOT_URL ?? 'https://friendbot.stellar.org';
-  const horizonUrl = process.env.STELLAR_HORIZON_URL ?? 'https://horizon-testnet.stellar.org';
-
-  // Firmante: explícito (Privy, firma remota) > STELLAR_SECRET (identidad única) >
-  // derivado del wallet ed25519.
+  // Signer precedence: explicit signer > explicit secret > STELLAR_SECRET env > wallet.
   let signer: StellarSigner;
   if (config.signer) {
     signer = config.signer;
+  } else if (config.secret) {
+    signer = new LocalKeypairSigner(StellarKeypair.fromSecret(config.secret));
   } else if (process.env.STELLAR_SECRET) {
     signer = new LocalKeypairSigner(StellarKeypair.fromSecret(process.env.STELLAR_SECRET));
   } else if (config.wallet) {
-    // El wallet del SDK es un keypair ed25519 (contenedor de claves de
-    // @solana/web3.js). Stellar también usa ed25519 → derivamos el mismo par
-    // desde el seed de 32 bytes. Misma clave, dirección en strkey (G...).
-    const seed = Buffer.from(config.wallet.secretKey.slice(0, 32));
-    signer = new LocalKeypairSigner(StellarKeypair.fromRawEd25519Seed(seed));
+    signer = walletToSigner(config.wallet);
   } else {
-    console.warn(`[${label}] sin signer ni wallet — no se puede crear el ChainClient`);
+    console.warn(`[${label}] no signer/secret/wallet — cannot create ChainClient`);
     return null;
   }
 
-  // Escrow vía Trustless Work. Si falta la API key, el cliente queda sin escrow
-  // (el registro de agentes contra el contrato Kiba sigue funcionando).
-  const twApiKey = process.env.TRUSTLESS_WORK_API_KEY;
-  if (!twApiKey) {
+  const resolved = resolveChainConfig(config);
+  if (!resolved.tw) {
     console.warn(
-      `[${label}] TRUSTLESS_WORK_API_KEY ausente — el escrow x402 (Trustless Work) no podrá liquidar`,
+      `[${label}] Trustless Work not configured (no apiKey) — x402 escrow cannot settle`,
     );
   }
-  // USDC en testnet (Circle). El activo de liquidación de Kiba es USDC — Trustless Work no
-  // soporta XLM nativo — y el mismo issuer define el trustline del escrow y el balance on-chain.
-  const usdcIssuer =
-    process.env.TRUSTLESS_WORK_TRUSTLINE_ADDRESS ??
-    'GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5';
-  const usdcSymbol = process.env.TRUSTLESS_WORK_TRUSTLINE_SYMBOL ?? 'USDC';
-
-  const tw = twApiKey
-    ? {
-        apiUrl: process.env.TRUSTLESS_WORK_API_URL ?? 'https://dev.api.trustlesswork.com',
-        apiKey: twApiKey,
-        platformAddress: process.env.TRUSTLESS_WORK_PLATFORM_ADDRESS ?? '',
-        platformFee: Number(process.env.TRUSTLESS_WORK_PLATFORM_FEE ?? '5'),
-        trustline: { address: usdcIssuer, symbol: usdcSymbol },
-      }
-    : undefined;
 
   return new StellarChainClient({
     signer,
     contractId,
-    rpcUrl,
-    networkPassphrase,
-    friendbotUrl,
-    horizonUrl,
+    rpcUrl: resolved.rpcUrl,
+    networkPassphrase: resolved.networkPassphrase,
+    friendbotUrl: resolved.friendbotUrl,
+    horizonUrl: resolved.horizonUrl,
     label,
-    asset: 'USDC',
-    assetIssuer: usdcIssuer,
-    tw,
+    asset: resolved.asset,
+    assetIssuer: resolved.assetIssuer,
+    baseUnitsPerToken: resolved.baseUnitsPerToken,
+    tw: resolved.tw,
   });
 }
 
@@ -102,6 +100,7 @@ export type {
   ChainClient,
   ChainAgentInfo,
   ChainEscrowInfo,
+  EscrowRoles,
   RegisterAgentArgs,
   UpdateAgentArgs,
   OpenEscrowArgs,
@@ -109,6 +108,7 @@ export type {
   FetchEscrowArgs,
   ClaimPaymentArgs,
   RefundEscrowArgs,
+  SettlePayoutArgs,
 } from './types';
 export { StellarChainClient, type StellarChainClientConfig } from './stellar';
 export { TrustlessWorkEscrowClient, type TrustlessWorkConfig } from './trustless-work';

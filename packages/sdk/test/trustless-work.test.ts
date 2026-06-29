@@ -219,6 +219,26 @@ test('getEscrow: flag released → Completed', async () => {
   assert.equal(escrow!.state, 'Completed');
 });
 
+test('getEscrow: exposes roles.receiver for binding checks', async () => {
+  const { client } = makeClient();
+  const receiver = Keypair.random().publicKey();
+  const provider = Keypair.random().publicKey();
+  getRoutes['/helper/get-escrow-by-contract-ids'] = () => ({
+    status: 200,
+    data: [
+      {
+        contractId: 'CESCROW123',
+        balance: 0.0005,
+        flags: {},
+        roles: { receiver, serviceProvider: provider, approver: provider, releaseSigner: provider },
+      },
+    ],
+  });
+  const escrow = await client.getEscrow('CESCROW123');
+  assert.equal(escrow!.receiver, receiver);
+  assert.equal(escrow!.roles?.serviceProvider, provider);
+});
+
 /**
  * Firmante remoto estilo Privy: firma `tx.hash()` y la adjunta con `addSignature`,
  * sin tener el Keypair dentro del cliente. Prueba la MITAD Stellar del spike #1

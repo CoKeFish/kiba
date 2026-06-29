@@ -1,28 +1,28 @@
 import { test, after, before } from 'node:test';
 import assert from 'node:assert/strict';
-import { Keypair } from '@solana/web3.js';
+import { Keypair } from '@stellar/stellar-sdk';
 import { AgentProvider } from '../src/provider';
+import { LocalPlatformSigner, buildPlatformCallHeaders } from '../src/platform-auth';
+import type { ChainClient, ChainEscrowInfo } from '../src/chain';
 import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
+
+// ─── HTTP integration (degraded, allowUnverified) ──────────────
 
 let provider: AgentProvider;
 let server: Server;
 let baseUrl: string;
 
 before(async () => {
-  // Sin PROGRAM_ID → modo degradado. El provider es fail-CLOSED: en degradado solo
-  // sirve si se opta explícitamente con ALLOW_DEGRADED_PAYMENTS=1. Estos tests
-  // ejercitan justamente ese camino (sin Solana), así que lo activamos.
-  delete process.env.PROGRAM_ID;
-  process.env.ALLOW_DEGRADED_PAYMENTS = '1';
-
+  // No contractId → degraded mode. The provider is fail-CLOSED: in degraded mode it
+  // only serves when allowUnverified is set. These tests exercise that path.
   provider = new AgentProvider({
-    wallet: Keypair.generate(),
+    secret: Keypair.random().secret(),
     service: 'echo',
     pricePerCall: 0.01,
     description: 'echoes payload',
+    allowUnverified: true,
     priceFn: (req) => {
-      // Pricing dinámico: 0.001 base + 0.0001 por carácter del campo `text`
       const text = (req as { text?: string })?.text ?? '';
       return 0.001 + text.length * 0.0001;
     },
@@ -32,185 +32,216 @@ before(async () => {
   await new Promise<void>((resolve) => {
     server = provider.app.listen(0, '127.0.0.1', () => resolve());
   });
-  const addr = server.address() as AddressInfo;
-  baseUrl = `http://127.0.0.1:${addr.port}`;
+  baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 });
 
 after(() => {
   server?.close();
-  delete process.env.ALLOW_DEGRADED_PAYMENTS;
 });
 
-// ─── manifest endpoint ─────────────────────────────────────────
-
-test('GET /manifest devuelve la config del agente', async () => {
+test('GET /manifest returns the agent config (USDC)', async () => {
   const r = await fetch(`${baseUrl}/manifest`);
   assert.equal(r.status, 200);
   const data = (await r.json()) as {
     service: string;
     pricePerCall: number;
-    description: string;
-    ownerWallet: string;
     acceptedToken: string;
     dynamicPricing?: boolean;
+    platformAuth?: boolean;
   };
   assert.equal(data.service, 'echo');
   assert.equal(data.pricePerCall, 0.01);
-  assert.equal(data.description, 'echoes payload');
-  assert.equal(data.acceptedToken, 'SOL');
+  assert.equal(data.acceptedToken, 'USDC');
   assert.equal(data.dynamicPricing, true);
+  assert.equal(data.platformAuth, false);
 });
 
-// ─── /service handshake ────────────────────────────────────────
-
-test('POST /service sin X-PAYMENT → 402 con quote y nonce', async () => {
+test('POST /service without X-PAYMENT → 402 with quote and nonce (stroops)', async () => {
   const r = await fetch(`${baseUrl}/service`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ text: 'hello' }),
   });
   assert.equal(r.status, 402);
-  const data = (await r.json()) as {
-    amount: string;
-    payTo: string;
-    asset: string;
-    service: string;
-    nonce: string;
-    expiresAt: number;
-  };
+  const data = (await r.json()) as { amount: string; asset: string; service: string; nonce: string; expiresAt: number };
   assert.equal(data.service, 'echo');
-  assert.equal(data.asset, 'SOL');
-  // priceFn: 0.001 + 5 * 0.0001 = 0.0015 SOL = 1_500_000 lamports.
-  // Pero el floor es 0.01 → debe elevarse al floor: 10_000_000 lamports.
-  assert.equal(data.amount, '10000000');
+  assert.equal(data.asset, 'USDC');
+  // priceFn: 0.001 + 5*0.0001 = 0.0015 < floor 0.01 → floor 0.01 USDC = 100000 stroops.
+  assert.equal(data.amount, '100000');
   assert.ok(data.nonce);
   assert.ok(data.expiresAt > Math.floor(Date.now() / 1000));
 });
 
-test('POST /service: priceFn elevado por sobre el floor', async () => {
-  // Texto largo: 0.001 + 200 * 0.0001 = 0.021 SOL > floor 0.01 → 21_000_000
-  const longText = 'a'.repeat(200);
+test('POST /service: priceFn raised above the floor', async () => {
+  // 0.001 + 200*0.0001 = 0.021 USDC > floor 0.01 → 210000 stroops.
   const r = await fetch(`${baseUrl}/service`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text: longText }),
+    body: JSON.stringify({ text: 'a'.repeat(200) }),
   });
   assert.equal(r.status, 402);
-  const data = (await r.json()) as { amount: string };
-  assert.equal(data.amount, '21000000');
+  assert.equal(((await r.json()) as { amount: string }).amount, '210000');
 });
 
-test('POST /service con X-PAYMENT válido (modo degradado, sin verificación) → 200 + handler ejecutado', async () => {
-  const paymentHeader = Buffer.from(
-    JSON.stringify({
-      signature: 'sig-fake',
-      nonce: '123',
-      clientWallet: Keypair.generate().publicKey.toBase58(),
-    }),
-  ).toString('base64');
-
+test('POST /service with X-PAYMENT (degraded, allowUnverified) → 200 + handler ran', async () => {
+  const paymentHeader = Buffer.from(JSON.stringify({ escrowId: 'x', nonce: '1' })).toString('base64');
   const r = await fetch(`${baseUrl}/service`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-PAYMENT': paymentHeader,
-    },
+    headers: { 'Content-Type': 'application/json', 'X-PAYMENT': paymentHeader },
     body: JSON.stringify({ text: 'hi' }),
   });
   assert.equal(r.status, 200);
   const data = (await r.json()) as { echoed: { text: string }; _payment?: { mode?: string } };
   assert.equal(data.echoed.text, 'hi');
-  // En modo degradado el provider deja un breadcrumb explícito
   assert.equal(data._payment?.mode, 'degraded-no-onchain-verification');
 });
 
-// ─── vía de confianza (X-Platform-Auth) ────────────────────────
-
-test('POST /service con X-Platform-Auth válido → 200 sin escrow + _payment.trusted', async () => {
-  process.env.PLATFORM_CALL_SECRET = 'test-secret-123';
-  try {
-    const r = await fetch(`${baseUrl}/service`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Platform-Auth': 'test-secret-123' },
-      body: JSON.stringify({ text: 'trusted' }),
-    });
-    assert.equal(r.status, 200);
-    const data = (await r.json()) as { echoed: { text: string }; _payment?: { trusted?: boolean } };
-    assert.equal(data.echoed.text, 'trusted');
-    assert.equal(data._payment?.trusted, true);
-  } finally {
-    delete process.env.PLATFORM_CALL_SECRET;
-  }
-});
-
-test('POST /service con X-Platform-Auth incorrecto → cae al flujo x402 (402)', async () => {
-  process.env.PLATFORM_CALL_SECRET = 'test-secret-123';
-  try {
-    const r = await fetch(`${baseUrl}/service`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Platform-Auth': 'wrong' },
-      body: JSON.stringify({ text: 'x' }),
-    });
-    // Secreto no coincide → se ignora el header → flujo x402 normal → 402 (sin X-PAYMENT).
-    assert.equal(r.status, 402);
-  } finally {
-    delete process.env.PLATFORM_CALL_SECRET;
-  }
-});
-
-test('POST /service con X-PAYMENT inválido (no base64 JSON) → 400', async () => {
+test('POST /service with invalid X-PAYMENT (not base64 JSON) → 400', async () => {
   const r = await fetch(`${baseUrl}/service`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-PAYMENT': '!!!not-base64-json!!!',
-    },
+    headers: { 'Content-Type': 'application/json', 'X-PAYMENT': '!!!not-base64-json!!!' },
     body: JSON.stringify({ text: 'x' }),
   });
   assert.equal(r.status, 400);
-  const data = (await r.json()) as { error: string };
-  assert.match(data.error, /invalid X-PAYMENT/);
+  assert.match(((await r.json()) as { error: string }).error, /invalid X-PAYMENT/);
 });
 
-// ─── /health ───────────────────────────────────────────────────
-
-test('GET /health devuelve ok', async () => {
+test('GET /health → ok', async () => {
   const r = await fetch(`${baseUrl}/health`);
   assert.equal(r.status, 200);
-  const data = (await r.json()) as { ok: boolean; service: string };
-  assert.equal(data.ok, true);
-  assert.equal(data.service, 'echo');
+  assert.equal(((await r.json()) as { ok: boolean }).ok, true);
 });
 
-// ─── handler not configured (caso edge) ────────────────────────
+// ─── platform-signed (trusted) path ────────────────────────────
 
-test('si no hay handler → 500', async () => {
-  // Provider local sin .serve()
-  const lonely = new AgentProvider({
-    wallet: Keypair.generate(),
-    service: 'lonely',
-    pricePerCall: 0.001,
+function trustedProvider(platformPubkey: string): AgentProvider {
+  const p = new AgentProvider({
+    secret: Keypair.random().secret(),
+    service: 'echo',
+    pricePerCall: 0.01,
+    platform: { publicKey: platformPubkey },
   });
+  p.serve(async (req: unknown) => ({ echoed: req }));
+  return p;
+}
 
-  const lonelyServer = await new Promise<Server>((resolve) => {
-    const s = lonely.app.listen(0, '127.0.0.1', () => resolve(s));
+test('platform-signed call → 200 trusted, no escrow', async () => {
+  const platform = new LocalPlatformSigner(Keypair.random());
+  const p = trustedProvider(platform.publicKey());
+  const payload = { text: 'trusted' };
+  const { headers, body } = await buildPlatformCallHeaders({ signer: platform, service: 'echo', payload });
+
+  const res = await p.verifyAndServe({ body: JSON.parse(body), headers, rawBody: body });
+  assert.equal(res.status, 200);
+  const b = res.body as { echoed: { text: string }; _payment?: { trusted?: boolean } };
+  assert.equal(b.echoed.text, 'trusted');
+  assert.equal(b._payment?.trusted, true);
+});
+
+test('platform-signed call with tampered payload → 401', async () => {
+  const platform = new LocalPlatformSigner(Keypair.random());
+  const p = trustedProvider(platform.publicKey());
+  const { headers } = await buildPlatformCallHeaders({ signer: platform, service: 'echo', payload: { a: 1 } });
+  const res = await p.verifyAndServe({ body: { a: 2 }, headers, rawBody: JSON.stringify({ a: 2 }) });
+  assert.equal(res.status, 401);
+  assert.equal((res.body as { reason?: string }).reason, 'payload-mismatch');
+});
+
+test('platform-signed call replayed → 401', async () => {
+  const platform = new LocalPlatformSigner(Keypair.random());
+  const p = trustedProvider(platform.publicKey());
+  const { headers, body } = await buildPlatformCallHeaders({ signer: platform, service: 'echo', payload: { a: 1 } });
+  const first = await p.verifyAndServe({ body: JSON.parse(body), headers, rawBody: body });
+  assert.equal(first.status, 200);
+  const second = await p.verifyAndServe({ body: JSON.parse(body), headers, rawBody: body });
+  assert.equal(second.status, 401);
+  assert.equal((second.body as { reason?: string }).reason, 'replayed');
+});
+
+test('platform cert presented but platform-auth not configured → 401', async () => {
+  const platform = new LocalPlatformSigner(Keypair.random());
+  const p = new AgentProvider({ secret: Keypair.random().secret(), service: 'echo', pricePerCall: 0.01 });
+  p.serve(async (req: unknown) => ({ echoed: req }));
+  const { headers, body } = await buildPlatformCallHeaders({ signer: platform, service: 'echo', payload: { a: 1 } });
+  const res = await p.verifyAndServe({ body: JSON.parse(body), headers, rawBody: body });
+  assert.equal(res.status, 401);
+  assert.match((res.body as { error: string }).error, /not enabled/);
+});
+
+// ─── x402 escrow binding + single-use ──────────────────────────
+
+const OWNER = Keypair.random().publicKey();
+
+function mockChain(escrow: ChainEscrowInfo | null, claim = async () => 'released'): ChainClient {
+  return {
+    asset: 'USDC',
+    baseUnitsPerToken: 1e7,
+    ownerAddress: OWNER,
+    fetchEscrow: async () => escrow,
+    claimPayment: claim,
+  } as unknown as ChainClient;
+}
+
+function escrowProvider(chain: ChainClient): AgentProvider {
+  const p = new AgentProvider({
+    secret: Keypair.random().secret(),
+    service: 'echo',
+    pricePerCall: 0.01, // floor = 100000 stroops
+    escrowPollAttempts: 1,
+    escrowPollIntervalMs: 1,
   });
-  const lonelyAddr = lonelyServer.address() as AddressInfo;
-  const lonelyUrl = `http://127.0.0.1:${lonelyAddr.port}`;
+  p.serve(async (req: unknown) => ({ echoed: req }));
+  (p as unknown as { chain: ChainClient }).chain = chain;
+  return p;
+}
 
-  const paymentHeader = Buffer.from(
-    JSON.stringify({ signature: 's', nonce: '1', clientWallet: Keypair.generate().publicKey.toBase58() }),
-  ).toString('base64');
+function xpayment(escrowId: string): string {
+  return Buffer.from(JSON.stringify({ escrowId, nonce: 'n1' })).toString('base64');
+}
 
-  const r = await fetch(`${lonelyUrl}/service`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-PAYMENT': paymentHeader,
-    },
-    body: JSON.stringify({}),
+test('escrow funded + this agent is receiver → 200 once', async () => {
+  const p = escrowProvider(mockChain({ amountBaseUnits: 200000n, state: 'Pending', receiver: OWNER }));
+  const res = await p.verifyAndServe({
+    body: { text: 'hi' },
+    headers: { 'x-payment': xpayment('CESCROW1') },
   });
-  assert.equal(r.status, 500);
+  assert.equal(res.status, 200);
+  assert.equal((res.body as { _payment?: { settling?: boolean } })._payment?.settling, true);
+});
 
-  lonelyServer.close();
+test('escrow with a different receiver → 402 (cross-agent reuse blocked)', async () => {
+  const otherAgent = Keypair.random().publicKey();
+  const p = escrowProvider(mockChain({ amountBaseUnits: 200000n, state: 'Pending', receiver: otherAgent }));
+  const res = await p.verifyAndServe({ body: { text: 'hi' }, headers: { 'x-payment': xpayment('CESCROW2') } });
+  assert.equal(res.status, 402);
+  assert.match((res.body as { error: string }).error, /receiver does not match/);
+});
+
+test('escrow without a known receiver → 402 (fail-closed)', async () => {
+  const p = escrowProvider(mockChain({ amountBaseUnits: 200000n, state: 'Pending' }));
+  const res = await p.verifyAndServe({ body: { text: 'hi' }, headers: { 'x-payment': xpayment('CESCROW3') } });
+  assert.equal(res.status, 402);
+  assert.match((res.body as { error: string }).error, /receiver unknown/);
+});
+
+test('escrow under-funded → 402', async () => {
+  const p = escrowProvider(mockChain({ amountBaseUnits: 1n, state: 'Pending', receiver: OWNER }));
+  const res = await p.verifyAndServe({ body: { text: 'hi' }, headers: { 'x-payment': xpayment('CESCROW4') } });
+  assert.equal(res.status, 402);
+  assert.match((res.body as { error: string }).error, /below price/);
+});
+
+test('same escrow presented twice → second is 409 (single-use)', async () => {
+  const p = escrowProvider(mockChain({ amountBaseUnits: 200000n, state: 'Pending', receiver: OWNER }));
+  const first = await p.verifyAndServe({ body: { text: 'hi' }, headers: { 'x-payment': xpayment('CESCROW5') } });
+  assert.equal(first.status, 200);
+  const second = await p.verifyAndServe({ body: { text: 'hi' }, headers: { 'x-payment': xpayment('CESCROW5') } });
+  assert.equal(second.status, 409);
+  assert.match((second.body as { error: string }).error, /already consumed/);
+});
+
+test('no handler configured → 500', async () => {
+  const lonely = new AgentProvider({ secret: Keypair.random().secret(), service: 'lonely', pricePerCall: 0.001 });
+  const res = await lonely.verifyAndServe({ body: {}, headers: {} });
+  assert.equal(res.status, 500);
 });
