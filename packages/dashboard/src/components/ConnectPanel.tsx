@@ -17,7 +17,7 @@ const GATEWAY_BASE = MCP_URL.replace(/\/mcp\/?$/, "");
 
 /** Instalador de un clic (Windows) publicado en los releases del repo. */
 const INSTALLER_URL =
-  "https://github.com/CoKeFish/kiba/releases/latest/download/Kiba-Installer-0.1.0-x64-setup.exe";
+  "https://github.com/CoKeFish/kiba/releases/latest/download/Kiba-Installer-x64-setup.exe";
 
 const INSTALL_CONFIG = JSON.stringify(
   {
