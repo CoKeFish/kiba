@@ -39,7 +39,14 @@ import {
 } from './mcp-oauth';
 import { handleMcpRequest } from './mcp';
 import { getBalance, getTransactions, lamportsToUsd, topup } from './billing';
-import { getPaymentProvider, COP_USD_RATE } from './payments';
+import {
+  getPaymentProvider,
+  getProvider,
+  listProviders,
+  getCharge as getChargeById,
+  verifyCharge as verifyChargeRouted,
+  COP_USD_RATE,
+} from './payments';
 import { callOnBehalf, listAgents, masterWalletPubkey } from './proxy';
 import { settleAgent, settleAllDue } from './settlement';
 import { getMasterWallet, getOnChainBalance, getUserBalances, userOnChainBalance } from './wallets';
@@ -123,7 +130,15 @@ app.use((req, res, next) =>
     ? mcpPublicCors(req, res, next)
     : allowlistCors(req, res, next),
 );
-app.use(express.json());
+// Guarda el cuerpo crudo (req.rawBody) además de parsear JSON: Stripe firma el webhook
+// sobre el body EXACTO, así que necesitamos los bytes originales para verificar.
+app.use(
+  express.json({
+    verify: (req, _res, buf) => {
+      (req as unknown as { rawBody?: string }).rawBody = buf.toString('utf8');
+    },
+  }),
+);
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
@@ -366,19 +381,21 @@ function chargeToJson(c: import('./payments').Charge) {
 }
 
 app.get('/v1/payments/config', requireAuth, (_req, res) => {
-  const p = getPaymentProvider();
   res.json({
     cop_usd_rate: COP_USD_RATE,
     kibs_per_usd: 10_000,
-    sandbox: p.sandbox,
-    provider: p.id,
-    // 'qr' = se paga dentro de la app (sandbox); 'redirect' = checkout del PSP (Wompi).
-    mode: p.mode,
-    methods: [{ id: 'bre-b', label: 'Bre-B', country: 'CO' }],
+    // Todos los métodos activos a la vez; el usuario elige en la UI.
+    methods: listProviders().map((p) => ({
+      provider: p.id,
+      label: p.label,
+      country: p.country ?? null,
+      mode: p.mode, // 'qr' (in-app) | 'redirect' (checkout del PSP)
+      sandbox: p.sandbox,
+    })),
   });
 });
 
-app.post('/v1/payments/breb/charge', requireAuth, (req, res) => {
+app.post('/v1/payments/breb/charge', requireAuth, async (req, res) => {
   const amountCop = Math.floor(Number(req.body?.amountCop));
   if (!Number.isFinite(amountCop) || amountCop < 1000) {
     return res.status(400).json({ error: 'amountCop must be at least 1000 COP' });
@@ -388,20 +405,21 @@ app.post('/v1/payments/breb/charge', requireAuth, (req, res) => {
   }
   const redirectUrl =
     typeof req.body?.redirectUrl === 'string' ? req.body.redirectUrl : undefined;
+  // El cliente elige el método; si no manda, usa el default disponible.
+  const providerId =
+    typeof req.body?.provider === 'string' && req.body.provider ? req.body.provider : undefined;
   try {
-    const charge = getPaymentProvider().createCharge({
-      userId: req.bearerUser!.id,
-      amountCop,
-      redirectUrl,
-    });
+    const provider = providerId ? getProvider(providerId) : getPaymentProvider();
+    const charge = await provider.createCharge({ userId: req.bearerUser!.id, amountCop, redirectUrl });
     res.status(201).json(chargeToJson(charge));
   } catch (e) {
-    res.status(500).json({ error: e instanceof Error ? e.message : 'unknown error' });
+    const msg = e instanceof Error ? e.message : 'unknown error';
+    res.status(msg.includes('not available') ? 400 : 500).json({ error: msg });
   }
 });
 
 app.get('/v1/payments/charge/:id', requireAuth, (req, res) => {
-  const charge = getPaymentProvider().getCharge(String(req.params.id), req.bearerUser!.id);
+  const charge = getChargeById(String(req.params.id), req.bearerUser!.id);
   if (!charge) return res.status(404).json({ error: 'charge not found' });
   res.json(chargeToJson(charge));
 });
@@ -411,12 +429,16 @@ app.get('/v1/payments/charge/:id', requireAuth, (req, res) => {
  * del PSP). En producción esto lo dispararía el webhook firmado del PSP, no el cliente.
  */
 app.post('/v1/payments/breb/simulate', requireAuth, (req, res) => {
-  const p = getPaymentProvider();
-  if (!p.sandbox || !p.confirmCharge) {
-    return res.status(400).json({ error: 'simulate only available in sandbox' });
-  }
   const chargeId = String(req.body?.chargeId ?? '');
   if (!chargeId) return res.status(400).json({ error: 'chargeId required' });
+  // Enruta al provider del PROPIO cobro y exige que sea sandbox: así NO se puede
+  // "simular" (auto-acreditar) un cobro real de Stripe/Wompi sin pagar.
+  const existing = getChargeById(chargeId, req.bearerUser!.id);
+  if (!existing) return res.status(404).json({ error: 'charge not found' });
+  const p = getProvider(existing.provider);
+  if (!p.sandbox || !p.confirmCharge) {
+    return res.status(400).json({ error: 'simulate only available for sandbox charges' });
+  }
   try {
     const { charge, newBalanceUsd } = p.confirmCharge(chargeId, req.bearerUser!.id);
     res.json({
@@ -431,19 +453,19 @@ app.post('/v1/payments/breb/simulate', requireAuth, (req, res) => {
 });
 
 /**
- * Redirect providers (Wompi): tras volver del checkout con `?id=<txId>`, el front
- * llama aquí para confirmar contra la API del PSP y acreditar si está aprobada.
+ * Redirect providers (Wompi/Stripe): tras volver del checkout con el id de la
+ * transacción/sesión, el front llama aquí para confirmar contra la API del PSP y
+ * acreditar si está aprobada. `transactionId` = tx id (Wompi) o session id (Stripe).
  */
-app.post('/v1/payments/wompi/verify', requireAuth, async (req, res) => {
-  const p = getPaymentProvider();
-  if (!p.verifyCharge) return res.status(400).json({ error: 'verify not supported by provider' });
+app.post(['/v1/payments/verify', '/v1/payments/wompi/verify'], requireAuth, async (req, res) => {
   const chargeId = String(req.body?.chargeId ?? '');
   const providerTxId = String(req.body?.transactionId ?? req.body?.id ?? '');
   if (!chargeId || !providerTxId) {
     return res.status(400).json({ error: 'chargeId and transactionId required' });
   }
   try {
-    const { charge, newBalanceUsd, status } = await p.verifyCharge({
+    // Enruta al provider guardado en el cobro (Wompi tx id / Stripe session id).
+    const { charge, newBalanceUsd, status } = await verifyChargeRouted({
       chargeId,
       userId: req.bearerUser!.id,
       providerTxId,
@@ -461,20 +483,43 @@ app.post('/v1/payments/wompi/verify', requireAuth, async (req, res) => {
 });
 
 /**
- * Webhook firmado del PSP (Wompi `transaction.updated`). Público (sin auth de usuario):
- * la autenticidad la da la firma (checksum SHA256 con el events secret). Fuente de
- * verdad para producción; en local el flujo de verify por redirect lo cubre.
+ * Webhook firmado del PSP (Wompi `transaction.updated` / Stripe `checkout.session.completed`).
+ * Público (sin auth de usuario): la autenticidad la da la firma del PSP (checksum/HMAC sobre
+ * el body con el secret). Fuente de verdad para producción; en local el verify por redirect lo cubre.
  */
-app.post('/v1/payments/webhook/wompi', async (req, res) => {
-  const p = getPaymentProvider();
-  if (!p.handleWebhook) return res.status(404).json({ error: 'no webhook handler' });
-  try {
-    const out = await p.handleWebhook(req.body, req.header('X-Event-Checksum') || undefined);
-    res.status(out.ok ? 200 : 401).json(out);
-  } catch (e) {
-    res.status(500).json({ error: e instanceof Error ? e.message : 'unknown error' });
-  }
-});
+app.post(
+  ['/v1/payments/webhook', '/v1/payments/webhook/wompi', '/v1/payments/webhook/stripe'],
+  async (req, res) => {
+    // El provider se elige por la ruta (/webhook/stripe → stripe, etc.); el genérico
+    // usa el default. Si ese provider no está configurado, 404.
+    const fromPath = req.path.endsWith('/stripe')
+      ? 'stripe'
+      : req.path.endsWith('/wompi')
+        ? 'wompi'
+        : null;
+    let p: import('./payments').PaymentProvider;
+    try {
+      p = fromPath ? getProvider(fromPath) : getPaymentProvider();
+    } catch {
+      return res.status(404).json({ error: 'provider not configured' });
+    }
+    if (!p.handleWebhook) return res.status(404).json({ error: 'no webhook handler' });
+    try {
+      const headers: Record<string, string | undefined> = {};
+      for (const [k, v] of Object.entries(req.headers)) {
+        headers[k.toLowerCase()] = Array.isArray(v) ? v[0] : v;
+      }
+      const out = await p.handleWebhook({
+        body: req.body,
+        rawBody: (req as unknown as { rawBody?: string }).rawBody,
+        headers,
+      });
+      res.status(out.ok ? 200 : 401).json(out);
+    } catch (e) {
+      res.status(500).json({ error: e instanceof Error ? e.message : 'unknown error' });
+    }
+  },
+);
 
 // ═══════════════════════════════════════════════════════════════
 //   OAuth 2.0 PKCE

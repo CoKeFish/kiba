@@ -130,12 +130,12 @@ export const api = {
     }),
   publisherOverview: () => request<PublisherOverview>("/v1/publisher/overview"),
 
-  // Pagos fiat (Bre-B / PSP) → créditos. Recargas locales sin wallet.
+  // Pagos fiat (Bre-B / Stripe / Wompi) → créditos. Varios métodos a la vez.
   paymentsConfig: () => request<PaymentsConfig>("/v1/payments/config"),
-  createBrebCharge: (amountCop: number, redirectUrl?: string) =>
+  createCharge: (provider: string, amountCop: number, redirectUrl?: string) =>
     request<PaymentCharge>("/v1/payments/breb/charge", {
       method: "POST",
-      body: JSON.stringify({ amountCop, redirectUrl }),
+      body: JSON.stringify({ provider, amountCop, redirectUrl }),
     }),
   getCharge: (id: string) => request<PaymentCharge>(`/v1/payments/charge/${encodeURIComponent(id)}`),
   simulateBreb: (chargeId: string) =>
@@ -143,14 +143,15 @@ export const api = {
       "/v1/payments/breb/simulate",
       { method: "POST", body: JSON.stringify({ chargeId }) },
     ),
-  // Wompi (redirect): tras volver del checkout con ?id=, confirma y acredita.
-  verifyWompi: (chargeId: string, transactionId: string) =>
+  // Redirect providers (Wompi/Stripe): tras volver del checkout, confirma y acredita.
+  // transactionId = tx id (Wompi) o session id (Stripe).
+  verifyPayment: (chargeId: string, transactionId: string) =>
     request<{
       charge: PaymentCharge;
       status: string;
       new_balance_usd: number;
       new_balance_kibs: number;
-    }>("/v1/payments/wompi/verify", {
+    }>("/v1/payments/verify", {
       method: "POST",
       body: JSON.stringify({ chargeId, transactionId }),
     }),
@@ -280,13 +281,18 @@ export type MyAgent = {
   createdAt: number;
 };
 
+export type PaymentMethod = {
+  provider: string;
+  label: string;
+  country: string | null;
+  mode: "qr" | "redirect";
+  sandbox: boolean;
+};
+
 export type PaymentsConfig = {
   cop_usd_rate: number;
   kibs_per_usd: number;
-  sandbox: boolean;
-  provider: string;
-  mode: "qr" | "redirect";
-  methods: { id: string; label: string; country: string }[];
+  methods: PaymentMethod[];
 };
 
 export type PaymentCharge = {

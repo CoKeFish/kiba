@@ -158,6 +158,9 @@ services:
       - WOMPI_INTEGRITY_SECRET=${WOMPI_INTEGRITY_SECRET:-}
       - WOMPI_EVENTS_SECRET=${WOMPI_EVENTS_SECRET:-}
       - WOMPI_API_URL=${WOMPI_API_URL:-https://sandbox.wompi.co/v1}
+      # Stripe (tarjeta internacional). Llaves de test instantáneas en dashboard.stripe.com.
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-}
     depends_on:
       - backend
       - demo-agents

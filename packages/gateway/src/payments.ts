@@ -12,7 +12,7 @@
  *
  * FX: COP → USD → créditos. Tasa fija configurable (COP_USD_RATE).
  */
-import { createHash, randomBytes } from 'node:crypto';
+import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { db } from './db';
 import { usdToLamports, lamportsToUsd, getBalance } from './billing';
 import { ASSET_USD_RATE } from './chain';
@@ -39,6 +39,15 @@ const DEFAULT_REDIRECT = `${(process.env.PUBLIC_DASHBOARD_URL || 'http://localho
   /\/+$/,
   '',
 )}/app/billing`;
+
+// ── Stripe ── (tarjeta internacional; llaves de test instantáneas, sin KYC)
+const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
+const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || '';
+const STRIPE_API_URL = 'https://api.stripe.com/v1';
+
+function stripeConfigured(): boolean {
+  return Boolean(STRIPE_SECRET_KEY);
+}
 
 export const copToUsd = (cop: number) => cop / COP_USD_RATE;
 export const copToKibs = (cop: number) => Math.round(copToUsd(cop) * KIBS_PER_USD);
@@ -76,12 +85,22 @@ export interface VerifyResult {
   status: string;
 }
 
+export interface WebhookInput {
+  body: unknown;
+  rawBody?: string;
+  headers: Record<string, string | undefined>;
+}
+
 export interface PaymentProvider {
   readonly id: string;
   readonly sandbox: boolean;
+  /** Etiqueta para la UI (ej. "Bre-B", "Tarjeta (Stripe)"). */
+  readonly label: string;
+  /** País/segmento (ej. "CO", "Intl") — informativo para la UI. */
+  readonly country?: string;
   /** 'qr' = se paga dentro de la app; 'redirect' = se va al checkout del PSP. */
   readonly mode: 'qr' | 'redirect';
-  createCharge(input: CreateChargeInput): Charge;
+  createCharge(input: CreateChargeInput): Charge | Promise<Charge>;
   getCharge(id: string, userId: number): Charge | null;
   /** Sandbox: simula el webhook del PSP. */
   confirmCharge?(id: string, userId: number): { charge: Charge; newBalanceUsd: number };
@@ -92,7 +111,7 @@ export interface PaymentProvider {
     providerTxId: string;
   }): Promise<VerifyResult>;
   /** Webhook firmado del PSP. */
-  handleWebhook?(body: unknown, headerChecksum?: string): Promise<{ ok: boolean; credited: boolean }>;
+  handleWebhook?(input: WebhookInput): Promise<{ ok: boolean; credited: boolean }>;
 }
 
 // ─── Persistencia ──────────────────────────────────────────────
@@ -140,6 +159,18 @@ function loadChargeByReference(reference: string): ChargeRow | null {
     (db.prepare('SELECT * FROM payment_charges WHERE reference = ?').get(reference) as
       | ChargeRow
       | undefined) ?? null
+  );
+}
+
+/** Mezcla campos en el `detail` (metadata JSON) de un cobro. */
+function mergeChargeDetail(id: string, patch: Record<string, unknown>): void {
+  const r = db.prepare('SELECT metadata FROM payment_charges WHERE id = ?').get(id) as
+    | { metadata: string | null }
+    | undefined;
+  const cur = r?.metadata ? (JSON.parse(r.metadata) as Record<string, unknown>) : {};
+  db.prepare('UPDATE payment_charges SET metadata = ? WHERE id = ?').run(
+    JSON.stringify({ ...cur, ...patch }),
+    id,
   );
 }
 
@@ -221,6 +252,8 @@ function insertCharge(args: {
 class BrebSandboxProvider implements PaymentProvider {
   readonly id = 'bre-b-sandbox';
   readonly sandbox = true;
+  readonly label = 'Bre-B';
+  readonly country = 'CO';
   readonly mode = 'qr' as const;
 
   createCharge({ userId, amountCop }: CreateChargeInput): Charge {
@@ -269,6 +302,8 @@ interface WompiTransaction {
 class WompiProvider implements PaymentProvider {
   readonly id = 'wompi';
   readonly sandbox = WOMPI_API_URL.includes('sandbox');
+  readonly label = 'Wompi';
+  readonly country = 'CO';
   readonly mode = 'redirect' as const;
 
   createCharge({ userId, amountCop, redirectUrl }: CreateChargeInput): Charge {
@@ -345,10 +380,7 @@ class WompiProvider implements PaymentProvider {
     };
   }
 
-  async handleWebhook(
-    body: unknown,
-    headerChecksum?: string,
-  ): Promise<{ ok: boolean; credited: boolean }> {
+  async handleWebhook({ body, headers }: WebhookInput): Promise<{ ok: boolean; credited: boolean }> {
     const event = body as {
       event?: string;
       data?: { transaction?: WompiTransaction };
@@ -366,7 +398,7 @@ class WompiProvider implements PaymentProvider {
       .map((v) => String(v ?? ''))
       .join('');
     const computed = sha256(`${values}${event.timestamp ?? ''}${WOMPI_EVENTS_SECRET}`).toLowerCase();
-    const received = (headerChecksum || sig.checksum).toLowerCase();
+    const received = (headers['x-event-checksum'] || sig.checksum).toLowerCase();
     if (computed !== received) return { ok: false, credited: false };
 
     const t = event.data?.transaction;
@@ -381,24 +413,208 @@ class WompiProvider implements PaymentProvider {
   }
 }
 
-// ─── Factory ───────────────────────────────────────────────────
+// ─── Stripe provider (tarjeta internacional) ───────────────────
 
-let provider: PaymentProvider;
-export function getPaymentProvider(): PaymentProvider {
-  if (!provider) {
-    if (PROVIDER === 'wompi') {
-      if (wompiConfigured()) {
-        provider = new WompiProvider();
-        console.log(`[payments] provider=wompi (${provider.sandbox ? 'sandbox' : 'production'})`);
-      } else {
-        provider = new BrebSandboxProvider();
-        console.warn(
-          '[payments] PAYMENT_PROVIDER=wompi pero faltan WOMPI_PUBLIC_KEY/WOMPI_INTEGRITY_SECRET — cae a bre-b-sandbox',
-        );
-      }
-    } else {
-      provider = new BrebSandboxProvider();
-    }
+interface StripeSession {
+  id: string;
+  url?: string;
+  status?: 'open' | 'complete' | 'expired';
+  payment_status?: 'paid' | 'unpaid' | 'no_payment_required';
+  client_reference_id?: string;
+  amount_total?: number;
+}
+
+class StripeProvider implements PaymentProvider {
+  readonly id = 'stripe';
+  readonly sandbox = STRIPE_SECRET_KEY.startsWith('sk_test');
+  readonly label = 'Tarjeta (Stripe)';
+  readonly country = 'Intl';
+  readonly mode = 'redirect' as const;
+
+  private async stripe(path: string, method: 'GET' | 'POST', form?: URLSearchParams): Promise<any> {
+    const res = await fetch(`${STRIPE_API_URL}${path}`, {
+      method,
+      headers: {
+        Authorization: `Bearer ${STRIPE_SECRET_KEY}`,
+        ...(form ? { 'Content-Type': 'application/x-www-form-urlencoded' } : {}),
+      },
+      body: form,
+    });
+    const json = (await res.json().catch(() => ({}))) as { error?: { message?: string } };
+    if (!res.ok) throw new Error(`Stripe ${res.status}: ${json.error?.message ?? 'request failed'}`);
+    return json;
   }
-  return provider;
+
+  async createCharge({ userId, amountCop, redirectUrl }: CreateChargeInput): Promise<Charge> {
+    // Stripe cobra en USD (tarjeta internacional). Convertimos COP→USD; los créditos
+    // se acreditan por amount_usd. USD = 2 decimales → centavos.
+    const amountUsd = copToUsd(amountCop);
+    const cents = Math.round(amountUsd * 100);
+    const reference = `KIBA-${randomBytes(8).toString('hex').toUpperCase()}`;
+
+    // 1. Creamos el cobro local para tener el id (va en metadata de Stripe).
+    const charge = insertCharge({
+      userId,
+      provider: this.id,
+      method: 'stripe',
+      reference,
+      amountCop,
+      amountUsd,
+      detail: {},
+    });
+
+    // 2. Creamos la Checkout Session en Stripe.
+    const redirect = redirectUrl || DEFAULT_REDIRECT;
+    const form = new URLSearchParams();
+    form.set('mode', 'payment');
+    form.set('success_url', `${redirect}?session_id={CHECKOUT_SESSION_ID}`);
+    form.set('cancel_url', `${redirect}?canceled=1`);
+    form.set('client_reference_id', reference);
+    form.set('metadata[chargeId]', charge.id);
+    form.set('line_items[0][quantity]', '1');
+    form.set('line_items[0][price_data][currency]', 'usd');
+    form.set('line_items[0][price_data][unit_amount]', String(cents));
+    form.set('line_items[0][price_data][product_data][name]', 'Kiba — recarga de créditos (Kibs)');
+    const session = (await this.stripe('/checkout/sessions', 'POST', form)) as StripeSession;
+
+    // 3. Guardamos la URL + el session id en el cobro.
+    mergeChargeDetail(charge.id, { checkoutUrl: session.url, sessionId: session.id, amountUsdCents: cents });
+    return loadCharge(charge.id, userId)!;
+  }
+
+  getCharge(id: string, userId: number): Charge | null {
+    return loadCharge(id, userId);
+  }
+
+  async verifyCharge({
+    chargeId,
+    userId,
+    providerTxId,
+  }: {
+    chargeId: string;
+    userId: number;
+    providerTxId: string;
+  }): Promise<VerifyResult> {
+    const charge = loadCharge(chargeId, userId);
+    if (!charge) throw new Error('charge not found');
+    if (charge.status === 'paid') {
+      return { charge, newBalanceUsd: lamportsToUsd(getBalance(userId)), status: 'paid' };
+    }
+    const session = (await this.stripe(
+      `/checkout/sessions/${encodeURIComponent(providerTxId)}`,
+      'GET',
+    )) as StripeSession;
+    if (session.client_reference_id !== charge.reference) throw new Error('reference mismatch');
+
+    if (session.payment_status === 'paid') {
+      applyCredit(chargeId);
+    } else if (session.status === 'expired') {
+      db.prepare(
+        "UPDATE payment_charges SET status = 'expired' WHERE id = ? AND status = 'pending'",
+      ).run(chargeId);
+    }
+    return {
+      charge: loadCharge(chargeId, userId)!,
+      newBalanceUsd: lamportsToUsd(getBalance(userId)),
+      status: session.payment_status ?? session.status ?? 'pending',
+    };
+  }
+
+  async handleWebhook({ rawBody, headers }: WebhookInput): Promise<{ ok: boolean; credited: boolean }> {
+    const sigHeader = headers['stripe-signature'];
+    if (!sigHeader || !rawBody || !STRIPE_WEBHOOK_SECRET) return { ok: false, credited: false };
+
+    // Firma Stripe: header "t=<ts>,v1=<hmac>"; firmado = HMAC_SHA256(`${t}.${rawBody}`, secret).
+    const parts = Object.fromEntries(sigHeader.split(',').map((kv) => kv.split('=') as [string, string]));
+    const t = parts['t'];
+    const v1 = parts['v1'];
+    if (!t || !v1) return { ok: false, credited: false };
+    const expected = createHmac('sha256', STRIPE_WEBHOOK_SECRET).update(`${t}.${rawBody}`).digest('hex');
+    const a = Buffer.from(expected);
+    const b = Buffer.from(v1);
+    if (a.length !== b.length || !timingSafeEqual(a, b)) return { ok: false, credited: false };
+
+    const event = JSON.parse(rawBody) as { type?: string; data?: { object?: StripeSession } };
+    if (event.type !== 'checkout.session.completed') return { ok: true, credited: false };
+    const session = event.data?.object;
+    if (!session || session.payment_status !== 'paid' || !session.client_reference_id) {
+      return { ok: true, credited: false };
+    }
+    const row = loadChargeByReference(session.client_reference_id);
+    if (!row) return { ok: true, credited: false };
+    const outcome = applyCredit(row.id);
+    return { ok: true, credited: outcome === 'credited' };
+  }
+}
+
+// ─── Registry (múltiples métodos a la vez) ─────────────────────
+//
+// Se ofrecen TODOS los métodos disponibles simultáneamente (no uno solo): el
+// usuario elige en la UI. Bre-B sandbox siempre está; wompi/stripe si hay llaves.
+// `PAYMENT_PROVIDER` solo marca cuál va PRIMERO (default sugerido).
+
+const cache = new Map<string, PaymentProvider>();
+
+function build(id: string): PaymentProvider | null {
+  switch (id) {
+    case 'bre-b-sandbox':
+      return new BrebSandboxProvider();
+    case 'wompi':
+      return wompiConfigured() ? new WompiProvider() : null;
+    case 'stripe':
+      return stripeConfigured() ? new StripeProvider() : null;
+    default:
+      return null;
+  }
+}
+
+/** IDs de métodos disponibles, con el default (`PAYMENT_PROVIDER`) de primero. */
+function availableIds(): string[] {
+  const ids = ['bre-b-sandbox'];
+  if (wompiConfigured()) ids.push('wompi');
+  if (stripeConfigured()) ids.push('stripe');
+  return ids.sort((a, b) => (a === PROVIDER ? -1 : b === PROVIDER ? 1 : 0));
+}
+
+/** Provider por id. Lanza si no está disponible (sin llaves). */
+export function getProvider(id: string): PaymentProvider {
+  const cached = cache.get(id);
+  if (cached) return cached;
+  const p = build(id);
+  if (!p) throw new Error(`payment provider not available: ${id}`);
+  cache.set(id, p);
+  return p;
+}
+
+/** Todos los métodos de pago activos (para la UI). */
+export function listProviders(): PaymentProvider[] {
+  return availableIds().map((id) => getProvider(id));
+}
+
+/** Provider por defecto (primero disponible / el de PAYMENT_PROVIDER). */
+export function getPaymentProvider(): PaymentProvider {
+  return getProvider(availableIds()[0]);
+}
+
+/**
+ * Verifica un cobro devuelto por un checkout, enrutando al provider correcto según
+ * el `provider` guardado en el propio cobro (no depende del cliente).
+ */
+export async function verifyCharge(args: {
+  chargeId: string;
+  userId: number;
+  providerTxId: string;
+}): Promise<VerifyResult> {
+  const row = db
+    .prepare('SELECT provider FROM payment_charges WHERE id = ? AND user_id = ?')
+    .get(args.chargeId, args.userId) as { provider: string } | undefined;
+  if (!row) throw new Error('charge not found');
+  const p = getProvider(row.provider);
+  if (!p.verifyCharge) throw new Error('verify not supported by provider');
+  return p.verifyCharge(args);
+}
+
+/** Lectura de un cobro (agnóstica al provider). */
+export function getCharge(id: string, userId: number): Charge | null {
+  return loadCharge(id, userId);
 }

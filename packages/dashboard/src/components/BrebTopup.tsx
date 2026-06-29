@@ -12,7 +12,6 @@ import { QRCodeSVG } from "qrcode.react";
 import { api, type PaymentCharge } from "@/lib/api";
 import { Card, CardBody, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { formatKibs, formatUsd } from "@/lib/format";
 import {
   CheckCircle2,
@@ -40,14 +39,30 @@ export function BrebTopup() {
   const [copied, setCopied] = useState(false);
   const [verifyMsg, setVerifyMsg] = useState<string | null>(null);
 
+  const [selectedProvider, setSelectedProvider] = useState<string>("");
+
   const { data: config } = useQuery({ queryKey: ["payments-config"], queryFn: api.paymentsConfig });
-  const isRedirect = config?.mode === "redirect";
+  const methods = config?.methods ?? [];
+
+  // Selecciona el primer método cuando llega la config.
+  useEffect(() => {
+    if (!selectedProvider && methods.length > 0) setSelectedProvider(methods[0].provider);
+  }, [methods, selectedProvider]);
+
+  const selected = methods.find((m) => m.provider === selectedProvider) ?? methods[0];
+  const isRedirect = selected?.mode === "redirect";
+  const isStripe = selected?.provider === "stripe";
 
   const kibsFor = (cop: number) =>
     config ? Math.round((cop / config.cop_usd_rate) * config.kibs_per_usd) : 0;
 
   const create = useMutation({
-    mutationFn: () => api.createBrebCharge(amountCop, `${window.location.origin}/app/billing`),
+    mutationFn: () =>
+      api.createCharge(
+        selected?.provider ?? "bre-b-sandbox",
+        amountCop,
+        `${window.location.origin}/app/billing`,
+      ),
     onSuccess: (c) => {
       if (c.detail.checkoutUrl) {
         // Redirect provider (Wompi): guardamos el cobro y vamos al checkout.
@@ -75,7 +90,8 @@ export function BrebTopup() {
   // Retorno del checkout de Wompi: ?id=<txId> + cobro guardado → verificar y acreditar.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const txId = params.get("id");
+    // Wompi devuelve ?id=<txId>; Stripe ?session_id=<sessionId>.
+    const txId = params.get("id") || params.get("session_id");
     let pending: { chargeId?: string } = {};
     try {
       pending = JSON.parse(localStorage.getItem(PENDING_KEY) || "{}");
@@ -87,9 +103,9 @@ export function BrebTopup() {
     (async () => {
       setVerifyMsg("Verificando tu pago…");
       try {
-        const r = await api.verifyWompi(pending.chargeId!, txId);
+        const r = await api.verifyPayment(pending.chargeId!, txId);
         setCharge(r.charge);
-        if (r.status === "APPROVED") {
+        if (r.charge.status === "paid") {
           qc.invalidateQueries({ queryKey: ["balance"] });
           qc.invalidateQueries({ queryKey: ["transactions"] });
           setVerifyMsg(null);
@@ -231,18 +247,14 @@ export function BrebTopup() {
               <RefreshCw className="w-3 h-3 animate-spin" />
               Esperando el pago…
             </span>
-            {config?.sandbox && (
-              <Button size="sm" onClick={() => simulate.mutate(charge.id)} disabled={simulate.isPending}>
-                {simulate.isPending ? "Simulando…" : "Simular pago recibido"}
-              </Button>
-            )}
+            <Button size="sm" onClick={() => simulate.mutate(charge.id)} disabled={simulate.isPending}>
+              {simulate.isPending ? "Simulando…" : "Simular pago recibido"}
+            </Button>
           </div>
-          {config?.sandbox && (
-            <p className="text-xs text-[var(--color-fg-subtle)]">
-              Modo sandbox: no hay cobro real. El botón simula el webhook del PSP que confirmaría un
-              pago Bre-B real.
-            </p>
-          )}
+          <p className="text-xs text-[var(--color-fg-subtle)]">
+            Modo sandbox: no hay cobro real. El botón simula el webhook del PSP que confirmaría un
+            pago Bre-B real.
+          </p>
           {simulate.isError && (
             <p className="text-sm text-[var(--color-danger)]">{(simulate.error as Error).message}</p>
           )}
@@ -255,17 +267,44 @@ export function BrebTopup() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          Recarga con Bre-B
-          <Badge tone="info">Colombia</Badge>
-          {config && !config.sandbox && <Badge tone="success">Wompi</Badge>}
-        </CardTitle>
+        <CardTitle>Recargar créditos</CardTitle>
         <CardDescription>
-          Paga en pesos desde tu banco (sin wallet ni cripto). Convertimos a Kibs al instante.
-          {isRedirect && " Te llevamos al checkout seguro de Wompi."}
+          Elige un método de pago. Convertimos a Kibs al instante.
+          {isStripe
+            ? " Pagas con tarjeta (cobro en USD)."
+            : selected?.country === "CO"
+              ? " Paga en pesos desde tu banco, sin wallet ni cripto."
+              : ""}
         </CardDescription>
       </CardHeader>
       <CardBody className="space-y-4">
+        {/* Selector de método (Bre-B / Tarjeta / …) */}
+        {methods.length > 1 && (
+          <div className="flex flex-wrap gap-2">
+            {methods.map((m) => {
+              const active = m.provider === selected?.provider;
+              return (
+                <button
+                  key={m.provider}
+                  type="button"
+                  onClick={() => {
+                    setSelectedProvider(m.provider);
+                    create.reset();
+                  }}
+                  className={`rounded-full border px-4 py-2 text-sm font-medium transition-colors ${
+                    active
+                      ? "border-[var(--color-primary)] bg-[color-mix(in_srgb,var(--color-primary)_14%,transparent)] text-[var(--color-fg)]"
+                      : "border-[var(--color-border)] text-[var(--color-fg-muted)] hover:border-[var(--color-primary)]"
+                  }`}
+                >
+                  {m.label}
+                  {m.country ? ` · ${m.country}` : ""}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         <div className="flex flex-wrap gap-2">
           {QUICK_COP.map((c) => (
             <button
@@ -317,8 +356,8 @@ export function BrebTopup() {
               ? "Redirigiendo…"
               : "Generando…"
             : isRedirect
-              ? "Pagar con Wompi"
-              : "Generar pago Bre-B"}
+              ? `Pagar con ${selected?.label ?? "el checkout"}`
+              : `Pagar con ${selected?.label ?? "Bre-B"}`}
         </Button>
       </CardBody>
     </Card>
