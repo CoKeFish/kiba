@@ -104,8 +104,8 @@ services:
       - TRUSTLESS_WORK_TRUSTLINE_SYMBOL=${TRUSTLESS_WORK_TRUSTLINE_SYMBOL:-USDC}
       # Firecrawl (agente real de web scraping). Key gratis en firecrawl.dev.
       - FIRECRAWL_API_KEY=${FIRECRAWL_API_KEY:-}
-      # Secreto compartido de la vía de confianza gateway→agente (pago off-chain por lotes).
-      - PLATFORM_CALL_SECRET=${PLATFORM_CALL_SECRET:-}
+      # Vía de confianza ASIMÉTRICA: clave PÚBLICA de la plataforma que cada agente verifica.
+      - KIBA_PLATFORM_PUBLIC_KEY=${KIBA_PLATFORM_PUBLIC_KEY:-}
     depends_on:
       - backend
 
@@ -141,8 +141,11 @@ services:
       - TRUSTLESS_WORK_PLATFORM_FEE=${TRUSTLESS_WORK_PLATFORM_FEE:-5}
       - TRUSTLESS_WORK_TRUSTLINE_ADDRESS=${TRUSTLESS_WORK_TRUSTLINE_ADDRESS:-}
       - TRUSTLESS_WORK_TRUSTLINE_SYMBOL=${TRUSTLESS_WORK_TRUSTLINE_SYMBOL:-USDC}
-      # Pagos off-chain: secreto de la vía de confianza + liquidación por lotes (mínimo + schedule).
-      - PLATFORM_CALL_SECRET=${PLATFORM_CALL_SECRET:-}
+      # Pagos off-chain: vía de confianza ASIMÉTRICA (clave PRIVADA de la plataforma; si está
+      # vacía deriva de la treasury) + clave pública para exponerla a los agentes/clientes.
+      - KIBA_PLATFORM_SECRET=${KIBA_PLATFORM_SECRET:-}
+      - KIBA_PLATFORM_PUBLIC_KEY=${KIBA_PLATFORM_PUBLIC_KEY:-}
+      # Liquidación por lotes (mínimo + schedule).
       - SETTLEMENT_MIN_PAYOUT=${SETTLEMENT_MIN_PAYOUT:-10000000}
       - SETTLEMENT_INTERVAL_MS=${SETTLEMENT_INTERVAL_MS:-}
       # Privy server wallets (no-custodial) para las wallets de usuario. Sin estas, las
