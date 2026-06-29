@@ -459,12 +459,14 @@ app.post('/v1/payments/breb/simulate', requireAuth, (req, res) => {
  */
 app.post(['/v1/payments/verify', '/v1/payments/wompi/verify'], requireAuth, async (req, res) => {
   const chargeId = String(req.body?.chargeId ?? '');
+  // providerTxId: tx/session/order id de los redirect providers; vacío para depósitos
+  // cripto (Stellar), que se identifican por memo on-chain.
   const providerTxId = String(req.body?.transactionId ?? req.body?.id ?? '');
-  if (!chargeId || !providerTxId) {
-    return res.status(400).json({ error: 'chargeId and transactionId required' });
+  if (!chargeId) {
+    return res.status(400).json({ error: 'chargeId required' });
   }
   try {
-    // Enruta al provider guardado en el cobro (Wompi tx id / Stripe session id).
+    // Enruta al provider guardado en el cobro (Wompi tx id / Stripe session id / Stellar memo).
     const { charge, newBalanceUsd, status } = await verifyChargeRouted({
       chargeId,
       userId: req.bearerUser!.id,

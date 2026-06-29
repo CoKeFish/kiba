@@ -61,6 +61,22 @@ function paypalConfigured(): boolean {
   return Boolean(PAYPAL_CLIENT_ID && PAYPAL_SECRET);
 }
 
+// ── USDC en Stellar (depósito cripto, estilo AstroPay) ──
+// El usuario envía USDC a una dirección de la plataforma con un memo único; un
+// poll a Horizon detecta el pago entrante con ese memo y acredita los Kibs.
+const STELLAR_HORIZON_URL = (process.env.STELLAR_HORIZON_URL || 'https://horizon-testnet.stellar.org').replace(
+  /\/+$/,
+  '',
+);
+const STELLAR_DEPOSIT_ADDRESS =
+  process.env.STELLAR_DEPOSIT_ADDRESS || process.env.TRUSTLESS_WORK_PLATFORM_ADDRESS || '';
+const USDC_ISSUER = process.env.TRUSTLESS_WORK_TRUSTLINE_ADDRESS || '';
+const USDC_CODE = process.env.TRUSTLESS_WORK_TRUSTLINE_SYMBOL || 'USDC';
+
+function stellarConfigured(): boolean {
+  return Boolean(STELLAR_DEPOSIT_ADDRESS && USDC_ISSUER);
+}
+
 export const copToUsd = (cop: number) => cop / COP_USD_RATE;
 export const copToKibs = (cop: number) => Math.round(copToUsd(cop) * KIBS_PER_USD);
 const sha256 = (s: string) => createHash('sha256').update(s).digest('hex');
@@ -110,8 +126,8 @@ export interface PaymentProvider {
   readonly label: string;
   /** País/segmento (ej. "CO", "Intl") — informativo para la UI. */
   readonly country?: string;
-  /** 'qr' = se paga dentro de la app; 'redirect' = se va al checkout del PSP. */
-  readonly mode: 'qr' | 'redirect';
+  /** 'qr' = pago in-app; 'redirect' = checkout del PSP; 'deposit' = enviar cripto a una dirección. */
+  readonly mode: 'qr' | 'redirect' | 'deposit';
   createCharge(input: CreateChargeInput): Charge | Promise<Charge>;
   getCharge(id: string, userId: number): Charge | null;
   /** Sandbox: simula el webhook del PSP. */
@@ -694,6 +710,107 @@ class PayPalProvider implements PaymentProvider {
   }
 }
 
+// ─── USDC en Stellar (depósito cripto) ─────────────────────────
+
+interface HorizonPayment {
+  type: string;
+  asset_code?: string;
+  asset_issuer?: string;
+  to?: string;
+  amount?: string;
+  transaction_hash?: string;
+  transaction?: { memo?: string; memo_type?: string };
+}
+
+class StellarUsdcProvider implements PaymentProvider {
+  readonly id = 'stellar-usdc';
+  readonly sandbox = STELLAR_HORIZON_URL.includes('testnet');
+  readonly label = 'USDC (Stellar)';
+  readonly country = 'Cripto';
+  readonly mode = 'deposit' as const;
+
+  createCharge({ userId, amountCop }: CreateChargeInput): Charge {
+    const amountUsd = copToUsd(amountCop);
+    // Memo Stellar: máx 28 bytes. Único por cobro → atribuye el depósito.
+    const memo = `KIBA${randomBytes(6).toString('hex').toUpperCase()}`;
+    return insertCharge({
+      userId,
+      provider: this.id,
+      method: 'stellar-usdc',
+      reference: memo,
+      amountCop,
+      amountUsd,
+      detail: {
+        network: 'Stellar',
+        asset: USDC_CODE,
+        issuer: USDC_ISSUER,
+        depositAddress: STELLAR_DEPOSIT_ADDRESS,
+        memo,
+        memoType: 'text',
+        amountUsdc: Number(amountUsd.toFixed(7)),
+        instructions:
+          'Envía exactamente este monto en USDC (Stellar) a la dirección, INCLUYENDO el memo. Sin el memo no se acredita.',
+      },
+    });
+  }
+
+  getCharge(id: string, userId: number): Charge | null {
+    return loadCharge(id, userId);
+  }
+
+  /**
+   * Busca en Horizon un pago USDC entrante a la dirección con el memo del cobro.
+   * `providerTxId` no se usa (el depósito se identifica por memo, no por id de cliente).
+   */
+  async verifyCharge({
+    chargeId,
+    userId,
+  }: {
+    chargeId: string;
+    userId: number;
+    providerTxId: string;
+  }): Promise<VerifyResult> {
+    const charge = loadCharge(chargeId, userId);
+    if (!charge) throw new Error('charge not found');
+    if (charge.status === 'paid') {
+      return { charge, newBalanceUsd: lamportsToUsd(getBalance(userId)), status: 'paid' };
+    }
+
+    const memo = String(charge.detail.memo ?? charge.reference);
+    const res = await fetch(
+      `${STELLAR_HORIZON_URL}/accounts/${encodeURIComponent(STELLAR_DEPOSIT_ADDRESS)}/payments?order=desc&limit=50&join=transactions`,
+      { headers: { Accept: 'application/json' } },
+    );
+    if (!res.ok) {
+      // Cuenta sin movimientos aún (404) u otro → sigue pendiente, no es error fatal.
+      return { charge, newBalanceUsd: lamportsToUsd(getBalance(userId)), status: 'pending' };
+    }
+    const json = (await res.json().catch(() => ({}))) as { _embedded?: { records?: HorizonPayment[] } };
+    const records = json._embedded?.records ?? [];
+    const min = charge.amountUsd - 1e-6;
+    const match = records.find(
+      (r) =>
+        r.type === 'payment' &&
+        r.asset_code === USDC_CODE &&
+        r.asset_issuer === USDC_ISSUER &&
+        r.to === STELLAR_DEPOSIT_ADDRESS &&
+        r.transaction?.memo === memo &&
+        Number(r.amount ?? '0') >= min,
+    );
+
+    if (match) {
+      // Guarda el hash del depósito y acredita.
+      mergeChargeDetail(chargeId, { depositTxHash: match.transaction_hash });
+      applyCredit(chargeId);
+    }
+    return {
+      charge: loadCharge(chargeId, userId)!,
+      newBalanceUsd: lamportsToUsd(getBalance(userId)),
+      status: match ? 'paid' : 'pending',
+    };
+  }
+}
+
 // ─── Registry (múltiples métodos a la vez) ─────────────────────
 //
 // Se ofrecen TODOS los métodos disponibles simultáneamente (no uno solo): el
@@ -712,6 +829,8 @@ function build(id: string): PaymentProvider | null {
       return stripeConfigured() ? new StripeProvider() : null;
     case 'paypal':
       return paypalConfigured() ? new PayPalProvider() : null;
+    case 'stellar-usdc':
+      return stellarConfigured() ? new StellarUsdcProvider() : null;
     default:
       return null;
   }
@@ -723,6 +842,7 @@ function availableIds(): string[] {
   if (wompiConfigured()) ids.push('wompi');
   if (stripeConfigured()) ids.push('stripe');
   if (paypalConfigured()) ids.push('paypal');
+  if (stellarConfigured()) ids.push('stellar-usdc');
   return ids.sort((a, b) => (a === PROVIDER ? -1 : b === PROVIDER ? 1 : 0));
 }
 

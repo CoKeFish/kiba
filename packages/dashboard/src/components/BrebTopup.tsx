@@ -87,6 +87,18 @@ export function BrebTopup() {
     },
   });
 
+  // Depósito cripto (Stellar): verifica on-chain por memo y acredita si llegó.
+  const verifyDeposit = useMutation({
+    mutationFn: (id: string) => api.verifyPayment(id, ""),
+    onSuccess: (r) => {
+      setCharge(r.charge);
+      if (r.charge.status === "paid") {
+        qc.invalidateQueries({ queryKey: ["balance"] });
+        qc.invalidateQueries({ queryKey: ["transactions"] });
+      }
+    },
+  });
+
   // Retorno del checkout de Wompi: ?id=<txId> + cobro guardado → verificar y acreditar.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -131,12 +143,16 @@ export function BrebTopup() {
     });
   };
 
-  // Poll del estado mientras está pendiente (sandbox / pago real por banco).
+  // Poll del estado mientras está pendiente. Depósito cripto (Stellar) → verifica
+  // on-chain por memo; sandbox QR → lee el estado del cobro.
   useEffect(() => {
     if (!charge || charge.status !== "pending" || charge.detail.checkoutUrl) return;
+    const isDeposit = !!charge.detail.depositAddress;
     const t = setInterval(async () => {
       try {
-        const fresh = await api.getCharge(charge.id);
+        const fresh = isDeposit
+          ? (await api.verifyPayment(charge.id, "")).charge
+          : await api.getCharge(charge.id);
         if (fresh.status !== "pending") {
           setCharge(fresh);
           qc.invalidateQueries({ queryKey: ["balance"] });
@@ -145,15 +161,24 @@ export function BrebTopup() {
       } catch {
         /* ignore */
       }
-    }, 3000);
+    }, isDeposit ? 6000 : 3000);
     return () => clearInterval(t);
   }, [charge, qc]);
+
+  const copyText = (t?: string) => {
+    if (!t) return;
+    navigator.clipboard?.writeText(t).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  };
 
   const reset = () => {
     setCharge(null);
     setVerifyMsg(null);
     create.reset();
     simulate.reset();
+    verifyDeposit.reset();
   };
 
   // ── Estado: pagado ──
@@ -188,6 +213,89 @@ export function BrebTopup() {
           <Button variant="ghost" size="sm" onClick={reset} className="mx-auto">
             Volver
           </Button>
+        </CardBody>
+      </Card>
+    );
+  }
+
+  // ── Estado: depósito cripto pendiente (Stellar USDC) ──
+  if (charge && charge.detail.depositAddress) {
+    const d = charge.detail;
+    // QR escaneable por wallets Stellar (SEP-0007): prefiere monto + memo.
+    const sep7 =
+      `web+stellar:pay?destination=${d.depositAddress}` +
+      `&amount=${d.amountUsdc ?? charge.amount_usd}` +
+      `&asset_code=${d.asset ?? "USDC"}` +
+      (charge.detail.memo ? `&memo=${encodeURIComponent(charge.detail.memo)}&memo_type=MEMO_TEXT` : "");
+    return (
+      <Card>
+        <CardHeader className="flex items-center justify-between flex-row">
+          <div>
+            <CardTitle>Deposita USDC en {d.network ?? "Stellar"}</CardTitle>
+            <CardDescription>
+              Envía{" "}
+              <span className="text-[var(--color-fg)] font-medium">
+                {(d.amountUsdc ?? charge.amount_usd).toFixed(2)} {d.asset ?? "USDC"}
+              </span>{" "}
+              → {formatKibs(charge.kibs)} Kibs
+            </CardDescription>
+          </div>
+          <Button variant="ghost" size="sm" onClick={reset}>
+            <X className="w-3 h-3" />
+          </Button>
+        </CardHeader>
+        <CardBody className="space-y-4">
+          <div className="flex flex-col sm:flex-row gap-5 items-center sm:items-start">
+            <div className="rounded-2xl border border-[var(--color-border)] p-3 bg-white shrink-0">
+              <QRCodeSVG value={sep7} size={148} level="M" />
+            </div>
+            <div className="space-y-3 flex-1 w-full min-w-0">
+              <div>
+                <div className="text-xs text-[var(--color-fg-subtle)] uppercase tracking-wider mb-1">
+                  Dirección ({d.network ?? "Stellar"})
+                </div>
+                <div className="flex items-center gap-2 rounded-md border border-[var(--color-border)] px-3 py-2">
+                  <span className="font-mono text-xs flex-1 truncate">{d.depositAddress}</span>
+                  <Button variant="ghost" size="sm" onClick={() => copyText(d.depositAddress)}>
+                    <Copy className="w-3 h-3" />
+                  </Button>
+                </div>
+              </div>
+              <div>
+                <div className="text-xs text-[var(--color-fg-subtle)] uppercase tracking-wider mb-1">
+                  Memo (obligatorio)
+                </div>
+                <div className="flex items-center gap-2 rounded-md border border-[var(--color-warning)] px-3 py-2">
+                  <span className="font-mono text-sm flex-1 truncate">{charge.detail.memo}</span>
+                  <Button variant="ghost" size="sm" onClick={() => copyText(charge.detail.memo)}>
+                    <Copy className="w-3 h-3" />
+                    {copied ? "Copiado" : "Copiar"}
+                  </Button>
+                </div>
+                <p className="text-xs text-[var(--color-warning)] mt-1">
+                  Sin el memo el depósito NO se acredita.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between gap-3 pt-3 border-t border-[var(--color-border)]">
+            <span className="inline-flex items-center gap-2 text-xs text-[var(--color-fg-muted)]">
+              <RefreshCw className="w-3 h-3 animate-spin" />
+              Esperando el depósito on-chain…
+            </span>
+            <Button
+              size="sm"
+              onClick={() => verifyDeposit.mutate(charge.id)}
+              disabled={verifyDeposit.isPending}
+            >
+              {verifyDeposit.isPending ? "Verificando…" : "Ya lo envié · Verificar"}
+            </Button>
+          </div>
+          <p className="text-xs text-[var(--color-fg-subtle)]">
+            Detectamos el pago automáticamente vía Horizon. Asegúrate de enviar USDC (no XLM) en
+            la red {d.network ?? "Stellar"}.
+          </p>
         </CardBody>
       </Card>
     );

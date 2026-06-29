@@ -285,7 +285,7 @@ export type PaymentMethod = {
   provider: string;
   label: string;
   country: string | null;
-  mode: "qr" | "redirect";
+  mode: "qr" | "redirect" | "deposit";
   sandbox: boolean;
 };
 
@@ -308,6 +308,12 @@ export type PaymentCharge = {
     qrPayload?: string;
     instructions?: string;
     checkoutUrl?: string;
+    // Depósito cripto (Stellar USDC)
+    depositAddress?: string;
+    memo?: string;
+    network?: string;
+    asset?: string;
+    amountUsdc?: number;
   };
   created_at: number;
   paid_at: number | null;

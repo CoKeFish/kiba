@@ -165,6 +165,9 @@ services:
       - PAYPAL_CLIENT_ID=${PAYPAL_CLIENT_ID:-}
       - PAYPAL_SECRET=${PAYPAL_SECRET:-}
       - PAYPAL_API_URL=${PAYPAL_API_URL:-https://api-m.sandbox.paypal.com}
+      # USDC en Stellar (depósito cripto): dirección receptora. Si vacía, cae a
+      # TRUSTLESS_WORK_PLATFORM_ADDRESS; el issuer/Horizon ya van arriba.
+      - STELLAR_DEPOSIT_ADDRESS=${STELLAR_DEPOSIT_ADDRESS:-}
     depends_on:
       - backend
       - demo-agents
