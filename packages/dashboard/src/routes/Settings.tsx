@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { format } from "date-fns";
 import { chain } from "@/lib/chain";
+import { RechargeWalletKit } from "@/components/RechargeWalletKit";
 import {
   Bell,
   Check,
@@ -98,6 +99,7 @@ function FieldRow({
 }
 
 export default function Settings() {
+  const qc = useQueryClient();
   const { data: me } = useQuery({ queryKey: ["me"], queryFn: api.me });
   const {
     data: wallet,
@@ -210,6 +212,13 @@ export default function Settings() {
                 hint={`When your custodial runs low, the gateway transfers ${wallet.asset} from this master wallet to yours.`}
                 copyable
                 link={explorerWallet(wallet.master_wallet)}
+              />
+              <RechargeWalletKit
+                walletAddress={wallet.pubkey}
+                onFunded={() => {
+                  refetchWallet();
+                  qc.invalidateQueries({ queryKey: ["balance"] });
+                }}
               />
             </>
           ) : (

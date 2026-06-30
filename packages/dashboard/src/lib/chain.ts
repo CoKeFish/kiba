@@ -18,6 +18,14 @@ export interface ChainConfig {
   explorerTx: (sig: string) => string;
   /** URL del explorer para una cuenta/dirección. */
   explorerAddr: (addr: string) => string;
+  /** Horizon REST de la red activa — para armar/enviar la tx desde el navegador. */
+  horizonUrl: string;
+  /** Passphrase de la red (Networks.TESTNET / Networks.PUBLIC). */
+  networkPassphrase: string;
+  /** Código del activo USDC. */
+  usdcCode: string;
+  /** Emisor del USDC (debe coincidir con TRUSTLESS_WORK_TRUSTLINE_ADDRESS del gateway). */
+  usdcIssuer: string;
 }
 
 const CONFIGS: Record<string, ChainConfig> = {
@@ -30,6 +38,13 @@ const CONFIGS: Record<string, ChainConfig> = {
     networkLabel: "Stellar testnet",
     explorerTx: (sig) => `https://stellar.expert/explorer/testnet/tx/${sig}`,
     explorerAddr: (addr) => `https://stellar.expert/explorer/testnet/account/${addr}`,
+    horizonUrl: import.meta.env.VITE_STELLAR_HORIZON_URL || "https://horizon-testnet.stellar.org",
+    networkPassphrase:
+      import.meta.env.VITE_STELLAR_NETWORK_PASSPHRASE || "Test SDF Network ; September 2015",
+    usdcCode: "USDC",
+    usdcIssuer:
+      import.meta.env.VITE_USDC_ISSUER ||
+      "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
   },
 };
 
