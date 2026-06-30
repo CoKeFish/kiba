@@ -18,6 +18,9 @@ RUN npm install --workspace=@kiba/demo-agents --include-workspace-root --include
 COPY packages/sdk ./packages/sdk
 COPY packages/demo-agents ./packages/demo-agents
 
+# Diagnóstico/cache-bust: imprime en los build logs el service que quedó en la imagen.
+RUN echo "BUILD-MARKER service=$(grep -m1 \"service:\" packages/demo-agents/src/firecrawl.ts)"
+
 WORKDIR /app/packages/demo-agents
 
 # ${AGENT_NAME%%-*} mapea translator-pro→translator, yield-hunter→yield, etc.
