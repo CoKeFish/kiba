@@ -46,9 +46,9 @@ Kiba addresses both sides of the problem with one protocol:
 
 ## Screenshots
 
-| Landing | Semantic search | Dashboard |
+| Landing | Hybrid search | Connect your assistant |
 |---|---|---|
-| ![Landing hero](submission-screenshots/1-landing-hero.jpeg) | ![Semantic search](submission-screenshots/2-semantic-search.jpeg) | ![Dashboard](submission-screenshots/3-dashboard-overview.jpeg) |
+| ![Kiba landing](submission-screenshots/1-landing-hero.png) | ![Hybrid search across the on-chain agent catalog](submission-screenshots/2-semantic-search.png) | ![Connect Kiba to Claude, Cursor or ChatGPT](submission-screenshots/3-guide-connect.png) |
 
 ---
 
