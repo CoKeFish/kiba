@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Autorizar acceso · Kiba (preview)</title>
+<link rel="icon" type="image/png" href="/favicon.png" />
+<style>
+  @import url("https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap");
+  *, *::before, *::after { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; background: #ffffff; color: #0b0b12;
+    font-family: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: #6c48ff; text-decoration: none; font-weight: 600; }
+  .consent-page {
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    padding: 24px; position: relative; overflow: hidden;
+  }
+  .consent-blob {
+    position: absolute; width: 420px; height: 420px; bottom: -120px; left: -100px;
+    border-radius: 50%; background: color-mix(in srgb, #6c48ff 28%, transparent);
+    filter: blur(60px); pointer-events: none;
+  }
+  .consent-dots {
+    position: absolute; top: 72px; right: 8%; width: 120px; height: 80px; opacity: 0.35;
+    background-image: radial-gradient(circle, #c4c0d0 1.5px, transparent 1.5px);
+    background-size: 18px 18px; pointer-events: none;
+  }
+  .consent-card {
+    position: relative; z-index: 1; width: 100%; max-width: 420px; background: #fff;
+    border: 1px solid color-mix(in srgb, #0b0b12 11%, transparent); border-radius: 20px;
+    padding: 32px 28px 28px;
+    box-shadow: 0 1px 2px color-mix(in srgb, #0b0b12 4%, transparent),
+      0 16px 40px color-mix(in srgb, #0b0b12 6%, transparent);
+  }
+  .consent-brand img { height: 28px; width: auto; display: block; object-fit: contain; margin-bottom: 22px; }
+  .consent-app {
+    font-family: "Baloo 2", ui-rounded, system-ui, sans-serif;
+    font-size: 24px; font-weight: 700; letter-spacing: -0.03em; margin: 0 0 4px;
+  }
+  .consent-sub { color: #8e89a0; font-size: 14px; line-height: 1.5; margin: 0 0 20px; }
+  .consent-who {
+    display: flex; align-items: center; gap: 9px;
+    background: color-mix(in srgb, #4fa3c7 8%, transparent);
+    border: 1px solid color-mix(in srgb, #4fa3c7 18%, transparent);
+    border-radius: 12px; padding: 10px 12px; margin-bottom: 18px;
+    font-size: 13px; color: #66626f;
+  }
+  .consent-who .dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; flex-shrink: 0; }
+  .consent-label { font-size: 14px; color: #66626f; margin: 0 0 8px; font-weight: 600; }
+  .consent-scopes { list-style: none; padding: 0; margin: 0 0 4px; }
+  .consent-scopes li {
+    display: flex; gap: 10px; align-items: flex-start; padding: 10px 0;
+    color: #66626f; font-size: 14px; line-height: 1.45;
+    border-bottom: 1px solid color-mix(in srgb, #0b0b12 8%, transparent);
+  }
+  .consent-scopes li:last-child { border-bottom: 0; }
+  .consent-scopes .tick { color: #22c55e; font-weight: 700; flex-shrink: 0; }
+  .consent-btn-primary {
+    width: 100%; margin-top: 20px; padding: 13px; border-radius: 999px;
+    font-family: "Space Grotesk", sans-serif; font-size: 15px; font-weight: 700;
+    color: #fff; cursor: pointer; border: 0;
+    background: linear-gradient(135deg, #4fa3c7 0%, #6c48ff 100%);
+    box-shadow: 0 8px 28px color-mix(in srgb, #4fa3c7 35%, transparent);
+  }
+  .consent-btn-ghost {
+    display: block; width: 100%; margin-top: 10px; padding: 12px; border-radius: 999px;
+    font-family: "Space Grotesk", sans-serif; font-size: 14px; font-weight: 700;
+    cursor: pointer; text-align: center; text-decoration: none;
+    background: #fff; color: #6c48ff;
+    border: 1.5px solid color-mix(in srgb, #6c48ff 55%, transparent);
+  }
+  .consent-foot { text-align: center; color: #8e89a0; font-size: 13px; margin: 18px 0 0; line-height: 1.45; }
+</style>
+</head>
+<body>
+<div class="consent-page">
+  <div class="consent-blob" aria-hidden="true"></div>
+  <div class="consent-dots" aria-hidden="true"></div>
+  <div class="consent-card">
+    <div class="consent-brand"><img src="/logo.png" alt="Kiba" /></div>
+    <h1 class="consent-app">ChatGPT</h1>
+    <p class="consent-sub">quiere conectarse a tu cuenta de Kiba</p>
+    <div class="consent-who"><span class="dot"></span> rrtc26@gmail.com · Saldo $41.57</div>
+    <p class="consent-label">Esta aplicación podrá:</p>
+    <ul class="consent-scopes">
+      <li><span class="tick">✓</span> Descubrir y llamar agentes en tu nombre</li>
+      <li><span class="tick">✓</span> Descontar micro-pagos de tu saldo</li>
+      <li><span class="tick">✓</span> Ver tu balance e historial de transacciones</li>
+    </ul>
+    <button type="button" class="consent-btn-primary">Autorizar</button>
+    <a href="#" class="consent-btn-ghost">Cancelar</a>
+    <p class="consent-foot">Puedes revocar el acceso cuando quieras desde tu dashboard.</p>
+  </div>
+</div>
+</body>
+</html>

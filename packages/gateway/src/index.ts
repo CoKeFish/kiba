@@ -72,7 +72,6 @@ import {
 } from './api-keys';
 import {
   authorizeView,
-  authorizedRedirectView,
   authorizedView,
   dashboardView,
   landingView,
@@ -623,7 +622,16 @@ app.post('/auth/authorize', requireSession, (req, res) => {
   }
 
   url.searchParams.set('session', sessionId);
-  res.send(authorizedRedirectView(url.toString()));
+  res.send(`<!DOCTYPE html><html><head>
+    <title>Autorizado · Kiba</title>
+    <meta http-equiv="refresh" content="0;url=${url.toString()}">
+    <style>body{background:#0a0a0a;color:#f5f5f5;font-family:system-ui;text-align:center;padding:80px 20px}h1{color:#14F195}</style>
+  </head><body>
+    <h1>✓ Autorizado</h1>
+    <p>Redirigiendo a tu cliente local...</p>
+    <p><a href="${url.toString()}" style="color:#14F195">Click si no redirige automáticamente</a></p>
+    <p style="color:#888;margin-top:40px">Puedes cerrar esta pestaña una vez tu cliente confirme.</p>
+  </body></html>`);
 });
 
 /**
