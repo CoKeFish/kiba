@@ -260,11 +260,12 @@ Honest snapshot. Kiba is a **technical demonstration** of the marketplace archit
 
 ## Team
 
-Three builders based in Bogotá, Colombia (Colombia track · PULSO).
+Four builders based in Bogotá, Colombia (Colombia track · PULSO).
 
 - **Rodion Tabares** — Engineering. Gateway, wallets, hybrid discovery, MCP integration. ([GitHub](https://github.com/CoKeFish))
 - **André Landinez** — Engineering. On-chain contract, dynamic pricing, x402 trace, dashboard. ([GitHub](https://github.com/andreMD287))
 - **Lizeth Rico** — Design. Visual identity, product UX, dashboard interaction. ([GitHub](https://github.com/ricoththth))
+- **Angie Alpízar Porras** — Design & frontend. UI redesign across the dashboard, landing, OAuth and installer; branding and mascots. ([GitHub](https://github.com/Ansllxs))
 
 ---
 
