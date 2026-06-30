@@ -140,7 +140,10 @@ export function buildScrapeBody(
   const onlyMainContent = typeof r.onlyMainContent === 'boolean' ? r.onlyMainContent : true;
 
   // Opciones anti-bot / geolocalización (passthrough a Firecrawl v2).
-  const proxy = ['basic', 'stealth', 'auto'].includes(String(r.proxy)) ? String(r.proxy) : undefined;
+  // Default a 'stealth': este agente sirve páginas con anti-bot (Amazon, MercadoLibre…),
+  // así que si el caller no especifica proxy, usamos stealth para que "simplemente funcione"
+  // sin que el modelo (Claude/ChatGPT) tenga que saber pasarlo. Override: 'basic' | 'auto'.
+  const proxy = ['basic', 'stealth', 'auto'].includes(String(r.proxy)) ? String(r.proxy) : 'stealth';
   const waitFor = Number.isFinite(Number(r.waitFor)) && Number(r.waitFor) > 0 ? Number(r.waitFor) : undefined;
   const loc = (r.location ?? undefined) as { country?: string; languages?: string[] } | undefined;
   const country = (loc?.country ?? (r.country as string | undefined))?.toUpperCase();

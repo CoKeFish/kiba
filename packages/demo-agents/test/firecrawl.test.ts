@@ -46,6 +46,7 @@ test('buildScrapeBody: garantiza markdown y pasa defaults', () => {
   assert.equal(body.onlyMainContent, true);
   assert.equal(body.timeout, TIMEOUT);
   assert.equal(body.url, 'https://x.com');
+  assert.equal(body.proxy, 'stealth'); // default nuevo: el agente apunta a páginas con anti-bot
 });
 
 test('buildScrapeBody: prompt sin json explícito → agrega extracción json', () => {
@@ -83,12 +84,12 @@ test('buildScrapeBody: passthrough de proxy/waitFor/location y validación', () 
   assert.equal(ok.waitFor, 3000);
   assert.deepEqual(ok.location, { country: 'CO' }); // se normaliza a mayúsculas
 
-  // valores inválidos se descartan (no se mandan a Firecrawl)
+  // waitFor inválido se descarta; proxy inválido cae al default 'stealth'
   const bad = buildScrapeBody(
     { url: 'https://x.com', proxy: 'hacker' as never, waitFor: -5 },
     TIMEOUT,
   ).body;
-  assert.equal(bad.proxy, undefined);
+  assert.equal(bad.proxy, 'stealth');
   assert.equal(bad.waitFor, undefined);
 });
 
@@ -212,7 +213,7 @@ test('live: scrape real de example.com (free tier, se salta si no hay red)', asy
   const config: ScrapeConfig = { apiKey: '', baseUrl: 'https://api.firecrawl.dev', timeoutMs: 45_000 };
   let out;
   try {
-    out = await scrape(config, { url: 'https://example.com', formats: ['markdown'] });
+    out = await scrape(config, { url: 'https://example.com', formats: ['markdown'], proxy: 'basic' });
   } catch (err) {
     t.skip(`Firecrawl no alcanzable / rate-limited: ${(err as Error).message}`);
     return;
