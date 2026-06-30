@@ -67,6 +67,11 @@ export interface ScrapeConfig {
 export const PRICE_SCRAPE_USDC = 0.002;
 export const PRICE_EXTRACT_USDC = 0.005;
 
+// Tope del markdown devuelto. Una página completa puede traer cientos de KB y reventar al
+// cliente MCP (Claude/ChatGPT trunca la respuesta y el modelo solo ve un fragmento roto,
+// p.ej. "[L7] {"). En scrapes de markdown lo truncamos a este tamaño con una nota.
+export const MAX_MARKDOWN_CHARS = 25_000;
+
 /** Normaliza formats a un array de strings en minúscula. */
 export function normalizeFormats(raw: unknown): string[] {
   if (Array.isArray(raw)) return raw.map((f) => String(f).toLowerCase().trim());
@@ -133,9 +138,12 @@ export function buildScrapeBody(
     formats.push({ type: 'json', ...(prompt ? { prompt } : {}), ...(schema ? { schema } : {}) });
   }
 
-  // Garantiza al menos markdown.
+  // Garantiza markdown SOLO si no se pidió extracción estructurada. Si el caller pidió datos
+  // (prompt/schema/json), devolvemos únicamente lo extraído: traer el markdown completo de la
+  // página (cientos de KB) revienta a los clientes MCP. El markdown explícito sí se respeta.
+  const hasJsonFmt = formats.some((f) => typeof f === 'object' && (f as { type?: string }).type === 'json');
   const hasMarkdown = formats.some((f) => f === 'markdown');
-  if (!hasMarkdown) formats.unshift('markdown');
+  if (!hasMarkdown && !hasJsonFmt) formats.unshift('markdown');
 
   const onlyMainContent = typeof r.onlyMainContent === 'boolean' ? r.onlyMainContent : true;
 
@@ -206,9 +214,15 @@ export async function scrape(config: ScrapeConfig, req: FirecrawlRequest): Promi
   const { url, body } = buildScrapeBody(req, config.timeoutMs);
   const data = await callFirecrawl(config, body);
 
+  const rawMd = data.markdown as string | undefined;
+  const markdown =
+    typeof rawMd === 'string' && rawMd.length > MAX_MARKDOWN_CHARS
+      ? rawMd.slice(0, MAX_MARKDOWN_CHARS) + `\n\n…[truncado: ${rawMd.length - MAX_MARKDOWN_CHARS} caracteres más]`
+      : rawMd;
+
   return {
     url,
-    markdown: data.markdown as string | undefined,
+    markdown,
     extracted: data.json,
     product: data.product,
     links: data.links as string[] | undefined,

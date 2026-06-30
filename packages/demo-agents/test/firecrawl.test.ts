@@ -49,12 +49,23 @@ test('buildScrapeBody: garantiza markdown y pasa defaults', () => {
   assert.equal(body.proxy, 'stealth'); // default nuevo: el agente apunta a páginas con anti-bot
 });
 
-test('buildScrapeBody: prompt sin json explícito → agrega extracción json', () => {
+test('buildScrapeBody: prompt sin formats → SOLO json (sin markdown, respuesta compacta)', () => {
   const { body } = buildScrapeBody({ url: 'https://x.com', prompt: 'extrae el precio' }, TIMEOUT);
   const formats = body.formats as Array<unknown>;
-  assert.ok(formats.includes('markdown'), 'sigue trayendo markdown');
+  assert.ok(!formats.includes('markdown'), 'no trae markdown en extracción (evita respuestas gigantes)');
+  assert.equal(formats.length, 1, 'solo el bloque json');
   const json = formats.find((f) => typeof f === 'object' && (f as { type?: string }).type === 'json');
   assert.deepEqual(json, { type: 'json', prompt: 'extrae el precio' });
+});
+
+test('buildScrapeBody: prompt + markdown explícito → trae ambos', () => {
+  const { body } = buildScrapeBody(
+    { url: 'https://x.com', prompt: 'precio', formats: ['markdown'] } as never,
+    TIMEOUT,
+  );
+  const formats = body.formats as Array<unknown>;
+  assert.ok(formats.includes('markdown'), 'markdown explícito se respeta');
+  assert.ok(formats.some((f) => typeof f === 'object' && (f as { type?: string }).type === 'json'));
 });
 
 test('buildScrapeBody: schema y sinónimos de prompt entran al bloque json', () => {
@@ -168,6 +179,18 @@ test('scrape: mapea data.json→extracted, product, links, markdown, metadata', 
       assert.deepEqual(out.links, ['https://x.com/a']);
       assert.deepEqual(out.metadata, { statusCode: 200 });
       assert.equal(typeof out.scrapedAt, 'number');
+    },
+  );
+});
+
+test('scrape: trunca markdown enorme (protege al cliente MCP)', async () => {
+  const big = 'x'.repeat(30_000);
+  await withFakeFirecrawl(
+    () => ({ status: 200, json: { success: true, data: { markdown: big } } }),
+    async (config) => {
+      const out = await scrape(config, { url: 'https://x.com' });
+      assert.ok((out.markdown as string).length < big.length, 'se truncó');
+      assert.match(String(out.markdown), /truncado/);
     },
   );
 });
