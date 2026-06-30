@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type Agent, type X402Trace } from "@/lib/api";
-import { formatKibs, formatUsd, usdToKibs, KIBS_LABEL } from "@/lib/format";
+import { formatKibix, formatUsd, usdToKibix, KIBIX_LABEL } from "@/lib/format";
 import { chain } from "@/lib/chain";
 import { serviceToName, solToUsd } from "@/components/AgentManager";
 import { DEMO_AGENTS } from "@/lib/demoAgents";
@@ -345,7 +345,7 @@ export default function Playground() {
                   <dt>Balance debited</dt>
                   <dd>
                     {latest?.cost
-                      ? `${formatKibs(usdToKibs(latest.cost.usd))} ${KIBS_LABEL}`
+                      ? `${formatKibix(usdToKibix(latest.cost.usd))} ${KIBIX_LABEL}`
                       : "—"}
                   </dd>
                 </div>

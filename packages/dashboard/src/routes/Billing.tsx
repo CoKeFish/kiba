@@ -5,11 +5,11 @@ import {
   formatUsd,
   lamportsToUsd,
   baseUnitsToUsd,
-  formatKibs,
-  formatKibsLabel,
-  usdToKibs,
-  baseUnitsToKibs,
-  KIBS_LABEL,
+  formatKibix,
+  formatKibixLabel,
+  usdToKibix,
+  baseUnitsToKibix,
+  KIBIX_LABEL,
   shortSig,
   explorerUrl,
 } from "@/lib/format";
@@ -51,7 +51,7 @@ export default function Billing() {
     onSuccess: (data) => {
       const newBaseUnits = data.new_balance_base_units ?? data.new_balance_lamports;
       setSuccess(
-        `+ ${formatKibsLabel(usdToKibs(amount))} added · new balance ${formatKibsLabel(baseUnitsToKibs(newBaseUnits))} (≈ ${formatUsd(baseUnitsToUsd(newBaseUnits))})`,
+        `+ ${formatKibixLabel(usdToKibix(amount))} added · new balance ${formatKibixLabel(baseUnitsToKibix(newBaseUnits))} (≈ ${formatUsd(baseUnitsToUsd(newBaseUnits))})`,
       );
       setError(null);
       qc.invalidateQueries({ queryKey: ["balance"] });
@@ -90,12 +90,12 @@ export default function Billing() {
               <div>
                 <p className="billing-balance__label">Available balance</p>
                 <p className="billing-balance__value">
-                  {balance ? formatKibsLabel(usdToKibs(balance.balance_usd)) : "—"}
+                  {balance ? formatKibixLabel(usdToKibix(balance.balance_usd)) : "—"}
                 </p>
                 <p className="billing-balance__hint">
                   {balance
-                    ? `≈ ${formatUsd(balance.balance_usd)} · ${KIBS_LABEL} are spent on agent calls`
-                    : `${KIBS_LABEL} are spent on agent calls`}
+                    ? `≈ ${formatUsd(balance.balance_usd)} · ${KIBIX_LABEL} are spent on agent calls`
+                    : `${KIBIX_LABEL} are spent on agent calls`}
                 </p>
               </div>
               <div className="billing-balance__icon">
@@ -106,7 +106,7 @@ export default function Billing() {
 
           <section className="billing-tip">
             <p>
-              <strong>Kibs power your agents</strong> — Top up anytime to keep your agents running
+              <strong>Kibix power your agents</strong> — Top up anytime to keep your agents running
               smoothly.
             </p>
             <img src={MASCOTS.circulo} alt="" aria-hidden className="billing-tip__mascot" />
@@ -120,8 +120,8 @@ export default function Billing() {
             Top up
           </h2>
           <p className="billing-card__desc">
-            Pay in dollars — we convert to {KIBS_LABEL} instantly ($1 ={" "}
-            {formatKibs(usdToKibs(1))} {KIBS_LABEL}). Demo mode adds them instantly; production
+            Pay in dollars — we convert to {KIBIX_LABEL} instantly ($1 ={" "}
+            {formatKibix(usdToKibix(1))} {KIBIX_LABEL}). Demo mode adds them instantly; production
             would route through Stripe Checkout.
           </p>
 
@@ -151,7 +151,7 @@ export default function Billing() {
           {amount > 0 && (
             <div className="billing-convert">
               {formatUsd(amount)} →{" "}
-              <strong>{formatKibsLabel(usdToKibs(amount))}</strong>
+              <strong>{formatKibixLabel(usdToKibix(amount))}</strong>
             </div>
           )}
 
@@ -172,7 +172,7 @@ export default function Billing() {
             <CreditCard size={16} />
             {mutation.isPending
               ? "Processing…"
-              : `Add ${formatKibsLabel(usdToKibs(amount))} (${formatUsd(amount)})`}
+              : `Add ${formatKibixLabel(usdToKibix(amount))} (${formatUsd(amount)})`}
           </button>
         </section>
       </div>
@@ -207,7 +207,7 @@ export default function Billing() {
                     <th>Date</th>
                     <th>Description</th>
                     <th>Type</th>
-                    <th>Amount ({KIBS_LABEL})</th>
+                    <th>Amount ({KIBIX_LABEL})</th>
                     <th>Amount (USD)</th>
                     <th>Status</th>
                   </tr>
@@ -237,7 +237,7 @@ export default function Billing() {
                         <span className="billing-badge">topup</span>
                       </td>
                       <td className="billing-table__mono billing-table__ok">
-                        + {formatKibsLabel(baseUnitsToKibs(t.amount_lamports))}
+                        + {formatKibixLabel(baseUnitsToKibix(t.amount_lamports))}
                       </td>
                       <td className="billing-table__muted">
                         ≈ {formatUsd(lamportsToUsd(t.amount_lamports))}

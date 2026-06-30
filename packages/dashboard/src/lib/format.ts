@@ -55,37 +55,37 @@ export function formatAssetAmount(amount: number) {
 /** @deprecated use formatAssetAmount */
 export const formatSol = formatAssetAmount;
 
-// ─── Kibs — moneda de display de la plataforma ──────────────────
+// ─── Kibix — moneda de display de la plataforma ──────────────────
 //
 // Abstracción puramente VISUAL del lado de consumo (saldo, recargas, cobros por
-// call). El almacenamiento real sigue en USD/stroops; Kibs solo cambia cómo se
+// call). El almacenamiento real sigue en USD/stroops; Kibix solo cambia cómo se
 // muestra para que los micro-montos sub-céntimo se lean como enteros amigables
-// (un call de $0.0006 → "6 Kibs") en vez de "$0.0006".
+// (un call de $0.0006 → "6 Kibix") en vez de "$0.0006".
 //
-// Tasa fija: 1 USD = 10.000 Kibs  (1 Kib = $0.0001). Solo display.
-// Los INGRESOS de publishers NO usan Kibs — son XLM/USD reales y retirables.
-export const KIBS_PER_USD = 10_000;
-export const KIBS_LABEL = "Kibs";
+// Tasa fija: 1 USD = 10.000 Kibix  (1 Kibix = $0.0001). Solo display.
+// Los INGRESOS de publishers NO usan Kibix — son XLM/USD reales y retirables.
+export const KIBIX_PER_USD = 10_000;
+export const KIBIX_LABEL = "Kibix";
 
-export const usdToKibs = (usd: number) => usd * KIBS_PER_USD;
-export const kibsToUsd = (kibs: number) => kibs / KIBS_PER_USD;
-export const baseUnitsToKibs = (b: number) => baseUnitsToUsd(b) * KIBS_PER_USD;
+export const usdToKibix = (usd: number) => usd * KIBIX_PER_USD;
+export const kibixToUsd = (kibix: number) => kibix / KIBIX_PER_USD;
+export const baseUnitsToKibix = (b: number) => baseUnitsToUsd(b) * KIBIX_PER_USD;
 
-const KIBS_INT = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
+const KIBIX_INT = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
 
 /**
- * Formatea una cantidad de Kibs (solo el número, sin la etiqueta).
+ * Formatea una cantidad de Kibix (solo el número, sin la etiqueta).
  *   - |k| >= 1  → entero con separadores de miles ("50,000", "6")
  *   - 0 < |k| < 1 → 1 decimal ("0.6") para no perder un cobro diminuto
  */
-export function formatKibs(kibs: number): string {
-  if (kibs !== 0 && Math.abs(kibs) < 1) return kibs.toFixed(1);
-  return KIBS_INT.format(Math.round(kibs));
+export function formatKibix(kibix: number): string {
+  if (kibix !== 0 && Math.abs(kibix) < 1) return kibix.toFixed(1);
+  return KIBIX_INT.format(Math.round(kibix));
 }
 
-/** "50,000 Kibs" — número + etiqueta. */
-export function formatKibsLabel(kibs: number): string {
-  return `${formatKibs(kibs)} ${KIBS_LABEL}`;
+/** "50,000 Kibix" — número + etiqueta. */
+export function formatKibixLabel(kibix: number): string {
+  return `${formatKibix(kibix)} ${KIBIX_LABEL}`;
 }
 
 export function shortSig(sig: string, chars = 4) {
