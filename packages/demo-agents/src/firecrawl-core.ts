@@ -138,12 +138,16 @@ export function buildScrapeBody(
     formats.push({ type: 'json', ...(prompt ? { prompt } : {}), ...(schema ? { schema } : {}) });
   }
 
-  // Garantiza markdown SOLO si no se pidió extracción estructurada. Si el caller pidió datos
-  // (prompt/schema/json), devolvemos únicamente lo extraído: traer el markdown completo de la
-  // página (cientos de KB) revienta a los clientes MCP. El markdown explícito sí se respeta.
+  // Extracción manda: si se pide JSON (prompt/schema/json), devolvemos SOLO datos y quitamos
+  // markdown AUNQUE el caller lo haya pedido — el markdown completo de la página revienta a los
+  // clientes MCP (truncan la respuesta y el modelo no ve los datos). Sin extracción, garantiza
+  // markdown.
   const hasJsonFmt = formats.some((f) => typeof f === 'object' && (f as { type?: string }).type === 'json');
-  const hasMarkdown = formats.some((f) => f === 'markdown');
-  if (!hasMarkdown && !hasJsonFmt) formats.unshift('markdown');
+  if (hasJsonFmt) {
+    for (let i = formats.length - 1; i >= 0; i--) if (formats[i] === 'markdown') formats.splice(i, 1);
+  } else if (!formats.some((f) => f === 'markdown')) {
+    formats.unshift('markdown');
+  }
 
   const onlyMainContent = typeof r.onlyMainContent === 'boolean' ? r.onlyMainContent : true;
 
@@ -214,11 +218,21 @@ export async function scrape(config: ScrapeConfig, req: FirecrawlRequest): Promi
   const { url, body } = buildScrapeBody(req, config.timeoutMs);
   const data = await callFirecrawl(config, body);
 
-  const rawMd = data.markdown as string | undefined;
+  // En extracción NO devolvemos markdown (aunque Firecrawl lo traiga o el caller lo pida): el
+  // markdown completo revienta a los clientes MCP. En scrape plano lo topamos a MAX_MARKDOWN_CHARS.
+  const rawMd = wantsExtraction(req) ? undefined : (data.markdown as string | undefined);
   const markdown =
     typeof rawMd === 'string' && rawMd.length > MAX_MARKDOWN_CHARS
       ? rawMd.slice(0, MAX_MARKDOWN_CHARS) + `\n\n…[truncado: ${rawMd.length - MAX_MARKDOWN_CHARS} caracteres más]`
       : rawMd;
+
+  // metadata curado: solo lo útil/presentable. La cruda trae tokens cifrados y meta-tags que
+  // inflan la respuesta del cliente MCP sin aportar nada.
+  const rawMeta = (data.metadata as Record<string, unknown>) ?? {};
+  const metadata: Record<string, unknown> = {};
+  for (const k of ['title', 'statusCode', 'sourceURL', 'contentType', 'proxyUsed', 'cacheState', 'creditsUsed']) {
+    if (rawMeta[k] !== undefined) metadata[k] = rawMeta[k];
+  }
 
   return {
     url,
@@ -226,7 +240,7 @@ export async function scrape(config: ScrapeConfig, req: FirecrawlRequest): Promi
     extracted: data.json,
     product: data.product,
     links: data.links as string[] | undefined,
-    metadata: (data.metadata as Record<string, unknown>) ?? {},
+    metadata,
     scrapedAt: Math.floor(Date.now() / 1000),
   };
 }

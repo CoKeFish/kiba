@@ -58,13 +58,13 @@ test('buildScrapeBody: prompt sin formats → SOLO json (sin markdown, respuesta
   assert.deepEqual(json, { type: 'json', prompt: 'extrae el precio' });
 });
 
-test('buildScrapeBody: prompt + markdown explícito → trae ambos', () => {
+test('buildScrapeBody: prompt + markdown → extracción gana, se quita markdown (respuesta compacta)', () => {
   const { body } = buildScrapeBody(
     { url: 'https://x.com', prompt: 'precio', formats: ['markdown'] } as never,
     TIMEOUT,
   );
   const formats = body.formats as Array<unknown>;
-  assert.ok(formats.includes('markdown'), 'markdown explícito se respeta');
+  assert.ok(!formats.includes('markdown'), 'en extracción se quita markdown aunque lo pidan');
   assert.ok(formats.some((f) => typeof f === 'object' && (f as { type?: string }).type === 'json'));
 });
 
@@ -171,7 +171,7 @@ test('scrape: mapea data.json→extracted, product, links, markdown, metadata', 
       },
     }),
     async (config) => {
-      const out = await scrape(config, { url: 'https://x.com', prompt: 'precio' });
+      const out = await scrape(config, { url: 'https://x.com' });
       assert.equal(out.url, 'https://x.com');
       assert.equal(out.markdown, '# Hola');
       assert.deepEqual(out.extracted, { price: 9.99, title: 'Auriculares' });
@@ -191,6 +191,17 @@ test('scrape: trunca markdown enorme (protege al cliente MCP)', async () => {
       const out = await scrape(config, { url: 'https://x.com' });
       assert.ok((out.markdown as string).length < big.length, 'se truncó');
       assert.match(String(out.markdown), /truncado/);
+    },
+  );
+});
+
+test('scrape: en extracción omite markdown aunque el caller lo pida (respuesta compacta MCP)', async () => {
+  await withFakeFirecrawl(
+    () => ({ status: 200, json: { success: true, data: { markdown: 'PAGINA ENORME', json: { price: 9.99 } } } }),
+    async (config) => {
+      const out = await scrape(config, { url: 'https://x.com', prompt: 'precio', formats: ['markdown'] } as never);
+      assert.equal(out.markdown, undefined, 'no markdown en extracción');
+      assert.deepEqual(out.extracted, { price: 9.99 });
     },
   );
 });
