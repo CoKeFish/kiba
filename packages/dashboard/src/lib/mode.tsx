@@ -1,4 +1,12 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 
 export type DashboardMode = "consumer" | "publisher";
 
@@ -17,14 +25,14 @@ export function ModeProvider({ children }: { children: ReactNode }) {
     return (localStorage.getItem(STORAGE_KEY) as DashboardMode) || "consumer";
   });
 
-  const setMode = (m: DashboardMode) => {
+  const setMode = useCallback((m: DashboardMode) => {
     setModeState(m);
     try {
       localStorage.setItem(STORAGE_KEY, m);
     } catch {
       /* ignore */
     }
-  };
+  }, []);
 
   useEffect(() => {
     try {
@@ -34,7 +42,9 @@ export function ModeProvider({ children }: { children: ReactNode }) {
     }
   }, [mode]);
 
-  return <ModeContext.Provider value={{ mode, setMode }}>{children}</ModeContext.Provider>;
+  const value = useMemo(() => ({ mode, setMode }), [mode, setMode]);
+
+  return <ModeContext.Provider value={value}>{children}</ModeContext.Provider>;
 }
 
 export function useMode() {
