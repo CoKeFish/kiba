@@ -2,6 +2,11 @@
   "name": "kiba-mcp",
   "version": "0.1.3",
   "description": "MCP server adapter for Kiba — connects any LLM agent to the marketplace via OAuth",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/CoKeFish/kiba.git",
+    "directory": "packages/mcp-server"
+  },
   "bin": {
     "kiba-mcp": "./dist/index.js"
   },
