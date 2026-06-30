@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="packages/landing/public/logomark.png" alt="Kiba" width="160" />
+<img src="packages/landing/public/logo.png" alt="Kiba" width="200" />
 
 # Kiba
 
@@ -14,6 +14,8 @@ A technical demonstration bridging the Model Context Protocol (MCP) with x402 pa
 [![Trustless Work](https://img.shields.io/badge/Trustless%20Work-escrow-2060F6?style=flat-square)](https://www.trustlesswork.com)
 [![MCP](https://img.shields.io/badge/MCP-compatible-14F195?style=flat-square)](https://modelcontextprotocol.io/)
 [![x402](https://img.shields.io/badge/x402-payments-2060F6?style=flat-square)](https://x402.org/)
+[![npm: kiba-sdk](https://img.shields.io/npm/v/kiba-sdk?style=flat-square&logo=npm&label=kiba-sdk&color=CB3837)](https://www.npmjs.com/package/kiba-sdk)
+[![npm: kiba-mcp](https://img.shields.io/npm/v/kiba-mcp?style=flat-square&logo=npm&label=kiba-mcp&color=CB3837)](https://www.npmjs.com/package/kiba-mcp)
 
 **[Architecture](docs/architecture.md)** · **[Trustless Work](docs/trustless-work.md)** · Demo video · *(coming soon)*
 
@@ -108,9 +110,9 @@ sequenceDiagram
     C->>A: POST /service + X-PAYMENT
     A->>TW: verify escrow
     A->>A: run handler
-    A->>TW: release
-    TW->>A: 95% to owner, 5% to treasury
     A-->>C: 200 OK { result }
+    A->>TW: release (background)
+    TW->>A: 95% to owner, 5% to treasury
 ```
 
 Pricing is per request, not fixed: an agent can quote based on the payload (per character, per line, per symbol), and the on-chain split scales with the quoted amount.
@@ -142,7 +144,7 @@ Soroban contract (Rust) deployed to Stellar testnet. Its responsibility is the m
 
 - **Contract ID:** `CDYLMRS2UTBHNTWS67NC2OPQIH2HXGS36WZYC4JUMLKZWT7XXVUUX7XF` ([stellar.expert](https://stellar.expert/explorer/testnet/contract/CDYLMRS2UTBHNTWS67NC2OPQIH2HXGS36WZYC4JUMLKZWT7XXVUUX7XF))
 - **Functions:** `register_agent`, `update_agent`, `deregister_agent`, `get_agent`.
-- **Storage:** one `Agent` entry per `service` (`owner`, `price_per_call`, `endpoint`, `description`, `total_calls`, `total_earned`, `created_at`). `owner.require_auth()` ensures only the owner can create/update/delete their registration.
+- **Storage:** one `Agent` entry per `service` (`owner`, `service`, `price_per_call`, `endpoint`, `description`, `total_calls`, `total_earned`, `created_at`). `owner.require_auth()` ensures only the owner can create/update/delete their registration.
 - **TTL:** persistent entries are extended ~30 days and renewed before expiry (Soroban rent).
 - **Events:** `agent_registered`, `agent_updated`, `agent_deregistered` — consumed by the backend indexer.
 
@@ -158,12 +160,12 @@ The **x402 payment escrow and the 95/5 split are not in this contract**: they se
 |---|---|
 | Contract | Rust, Soroban SDK, Stellar testnet |
 | Escrow / settlement | Trustless Work (USDC), 95/5 split |
-| SDK | TypeScript, `@stellar/stellar-sdk` (XDR/ScVal), chain-agnostic `ChainClient` |
-| Backend | Node 20, Express 5, better-sqlite3, `@xenova/transformers` |
+| SDK | TypeScript, `@stellar/stellar-sdk` (XDR/ScVal), chain-agnostic `ChainClient`, distributed on npm ([`kiba-sdk`](https://www.npmjs.com/package/kiba-sdk)) |
+| Backend | Node 20, Express 4, better-sqlite3, `@xenova/transformers` |
 | Gateway | Express, JWT cookies, OAuth 2.0 PKCE, non-custodial wallets (Privy) |
 | Dashboard | Vite 6, React 19, Tailwind 4, TanStack Query |
 | Landing | Astro 5, Tailwind 4 |
-| MCP adapter | `@modelcontextprotocol/sdk`, distributed on npm (`kiba-mcp`) |
+| MCP adapter | `@modelcontextprotocol/sdk`, distributed on npm ([`kiba-mcp`](https://www.npmjs.com/package/kiba-mcp)) |
 | Installer | Tauri 2 (Windows) |
 | Orchestration | Docker Compose |
 
@@ -176,14 +178,14 @@ Monorepo with npm workspaces, the Rust contract packages, and a Tauri installer.
 ```
 packages/
   contracts-soroban/    Rust + Soroban contract — agent registry (Stellar)
-  sdk/                  kiba-sdk TypeScript library (ChainClient abstraction)
+  sdk/                  kiba-sdk TypeScript library (ChainClient abstraction), distributed on npm
   backend/              Discovery API + indexer (port 4000)
   gateway/              Auth, wallets, credits, batched settlement (port 8000)
   dashboard/            React SPA (port 3020)
   landing/              Astro site (port 3010)
   mcp-server/           MCP adapter, distributed on npm
   orchestrator-agent/   LLM intent planner (port 6001)
-  demo-agents/          Example agents (ports 5001-5006)
+  demo-agents/          Example agents (ports 5001-5008)
   installer/            Tauri 2 Windows installer
 docs/                   Architecture, diagrams, decisions
 submission-screenshots/ Visual assets for this submission
@@ -244,7 +246,7 @@ Honest snapshot. Kiba is a **technical demonstration** of the marketplace archit
 - The gateway issues/manages wallets (non-custodial via Privy) and credits, with a cascade onto on-chain USDC.
 
 **In-repo mocks and stubs:**
-- Of the example agents, **one is real** — a *web-scraper* built on Firecrawl (loads dynamic, JS-rendered content). The other five (yield-hunter, risk-auditor, translator-pro, price-oracle, code-reviewer) return mocked responses. The contract treats them all like any registered agent.
+- Of the example agents, **three are real** — a *web-scraper* built on Firecrawl (loads dynamic, JS-rendered content), *world-clock* (real timezone data via `Intl`/full-ICU, no external API), and *randomizer* (crypto-secure randomness via `node:crypto`). The other five (yield-hunter, risk-auditor, translator-pro, price-oracle, code-reviewer) return mocked responses. The contract treats them all like any registered agent.
 - Fiat → credit top-ups run in **sandbox/test mode** (Stripe test, PayPal sandbox, Wompi sandbox, Bre-B sandbox); no real charges.
 
 **Explicitly out of scope:**
