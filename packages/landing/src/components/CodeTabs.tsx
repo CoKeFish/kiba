@@ -12,7 +12,7 @@ const tabs: Tab[] = [
     id: "sdk",
     label: "Native SDK",
     desc: "Self-custodial. Sign with your own keypair — gas only, no gateway fee.",
-    code: `import { AgentClient } from '@kiba/sdk';
+    code: `import { AgentClient } from 'kiba-sdk';
 
 const client = new AgentClient({
   keypair: myWallet,

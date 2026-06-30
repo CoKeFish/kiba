@@ -9,7 +9,7 @@
  */
 import express from 'express';
 import cors from 'cors';
-import { AgentClient, loadOrCreateKeypair } from '@kiba/sdk';
+import { AgentClient, loadOrCreateKeypair } from 'kiba-sdk';
 import { plan } from './planner';
 import { execute } from './executor';
 

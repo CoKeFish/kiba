@@ -1,6 +1,6 @@
 name: publish-kiba-sdk
 
-# Publica packages/sdk (@kiba/sdk) en npm al pushear un tag `sdk-v*`.
+# Publica packages/sdk (kiba-sdk) en npm al pushear un tag `sdk-v*`.
 # Espejo de publish-mcp.yml. Usa un Automation token de npm (secret NPM_TOKEN)
 # que NO requiere OTP/2FA, evitando el publish manual.
 #
@@ -9,12 +9,10 @@ name: publish-kiba-sdk
 #   2) commit + push a main
 #   3) git tag sdk-v<version> && git push origin sdk-v<version>
 #
-# Requisitos:
-#   - secret NPM_TOKEN en GitHub (Settings → Secrets and variables → Actions),
-#     Automation token de npmjs.com con permiso de publish sobre el scope @kiba.
-#   - El scope/org **@kiba** debe existir en npmjs.com (el paquete es scoped,
-#     @kiba/sdk). publishConfig.access ya es "public" y el comando usa
-#     --access public; el build a dist lo hace el prepack del package.
+# Requisito único: secret NPM_TOKEN en GitHub (Settings → Secrets and variables →
+#   Actions), Automation token de npmjs.com con permiso de publish. El paquete es
+#   SIN scope (kiba-sdk, igual que kiba-mcp), así que NO hace falta crear ningún org.
+#   El build a dist lo hace el prepack del package; se publica con --access public.
 
 on:
   push:

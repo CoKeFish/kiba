@@ -51,9 +51,9 @@ import {
 import { callOnBehalf, listAgents, masterWalletPubkey, platformPublicKey } from './proxy';
 import { settleAgent, settleAllDue } from './settlement';
 import { getMasterWallet, getOnChainBalance, getUserBalances, userOnChainBalance } from './wallets';
-import { ASSET, ASSET_USD_RATE, BASE_UNITS_PER_TOKEN } from './chain';
+import { ASSET, ASSET_USD_RATE, BASE_UNITS_PER_TOKEN, explorerTxUrl } from './chain';
 import { BASE_UNIT_NAME } from './wallets';
-import { PLATFORM_FEE_BPS, BPS_DENOMINATOR } from '@kiba/sdk';
+import { PLATFORM_FEE_BPS, BPS_DENOMINATOR } from 'kiba-sdk';
 import {
   deregisterAgent,
   listMyAgents,
@@ -1152,6 +1152,7 @@ app.get('/v1/transactions', requireAuth, (req, res) => {
       amount_lamports: Math.abs(t.amount_lamports),
       service: t.service ?? undefined,
       tx_signature: t.signature ?? undefined,
+      explorer_url: t.signature ? explorerTxUrl(t.signature) : undefined,
       status: 'success' as const,
       created_at: t.created_at,
     })),

@@ -16,7 +16,7 @@ import {
   LocalPlatformSigner,
   type StellarSigner,
   type PlatformCallSigner,
-} from '@kiba/sdk';
+} from 'kiba-sdk';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { getBalance, lamportsToSol, lamportsToUsd } from './billing';

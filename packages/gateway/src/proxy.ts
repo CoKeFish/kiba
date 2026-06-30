@@ -15,7 +15,7 @@
  *   4. La cascada es por call entera, no parcial — para no fragmentar el escrow.
  */
 import axios from 'axios';
-import { AgentClient, type X402Trace } from '@kiba/sdk';
+import { AgentClient, type X402Trace } from 'kiba-sdk';
 import { debit, getBalance, lamportsToUsd } from './billing';
 import { db } from './db';
 import {
@@ -25,7 +25,7 @@ import {
   platformPublicKey,
   userOnChainBalance,
 } from './wallets';
-import { BASE_UNITS_PER_TOKEN } from './chain';
+import { BASE_UNITS_PER_TOKEN, explorerTxUrl } from './chain';
 import { recordEarning } from './settlement';
 
 const WALLET_TX_FEE_BUFFER = 5_000_000;
@@ -107,6 +107,9 @@ export async function callOnBehalf(args: {
   paidWith: 'credit' | 'wallet';
   newBalance: { lamports: number; usd: number };
   trace: X402Trace;
+  /** Link a stellar.expert para inspeccionar la tx on-chain. Solo en wallet-direct
+   *  (en modo crédito el pago es off-chain y la liquidación es por lotes → no hay tx por llamada). */
+  explorerUrl?: string;
 }> {
   const userSigner = await loadUserSigner(args.userId);
 
@@ -228,6 +231,7 @@ export async function callOnBehalf(args: {
     paidWith: 'wallet',
     newBalance: { lamports: newBalanceLamports, usd: lamportsToUsd(newBalanceLamports) },
     trace: traced.trace,
+    explorerUrl: onChainSig ? explorerTxUrl(onChainSig) : undefined,
   };
 }
 

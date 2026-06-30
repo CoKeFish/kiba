@@ -4,7 +4,7 @@
  * Hace "review" de un snippet de código devolviendo issues canned.
  * En producción sería un LLM con contexto del lenguaje específico.
  */
-import { AgentProvider, loadKeypairFromEnvOrFile } from '@kiba/sdk';
+import { AgentProvider, loadKeypairFromEnvOrFile } from 'kiba-sdk';
 
 const KEYPAIR_PATH = process.env.KEYPAIR_PATH || '/app/data/code-reviewer.json';
 const wallet = loadKeypairFromEnvOrFile('AGENT_WALLET_SECRET', KEYPAIR_PATH);

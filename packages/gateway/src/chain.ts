@@ -6,7 +6,7 @@
  * resto: balances de las custodiales y fondeo.
  */
 import type { Keypair } from '@solana/web3.js';
-import { createChainClient, type ChainClient, type StellarSigner } from '@kiba/sdk';
+import { createChainClient, type ChainClient, type StellarSigner } from 'kiba-sdk';
 
 export const CHAIN = (process.env.CHAIN || 'stellar').toLowerCase();
 
@@ -18,6 +18,21 @@ export const ASSET: 'SOL' | 'XLM' | 'USDC' = 'USDC';
 
 /** Tasa USD del activo (USDC ≈ 1.0). */
 export const ASSET_USD_RATE = Number(process.env.USDC_USD_RATE) || 1.0;
+
+/**
+ * Segmento de red de stellar.expert. Deriva de STELLAR_NETWORK (igual que el SDK):
+ * 'mainnet' → 'public'; cualquier otro valor (default) → 'testnet'.
+ */
+const EXPLORER_NETWORK =
+  (process.env.STELLAR_NETWORK || 'testnet').toLowerCase() === 'mainnet' ? 'public' : 'testnet';
+
+/**
+ * URL de stellar.expert para inspeccionar una transacción on-chain por su hash.
+ * Le da al consumidor (MCP/API) un link clickeable en vez de la firma cruda.
+ */
+export function explorerTxUrl(signature: string): string {
+  return `https://stellar.expert/explorer/${EXPLORER_NETWORK}/tx/${signature}`;
+}
 
 /**
  * ChainClient para una custodial dada. La abstracción deriva la cuenta Stellar

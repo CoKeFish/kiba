@@ -9,7 +9,7 @@
     "test": "node --import tsx --test --test-reporter=spec test/billing.test.ts test/oauth.test.ts test/auth.test.ts test/wallets.test.ts"
   },
   "dependencies": {
-    "@kiba/sdk": "*",
+    "kiba-sdk": "*",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "zod": "^3.25.76",
     "@solana/web3.js": "^1.95.0",

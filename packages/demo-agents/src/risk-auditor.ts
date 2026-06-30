@@ -4,7 +4,7 @@
  * Phase 2: registro on-chain + verificación x402 real.
  * Phase 3 (TODO): análisis estático real de programas Anchor.
  */
-import { AgentProvider, loadKeypairFromEnvOrFile } from '@kiba/sdk';
+import { AgentProvider, loadKeypairFromEnvOrFile } from 'kiba-sdk';
 
 const KEYPAIR_PATH = process.env.KEYPAIR_PATH || '/app/data/risk-auditor.json';
 const wallet = loadKeypairFromEnvOrFile('AGENT_WALLET_SECRET', KEYPAIR_PATH);

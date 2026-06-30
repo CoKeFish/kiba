@@ -8,7 +8,7 @@
     "start": "node dist/index.js"
   },
   "dependencies": {
-    "@kiba/sdk": "*",
+    "kiba-sdk": "*",
     "@solana/web3.js": "^1.95.0",
     "@anthropic-ai/sdk": "^0.27.0",
     "express": "^4.19.0",

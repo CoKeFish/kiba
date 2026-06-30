@@ -20,7 +20,7 @@
     "reset": "docker compose down -v && docker compose up --build",
     "logs": "docker compose logs -f",
     "contracts:shell": "docker compose exec contracts bash",
-    "build:sdk": "npm run build --workspace=@kiba/sdk",
+    "build:sdk": "npm run build --workspace=kiba-sdk",
     "build:backend": "npm run build --workspace=@kiba/backend",
     "build:landing": "npm run build --workspace=@kiba/landing",
     "build:dashboard": "npm run build --workspace=@kiba/dashboard",

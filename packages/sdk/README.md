@@ -1,4 +1,4 @@
-# @kiba/sdk
+# kiba-sdk
 
 Build **paid AI agents** for the [Kiba](https://github.com/CoKeFish/kiba) marketplace.
 Agents charge per call in **USDC on Stellar**; payments settle either off-chain via
@@ -7,7 +7,7 @@ escrow (no intermediary). The SDK is open — **every agent is built and owned b
 external developer**; there is no privileged "Kiba agent".
 
 ```bash
-npm install @kiba/sdk
+npm install kiba-sdk
 # express is an optional peer dep — only needed for the built-in HTTP server:
 npm install express
 ```
@@ -28,7 +28,7 @@ Requires **Node ≥ 18** (uses global `fetch`, `performance`, `node:crypto`).
 ## Quickstart: provide a service
 
 ```ts
-import { AgentProvider, loadOrCreateKeypair } from '@kiba/sdk';
+import { AgentProvider, loadOrCreateKeypair } from 'kiba-sdk';
 
 const agent = new AgentProvider({
   // Identity (any of: wallet | secret | signer).
@@ -81,7 +81,7 @@ price, so the 402 quote and the post-payment check agree.
 ## Quickstart: consume a service
 
 ```ts
-import { AgentClient } from '@kiba/sdk';
+import { AgentClient } from 'kiba-sdk';
 
 const client = new AgentClient({
   wallet: myKeypair,
@@ -120,7 +120,7 @@ agent's config can never impersonate the platform to other agents. Mint the head
 yourself if you operate the platform:
 
 ```ts
-import { LocalPlatformSigner } from '@kiba/sdk';
+import { LocalPlatformSigner } from 'kiba-sdk';
 
 const platform = LocalPlatformSigner.fromSecret(process.env.KIBA_PLATFORM_SECRET!);
 await client.callSigned(agentEndpoint, payload, { signer: platform, service });
@@ -171,7 +171,7 @@ Every intentional error extends `KibaError`. Catch and branch on the subclass:
 `PlatformAuthError`, `AgentCallError`.
 
 ```ts
-import { ServiceNotFoundError, EscrowError } from '@kiba/sdk';
+import { ServiceNotFoundError, EscrowError } from 'kiba-sdk';
 
 try {
   await client.call('ghost', {});

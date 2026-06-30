@@ -21,6 +21,7 @@ import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprot
 import { callOnBehalf, listAgents } from './proxy';
 import { getUserBalances } from './wallets';
 import { getTransactions } from './billing';
+import { explorerTxUrl } from './chain';
 
 type ToolResult = { content: Array<{ type: 'text'; text: string }>; isError?: boolean };
 
@@ -164,6 +165,7 @@ export function buildMcpServer(userId: number): Server {
               amount_base_units: Math.abs(t.amount_lamports),
               service: t.service ?? undefined,
               tx_signature: t.signature ?? undefined,
+              explorer_url: t.signature ? explorerTxUrl(t.signature) : undefined,
               created_at: t.created_at,
             })),
           );

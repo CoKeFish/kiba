@@ -1,5 +1,5 @@
 /**
- * Typed error classes for @kiba/sdk.
+ * Typed error classes for kiba-sdk.
  *
  * Every error the SDK throws on purpose is an instance of {@link KibaError}, so
  * callers can `catch (err) { if (err instanceof KibaError) ... }` and branch on

@@ -1,5 +1,5 @@
 {
-  "name": "@kiba/sdk",
+  "name": "kiba-sdk",
   "version": "0.1.0",
   "description": "Open SDK for building paid AI agents on the Kiba marketplace (Stellar/Soroban + Trustless Work escrow + x402).",
   "license": "MIT",

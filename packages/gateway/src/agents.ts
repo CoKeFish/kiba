@@ -18,7 +18,7 @@
 import { ASSET, BASE_UNITS_PER_TOKEN, chainClientForSigner } from './chain';
 import { ensureFunded, loadUserSigner } from './wallets';
 import { db } from './db';
-import type { ChainClient } from '@kiba/sdk';
+import type { ChainClient } from 'kiba-sdk';
 
 /** Fondeo on-demand antes de registrar (cubre fee + rent/TTL). Base units: 0.01 SOL / 1 XLM. */
 const REGISTER_FUND_BASE_UNITS = 10_000_000;

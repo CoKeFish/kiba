@@ -8,7 +8,7 @@
  * de cada nombre se confirma con get_agent.
  */
 import { Keypair } from '@solana/web3.js';
-import { createChainClient, type ChainClient } from '@kiba/sdk';
+import { createChainClient, type ChainClient } from 'kiba-sdk';
 import type { AgentRecord } from './db';
 
 export interface RegistryReader {

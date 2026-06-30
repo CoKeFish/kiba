@@ -13,7 +13,7 @@
  * Endurecimiento opcional (follow-up): owner + authorization key + policies de gasto.
  */
 import { Transaction, FeeBumpTransaction } from '@stellar/stellar-sdk';
-import type { StellarSigner } from '@kiba/sdk';
+import type { StellarSigner } from 'kiba-sdk';
 
 const APP_ID = process.env.PRIVY_APP_ID ?? '';
 const APP_SECRET = process.env.PRIVY_APP_SECRET ?? '';

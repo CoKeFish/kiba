@@ -23,7 +23,7 @@
  * Este archivo es solo el "pegamento": toda la lógica del wrapper (request, llamada
  * HTTP, mapeo de respuesta, pricing) vive en ./firecrawl-core, testeada y auditable.
  */
-import { AgentProvider, loadKeypairFromEnvOrFile } from '@kiba/sdk';
+import { AgentProvider, loadKeypairFromEnvOrFile } from 'kiba-sdk';
 import {
   scrape,
   priceFor,

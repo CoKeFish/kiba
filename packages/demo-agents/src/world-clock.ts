@@ -10,7 +10,7 @@
  *   { "zones": ["New York", "London", "Bogotá"] }
  *   { "meeting": ["San Francisco", "London", "India"], "workStart": 9, "workEnd": 18 }
  */
-import { AgentProvider, loadKeypairFromEnvOrFile } from '@kiba/sdk';
+import { AgentProvider, loadKeypairFromEnvOrFile } from 'kiba-sdk';
 
 const KEYPAIR_PATH = process.env.KEYPAIR_PATH || '/app/data/world-clock.json';
 const wallet = loadKeypairFromEnvOrFile('AGENT_WALLET_SECRET', KEYPAIR_PATH);

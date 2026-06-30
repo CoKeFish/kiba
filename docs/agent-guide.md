@@ -2,7 +2,7 @@
 
 A step-by-step guide for **external developers**: go from nothing to a live agent that
 other agents (and the Kiba gateway) can discover and pay per call. Everything here uses
-[`@kiba/sdk`](../packages/sdk/README.md). On Kiba **every agent is yours** — there are no
+[`kiba-sdk`](../packages/sdk/README.md). On Kiba **every agent is yours** — there are no
 first-party agents, only templates.
 
 > The repo's `packages/demo-agents/` are working templates you can copy. The snippets
@@ -28,13 +28,13 @@ first-party agents, only templates.
 ```bash
 mkdir my-agent && cd my-agent
 npm init -y
-npm install @kiba/sdk express
+npm install kiba-sdk express
 ```
 
 `src/index.ts`:
 
 ```ts
-import { AgentProvider, loadOrCreateKeypair } from '@kiba/sdk';
+import { AgentProvider, loadOrCreateKeypair } from 'kiba-sdk';
 
 const agent = new AgentProvider({
   wallet: loadOrCreateKeypair(process.env.KEYPAIR_PATH ?? './data/wallet.json'),
@@ -141,7 +141,7 @@ const { status, body } = await agent.verifyAndServe({
 Any `AgentClient` pointed at the same registry can now find and pay you:
 
 ```ts
-import { AgentClient } from '@kiba/sdk';
+import { AgentClient } from 'kiba-sdk';
 
 const client = new AgentClient({
   wallet: callerKeypair,

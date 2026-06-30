@@ -1,5 +1,5 @@
 /**
- * Configuration resolution for @kiba/sdk.
+ * Configuration resolution for kiba-sdk.
  *
  * The SDK is config-first: every constructor takes explicit options and the chain
  * settings resolve as `options.X ?? process.env.X ?? networkPreset.X`. Nothing is

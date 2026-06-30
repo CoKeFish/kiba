@@ -91,7 +91,7 @@ La base (unit + contract sandbox) es donde vive la lógica de dinero y debe ser 
 | Dominio | P0 | P1 | P2 | Total | Cobertura existente | Mayor gap (P0) |
 |---|---:|---:|---:|---:|---|---|
 | **Contracts** (Soroban + Anchor) | 30 | 38 | 7 | 75 | 14 tests `cargo` (`test.rs`) + 7 Anchor/TS (`kiba.ts`) + smoke on-chain | **Autorización real sin probar** (`mock_all_auths`); replay/nonce; estados terminales; dirección del fee; drift de ID |
-| **SDK** (`@kiba/sdk`) | 33 | 32 | 6 | 71 | 4 unit (anchor-helpers, keypair-store, client, provider) en modo degradado + 2 scripts on-chain Stellar | `createChainClient`/selección de cadena, builders `program.ts` y Borsh, verificación on-chain del provider — **sin tests** |
+| **SDK** (`kiba-sdk`) | 33 | 32 | 6 | 71 | 4 unit (anchor-helpers, keypair-store, client, provider) en modo degradado + 2 scripts on-chain Stellar | `createChainClient`/selección de cadena, builders `program.ts` y Borsh, verificación on-chain del provider — **sin tests** |
 | **Backend** (API/indexer) | 12 | 39 | 9 | 60 | `db.ts`, `search.ts`, `cosineSim` | `index.ts` (HTTP/WS), `indexer.ts`, `registry.ts` **sin NINGÚN test**; pérdida de catálogo por fallo RPC |
 | **Demo-agents** | 7 | 10 | 13 | 30 | Indirecta vía `sdk/provider.test.ts` (modo degradado) | **Cero tests propios**; modo cadena (Stellar), registro/escrow/claim/idempotencia/underpayment sin probar |
 | **MCP server** (`kiba-mcp`) | 9 | 29 | 17 | 55 | `tools.test.ts` + `auth.test.ts` (axios mock, vector PKCE) | **Money path `call_agent` sin E2E**; header auth en POST; OAuth handshake completo; sin timeout/abort |
@@ -238,7 +238,7 @@ Dos contratos en paridad: Soroban (`packages/contracts-soroban/src/lib.rs`, **de
 | **contracts-74** | **Consistencia de contract ID: scripts/docs/compose vs .env** | config | manual | **P0** | todo debe apuntar a `CDYLMRS2...` (hoy al stale) | Sí | Gap |
 | contracts-75 | Consistencia Anchor declare_id/Anchor.toml/.env tras redeploy | config | manual | P1 | bloqueante para on-chain Anchor | Sí | Gap |
 
-### 5.2 SDK (`@kiba/sdk`) — la capa que mueve el dinero
+### 5.2 SDK (`kiba-sdk`) — la capa que mueve el dinero
 
 | ID | Título | Cat | Nivel | P | Esperado (resumen) | Auto | Estado |
 |---|---|---|---|---|---|---|---|

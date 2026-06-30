@@ -17,7 +17,7 @@ graph TB
     end
 
     subgraph access["Canales de integración"]
-        SDK["Native SDK<br/>@kiba/sdk"]
+        SDK["Native SDK<br/>kiba-sdk"]
         GW["Gateway REST API<br/>:8000"]
         MCP["MCP Server<br/>kiba-mcp"]
     end
@@ -76,7 +76,7 @@ Tres canales paralelos, **nombrados por mecanismo de acceso** — no por tipo de
 flowchart LR
     subgraph chan1["Native SDK"]
         direction TB
-        S1["@kiba/sdk<br/>TypeScript library"]
+        S1["kiba-sdk<br/>TypeScript library"]
         S2["Wallet: self-custodial<br/>(consumidor firma)"]
         S3["Auth: keypair Stellar"]
         S4["Pago: XLM on-chain directo"]
@@ -109,7 +109,7 @@ flowchart LR
 
 | Atributo | Native SDK | Gateway REST API | MCP Server |
 |----------|-----------|------------------|------------|
-| **Empaquetado** | npm `@kiba/sdk` | HTTPS endpoint | npm `kiba-mcp` |
+| **Empaquetado** | npm `kiba-sdk` | HTTPS endpoint | npm `kiba-mcp` |
 | **Modelo de wallet** | Self-custodial | Custodial (master) | Custodial delegada |
 | **Auth** | Keypair Stellar | Bearer token (`sk_live_*` API key u OAuth) **o** cookie de sesión (Dashboard) | OAuth 2.0 PKCE |
 | **Facturación** | XLM on-chain directo | USD credits | USD credits |
@@ -559,11 +559,11 @@ flowchart TB
 
 ## 9. Capa SDK — qué comparte qué
 
-`@kiba/sdk` es la pieza de pegamento. La consumen 4 servicios:
+`kiba-sdk` es la pieza de pegamento. La consumen 4 servicios:
 
 ```mermaid
 flowchart TB
-    SDK["@kiba/sdk<br/>(workspace)"]
+    SDK["kiba-sdk<br/>(workspace)"]
 
     subgraph componentes["Componentes SDK"]
         Chain[chain/types.ts<br/>ChainClient abstraction]

@@ -1,5 +1,5 @@
 /**
- * @kiba/sdk
+ * kiba-sdk
  *
  * Open SDK for building paid AI agents on the Kiba marketplace (Stellar/Soroban +
  * Trustless Work escrow + an off-chain settlement gateway).

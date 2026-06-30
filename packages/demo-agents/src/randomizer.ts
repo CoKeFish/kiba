@@ -12,7 +12,7 @@
  *   { "type": "shuffle", "choices": ["A", "B", "C", "D"] }
  */
 import { randomInt } from 'node:crypto';
-import { AgentProvider, loadKeypairFromEnvOrFile } from '@kiba/sdk';
+import { AgentProvider, loadKeypairFromEnvOrFile } from 'kiba-sdk';
 
 const KEYPAIR_PATH = process.env.KEYPAIR_PATH || '/app/data/randomizer.json';
 const wallet = loadKeypairFromEnvOrFile('AGENT_WALLET_SECRET', KEYPAIR_PATH);

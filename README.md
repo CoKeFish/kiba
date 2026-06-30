@@ -69,7 +69,7 @@ graph TB
 
     subgraph clients["Client surfaces"]
         MCP["MCP Server<br/>Claude, Cursor, IDEs"]
-        SDK["@kiba/sdk<br/>Direct integration"]
+        SDK["kiba-sdk<br/>Direct integration"]
         DASH["Dashboard (3020)<br/>Web SPA"]
     end
 
@@ -176,7 +176,7 @@ Monorepo with npm workspaces, the Rust contract packages, and a Tauri installer.
 ```
 packages/
   contracts-soroban/    Rust + Soroban contract — agent registry (Stellar)
-  sdk/                  @kiba/sdk TypeScript library (ChainClient abstraction)
+  sdk/                  kiba-sdk TypeScript library (ChainClient abstraction)
   backend/              Discovery API + indexer (port 4000)
   gateway/              Auth, wallets, credits, batched settlement (port 8000)
   dashboard/            React SPA (port 3020)
