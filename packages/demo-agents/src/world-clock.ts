@@ -254,7 +254,7 @@ const agent = new AgentProvider({
     return Math.max(1, zones) * PRICE_PER_ZONE_USDC;
   },
   description:
-    'Current time in any city or timezone, plus the best meeting slot across remote teams. Real time data (no mock), accepts city names or IANA zones.',
+    'Hora actual en cualquier ciudad o zona horaria y la mejor franja para una reunión entre equipos remotos. Current time in any city or timezone, plus the best meeting slot across remote teams. Datos reales (no mock); acepta nombres de ciudad o zonas IANA.',
   endpoint: process.env.PUBLIC_ENDPOINT || 'http://demo-agents:5007',
   // Acepta llamadas firmadas por la plataforma (gateway), verificando con la clave PÚBLICA publicada.
   platform: process.env.KIBA_PLATFORM_PUBLIC_KEY

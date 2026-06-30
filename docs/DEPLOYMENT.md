@@ -16,6 +16,8 @@ orquestado por **GitHub Actions** (`.github/workflows/deploy.yml`).
 | `demo-agents` (risk-auditor) | Railway | `kiba` / `kiba-agent-risk` | https://kiba-agent-risk-production.up.railway.app |
 | `demo-agents` (price-oracle) | Railway | `kiba` / `kiba-agent-price` | https://kiba-agent-price-production.up.railway.app |
 | `demo-agents` (code-reviewer) | Railway | `kiba` / `kiba-agent-code` | https://kiba-agent-code-production.up.railway.app |
+| `demo-agents` (world-clock) | Railway | `kiba` / `kiba-agent-world` | https://kiba-agent-world-production.up.railway.app |
+| `demo-agents` (randomizer) | Railway | `kiba` / `kiba-agent-randomizer` | https://kiba-agent-randomizer-production.up.railway.app |
 
 Los demás paquetes (`sdk`, `contracts`, `contracts-soroban`, `mcp-server`, `installer`,
 `orchestrator-agent`) **no se despliegan** en este pipeline.
@@ -47,9 +49,9 @@ scripts/deploy-railway-agent.sh world-clock
 scripts/deploy-railway-agent.sh randomizer
 ```
 
-Tras desplegar, agrega su fila a la tabla de arriba con la URL generada. Pendientes de
-desplegar con este flujo: **world-clock** (`kiba-agent-world`), **randomizer**
-(`kiba-agent-randomizer`).
+Tras desplegar, agrega su fila a la tabla de arriba con la URL generada. Desplegados con
+este flujo: **world-clock** (`kiba-agent-world`) y **randomizer** (`kiba-agent-randomizer`),
+ambos vivos, registrados on-chain y llamables vía MCP (`call_agent`).
 
 > ⚠️ **El master wallet del gateway debe estar fondeado on-chain.** En modo virtual el
 > gateway refilla la custodial del usuario desde el master (`ensureFunded`) para abrir el

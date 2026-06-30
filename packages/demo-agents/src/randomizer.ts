@@ -146,7 +146,7 @@ const agent = new AgentProvider({
   pricePerCall: PRICE_PER_CALL_USDC,
   pricingNote: `flat ${PRICE_PER_CALL_USDC} USDC por sorteo (hasta ${MAX_COUNT} resultados)`,
   description:
-    'Random numbers and draws: pick a number in a range, roll dice, flip a coin, pick from a list or shuffle it. Crypto-secure randomness, real (no mock).',
+    'Números al azar y sorteos: elige un número en un rango, lanza dados, cara o cruz, escoge de una lista o barájala. Random numbers and draws: pick a number in a range, roll dice, flip a coin, pick from a list or shuffle it. Aleatoriedad crypto-segura, real (no mock).',
   endpoint: process.env.PUBLIC_ENDPOINT || 'http://demo-agents:5008',
   // Acepta llamadas firmadas por la plataforma (gateway), verificando con la clave PÚBLICA publicada.
   platform: process.env.KIBA_PLATFORM_PUBLIC_KEY
