@@ -96,8 +96,18 @@ railway add --service "$SVC" \
   --variables "AGENT_WALLET_SECRET=${SECRET}"
 
 # 5) Primer deploy (sube el dir actual; Railway construye con Dockerfile.railway).
+#    El primer 'railway up' a un servicio nuevo suele expirar en el upload → reintenta.
 echo "▶ Desplegando (railway up)…"
-railway up --service "$SVC" --detach
+up_ok=
+for attempt in 1 2 3 4; do
+  out="$(railway up --service "$SVC" --detach 2>&1 || true)"
+  if grep -q "Build Logs" <<<"$out"; then up_ok=1; echo "$out" | tail -1; break; fi
+  echo "   ⚠ intento $attempt expiró en el upload; reintento…"; sleep 3
+done
+if [[ -z "$up_ok" ]]; then
+  echo "✋ railway up no completó tras varios intentos. Reintenta: railway up --service $SVC --detach" >&2
+  exit 1
+fi
 
 # 6) Generar dominio público y fijar PUBLIC_ENDPOINT (el redeploy corrige el
 #    endpoint on-chain vía drift de bootstrap()).
