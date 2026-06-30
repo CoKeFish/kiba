@@ -88,10 +88,27 @@ if [[ ${#add_args[@]} -eq 0 ]]; then
   exit 1
 fi
 
+# Firecrawl necesita su PROPIA API key (no es compartida con el resto de agentes, por
+# eso no está en SHARED_KEYS). Si FIRECRAWL_API_KEY está exportada en el entorno que
+# corre este script, se la pasamos al servicio. Sin ella el agente corre en el free
+# tier sin auth de Firecrawl (límites bajos) — suficiente para la demo.
+extra_args=()
+if [[ "$AGENT_NAME" == "firecrawl" ]]; then
+  if [[ -n "${FIRECRAWL_API_KEY:-}" ]]; then
+    extra_args+=( --variables "FIRECRAWL_API_KEY=${FIRECRAWL_API_KEY}" )
+    echo "▶ firecrawl: pasando FIRECRAWL_API_KEY (límites altos + extracción/stealth)"
+  else
+    echo "⚠ firecrawl: sin FIRECRAWL_API_KEY en el entorno → free tier sin auth (límites bajos)." >&2
+    echo "  Para producción: export FIRECRAWL_API_KEY=fc-... antes de correr este script," >&2
+    echo "  o setéala luego: railway variables --service $SVC --set FIRECRAWL_API_KEY=fc-..." >&2
+  fi
+fi
+
 # 4) Crear el servicio con las envs compartidas + las por-agente.
 echo "▶ Creando servicio $SVC…"
 railway add --service "$SVC" \
   "${add_args[@]}" \
+  ${extra_args[@]+"${extra_args[@]}"} \
   --variables "AGENT_NAME=${AGENT_NAME}" \
   --variables "AGENT_WALLET_SECRET=${SECRET}"
 

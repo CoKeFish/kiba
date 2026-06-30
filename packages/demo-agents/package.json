@@ -20,7 +20,8 @@
     "start:firecrawl": "tsx src/firecrawl.ts",
     "start:world": "tsx src/world-clock.ts",
     "start:randomizer": "tsx src/randomizer.ts",
-    "build": "tsc"
+    "build": "tsc",
+    "test": "node --import tsx --test --test-reporter=spec test/firecrawl.test.ts"
   },
   "dependencies": {
     "@kiba/sdk": "*",

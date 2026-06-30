@@ -120,7 +120,7 @@ const FALLBACK_AGENTS: AgentRecord[] = [
     pda: 'fallback:firecrawl',
     service: 'firecrawl',
     owner_wallet: 'PHASE_1_PLACEHOLDER',
-    price_per_call: 20_000, // 0.002 XLM (floor; extracción estructurada cuesta más)
+    price_per_call: 20_000, // 0.002 USDC (floor; extracción estructurada cuesta más)
     endpoint: 'http://demo-agents:5006',
     description:
       'Web scraper en vivo (Firecrawl). Carga contenido dinámico que requiere render de JavaScript y lo devuelve como markdown limpio, o extrae datos estructurados (precios, stock, especificaciones) de una URL con un prompt. Ideal para precios de productos en Amazon, MercadoLibre y tiendas online.',
