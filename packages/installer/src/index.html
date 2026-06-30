@@ -4,21 +4,21 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Kiba Installer</title>
+    <link rel="icon" type="image/png" href="favicon.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="main.css" />
   </head>
   <body>
+    <div class="installer-blob" aria-hidden="true"></div>
+
     <main>
       <header>
-        <div class="logo">
-          <span class="dot"></span>
-          <span class="brand">kiba</span>
-        </div>
+        <img src="logo.png" alt="Kiba" class="installer-logo" />
         <p class="tagline">One-click MCP installer</p>
       </header>
 
@@ -28,32 +28,36 @@
       </section>
 
       <section id="screen-no-node" class="screen">
-        <h2>Node.js is required</h2>
-        <p>
-          Kiba runs as an <code>npx</code> command, so it needs
-          Node.js 18 or newer installed on your computer.
-        </p>
-        <p>
-          <a href="#" id="open-nodejs">Download Node.js →</a>
-        </p>
-        <p class="dim">After installing Node.js, reopen this installer.</p>
+        <div class="screen-card">
+          <h2>Node.js is required</h2>
+          <p>
+            Kiba runs as an <code>npx</code> command, so it needs
+            Node.js 18 or newer installed on your computer.
+          </p>
+          <p>
+            <a href="#" id="open-nodejs">Download Node.js →</a>
+          </p>
+          <p class="dim">After installing Node.js, reopen this installer.</p>
+        </div>
       </section>
 
       <section id="screen-pick" class="screen">
-        <h2 id="pick-title">Where do you want to install?</h2>
-        <div class="mode-toggle" role="tablist">
-          <button id="mode-install" class="mode-btn active" type="button">Install</button>
-          <button id="mode-uninstall" class="mode-btn" type="button">Uninstall</button>
+        <div class="screen-card screen-card--grow">
+          <h2 id="pick-title">Where do you want to install?</h2>
+          <div class="mode-toggle" role="tablist">
+            <button id="mode-install" class="mode-btn active" type="button">Install</button>
+            <button id="mode-uninstall" class="mode-btn" type="button">Uninstall</button>
+          </div>
+          <p class="dim" id="pick-sub">
+            We'll add Kiba to the MCP config of each selected client.
+            Existing settings are backed up automatically.
+          </p>
+          <ul id="client-list" class="client-list"></ul>
+          <div class="actions">
+            <button id="btn-install" class="primary" disabled>Install</button>
+          </div>
+          <p class="small dim">Stellar · x402 · Model Context Protocol</p>
         </div>
-        <p class="dim" id="pick-sub">
-          We'll add Kiba to the MCP config of each selected client.
-          Existing settings are backed up automatically.
-        </p>
-        <ul id="client-list" class="client-list"></ul>
-        <div class="actions">
-          <button id="btn-install" class="primary" disabled>Install</button>
-        </div>
-        <p class="small dim">Stellar · x402 · Model Context Protocol</p>
       </section>
 
       <section id="screen-installing" class="screen">
@@ -62,16 +66,19 @@
       </section>
 
       <section id="screen-done" class="screen">
-        <h2><span class="check">✓</span> <span id="done-title">Done</span></h2>
-        <ul id="result-list" class="result-list"></ul>
-        <p class="dim" id="done-note">
-          Restart your client and you'll see four new tools:
-          <code>list_agents</code>, <code>call_agent</code>,
-          <code>get_balance</code>, <code>get_transactions</code>.
-        </p>
-        <div class="actions">
-          <button id="btn-dashboard" class="primary">Open dashboard</button>
-          <button id="btn-close" class="secondary">Close</button>
+        <div class="screen-card screen-card--done">
+          <img src="estrella.png" alt="" aria-hidden class="done-mascot" />
+          <h2><span class="check">✓</span> <span id="done-title">Done</span></h2>
+          <ul id="result-list" class="result-list"></ul>
+          <p class="dim" id="done-note">
+            Restart your client and you'll see four new tools:
+            <code>list_agents</code>, <code>call_agent</code>,
+            <code>get_balance</code>, <code>get_transactions</code>.
+          </p>
+          <div class="actions">
+            <button id="btn-dashboard" class="primary">Open dashboard</button>
+            <button id="btn-close" class="secondary">Close</button>
+          </div>
         </div>
       </section>
     </main>

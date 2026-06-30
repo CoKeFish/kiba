@@ -10,6 +10,7 @@
 import express, { type Request, type Response, type NextFunction } from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
+import path from 'node:path';
 import { db } from './db';
 import {
   authenticate,
@@ -71,6 +72,7 @@ import {
 } from './api-keys';
 import {
   authorizeView,
+  authorizedRedirectView,
   authorizedView,
   dashboardView,
   landingView,
@@ -130,6 +132,8 @@ app.use((req, res, next) =>
     ? mcpPublicCors(req, res, next)
     : allowlistCors(req, res, next),
 );
+
+app.use(express.static(path.join(__dirname, '../public')));
 // Guarda el cuerpo crudo (req.rawBody) además de parsear JSON: Stripe firma el webhook
 // sobre el body EXACTO, así que necesitamos los bytes originales para verificar.
 app.use(
@@ -619,18 +623,7 @@ app.post('/auth/authorize', requireSession, (req, res) => {
   }
 
   url.searchParams.set('session', sessionId);
-  // Para que el MCP local confirme y pida el token, mostramos página intermedia que
-  // automáticamente redirige al redirect_uri (el MCP local server lo recibe).
-  res.send(`<!DOCTYPE html><html><head>
-    <title>Autorizado · Kiba</title>
-    <meta http-equiv="refresh" content="0;url=${url.toString()}">
-    <style>body{background:#0a0a0a;color:#f5f5f5;font-family:system-ui;text-align:center;padding:80px 20px}h1{color:#14F195}</style>
-  </head><body>
-    <h1>✓ Autorizado</h1>
-    <p>Redirigiendo a tu cliente local...</p>
-    <p><a href="${url.toString()}" style="color:#14F195">Click si no redirige automáticamente</a></p>
-    <p style="color:#888;margin-top:40px">Puedes cerrar esta pestaña una vez tu cliente confirme.</p>
-  </body></html>`);
+  res.send(authorizedRedirectView(url.toString()));
 });
 
 /**

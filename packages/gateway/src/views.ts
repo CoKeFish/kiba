@@ -1,5 +1,6 @@
 /**
  * HTML views simples server-rendered. Inline CSS — sin frameworks.
+ * Visual system aligned with dashboard auth (light, Baloo 2, playful).
  */
 
 /** Escapa texto para interpolar de forma segura en HTML (anti-XSS). */
@@ -9,114 +10,337 @@ function escapeHtml(s: string): string {
   );
 }
 
+const brandLogo = `<div class="brand"><img src="/logo.png" alt="Kiba" class="brand-logo-img" /></div>`;
+
 const css = `
-  * { box-sizing: border-box; }
-  body {
-    background: #0a0a0a; color: #f5f5f5; font-family: -apple-system, system-ui, sans-serif;
-    margin: 0; padding: 0;
+  @import url("https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap");
+
+  *, *::before, *::after { box-sizing: border-box; }
+
+  :root {
+    --color-bg: #ffffff;
+    --color-fg: #0b0b12;
+    --color-fg-muted: #66626f;
+    --color-fg-subtle: #8e89a0;
+    --color-border: color-mix(in srgb, #0b0b12 11%, transparent);
+    --color-border-strong: color-mix(in srgb, #0b0b12 18%, transparent);
+    --color-primary: #4fa3c7;
+    --color-success: #22c55e;
+    --color-danger: #f5556e;
+    --c-purple: #6c48ff;
+    --c-pink: #ff6ec7;
+    --font-display: "Baloo 2", ui-rounded, system-ui, sans-serif;
+    --font-sans: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, monospace;
+    --dur-fast: 140ms;
+    --ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
   }
+
+  body {
+    margin: 0;
+    padding: 0;
+    background: var(--color-bg);
+    color: var(--color-fg);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  a { color: var(--c-purple); text-decoration: none; font-weight: 600; }
+  a:hover { text-decoration: underline; }
+
   .wrap { max-width: 480px; margin: 60px auto; padding: 0 24px; }
   .wrap-wide { max-width: 720px; margin: 60px auto; padding: 0 24px; }
-  h1 { font-size: 32px; margin: 0 0 8px; }
-  h1 span { color: #9945FF; }
-  h2 { font-size: 20px; margin: 32px 0 16px; }
-  p.muted { color: #888; margin: 0 0 24px; }
+  h1 { font-family: var(--font-display); font-size: 28px; font-weight: 700; margin: 0 0 8px; letter-spacing: -0.03em; }
+  h2 { font-family: var(--font-display); font-size: 18px; font-weight: 700; margin: 32px 0 16px; }
+  p.muted { color: var(--color-fg-subtle); margin: 0 0 24px; line-height: 1.5; }
+
   .panel {
-    background: #141414; border: 1px solid #272727; border-radius: 8px;
-    padding: 24px; margin-bottom: 16px;
+    background: #fff;
+    border: 1px solid var(--color-border);
+    border-radius: 20px;
+    padding: 24px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 2px color-mix(in srgb, var(--color-fg) 4%, transparent),
+      0 10px 28px color-mix(in srgb, var(--color-fg) 4%, transparent);
   }
-  label { display: block; font-size: 14px; color: #aaa; margin-bottom: 6px; }
+
+  label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-fg-muted);
+    margin-bottom: 6px;
+  }
+
   input[type=email], input[type=password], input[type=text] {
-    width: 100%; padding: 10px 12px; background: #0a0a0a; color: #f5f5f5;
-    border: 1px solid #272727; border-radius: 4px; font-size: 14px;
+    width: 100%;
+    padding: 12px 14px;
+    background: #fff;
+    color: var(--color-fg);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    font-family: var(--font-sans);
+    font-size: 14px;
+    transition: border-color var(--dur-fast) var(--ease-out);
   }
-  input:focus { outline: none; border-color: #9945FF; }
+
+  input:focus {
+    outline: none;
+    border-color: color-mix(in srgb, var(--color-primary) 45%, transparent);
+  }
+
   button {
-    background: #9945FF; color: white; border: 0; padding: 10px 20px;
-    border-radius: 4px; font-size: 14px; font-weight: 500; cursor: pointer;
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--c-purple) 100%);
+    color: #fff;
+    border: 0;
+    padding: 10px 20px;
+    border-radius: 999px;
+    font-family: var(--font-sans);
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
     margin-top: 12px;
+    box-shadow: 0 8px 24px color-mix(in srgb, var(--color-primary) 35%, transparent);
   }
-  button:hover { background: #7c34d8; }
-  button.secondary { background: transparent; border: 1px solid #272727; }
-  button.secondary:hover { border-color: #9945FF; }
+
+  button:hover { opacity: 0.92; }
+  button.secondary {
+    background: #fff;
+    color: var(--c-purple);
+    border: 1.5px solid color-mix(in srgb, var(--c-purple) 55%, transparent);
+    box-shadow: none;
+  }
+  button.secondary:hover { background: color-mix(in srgb, var(--c-purple) 8%, transparent); }
+
   .row { display: flex; gap: 12px; align-items: center; }
   .row > * { flex: 1; }
-  a { color: #14F195; text-decoration: none; }
-  a:hover { text-decoration: underline; }
-  .err { color: #ff6363; font-size: 13px; margin: 12px 0; }
-  .ok { color: #14F195; font-size: 13px; margin: 12px 0; }
-  .stat-row { display: flex; gap: 16px; }
-  .stat { flex: 1; background: #141414; border: 1px solid #272727; border-radius: 8px; padding: 16px; }
-  .stat-label { color: #888; font-size: 12px; text-transform: uppercase; }
-  .stat-value { font-size: 28px; font-weight: 600; margin-top: 4px; }
-  .stat-value.green { color: #14F195; }
+  .err { color: var(--color-danger); font-size: 13px; margin: 12px 0; }
+  .ok { color: var(--color-success); font-size: 13px; margin: 12px 0; }
+
+  .stat-row { display: flex; gap: 16px; flex-wrap: wrap; }
+  .stat {
+    flex: 1;
+    min-width: 140px;
+    background: #fff;
+    border: 1px solid var(--color-border);
+    border-radius: 20px;
+    padding: 16px;
+    box-shadow: 0 1px 2px color-mix(in srgb, var(--color-fg) 4%, transparent);
+  }
+  .stat-label { color: var(--color-fg-subtle); font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; }
+  .stat-value { font-family: var(--font-display); font-size: 24px; font-weight: 700; margin-top: 4px; }
+  .stat-value.green { color: var(--color-success); }
+
   pre.code {
-    background: #0a0a0a; border: 1px solid #272727; border-radius: 4px;
-    padding: 12px; font-size: 12px; overflow-x: auto; white-space: pre-wrap;
-    color: #14F195; font-family: ui-monospace, Menlo, monospace;
+    background: #f8fafc;
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    padding: 12px;
+    font-size: 12px;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    color: var(--color-fg);
+    font-family: var(--font-mono);
   }
+
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  th, td { text-align: left; padding: 8px; border-bottom: 1px solid #272727; }
-  th { color: #888; font-weight: 500; }
+  th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--color-border); }
+  th { color: var(--color-fg-subtle); font-weight: 600; }
+
   .topup-pill {
-    display: inline-block; padding: 6px 16px; border: 1px solid #272727;
-    border-radius: 999px; cursor: pointer; margin-right: 8px;
+    display: inline-block;
+    padding: 6px 16px;
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    cursor: pointer;
+    margin-right: 8px;
+    background: #fff;
   }
-  .topup-pill:hover { border-color: #9945FF; }
+  .topup-pill:hover { border-color: var(--color-primary); }
 
   /* ── Auth pages (login / signup / consent) ───────────────── */
   .auth-page {
-    min-height: 100vh; display: flex; align-items: center; justify-content: center;
-    padding: 24px; background: radial-gradient(900px 500px at 50% -15%, #11233b 0%, #0a0a0a 60%);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: #ffffff;
+    position: relative;
+    overflow: hidden;
   }
+
+  .auth-blob {
+    position: absolute;
+    border-radius: 50%;
+    pointer-events: none;
+    filter: blur(60px);
+    width: 420px;
+    height: 420px;
+    bottom: -120px;
+    left: -100px;
+    background: color-mix(in srgb, var(--c-purple) 28%, transparent);
+  }
+
+  .auth-dots {
+    position: absolute;
+    top: 72px;
+    right: 8%;
+    width: 120px;
+    height: 80px;
+    opacity: 0.35;
+    background-image: radial-gradient(circle, #c4c0d0 1.5px, transparent 1.5px);
+    background-size: 18px 18px;
+    pointer-events: none;
+  }
+
   .auth-card {
-    width: 100%; max-width: 400px; background: #121212; border: 1px solid #232323;
-    border-radius: 16px; padding: 32px 28px; box-shadow: 0 24px 70px rgba(0,0,0,.55);
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 420px;
+    background: #fff;
+    border: 1px solid var(--color-border);
+    border-radius: 20px;
+    padding: 32px 28px 28px;
+    box-shadow:
+      0 1px 2px color-mix(in srgb, var(--color-fg) 4%, transparent),
+      0 16px 40px color-mix(in srgb, var(--color-fg) 6%, transparent);
   }
-  .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 26px; }
-  .brand-logo {
-    width: 34px; height: 34px; border-radius: 9px; flex-shrink: 0;
-    background: linear-gradient(135deg, #14F195, #2f80ed);
-    display: flex; align-items: center; justify-content: center;
-    color: #052016; font-weight: 800; font-size: 19px;
+
+  .brand { display: flex; align-items: center; margin-bottom: 22px; }
+  .brand-logo-img { height: 28px; width: auto; display: block; object-fit: contain; }
+
+  .auth-title {
+    font-family: var(--font-display);
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    margin: 0 0 6px;
   }
-  .brand-name { font-size: 18px; font-weight: 700; letter-spacing: -.01em; }
-  .auth-title { font-size: 22px; font-weight: 650; margin: 0 0 6px; }
-  .app-name { font-size: 19px; font-weight: 650; margin: 0 0 2px; }
-  .auth-sub { color: #8a8a8a; font-size: 14px; line-height: 1.5; margin: 0 0 22px; }
+
+  .app-name {
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: 700;
+    margin: 0 0 2px;
+    letter-spacing: -0.02em;
+  }
+
+  .auth-sub {
+    color: var(--color-fg-subtle);
+    font-size: 14px;
+    line-height: 1.5;
+    margin: 0 0 22px;
+  }
+
   .auth-card label { margin-top: 14px; }
   .auth-card label.first { margin-top: 0; }
-  .auth-card input { padding: 12px 13px; border-radius: 10px; font-size: 15px; }
-  .auth-card input:focus { border-color: #14F195; }
+
   .btn-primary {
-    width: 100%; margin-top: 22px; padding: 12px; border-radius: 10px;
-    font-size: 15px; font-weight: 600; color: #04130d; cursor: pointer; border: 0;
-    background: linear-gradient(135deg, #14F195, #10b981);
+    width: 100%;
+    margin-top: 22px;
+    padding: 13px;
+    border-radius: 999px;
+    font-size: 15px;
+    font-weight: 700;
+    color: #fff;
+    cursor: pointer;
+    border: 0;
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--c-purple) 100%);
+    box-shadow: 0 8px 28px color-mix(in srgb, var(--color-primary) 35%, transparent);
   }
-  .btn-primary:hover { filter: brightness(1.06); }
+
+  .btn-primary:hover { opacity: 0.92; filter: none; }
+
   .btn-ghost {
-    display: block; width: 100%; margin-top: 10px; padding: 12px; border-radius: 10px;
-    font-size: 14px; font-weight: 500; cursor: pointer; text-align: center;
-    background: transparent; color: #cfcfcf; border: 1px solid #2c2c2c;
+    display: block;
+    width: 100%;
+    margin-top: 10px;
+    padding: 12px;
+    border-radius: 999px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    text-align: center;
+    text-decoration: none;
+    background: #fff;
+    color: var(--c-purple);
+    border: 1.5px solid color-mix(in srgb, var(--c-purple) 55%, transparent);
+    box-shadow: none;
   }
-  .btn-ghost:hover { border-color: #3a3a3a; background: #181818; }
-  .auth-foot { text-align: center; color: #777; font-size: 13px; margin: 18px 0 0; }
+
+  .btn-ghost:hover {
+    background: color-mix(in srgb, var(--c-purple) 8%, transparent);
+    text-decoration: none;
+  }
+
+  .auth-foot {
+    text-align: center;
+    color: var(--color-fg-subtle);
+    font-size: 13px;
+    margin: 18px 0 0;
+  }
+
   .scopes { list-style: none; padding: 0; margin: 16px 0 0; }
-  .scopes li { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; color: #d7d7d7; font-size: 14px; }
-  .scopes .tick { color: #14F195; font-weight: 700; flex-shrink: 0; }
-  .who {
-    display: flex; align-items: center; gap: 9px; background: #181818;
-    border: 1px solid #242424; border-radius: 10px; padding: 10px 12px;
-    margin-bottom: 18px; font-size: 13px; color: #bbb;
+  .scopes li {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 10px 0;
+    color: var(--color-fg-muted);
+    font-size: 14px;
+    line-height: 1.45;
+    border-bottom: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
   }
-  .who .dot { width: 8px; height: 8px; border-radius: 50%; background: #14F195; flex-shrink: 0; }
+  .scopes li:last-child { border-bottom: 0; }
+  .scopes .tick { color: var(--color-success); font-weight: 700; flex-shrink: 0; }
+
+  .who {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-primary) 18%, transparent);
+    border-radius: 12px;
+    padding: 10px 12px;
+    margin-bottom: 18px;
+    font-size: 13px;
+    color: var(--color-fg-muted);
+  }
+
+  .who .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--color-success);
+    flex-shrink: 0;
+  }
+
+  .auth-success-icon {
+    font-size: 42px;
+    line-height: 1;
+    margin: 6px 0 4px;
+    color: var(--color-success);
+  }
+
+  .auth-card--center { text-align: center; }
+  .auth-card--center .brand { justify-content: center; }
 `;
 
-const layout = (title: string, body: string) => `<!DOCTYPE html>
+const authDecor = `
+  <div class="auth-blob" aria-hidden="true"></div>
+  <div class="auth-dots" aria-hidden="true"></div>
+`;
+
+const layout = (title: string, body: string, headExtra = '') => `<!DOCTYPE html>
 <html lang="es"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${title} · Kiba</title>
+<link rel="icon" type="image/png" href="/favicon.png" />
+<title>${escapeHtml(title)} · Kiba</title>
+${headExtra}
 <style>${css}</style>
 </head><body>${body}</body></html>`;
 
@@ -124,6 +348,7 @@ export function landingView(loggedIn: boolean): string {
   return layout(
     'Kiba',
     `<div class="wrap-wide">
+      ${brandLogo}
       <h1>Kiba</h1>
       <p class="muted">Marketplace descentralizado de agentes IA con pagos x402 en Solana</p>
 
@@ -149,8 +374,8 @@ export function signupView(error?: string, next?: string): string {
   const loginHref = next ? `/login?next=${encodeURIComponent(next)}` : '/login';
   return layout(
     'Crear cuenta',
-    `<div class="auth-page"><div class="auth-card">
-      <div class="brand"><div class="brand-logo">K</div><div class="brand-name">Kiba</div></div>
+    `<div class="auth-page">${authDecor}<div class="auth-card">
+      ${brandLogo}
       <h1 class="auth-title">Crea tu cuenta</h1>
       <p class="auth-sub">Marketplace de agentes IA con micro-pagos x402 · Stellar testnet. Empiezas con <strong>$5</strong> de crédito gratis.</p>
       <form method="POST" action="${action}">
@@ -158,7 +383,7 @@ export function signupView(error?: string, next?: string): string {
         <input type="email" name="email" autocomplete="email" required>
         <label>Contraseña</label>
         <input type="password" name="password" autocomplete="new-password" required minlength="6">
-        ${error ? `<div class="err">${error}</div>` : ''}
+        ${error ? `<div class="err">${escapeHtml(error)}</div>` : ''}
         <button type="submit" class="btn-primary">Crear cuenta</button>
       </form>
       <p class="auth-foot">¿Ya tienes cuenta? <a href="${loginHref}">Inicia sesión</a></p>
@@ -172,8 +397,8 @@ export function loginView(error?: string, next?: string): string {
   const connecting = !!next && next.includes('/auth/consent');
   return layout(
     'Iniciar sesión',
-    `<div class="auth-page"><div class="auth-card">
-      <div class="brand"><div class="brand-logo">K</div><div class="brand-name">Kiba</div></div>
+    `<div class="auth-page">${authDecor}<div class="auth-card">
+      ${brandLogo}
       <h1 class="auth-title">Inicia sesión</h1>
       <p class="auth-sub">${connecting ? 'Inicia sesión para autorizar la conexión con tu cuenta de Kiba.' : 'Accede a tu cuenta de Kiba.'}</p>
       <form method="POST" action="${action}">
@@ -181,7 +406,7 @@ export function loginView(error?: string, next?: string): string {
         <input type="email" name="email" autocomplete="email" required>
         <label>Contraseña</label>
         <input type="password" name="password" autocomplete="current-password" required>
-        ${error ? `<div class="err">${error}</div>` : ''}
+        ${error ? `<div class="err">${escapeHtml(error)}</div>` : ''}
         <button type="submit" class="btn-primary">Entrar</button>
       </form>
       <p class="auth-foot">¿Sin cuenta? <a href="${signupHref}">Crear una</a></p>
@@ -215,8 +440,9 @@ export function dashboardView(data: DashboardData): string {
   return layout(
     'Dashboard',
     `<div class="wrap-wide">
+      ${brandLogo}
       <h1>Dashboard</h1>
-      <p class="muted">${data.email} · <a href="/logout">cerrar sesión</a></p>
+      <p class="muted">${escapeHtml(data.email)} · <a href="/logout">cerrar sesión</a></p>
 
       <div class="stat-row" style="margin-bottom:12px">
         <div class="stat">
@@ -231,7 +457,7 @@ export function dashboardView(data: DashboardData): string {
         </div>
         <div class="stat">
           <div class="stat-label">Saldo wallet on-chain</div>
-          <div class="stat-value">${data.walletSol.toFixed(4)} <span style="font-size:14px;color:#888">SOL</span></div>
+          <div class="stat-value">${data.walletSol.toFixed(4)} <span style="font-size:14px;color:var(--color-fg-subtle)">SOL</span></div>
           <div class="muted" style="font-size:12px;margin-top:4px">≈ $${data.walletUsd.toFixed(2)}</div>
         </div>
       </div>
@@ -252,7 +478,7 @@ export function dashboardView(data: DashboardData): string {
         <p class="muted">¿Prefieres usar tu propia SOL? Envía desde Phantom/Solflare a la dirección de tu wallet custodia. Una vez confirmada, su saldo se gasta automáticamente cuando se acabe el crédito USD.</p>
         <label style="margin-top:8px">Tu wallet custodia (devnet)</label>
         <div class="row" style="align-items:stretch">
-          <input type="text" id="wallet-pubkey" readonly value="${data.walletPubkey}" style="flex:3;font-family:ui-monospace,Menlo,monospace;font-size:12px">
+          <input type="text" id="wallet-pubkey" readonly value="${escapeHtml(data.walletPubkey)}" style="flex:3;font-family:var(--font-mono);font-size:12px">
           <button type="button" onclick="copyWallet()" class="secondary" style="flex:1;margin-top:0">Copiar</button>
           <a href="/dashboard" style="flex:1"><button type="button" class="secondary" style="width:100%;margin-top:0">Refrescar</button></a>
         </div>
@@ -301,19 +527,19 @@ export function authorizeView(data: {
 }): string {
   return layout(
     'Autorizar acceso',
-    `<div class="auth-page"><div class="auth-card">
-      <div class="brand"><div class="brand-logo">K</div><div class="brand-name">Kiba</div></div>
+    `<div class="auth-page">${authDecor}<div class="auth-card">
+      ${brandLogo}
       <h1 class="app-name">${escapeHtml(data.clientName)}</h1>
       <p class="auth-sub">quiere conectarse a tu cuenta de Kiba</p>
       <div class="who"><span class="dot"></span> ${escapeHtml(data.email)} · Saldo $${data.balanceUsd.toFixed(2)}</div>
-      <p style="font-size:14px;color:#cfcfcf;margin:0">Esta aplicación podrá:</p>
+      <p style="font-size:14px;color:var(--color-fg-muted);margin:0;font-weight:600">Esta aplicación podrá:</p>
       <ul class="scopes">
         <li><span class="tick">✓</span> Descubrir y llamar agentes en tu nombre</li>
         <li><span class="tick">✓</span> Descontar micro-pagos de tu saldo</li>
         <li><span class="tick">✓</span> Ver tu balance e historial de transacciones</li>
       </ul>
       <form method="POST" action="/auth/authorize">
-        <input type="hidden" name="session_id" value="${data.sessionId}">
+        <input type="hidden" name="session_id" value="${escapeHtml(data.sessionId)}">
         <button type="submit" class="btn-primary">Autorizar</button>
         <a href="/dashboard" class="btn-ghost">Cancelar</a>
       </form>
@@ -325,12 +551,29 @@ export function authorizeView(data: {
 export function authorizedView(): string {
   return layout(
     'Autorizado',
-    `<div class="auth-page"><div class="auth-card" style="text-align:center">
-      <div class="brand" style="justify-content:center"><div class="brand-logo">K</div><div class="brand-name">Kiba</div></div>
-      <div style="font-size:42px;line-height:1;margin:6px 0 4px;color:#14F195">✓</div>
-      <h1 class="auth-title" style="text-align:center">Conectado</h1>
-      <p class="auth-sub" style="text-align:center">Tu app de IA ya tiene acceso a Kiba. Puedes cerrar esta pestaña.</p>
+    `<div class="auth-page">${authDecor}<div class="auth-card auth-card--center">
+      ${brandLogo}
+      <div class="auth-success-icon">✓</div>
+      <h1 class="auth-title">Conectado</h1>
+      <p class="auth-sub">Tu app de IA ya tiene acceso a Kiba. Puedes cerrar esta pestaña.</p>
       <a href="/dashboard" class="btn-ghost">Ir al dashboard</a>
     </div></div>`,
+  );
+}
+
+/** Página intermedia de redirect tras OAuth stdio (MCP local). */
+export function authorizedRedirectView(redirectUrl: string): string {
+  const safeUrl = escapeHtml(redirectUrl);
+  return layout(
+    'Autorizado',
+    `<div class="auth-page">${authDecor}<div class="auth-card auth-card--center">
+      ${brandLogo}
+      <div class="auth-success-icon">✓</div>
+      <h1 class="auth-title">Autorizado</h1>
+      <p class="auth-sub">Redirigiendo a tu cliente local…</p>
+      <p class="auth-foot"><a href="${safeUrl}">Click si no redirige automáticamente</a></p>
+      <p class="auth-foot" style="margin-top:12px">Puedes cerrar esta pestaña una vez tu cliente confirme.</p>
+    </div></div>`,
+    `<meta http-equiv="refresh" content="0;url=${safeUrl}">`,
   );
 }
