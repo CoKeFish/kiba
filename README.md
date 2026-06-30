@@ -6,48 +6,41 @@
 
 **A marketplace where AI assistants discover and pay specialized agents on demand.**
 
-A technical demonstration bridging the Model Context Protocol (MCP) with x402 payments on Stellar (Soroban). Hackathon submission, not a launched product.
+A technical demonstration bridging the Model Context Protocol (MCP) with x402 payments on Stellar (Soroban). Built for the **Stellar PULSO Hackathon** (NearX × Stellar Development Foundation). It is a working demonstration on testnet, not a launched product.
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
 [![Stellar](https://img.shields.io/badge/Stellar-testnet-000000?style=flat-square&logo=stellar&logoColor=white)](https://stellar.expert/explorer/testnet/contract/CDYLMRS2UTBHNTWS67NC2OPQIH2HXGS36WZYC4JUMLKZWT7XXVUUX7XF)
 [![Soroban](https://img.shields.io/badge/Soroban-smart%20contract-FDDA24?style=flat-square)](https://developers.stellar.org/docs/build/smart-contracts)
+[![Trustless Work](https://img.shields.io/badge/Trustless%20Work-escrow-2060F6?style=flat-square)](https://www.trustlesswork.com)
 [![MCP](https://img.shields.io/badge/MCP-compatible-14F195?style=flat-square)](https://modelcontextprotocol.io/)
 [![x402](https://img.shields.io/badge/x402-payments-2060F6?style=flat-square)](https://x402.org/)
 
-**[Pitch Video](TBD)** · **[Technical Demo](TBD)** · **[Web Preview](TBD)** · **[Architecture](docs/architecture.md)**
+**[Architecture](docs/architecture.md)** · **[Trustless Work](docs/trustless-work.md)** · Demo video · *(coming soon)*
 
 </div>
 
 ---
 
-## Overview
+## What it is
 
-Kiba demonstrates an end-to-end marketplace protocol where any AI assistant (Claude, Cursor, ChatGPT) can find a specialized agent for a task and pay it per call, with no API keys and no per-service setup. Settlement runs on Stellar testnet through the x402 HTTP payment protocol, brokered by a Soroban smart contract with an atomic 95/5 revenue split.
+Kiba is a single entry point for any AI assistant (Claude, Cursor, ChatGPT) to find a specialized agent for a task and pay it per call — with no API keys and no per-service setup. Discovery and the catalog live on **Stellar testnet**: every agent registers on-chain in a Soroban contract, and payment settles in **USDC** through the x402 protocol, with a 95/5 revenue split enforced by [Trustless Work](https://www.trustlesswork.com).
 
-The SDK uses a `ChainClient` abstraction and runs on **Stellar/Soroban**.
+The SDK abstracts the chain behind a `ChainClient` and runs on **Stellar/Soroban**.
 
-This submission delivers the working architecture and a reference implementation of all client surfaces. Third-party publisher onboarding, mainnet deployment, formal audit, and live billing are explicitly out of scope.
+This submission shows the architecture working end to end and a reference implementation of every client surface. Third-party publisher onboarding at scale, mainnet deployment, formal audit, and real (production fiat) billing are explicitly out of scope.
 
 ---
 
 ## The problem
 
-General-purpose AI assistants are good at general tasks. They fail or hallucinate on specialized ones.
-
-- A traveler asks ChatGPT for visa rules for a specific corridor and gets confidently wrong dates.
-- A founder asks Claude to navigate a local government procedure and gets a guess based on stale documents.
-- A researcher asks for live data from a niche academic source the model has never indexed.
-
-The fix today is to integrate a specialized service per task: sign up, read docs, manage credentials, write glue code. Most people will not do that. Publishers who could provide quality answers cannot reach those users at scale, because every user has to wire them up individually. The result: AI assistants stay generic, specialists stay invisible, and useful capabilities never meet the users who need them.
+A general-purpose AI agent draws on open sources and, often, returns outdated or low-quality information without the user noticing — or knowing how to improve it. The specialized sources that would actually solve their problem sit behind technical friction: signing up, integrating, sometimes an API key or a subscription just to use them once. Depending on their technical profile, each user hits a different obstacle: they can't improve the quality of the answers, they won't take on the integration time, or they don't even know a specialized agent for their task exists. And on the other side, whoever builds that service has nowhere to offer it or charge for it — least of all when the consumer is an agent, not a person.
 
 ## The solution
 
-Kiba provides a single entry point for AI assistants to discover and call any registered specialist agent. The assistant locates an agent, receives a price quote, pays in a single HTTP round trip, and returns the answer to the user.
+Kiba addresses both sides of the problem with one protocol:
 
-The marketplace addresses both sides of the protocol:
-
-- For AI assistant users: specialized capabilities are accessed through normal assistant interaction, without per-service signup, API keys, or wallet management.
-- For agent publishers: registration, discovery, payment, and a protocol-enforced revenue split are provided by the marketplace, removing the need to build billing or distribution infrastructure.
+- **For the assistant's user:** specialized capabilities are reached from the usual conversation. The assistant locates the agent, receives a price, pays in a single round trip, and returns the answer — no per-service signup, no API keys, no wallet management.
+- **For the agent publisher:** registration, discovery, payment, and the revenue split are provided by the marketplace. The developer exposes their service once and charges per call, even when the consumer is another agent rather than a person.
 
 ---
 
@@ -64,12 +57,13 @@ The marketplace addresses both sides of the protocol:
 ```mermaid
 graph TB
     subgraph chain["Stellar (Soroban) · testnet"]
-        SC["Soroban contract<br/>Registry + Escrow storage"]
+        SC["Soroban contract<br/>Agent registry"]
+        TW["Trustless Work<br/>Escrow + 95/5 split · USDC"]
     end
 
     subgraph platform["Platform services"]
         BE["Backend (4000)<br/>Hybrid discovery<br/>FTS5 + embeddings"]
-        GW["Gateway (8000)<br/>Custodial wallets<br/>OAuth, credits"]
+        GW["Gateway (8000)<br/>OAuth, wallets, credits<br/>batched settlement"]
         ORCH["Orchestrator (6001)<br/>Intent planner"]
     end
 
@@ -86,51 +80,75 @@ graph TB
     end
 
     MCP -->|OAuth 2.0 PKCE| GW
-    SDK -->|self-custodial| SC
     DASH -->|session cookie| GW
-    GW -->|x402| A1
+    SDK -->|self-custodial| TW
+    GW -->|signed call| A1
+    GW -->|batched settlement| TW
     ORCH -->|plan + x402| A2
-    BE -.->|reads registry| SC
-    A1 & A2 & A3 -.->|register, claim| SC
+    BE -.->|indexes registry| SC
+    A1 & A2 & A3 -.->|register_agent| SC
 ```
+
+Agent **registration** is on-chain (Soroban contract): any registered agent shows up in the catalog and becomes discoverable. The payment **escrow and split** do not live in the contract — Trustless Work handles them over USDC.
 
 ### Payment flow (x402 handshake)
 
-x402 is an open, HTTP-native payment protocol introduced by Coinbase. A normal HTTP request goes out. The agent answers with `402 Payment Required` and a quote. The client opens an escrow on Stellar, retries with a payment header, and the agent claims the funds atomically after delivering the response.
+x402 is an open, HTTP-native payment protocol introduced by Coinbase. A normal HTTP request goes out; the agent answers `402 Payment Required` with a quote; the client opens an escrow on Trustless Work, retries with a payment header, and the agent releases the funds after delivering the response.
 
 ```mermaid
 sequenceDiagram
     participant C as Client
     participant A as Agent
-    participant SC as Soroban contract
+    participant TW as Trustless Work (Stellar)
 
     C->>A: POST /service { payload }
     A-->>C: 402 Payment Required { amount, payTo, nonce }
-    C->>SC: open_escrow(nonce, amount)
-    SC-->>C: escrow funded (XLM)
+    C->>TW: open + fund escrow (USDC)
+    TW-->>C: escrow funded
     C->>A: POST /service + X-PAYMENT
-    A->>SC: verify escrow
+    A->>TW: verify escrow
     A->>A: run handler
-    A->>SC: claim_payment
-    SC->>A: 95% to owner, 5% to platform treasury
-    A-->>C: 200 OK { result, signature }
+    A->>TW: release
+    TW->>A: 95% to owner, 5% to treasury
+    A-->>C: 200 OK { result }
 ```
 
-Pricing is per request, not per call. An agent can return a quote that depends on the payload (per character, per line, per symbol), and the on-chain split scales with the quoted amount.
+Pricing is per request, not fixed: an agent can quote based on the payload (per character, per line, per symbol), and the on-chain split scales with the quoted amount.
+
+**Two payment modes, depending on the surface:**
+
+- **Via the gateway (MCP / dashboard):** the user tops up credits and `call_agent` **does not touch the chain on the hot path** — the gateway calls the agent with an asymmetric signature, debits the credit off-chain, and records the agent's earning. The accrued balance is **settled in batches** to the agent's wallet through a Trustless Work *self-release* escrow (the treasury funds and releases; TW applies the 5%). This takes the per-call deploy+fund+release out of the loop and the response returns in ~170 ms.
+- **Via the SDK (self-custodial):** the client runs the full x402 handshake against Trustless Work, funding the escrow from its own wallet.
 
 ### Discovery
 
-A backend indexer mirrors the on-chain agent registry into SQLite. Queries run through a hybrid scorer:
+A backend indexer mirrors the on-chain registry into SQLite (any registered agent appears without being on any list). Queries run through a hybrid scorer:
 
 - **Keyword:** SQLite FTS5 with BM25 ranking.
 - **Semantic:** 384-d embeddings from `@xenova/transformers` (all-MiniLM-L6-v2), in-process, no external API.
-- **Hybrid:** weighted fusion of the two.
+- **Hybrid:** weighted fusion of the two (0.6 keyword / 0.4 semantic).
 
-If the embedding model fails to load, the system degrades to keyword-only without dropping requests.
+If the embedding model fails to load, the system degrades to keyword-only without dropping requests. Endpoint: `GET /agents?q=<query>&mode=keyword|semantic|hybrid`.
 
 ### Auth for IDE clients
 
-The MCP server uses OAuth 2.0 with PKCE (RFC 7636). The user logs in once in the browser, the local MCP adapter stores an opaque bearer, and Claude or Cursor can call agents without ever handling crypto.
+The MCP server uses OAuth 2.0 with PKCE (RFC 7636). The user logs in once in the browser, the local MCP adapter stores an opaque bearer (`~/.config/kiba/token.json`), and Claude or Cursor can call agents **without ever handling crypto or keys**. User wallets are provisioned as non-custodial server wallets on [Privy](https://privy.io) when configured (the key lives in their TEE; the gateway only signs via `raw_sign`).
+
+---
+
+## Smart contract
+
+Soroban contract (Rust) deployed to Stellar testnet. Its responsibility is the marketplace's **agent registry**.
+
+- **Contract ID:** `CDYLMRS2UTBHNTWS67NC2OPQIH2HXGS36WZYC4JUMLKZWT7XXVUUX7XF` ([stellar.expert](https://stellar.expert/explorer/testnet/contract/CDYLMRS2UTBHNTWS67NC2OPQIH2HXGS36WZYC4JUMLKZWT7XXVUUX7XF))
+- **Functions:** `register_agent`, `update_agent`, `deregister_agent`, `get_agent`.
+- **Storage:** one `Agent` entry per `service` (`owner`, `price_per_call`, `endpoint`, `description`, `total_calls`, `total_earned`, `created_at`). `owner.require_auth()` ensures only the owner can create/update/delete their registration.
+- **TTL:** persistent entries are extended ~30 days and renewed before expiry (Soroban rent).
+- **Events:** `agent_registered`, `agent_updated`, `agent_deregistered` — consumed by the backend indexer.
+
+The **x402 payment escrow and the 95/5 split are not in this contract**: they settle through [Trustless Work](https://www.trustlesswork.com) (escrow-as-a-service on Stellar), with a 5% `platformFee` (≡ 500 bps) and the treasury as the platform address. The asset is **USDC** (testnet, Circle issuer). Details in [`docs/trustless-work.md`](docs/trustless-work.md).
+
+> Contract tests: `cargo test` (native). The toolchain is the `kiba/stellar-cli` image (`docker/stellar-cli`); stellar-cli 26 builds for the `wasm32v1-none` target.
 
 ---
 
@@ -138,35 +156,36 @@ The MCP server uses OAuth 2.0 with PKCE (RFC 7636). The user logs in once in the
 
 | Layer | Stack |
 |---|---|
-| Smart contract | Rust, Soroban SDK, Stellar testnet |
+| Contract | Rust, Soroban SDK, Stellar testnet |
+| Escrow / settlement | Trustless Work (USDC), 95/5 split |
 | SDK | TypeScript, `@stellar/stellar-sdk` (XDR/ScVal), chain-agnostic `ChainClient` |
 | Backend | Node 20, Express 5, better-sqlite3, `@xenova/transformers` |
-| Gateway | Express, JWT cookies, OAuth 2.0 PKCE, bcrypt |
+| Gateway | Express, JWT cookies, OAuth 2.0 PKCE, non-custodial wallets (Privy) |
 | Dashboard | Vite 6, React 19, Tailwind 4, TanStack Query |
 | Landing | Astro 5, Tailwind 4 |
-| MCP adapter | `@modelcontextprotocol/sdk` |
+| MCP adapter | `@modelcontextprotocol/sdk`, distributed on npm (`kiba-mcp`) |
 | Installer | Tauri 2 (Windows) |
-| Orchestration | Docker Compose (7 services, 9 volumes) |
+| Orchestration | Docker Compose |
 
 ---
 
 ## Repository structure
 
-Monorepo with npm workspaces plus the Rust contract packages and a Tauri installer package.
+Monorepo with npm workspaces, the Rust contract packages, and a Tauri installer.
 
 ```
 packages/
-  contracts-soroban/    Rust + Soroban contract — registry + escrow (active, Stellar)
+  contracts-soroban/    Rust + Soroban contract — agent registry (Stellar)
   sdk/                  @kiba/sdk TypeScript library (ChainClient abstraction)
   backend/              Discovery API + indexer (port 4000)
-  gateway/              Auth, custodial wallets, credits (port 8000)
+  gateway/              Auth, wallets, credits, batched settlement (port 8000)
   dashboard/            React SPA (port 3020)
-  landing/              Astro marketing site (port 3010)
+  landing/              Astro site (port 3010)
   mcp-server/           MCP adapter, distributed on npm
   orchestrator-agent/   LLM intent planner (port 6001)
-  demo-agents/          Example providers (ports 5001-5005)
+  demo-agents/          Example agents (ports 5001-5006)
   installer/            Tauri 2 Windows installer
-docs/                   Architecture, sequence diagrams, decisions
+docs/                   Architecture, diagrams, decisions
 submission-screenshots/ Visual assets for this submission
 ```
 
@@ -192,7 +211,7 @@ This brings up the full stack:
 | Backend (discovery API) | http://localhost:4000/agents |
 | Gateway (REST + auth) | http://localhost:8000 |
 
-The Soroban contract is already deployed to Stellar testnet (see below), so the stack talks to it out of the box — custodial wallets are funded on demand via friendbot. `.env.example` ships with `CHAIN=stellar` and the live `STELLAR_CONTRACT_ID`.
+The Soroban contract is already deployed to Stellar testnet, so the stack talks to it out of the box — wallets are funded on demand via friendbot. `.env.example` ships with `CHAIN=stellar` and the live `STELLAR_CONTRACT_ID`. The Trustless Work escrow needs a `TRUSTLESS_WORK_API_KEY` (generated in the TW BackOffice); without it, registration and discovery still work, but on-chain settlement does not.
 
 ### Try it from an IDE
 
@@ -209,74 +228,54 @@ To use Kiba from Claude Desktop, Cursor, or any MCP-compatible client, add this 
 }
 ```
 
-The first call opens a browser for OAuth login. After that the IDE can `list_agents` and `call_agent` against the marketplace.
-
----
-
-## Smart contract
-
-Soroban smart contract (Rust) deployed to Stellar testnet.
-
-- **Contract ID:** `CDYLMRS2UTBHNTWS67NC2OPQIH2HXGS36WZYC4JUMLKZWT7XXVUUX7XF` ([stellar.expert](https://stellar.expert/explorer/testnet/contract/CDYLMRS2UTBHNTWS67NC2OPQIH2HXGS36WZYC4JUMLKZWT7XXVUUX7XF))
-- **Storage:** `Agent` entries keyed by `service`, `Escrow` entries keyed by `(client, agent_owner, nonce)` — Soroban contract storage.
-- **Functions:** `initialize`, `register_agent`, `update_agent`, `deregister_agent`, `open_escrow`, `claim_payment`, `refund_escrow`.
-- **Settlement asset:** XLM via the native Stellar Asset Contract (amounts in stroops, 1 XLM = 10⁷ stroops).
-- **Protocol fee:** 5% (500 bps), enforced atomically inside `claim_payment` (the split favors the owner on rounding). The treasury address is set once in `initialize`.
-- **Refund window:** 5 minutes (`REFUND_DELAY_SECS = 300`). If the agent never claims, the client can recover the escrow with `refund_escrow`.
-
-Full deep dive in [`docs/architecture.md`](docs/architecture.md).
-
-> **Escrow vía Trustless Work.** El pago x402 se liquida a través de
-> [Trustless Work](https://www.trustlesswork.com) (escrow-as-a-service en Stellar). El contrato
-> de arriba queda como **registro de agentes**; el escrow (open/fund/release/refund) corre en TW.
-> Integración y detalles en [`docs/trustless-work.md`](docs/trustless-work.md).
+The first call opens a browser for OAuth login. After that the IDE can `list_agents`, `call_agent`, `get_balance`, and `get_transactions` against the marketplace.
 
 ---
 
 ## Project status
 
-Honest snapshot. Kiba is a technical demonstration of the marketplace architecture, written during the Dev3pack hackathon window (May 8 to 10, 2026) and refined for Colosseum Frontier. It is not a launched commercial product, has no third-party users, and does not handle real funds.
+Honest snapshot. Kiba is a **technical demonstration** of the marketplace architecture. PULSO welcomes already-started projects and evaluates them at their current stage; this is ours. It is not a launched commercial product, has no third-party users, and moves no real funds.
 
-**Working end to end on the local stack:**
-- All 7 services come up with `docker compose up`.
-- Agent registry, hybrid discovery (FTS5 + embeddings), and dashboard UI are functional.
-- Soroban contract deployed to Stellar testnet, with real on-chain settlement verified end to end (open_escrow → claim_payment → 95/5 split, with transaction hashes).
-- MCP adapter completes the OAuth 2.0 PKCE flow against the Gateway.
-- Gateway issues custodial wallets and tracks USD credits with a cascade onto on-chain XLM; custodial accounts are funded on demand via friendbot.
+**Working end to end (testnet):**
+- All services come up with `docker compose up`.
+- On-chain agent registry (Soroban), hybrid discovery (FTS5 + embeddings), and dashboard are functional.
+- Off-chain per-call payment (~170 ms) + **batched USDC settlement via Trustless Work**, with a 95/5 split — verified on-chain on testnet.
+- The MCP adapter completes the OAuth 2.0 PKCE flow against the gateway.
+- The gateway issues/manages wallets (non-custodial via Privy) and credits, with a cascade onto on-chain USDC.
 
 **In-repo mocks and stubs:**
-- The five demo agents (yield-hunter, risk-auditor, translator-pro, price-oracle, code-reviewer) return mocked responses. The marketplace contract treats them like any other registered agent.
-- Stripe top-up uses test mode only.
-- A few dashboard routes are functional but not visually polished.
+- Of the example agents, **one is real** — a *web-scraper* built on Firecrawl (loads dynamic, JS-rendered content). The other five (yield-hunter, risk-auditor, translator-pro, price-oracle, code-reviewer) return mocked responses. The contract treats them all like any registered agent.
+- Fiat → credit top-ups run in **sandbox/test mode** (Stripe test, PayPal sandbox, Wompi sandbox, Bre-B sandbox); no real charges.
 
-**Explicitly out of scope for this submission:**
-- Third-party agent publishers and external users.
+**Explicitly out of scope:**
+- Third-party publishers and external users at scale.
 - Mainnet deployment.
-- Formal smart contract audit.
-- Regulatory work for custodial operation (KYC/AML, money transmitter analysis).
+- Formal contract audit.
+- Regulatory work for custodial operation (KYC/AML).
 - Long-term operational reliability and SLA.
 
 ---
 
 ## Team
 
-Three builders based in Bogotá, Colombia.
+Three builders based in Bogotá, Colombia (Colombia track · PULSO).
 
-- **Rodion Tabares** — Engineer. Gateway, custodial wallet cascade, hybrid discovery, MCP integration. ([GitHub](https://github.com/CoKeFish))
-- **André Landinez** — Engineer. On-chain program, dynamic pricing, x402 trace, dashboard. ([GitHub](https://github.com/andreMD287))
-- **Lizeth Rico** — Designer. Visual identity, product UX, dashboard interaction design. ([GitHub](https://github.com/ricoththth))
+- **Rodion Tabares** — Engineering. Gateway, wallets, hybrid discovery, MCP integration. ([GitHub](https://github.com/CoKeFish))
+- **André Landinez** — Engineering. On-chain contract, dynamic pricing, x402 trace, dashboard. ([GitHub](https://github.com/andreMD287))
+- **Lizeth Rico** — Design. Visual identity, product UX, dashboard interaction. ([GitHub](https://github.com/ricoththth))
 
 ---
 
 ## Acknowledgements
 
-Kiba was originally prototyped during the Dev3pack Global Hackathon (May 8 to 10, 2026) and refined for Colosseum Frontier 2026.
+Kiba is submitted to the **Stellar PULSO Hackathon** (NearX × Stellar Development Foundation, June 2026), a builder competition across Brazil, Argentina, and Colombia.
 
 Built on:
 - The Model Context Protocol specification by Anthropic.
 - The x402 payment protocol specification by Coinbase.
 - The Stellar network and the Soroban smart-contract platform.
-- The `@xenova/transformers` library for in-process sentence embeddings.
+- [Trustless Work](https://www.trustlesswork.com) for escrow on Stellar.
+- The `@xenova/transformers` library for in-process embeddings.
 
 ---
 
