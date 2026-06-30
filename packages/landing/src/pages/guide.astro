@@ -49,10 +49,17 @@ const MCP_URL = `${GATEWAY_URL.replace(/\/+$/, "")}/mcp`;
           Installs the kiba server into <strong>Claude Desktop, Cursor and Claude Code</strong>
           automatically.
         </p>
-        <a class="guide-btn" href={INSTALLER_URL} title="Windows installer (.exe)">
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
-          Download for Windows
-        </a>
+        <div class="guide-btns">
+          <a class="guide-btn" href={INSTALLER_URL} title="Windows installer (.exe)">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+            Download for Windows
+          </a>
+          <button class="guide-btn guide-btn--soon" type="button" disabled aria-disabled="true" title="One-click automatic install — coming soon">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 3 14h9l-1 8 10-12h-9z"/></svg>
+            Install automatically
+            <span class="guide-soon">Soon</span>
+          </button>
+        </div>
         <p class="guide-note">On macOS / Linux? Connect on the web (below) or add the MCP config manually.</p>
       </div>
     </article>
@@ -247,6 +254,34 @@ const MCP_URL = `${GATEWAY_URL.replace(/\/+$/, "")}/mcp`;
       font-size: 12.5px !important;
       color: var(--fg-3) !important;
       margin: 12px 0 0 !important;
+    }
+
+    .guide-btns {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+    .guide-btn--soon {
+      background: var(--bg-inset);
+      color: var(--fg-3);
+      box-shadow: none;
+      cursor: not-allowed;
+    }
+    .guide-btn--soon:hover {
+      transform: none;
+      box-shadow: none;
+    }
+    .guide-soon {
+      font-family: var(--font-sans);
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      background: var(--accent-soft);
+      color: var(--accent);
+      padding: 2px 8px;
+      border-radius: 999px;
     }
 
     .guide-url {
