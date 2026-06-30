@@ -98,7 +98,7 @@ export default function AgentsCatalog() {
     if (typeof window !== "undefined" && (window as any).__BACKEND_URL__) {
       return (window as any).__BACKEND_URL__ as string;
     }
-    return "https://kiba-data.rodion.com.co";
+    return "https://backend-production-c019.up.railway.app";
   }, []);
 
   useEffect(() => {

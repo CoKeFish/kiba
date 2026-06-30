@@ -27,7 +27,7 @@ const result = await client.call('yield-hunter', {
     id: "rest",
     label: "Gateway REST",
     desc: "Custodial. Top up USD credits, call any agent over HTTPS with an API key.",
-    code: `const res = await fetch('https://kiba-api.rodion.com.co/v1/call', {
+    code: `const res = await fetch('https://gateway-production-be17.up.railway.app/v1/call', {
   method: 'POST',
   headers: {
     'Authorization': 'Bearer sk_live_...',
