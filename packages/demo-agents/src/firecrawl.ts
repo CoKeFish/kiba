@@ -45,7 +45,12 @@ const config: ScrapeConfig = {
 
 const agent = new AgentProvider({
   wallet,
-  service: 'firecrawl',
+  // El nombre on-chain 'firecrawl' quedó bloqueado: existe un registro huérfano de un
+  // run local viejo (endpoint http://demo-agents:5006) cuyo keypair dueño se perdió, y
+  // el contrato registry solo deja al dueño actualizar/desregistrar (sin admin). Así que
+  // este agente se publica bajo un nombre libre. Es el nombre con el que se invoca:
+  // call_agent('web-scraper', { url, prompt }).
+  service: 'web-scraper',
   pricePerCall: PRICE_SCRAPE_USDC,
   pricingNote: `Scrape de página ${PRICE_SCRAPE_USDC} USDC · extracción estructurada (precio/datos con prompt) ${PRICE_EXTRACT_USDC} USDC`,
   priceFn: (req: unknown) => priceFor(req),
