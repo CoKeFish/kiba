@@ -5,11 +5,11 @@ import { useAuth } from "@/lib/auth";
 import {
   formatUsd,
   lamportsToUsd,
-  formatKibs,
-  formatKibsLabel,
-  usdToKibs,
-  baseUnitsToKibs,
-  KIBS_LABEL,
+  formatKibix,
+  formatKibixLabel,
+  usdToKibix,
+  baseUnitsToKibix,
+  KIBIX_LABEL,
   shortSig,
   explorerUrl,
 } from "@/lib/format";
@@ -98,12 +98,12 @@ export default function Overview() {
             <div>
               <p className="overview-kpi__label">Balance</p>
               <p className="overview-kpi__value">
-                {balance ? formatKibsLabel(usdToKibs(balance.balance_usd)) : "—"}
+                {balance ? formatKibixLabel(usdToKibix(balance.balance_usd)) : "—"}
               </p>
               <p className="overview-kpi__hint">
                 {balance
-                  ? `= ${formatUsd(balance.balance_usd)} · spendable ${KIBS_LABEL}`
-                  : `Spendable ${KIBS_LABEL}`}
+                  ? `= ${formatUsd(balance.balance_usd)} · spendable ${KIBIX_LABEL}`
+                  : `Spendable ${KIBIX_LABEL}`}
               </p>
             </div>
             <div
@@ -143,7 +143,7 @@ export default function Overview() {
           <div className="overview-kpi__row">
             <div>
               <p className="overview-kpi__label">Spend (last 5 calls)</p>
-              <p className="overview-kpi__value">{formatKibsLabel(usdToKibs(totalSpend))}</p>
+              <p className="overview-kpi__value">{formatKibixLabel(usdToKibix(totalSpend))}</p>
               <p className="overview-kpi__hint">= {formatUsd(totalSpend, 4)} on recent calls</p>
             </div>
             <div
@@ -180,7 +180,7 @@ export default function Overview() {
           ) : (
             <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
               {txs.map((t) => {
-                const kibs = formatKibs(baseUnitsToKibs(t.amount_lamports));
+                const kibix = formatKibix(baseUnitsToKibix(t.amount_lamports));
                 const usd = formatUsd(lamportsToUsd(t.amount_lamports));
                 const isTopup = t.type === "topup";
 
@@ -219,7 +219,7 @@ export default function Overview() {
                     <div className="overview-tx-amount">
                       <div>
                         {isTopup ? "+" : "-"}
-                        {kibs} {KIBS_LABEL}
+                        {kibix} {KIBIX_LABEL}
                       </div>
                       <div className="overview-tx-amount-sub">= {usd}</div>
                     </div>

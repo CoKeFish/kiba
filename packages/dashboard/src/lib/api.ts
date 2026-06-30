@@ -139,7 +139,7 @@ export const api = {
     }),
   getCharge: (id: string) => request<PaymentCharge>(`/v1/payments/charge/${encodeURIComponent(id)}`),
   simulateBreb: (chargeId: string) =>
-    request<{ charge: PaymentCharge; new_balance_usd: number; new_balance_kibs: number }>(
+    request<{ charge: PaymentCharge; new_balance_usd: number; new_balance_kibix: number }>(
       "/v1/payments/breb/simulate",
       { method: "POST", body: JSON.stringify({ chargeId }) },
     ),
@@ -150,7 +150,7 @@ export const api = {
       charge: PaymentCharge;
       status: string;
       new_balance_usd: number;
-      new_balance_kibs: number;
+      new_balance_kibix: number;
     }>("/v1/payments/verify", {
       method: "POST",
       body: JSON.stringify({ chargeId, transactionId }),
@@ -291,7 +291,7 @@ export type PaymentMethod = {
 
 export type PaymentsConfig = {
   cop_usd_rate: number;
-  kibs_per_usd: number;
+  kibix_per_usd: number;
   methods: PaymentMethod[];
 };
 
@@ -301,7 +301,7 @@ export type PaymentCharge = {
   reference: string;
   amount_cop: number;
   amount_usd: number;
-  kibs: number;
+  kibix: number;
   status: "pending" | "paid" | "expired";
   detail: {
     llave?: string;

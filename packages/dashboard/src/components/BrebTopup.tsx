@@ -4,7 +4,7 @@
  * Dos modos según el provider activo:
  *   - sandbox (bre-b-sandbox): QR + llave Bre-B + botón "simular pago" (webhook simulado).
  *   - redirect (wompi): redirige al Web Checkout real de Wompi; al volver con `?id=`
- *     verifica la transacción contra la API y acredita los Kibs.
+ *     verifica la transacción contra la API y acredita los Kibix.
  */
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -12,7 +12,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { api, type PaymentCharge } from "@/lib/api";
 import { Card, CardBody, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { formatKibs, formatUsd } from "@/lib/format";
+import { formatKibix, formatUsd } from "@/lib/format";
 import {
   CheckCircle2,
   Copy,
@@ -53,8 +53,8 @@ export function BrebTopup() {
   const isRedirect = selected?.mode === "redirect";
   const isStripe = selected?.provider === "stripe";
 
-  const kibsFor = (cop: number) =>
-    config ? Math.round((cop / config.cop_usd_rate) * config.kibs_per_usd) : 0;
+  const kibixFor = (cop: number) =>
+    config ? Math.round((cop / config.cop_usd_rate) * config.kibix_per_usd) : 0;
 
   const create = useMutation({
     mutationFn: () =>
@@ -191,7 +191,7 @@ export function BrebTopup() {
           <p className="text-sm text-[var(--color-fg-muted)]">
             Acreditamos{" "}
             <span className="text-[var(--color-success)] font-semibold">
-              {formatKibs(charge.kibs)} Kibs
+              {formatKibix(charge.kibix)} Kibix
             </span>{" "}
             a tu saldo ({COP.format(charge.amount_cop)}).
           </p>
@@ -237,7 +237,7 @@ export function BrebTopup() {
               <span className="text-[var(--color-fg)] font-medium">
                 {(d.amountUsdc ?? charge.amount_usd).toFixed(2)} {d.asset ?? "USDC"}
               </span>{" "}
-              → {formatKibs(charge.kibs)} Kibs
+              → {formatKibix(charge.kibix)} Kibix
             </CardDescription>
           </div>
           <Button variant="ghost" size="sm" onClick={reset}>
@@ -311,7 +311,7 @@ export function BrebTopup() {
             <CardDescription>
               {COP.format(charge.amount_cop)} ·{" "}
               <span className="text-[var(--color-fg)] font-medium">
-                {formatKibs(charge.kibs)} Kibs
+                {formatKibix(charge.kibix)} Kibix
               </span>
             </CardDescription>
           </div>
@@ -377,7 +377,7 @@ export function BrebTopup() {
       <CardHeader>
         <CardTitle>Recargar créditos</CardTitle>
         <CardDescription>
-          Elige un método de pago. Convertimos a Kibs al instante.
+          Elige un método de pago. Convertimos a Kibix al instante.
           {isStripe
             ? " Pagas con tarjeta (cobro en USD)."
             : selected?.country === "CO"
@@ -445,7 +445,7 @@ export function BrebTopup() {
           <div className="text-sm text-[var(--color-fg-muted)]">
             {COP.format(amountCop)} →{" "}
             <span className="font-semibold text-[var(--color-fg)]">
-              {formatKibs(kibsFor(amountCop))} Kibs
+              {formatKibix(kibixFor(amountCop))} Kibix
             </span>{" "}
             <span className="text-xs">
               (≈ {formatUsd(config ? amountCop / config.cop_usd_rate : 0)})

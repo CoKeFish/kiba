@@ -372,7 +372,7 @@ function chargeToJson(c: import('./payments').Charge) {
     reference: c.reference,
     amount_cop: c.amountCop,
     amount_usd: c.amountUsd,
-    kibs: c.kibs,
+    kibix: c.kibix,
     status: c.status,
     detail: c.detail,
     created_at: c.createdAt,
@@ -383,7 +383,7 @@ function chargeToJson(c: import('./payments').Charge) {
 app.get('/v1/payments/config', requireAuth, (_req, res) => {
   res.json({
     cop_usd_rate: COP_USD_RATE,
-    kibs_per_usd: 10_000,
+    kibix_per_usd: 10_000,
     // Todos los métodos activos a la vez; el usuario elige en la UI.
     methods: listProviders().map((p) => ({
       provider: p.id,
@@ -444,7 +444,7 @@ app.post('/v1/payments/breb/simulate', requireAuth, (req, res) => {
     res.json({
       charge: chargeToJson(charge),
       new_balance_usd: newBalanceUsd,
-      new_balance_kibs: Math.round(newBalanceUsd * 10_000),
+      new_balance_kibix: Math.round(newBalanceUsd * 10_000),
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'unknown error';
@@ -476,7 +476,7 @@ app.post(['/v1/payments/verify', '/v1/payments/wompi/verify'], requireAuth, asyn
       charge: chargeToJson(charge),
       status,
       new_balance_usd: newBalanceUsd,
-      new_balance_kibs: Math.round(newBalanceUsd * 10_000),
+      new_balance_kibix: Math.round(newBalanceUsd * 10_000),
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'unknown error';

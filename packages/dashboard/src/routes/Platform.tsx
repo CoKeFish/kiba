@@ -4,8 +4,8 @@ import { api } from "@/lib/api";
 import { chain } from "@/lib/chain";
 import {
   formatUsd,
-  formatKibsLabel,
-  usdToKibs,
+  formatKibixLabel,
+  usdToKibix,
   shortSig,
 } from "@/lib/format";
 import {
@@ -115,7 +115,7 @@ export default function Platform() {
         <div className="platform-treasury__body">
           <div className="platform-treasury__metrics">
             <p className="platform-treasury__value">
-              {formatKibsLabel(usdToKibs(treasury.usd))}
+              {formatKibixLabel(usdToKibix(treasury.usd))}
             </p>
             <p className="platform-treasury__hint">
               ≈ {formatUsd(treasury.usd, 2)} · {treasury.asset_amount.toFixed(4)} {chain.asset}
@@ -193,7 +193,7 @@ export default function Platform() {
             <div>
               <p className="platform-kpi__label">Lifetime volume</p>
               <p className="platform-kpi__value">
-                {formatKibsLabel(usdToKibs(lifetime.total_volume_usd))}
+                {formatKibixLabel(usdToKibix(lifetime.total_volume_usd))}
               </p>
               <p className="platform-kpi__hint">
                 ≈ {formatUsd(lifetime.total_volume_usd, 2)}
@@ -216,7 +216,7 @@ export default function Platform() {
             <div>
               <p className="platform-kpi__label">Lifetime fees ({fee.pct}%)</p>
               <p className="platform-kpi__value platform-kpi__value--fees">
-                {formatKibsLabel(usdToKibs(lifetime.estimated_fees_usd))}
+                {formatKibixLabel(usdToKibix(lifetime.estimated_fees_usd))}
               </p>
               <p className="platform-kpi__hint">
                 ≈ {formatUsd(lifetime.estimated_fees_usd, 2)}

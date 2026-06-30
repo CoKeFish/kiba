@@ -19,10 +19,10 @@ import { serviceToName } from "@/components/AgentManager";
 import {
   formatUsd,
   lamportsToUsd,
-  formatKibs,
-  formatKibsLabel,
-  usdToKibs,
-  KIBS_LABEL,
+  formatKibix,
+  formatKibixLabel,
+  usdToKibix,
+  KIBIX_LABEL,
 } from "@/lib/format";
 import { Activity, Play, Receipt, Sparkles, TrendingUp } from "lucide-react";
 import "./usage.css";
@@ -96,7 +96,7 @@ export default function Usage() {
         return am === bm ? ad - bd : am - bm;
       })
       .slice(-14)
-      .map((d) => ({ ...d, kibs: usdToKibs(d.usd) }));
+      .map((d) => ({ ...d, kibix: usdToKibix(d.usd) }));
   }, [calls]);
 
   const byAgent = useMemo(() => {
@@ -107,7 +107,7 @@ export default function Usage() {
       if (!buckets[k]) {
         buckets[k] = { name: k, label: serviceToName(k), value: 0, calls: 0 };
       }
-      buckets[k].value += usdToKibs(lamportsToUsd(t.amount_lamports));
+      buckets[k].value += usdToKibix(lamportsToUsd(t.amount_lamports));
       buckets[k].calls += 1;
     }
     return Object.values(buckets).sort((a, b) => b.value - a.value);
@@ -145,7 +145,7 @@ export default function Usage() {
             <div>
               <p className="usage-kpi__label">Total spent</p>
               <p className="usage-kpi__value usage-kpi__value--normal">
-                {formatKibsLabel(usdToKibs(stats.totalSpent))}
+                {formatKibixLabel(usdToKibix(stats.totalSpent))}
               </p>
               <p className="usage-kpi__hint">≈ {formatUsd(stats.totalSpent)}</p>
             </div>
@@ -185,7 +185,7 @@ export default function Usage() {
             <div>
               <p className="usage-kpi__label">Avg cost</p>
               <p className="usage-kpi__value usage-kpi__value--normal">
-                {calls.length > 0 ? formatKibsLabel(usdToKibs(stats.avgCost)) : "—"}
+                {calls.length > 0 ? formatKibixLabel(usdToKibix(stats.avgCost)) : "—"}
               </p>
               <p className="usage-kpi__hint">
                 {calls.length > 0 ? `≈ ${formatUsd(stats.avgCost, 4)} per call` : "Per call"}
@@ -254,7 +254,7 @@ export default function Usage() {
                         fontSize: 12,
                       }}
                       formatter={(v: number, name) => [
-                        `${formatKibs(v)} ${KIBS_LABEL}`,
+                        `${formatKibix(v)} ${KIBIX_LABEL}`,
                         name as string,
                       ]}
                     />
@@ -268,7 +268,7 @@ export default function Usage() {
 
         <section className="usage-chart-card">
           <div className="usage-chart-card__head">
-            <h2 className="usage-chart-card__title">Daily spend ({KIBS_LABEL})</h2>
+            <h2 className="usage-chart-card__title">Daily spend ({KIBIX_LABEL})</h2>
             <p className="usage-chart-card__desc">
               {dailySpend.length === 0
                 ? "No calls yet"
@@ -304,10 +304,10 @@ export default function Usage() {
                         borderRadius: 10,
                         fontSize: 12,
                       }}
-                      formatter={(v: number) => `${formatKibs(v)} ${KIBS_LABEL}`}
+                      formatter={(v: number) => `${formatKibix(v)} ${KIBIX_LABEL}`}
                     />
                     <Bar
-                      dataKey="kibs"
+                      dataKey="kibix"
                       fill="var(--color-primary)"
                       radius={[6, 6, 0, 0]}
                     />

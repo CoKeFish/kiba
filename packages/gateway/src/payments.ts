@@ -1,5 +1,5 @@
 /**
- * Pagos fiat → créditos (Kibs) mediante una abstracción de "payment provider".
+ * Pagos fiat → créditos (Kibix) mediante una abstracción de "payment provider".
  *
  * Igual que `ChainClient` abstrae la cadena, `PaymentProvider` abstrae la pasarela.
  * Hay dos implementaciones:
@@ -19,8 +19,8 @@ import { ASSET_USD_RATE } from './chain';
 
 /** Pesos colombianos por 1 USD (solo para convertir recargas locales). */
 export const COP_USD_RATE = Number(process.env.COP_USD_RATE) || 4000;
-/** Créditos (Kibs) por USD — debe coincidir con el front (display). */
-const KIBS_PER_USD = 10_000;
+/** Créditos (Kibix) por USD — debe coincidir con el front (display). */
+const KIBIX_PER_USD = 10_000;
 /** Llave Bre-B del comercio (sandbox). */
 const BREB_MERCHANT_LLAVE = process.env.BREB_MERCHANT_LLAVE || '@kiba';
 /** Provider activo. */
@@ -63,7 +63,7 @@ function paypalConfigured(): boolean {
 
 // ── USDC en Stellar (depósito cripto, estilo AstroPay) ──
 // El usuario envía USDC a una dirección de la plataforma con un memo único; un
-// poll a Horizon detecta el pago entrante con ese memo y acredita los Kibs.
+// poll a Horizon detecta el pago entrante con ese memo y acredita los Kibix.
 const STELLAR_HORIZON_URL = (process.env.STELLAR_HORIZON_URL || 'https://horizon-testnet.stellar.org').replace(
   /\/+$/,
   '',
@@ -78,7 +78,7 @@ function stellarConfigured(): boolean {
 }
 
 export const copToUsd = (cop: number) => cop / COP_USD_RATE;
-export const copToKibs = (cop: number) => Math.round(copToUsd(cop) * KIBS_PER_USD);
+export const copToKibix = (cop: number) => Math.round(copToUsd(cop) * KIBIX_PER_USD);
 const sha256 = (s: string) => createHash('sha256').update(s).digest('hex');
 
 function wompiConfigured(): boolean {
@@ -93,7 +93,7 @@ export interface Charge {
   reference: string;
   amountCop: number;
   amountUsd: number;
-  kibs: number;
+  kibix: number;
   status: 'pending' | 'paid' | 'expired';
   detail: Record<string, unknown>;
   createdAt: number;
@@ -167,7 +167,7 @@ function rowToCharge(r: ChargeRow): Charge {
     reference: r.reference,
     amountCop: r.amount_cop,
     amountUsd: r.amount_usd,
-    kibs: Math.round(r.amount_usd * KIBS_PER_USD),
+    kibix: Math.round(r.amount_usd * KIBIX_PER_USD),
     status: r.status,
     detail: r.metadata ? (JSON.parse(r.metadata) as Record<string, unknown>) : {},
     createdAt: r.created_at,
@@ -502,7 +502,7 @@ class StripeProvider implements PaymentProvider {
     form.set('line_items[0][quantity]', '1');
     form.set('line_items[0][price_data][currency]', 'usd');
     form.set('line_items[0][price_data][unit_amount]', String(cents));
-    form.set('line_items[0][price_data][product_data][name]', 'Kiba — recarga de créditos (Kibs)');
+    form.set('line_items[0][price_data][product_data][name]', 'Kiba — recarga de créditos (Kibix)');
     const session = (await this.stripe('/checkout/sessions', 'POST', form)) as StripeSession;
 
     // 3. Guardamos la URL + el session id en el cobro.

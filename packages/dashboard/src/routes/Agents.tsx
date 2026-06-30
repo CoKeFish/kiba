@@ -42,7 +42,7 @@ export default function Agents() {
       hasQuery ? (await api.searchAgents(debouncedQuery, mode, 50)).results : await api.agents(),
   });
 
-  const myAgentsQuery = useQuery({
+  const { data: myAgentsData } = useQuery({
     queryKey: ["my-agents"],
     queryFn: () => api.myAgents(),
   });
@@ -77,8 +77,8 @@ export default function Agents() {
     return DEMO_AGENTS;
   }, [data, hasQuery]);
   const myServices = useMemo(
-    () => new Set((myAgentsQuery.data ?? []).map((a) => a.service)),
-    [myAgentsQuery.data],
+    () => new Set((myAgentsData ?? []).map((a) => a.service)),
+    [myAgentsData],
   );
 
   return (

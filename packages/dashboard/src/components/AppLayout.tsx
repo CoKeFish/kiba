@@ -21,7 +21,7 @@ import { useAuth } from "@/lib/auth";
 import { useMode, type DashboardMode } from "@/lib/mode";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { formatUsd, formatKibs, usdToKibs, KIBS_LABEL } from "@/lib/format";
+import { formatUsd, formatKibix, usdToKibix, KIBIX_LABEL } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 
 const consumerNav = [
@@ -107,6 +107,7 @@ export function AppLayout() {
             ]).map(({ m, label, icon: Icon }) => (
               <button
                 key={m}
+                type="button"
                 onClick={() => switchMode(m)}
                 style={{
                   display: "flex",
@@ -185,6 +186,7 @@ export function AppLayout() {
             </div>
           )}
           <button
+            type="button"
             onClick={handleLogout}
             style={{
               display: "flex",
@@ -248,7 +250,7 @@ export function AppLayout() {
             >
               Balance:{" "}
               <span style={{ color: "var(--color-fg)", fontWeight: 600 }}>
-                {balance ? `${formatKibs(usdToKibs(balance.balance_usd))} ${KIBS_LABEL}` : "—"}
+                {balance ? `${formatKibix(usdToKibix(balance.balance_usd))} ${KIBIX_LABEL}` : "—"}
               </span>
               {balance && (
                 <span style={{ color: "var(--color-fg-subtle)", marginLeft: 6 }}>

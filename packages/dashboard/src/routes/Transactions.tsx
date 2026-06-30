@@ -8,9 +8,9 @@ import { Button } from "@/components/ui/button";
 import {
   formatUsd,
   lamportsToUsd,
-  formatKibs,
-  baseUnitsToKibs,
-  KIBS_LABEL,
+  formatKibix,
+  baseUnitsToKibix,
+  KIBIX_LABEL,
   shortSig,
   explorerUrl,
 } from "@/lib/format";
@@ -112,7 +112,7 @@ export default function Transactions() {
                     <Td className="text-right font-mono">
                       <div className={t.type === "topup" ? "text-[var(--color-success)]" : ""}>
                         {t.type === "topup" ? "+" : "-"}
-                        {formatKibs(baseUnitsToKibs(t.amount_lamports))} {KIBS_LABEL}
+                        {formatKibix(baseUnitsToKibix(t.amount_lamports))} {KIBIX_LABEL}
                       </div>
                       <div className="text-xs text-[var(--color-fg-muted)]">
                         ≈ {formatUsd(lamportsToUsd(t.amount_lamports))}
