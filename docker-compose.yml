@@ -86,6 +86,8 @@ services:
       - "5004:5004"  # price-oracle
       - "5005:5005"  # code-reviewer
       - "5006:5006"  # firecrawl
+      - "5007:5007"  # world-clock
+      - "5008:5008"  # randomizer
     environment:
       - NODE_ENV=development
       - BACKEND_URL=http://backend:4000

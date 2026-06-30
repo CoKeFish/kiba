@@ -62,6 +62,30 @@ export const DEMO_AGENTS: Agent[] = [
     createdAt: Math.floor(Date.now() / 1000),
     source: "fallback",
   },
+  {
+    service: "world-clock",
+    description: "Current time in any city or timezone, plus the best meeting slot across remote teams.",
+    endpoint: "http://demo-agents:5007",
+    pricePerCall: 0.0005,
+    ownerWallet: "PHASE_1_PLACEHOLDER",
+    acceptedToken: "USDC",
+    totalCalls: 58,
+    totalEarned: 0,
+    createdAt: Math.floor(Date.now() / 1000),
+    source: "fallback",
+  },
+  {
+    service: "randomizer",
+    description: "Random numbers and draws: pick a number, roll dice, flip a coin, pick from a list or shuffle it.",
+    endpoint: "http://demo-agents:5008",
+    pricePerCall: 0.0003,
+    ownerWallet: "PHASE_1_PLACEHOLDER",
+    acceptedToken: "USDC",
+    totalCalls: 27,
+    totalEarned: 0,
+    createdAt: Math.floor(Date.now() / 1000),
+    source: "fallback",
+  },
 ];
 
 export const DEMO_AGENT_TAGS: Record<string, "semantic" | "hybrid" | "keyword"> = {
@@ -70,4 +94,6 @@ export const DEMO_AGENT_TAGS: Record<string, "semantic" | "hybrid" | "keyword"> 
   "yield-hunter": "semantic",
   "risk-auditor": "hybrid",
   "code-reviewer": "keyword",
+  "world-clock": "hybrid",
+  "randomizer": "keyword",
 };

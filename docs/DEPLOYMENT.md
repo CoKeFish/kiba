@@ -24,11 +24,32 @@ Los demás paquetes (`sdk`, `contracts`, `contracts-soroban`, `mcp-server`, `ins
 
 Los 5 agentes corren en servicios Railway separados (un puerto público c/u). Imagen:
 `packages/demo-agents/Dockerfile.railway` (selecciona el agente con `AGENT_NAME`).
-Variables por servicio: `AGENT_NAME` (translator-pro|yield-hunter|risk-auditor|price-oracle|code-reviewer),
-`AGENT_WALLET_SECRET` (keypair del owner on-chain, JSON array), `PUBLIC_ENDPOINT`
-(su URL pública — el agente actualiza su endpoint on-chain en boot vía `bootstrap()`),
-`CHAIN=stellar`, `STELLAR_*`, `BACKEND_URL`. No están en el pipeline de CI; se
-desplegaron con `railway up --service kiba-agent-<x>`.
+Variables por servicio: `AGENT_NAME` (translator-pro|yield-hunter|risk-auditor|price-oracle|code-reviewer|world-clock|randomizer),
+`AGENT_WALLET_SECRET` (keypair del owner on-chain; secreto `S...` o JSON array de bytes),
+`PUBLIC_ENDPOINT` (su URL pública — el agente actualiza su endpoint on-chain en boot vía
+`bootstrap()`), más las compartidas `CHAIN=stellar`, `STELLAR_*`, `BACKEND_URL`,
+`KIBA_PLATFORM_PUBLIC_KEY`, `TRUSTLESS_WORK_PLATFORM_ADDRESS`, `RAILWAY_DOCKERFILE_PATH`.
+No están en el pipeline de CI; se despliegan con `railway up --service kiba-agent-<x>`
+(o con el script de abajo, que automatiza todo el alta).
+
+### Agregar otro demo-agent (script)
+
+`scripts/deploy-railway-agent.sh <AGENT_NAME>` hace el alta completa de un agente nuevo
+en Railway: genera su keypair Stellar, lo fondea en testnet (friendbot), crea el servicio
+`kiba-agent-<corto>` **clonando las variables compartidas** de un agente ya desplegado
+(`REF_SERVICE`, def. `kiba-agent-code`) para garantizar paridad de envs, despliega con
+`Dockerfile.railway`, genera el dominio y fija `PUBLIC_ENDPOINT`. El registro on-chain lo
+hace `bootstrap()` en el primer arranque (y corrige el endpoint vía drift en el redeploy).
+
+```bash
+# requiere: railway CLI logueado+linkeado a kiba/production, docker, curl
+scripts/deploy-railway-agent.sh world-clock
+scripts/deploy-railway-agent.sh randomizer
+```
+
+Tras desplegar, agrega su fila a la tabla de arriba con la URL generada. Pendientes de
+desplegar con este flujo: **world-clock** (`kiba-agent-world`), **randomizer**
+(`kiba-agent-randomizer`).
 
 > ⚠️ **El master wallet del gateway debe estar fondeado on-chain.** En modo virtual el
 > gateway refilla la custodial del usuario desde el master (`ensureFunded`) para abrir el
