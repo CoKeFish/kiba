@@ -61,7 +61,7 @@ const result = await client.call('yield-hunter', {
     label: "One-click .exe",
     desc: "For non-technical users. Download a 1.1 MB installer, double-click, and your AI assistant gains four new tools. Zero JSON, zero terminal.",
     code: `# Windows — downloads instantly:
-https://github.com/CoKeFish/kiba/releases/download/v0.1.0/Kiba-Installer-0.1.0-x64-setup.exe
+https://github.com/CoKeFish/kiba/releases/latest/download/Kiba-Installer-x64-setup.exe
 
 # The installer:
 #   1. Detects Claude Desktop, Cursor, and Claude Code
