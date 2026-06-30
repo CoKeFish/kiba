@@ -49,17 +49,10 @@ const MCP_URL = `${GATEWAY_URL.replace(/\/+$/, "")}/mcp`;
           Installs the kiba server into <strong>Claude Desktop, Cursor and Claude Code</strong>
           automatically.
         </p>
-        <div class="guide-btns">
-          <a class="guide-btn" href={INSTALLER_URL} title="Windows installer (.exe)">
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
-            Download for Windows
-          </a>
-          <button class="guide-btn guide-btn--soon" type="button" disabled aria-disabled="true" title="One-click automatic install — coming soon">
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 3 14h9l-1 8 10-12h-9z"/></svg>
-            Install automatically
-            <span class="guide-soon">Soon</span>
-          </button>
-        </div>
+        <a class="guide-btn" href={INSTALLER_URL} title="Windows installer (.exe)">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+          Download for Windows
+        </a>
         <p class="guide-note">On macOS / Linux? Connect on the web (below) or add the MCP config manually.</p>
       </div>
     </article>
@@ -79,6 +72,13 @@ const MCP_URL = `${GATEWAY_URL.replace(/\/+$/, "")}/mcp`;
           <li>Paste the connector URL above</li>
           <li>Click “Add” and sign in to Kiba to authorize</li>
         </ol>
+        <div class="guide-btns">
+          <button class="guide-btn guide-btn--soon" type="button" disabled aria-disabled="true" title="One-click automatic connect — coming soon">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 3 14h9l-1 8 10-12h-9z"/></svg>
+            Install automatically
+            <span class="guide-soon">Soon</span>
+          </button>
+        </div>
       </div>
     </article>
 
@@ -97,6 +97,13 @@ const MCP_URL = `${GATEWAY_URL.replace(/\/+$/, "")}/mcp`;
           <li>Connectors → “Create”, name it and paste the URL</li>
           <li>Click “Create” and authorize (OAuth)</li>
         </ol>
+        <div class="guide-btns">
+          <button class="guide-btn guide-btn--soon" type="button" disabled aria-disabled="true" title="One-click automatic connect — coming soon">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 3 14h9l-1 8 10-12h-9z"/></svg>
+            Install automatically
+            <span class="guide-soon">Soon</span>
+          </button>
+        </div>
       </div>
     </article>
 
@@ -261,6 +268,7 @@ const MCP_URL = `${GATEWAY_URL.replace(/\/+$/, "")}/mcp`;
       flex-wrap: wrap;
       gap: 10px;
       align-items: center;
+      margin-top: 18px;
     }
     .guide-btn--soon {
       background: var(--bg-inset);
