@@ -23,6 +23,7 @@ import {
   Zap,
 } from "lucide-react";
 import { BrebTopup } from "@/components/BrebTopup";
+import { RechargeWalletKit } from "@/components/RechargeWalletKit";
 import "./billing.css";
 
 const QUICK_AMOUNTS = [5, 10, 25, 50, 100];
@@ -36,6 +37,7 @@ const MASCOTS = {
 export default function Billing() {
   const qc = useQueryClient();
   const { data: balance } = useQuery({ queryKey: ["balance"], queryFn: api.balance });
+  const { data: wallet } = useQuery({ queryKey: ["wallet"], queryFn: api.wallet });
   const { data: txs = [] } = useQuery({
     queryKey: ["transactions", "billing"],
     queryFn: () => api.transactions(200),
@@ -178,6 +180,26 @@ export default function Billing() {
       </div>
 
       <BrebTopup />
+
+      {wallet && (
+        <section className="billing-card">
+          <h2 className="billing-card__title">
+            <Wallet size={18} strokeWidth={2.25} />
+            Recargar tu wallet on-chain
+          </h2>
+          <p className="billing-card__desc">
+            Envía USDC directo a tu wallet Stellar de Kiba desde una wallet externa (Freighter,
+            xBull, Albedo…). Se acredita on-chain al instante, sin memo ni QR.
+          </p>
+          <RechargeWalletKit
+            walletAddress={wallet.pubkey}
+            onFunded={() => {
+              qc.invalidateQueries({ queryKey: ["balance"] });
+              qc.invalidateQueries({ queryKey: ["wallet"] });
+            }}
+          />
+        </section>
+      )}
 
       <section className="billing-card">
         <div className="billing-invoices__head">
