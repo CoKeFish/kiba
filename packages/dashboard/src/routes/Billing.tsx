@@ -126,8 +126,6 @@ export default function Billing() {
         )}
       </div>
 
-      <BrebTopup />
-
       <section className="billing-card billing-topup">
         <img src={MASCOTS.triangulo} alt="" aria-hidden className="billing-topup__mascot" />
         <h2 className="billing-card__title">
@@ -190,6 +188,8 @@ export default function Billing() {
             : `Add ${formatKibixLabel(usdToKibix(amount))} (${formatUsd(amount)})`}
         </button>
       </section>
+
+      <BrebTopup />
 
       <section className="billing-card">
         <div className="billing-invoices__head">
