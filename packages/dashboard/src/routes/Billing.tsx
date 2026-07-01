@@ -182,23 +182,13 @@ export default function Billing() {
       <BrebTopup />
 
       {wallet && (
-        <section className="billing-card">
-          <h2 className="billing-card__title">
-            <Wallet size={18} strokeWidth={2.25} />
-            Recargar tu wallet on-chain
-          </h2>
-          <p className="billing-card__desc">
-            Envía USDC directo a tu wallet Stellar de Kiba desde una wallet externa (Freighter,
-            xBull, Albedo…). Se acredita on-chain al instante, sin memo ni QR.
-          </p>
-          <RechargeWalletKit
-            walletAddress={wallet.pubkey}
-            onFunded={() => {
-              qc.invalidateQueries({ queryKey: ["balance"] });
-              qc.invalidateQueries({ queryKey: ["wallet"] });
-            }}
-          />
-        </section>
+        <RechargeWalletKit
+          walletAddress={wallet.pubkey}
+          onFunded={() => {
+            qc.invalidateQueries({ queryKey: ["balance"] });
+            qc.invalidateQueries({ queryKey: ["wallet"] });
+          }}
+        />
       )}
 
       <section className="billing-card">
