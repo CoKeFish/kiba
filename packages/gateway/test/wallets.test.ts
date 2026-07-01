@@ -1,6 +1,6 @@
-import { TEST_TMP_DIR, TEST_MASTER_KEYPAIR } from './_setup-env';
+import { TEST_MASTER_KEYPAIR, TRUNCATE_SQL } from './_setup-env';
 
-import { test, after } from 'node:test';
+import { test, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { Keypair } from '@solana/web3.js';
 import { rmSync, mkdtempSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
@@ -9,19 +9,18 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import { getMasterWallet, masterWalletPubkey, loadUserWallet } from '../src/wallets';
-import { db } from '../src/db';
+import { db, initDb, pool } from '../src/db';
 
-after(() => {
-  try {
-    db.close();
-  } catch {
-    /* ignore */
-  }
-  try {
-    rmSync(TEST_TMP_DIR, { recursive: true, force: true });
-  } catch {
-    /* ignore */
-  }
+before(async () => {
+  await initDb();
+});
+
+after(async () => {
+  await pool.end();
+});
+
+beforeEach(async () => {
+  await db.exec(TRUNCATE_SQL);
 });
 
 // ─── master wallet (env path) ──────────────────────────────────
@@ -46,19 +45,18 @@ test('masterWalletPubkey() devuelve la pubkey base58 de la master', () => {
 
 test('loadMasterWallet cae a archivo cuando MASTER_WALLET_SECRET está vacío', () => {
   const subTmp = mkdtempSync(join(tmpdir(), 'gw-wallets-sub-'));
-  const dbPath = join(subTmp, 'sub.db');
   const masterPath = join(subTmp, 'master-wallet.json');
   const scriptPath = join(subTmp, 'probe.ts');
 
   // Escribimos el script en disco para evitar problemas de quoting en Windows
   // shell. El subproceso limpia el env de master, fija un path temporal,
   // importa wallets.ts, e imprime la pubkey por stdout.
-  // Path absoluto al wallets.ts; pathToFileURL para que dynamic import lo
-  // acepte como URL.
+  // db.ts exige DATABASE_URL al cargar (aunque no conecta: masterWalletPubkey no
+  // toca la DB), así que le damos un valor dummy que nunca se usa para conectar.
   const walletsTs = join(__dirname, '..', 'src', 'wallets.ts');
   const walletsUrl = pathToFileURL(walletsTs).href;
   const script = `
-    process.env.DB_PATH = ${JSON.stringify(dbPath)};
+    process.env.DATABASE_URL = 'postgres://x:x@localhost:5432/x';
     delete process.env.MASTER_WALLET_SECRET;
     process.env.MASTER_KEYPAIR_PATH = ${JSON.stringify(masterPath)};
     import(${JSON.stringify(walletsUrl)}).then((m) => {
@@ -106,22 +104,22 @@ test('loadMasterWallet cae a archivo cuando MASTER_WALLET_SECRET está vacío', 
 
 // ─── loadUserWallet ────────────────────────────────────────────
 
-test('loadUserWallet recupera keypair del custodial_wallet_secret en DB', () => {
+test('loadUserWallet recupera keypair del custodial_wallet_secret en DB', async () => {
   const userKp = Keypair.generate();
   const secretJson = JSON.stringify(Array.from(userKp.secretKey));
   const now = Math.floor(Date.now() / 1000);
-  const result = db
+  const result = await db
     .prepare(
       `INSERT INTO users (email, password_hash, custodial_wallet_secret, custodial_wallet_pubkey, balance_lamports, created_at)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?) RETURNING id`,
     )
     .run('uw@test', 'h', secretJson, userKp.publicKey.toBase58(), 0, now);
   const userId = Number(result.lastInsertRowid);
 
-  const loaded = loadUserWallet(userId);
+  const loaded = await loadUserWallet(userId);
   assert.equal(loaded.publicKey.toBase58(), userKp.publicKey.toBase58());
 });
 
-test('loadUserWallet con userId inexistente lanza error', () => {
-  assert.throws(() => loadUserWallet(999999), /not found/);
+test('loadUserWallet con userId inexistente lanza error', async () => {
+  await assert.rejects(() => loadUserWallet(999999), /not found/);
 });

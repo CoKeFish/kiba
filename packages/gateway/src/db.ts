@@ -103,7 +103,20 @@ export async function withTransaction<T>(fn: (tx: Tx) => Promise<T>): Promise<T>
  * gateway, ANTES de `app.listen`. Como el Postgres de prod arranca limpio, `CREATE TABLE IF NOT
  * EXISTS` basta; los `ADD COLUMN IF NOT EXISTS` protegen ante evoluciones futuras del schema.
  */
-export async function initDb(): Promise<void> {
+let initPromise: Promise<void> | null = null;
+
+/**
+ * Corre el DDL una sola vez por proceso. Llamadas concurrentes (p.ej. los hooks
+ * `before` de varios test files en el mismo proceso) comparten la misma promesa,
+ * así el DDL no se ejecuta en paralelo (evita la carrera de CREATE TABLE IF NOT
+ * EXISTS → pg_type duplicate).
+ */
+export function initDb(): Promise<void> {
+  if (!initPromise) initPromise = runInit();
+  return initPromise;
+}
+
+async function runInit(): Promise<void> {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS users (
       id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,

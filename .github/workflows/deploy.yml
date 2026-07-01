@@ -68,6 +68,21 @@ jobs:
   # ---- Tests (gate de los deploys) -----------------------------------------
   test:
     runs-on: ubuntu-latest
+    services:
+      # Postgres de test para el gateway (migrado de SQLite a pg).
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: kiba_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -76,6 +91,8 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Run workspace tests
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/kiba_test
         run: npm test --workspaces --if-present
 
   # ---- Vercel: landing -----------------------------------------------------

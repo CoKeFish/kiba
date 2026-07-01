@@ -6,7 +6,7 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "test": "node --import tsx --test --test-reporter=spec test/billing.test.ts test/oauth.test.ts test/auth.test.ts test/wallets.test.ts"
+    "test": "node --import tsx --test --test-reporter=spec test/billing.test.ts && node --import tsx --test --test-reporter=spec test/auth.test.ts && node --import tsx --test --test-reporter=spec test/oauth.test.ts && node --import tsx --test --test-reporter=spec test/wallets.test.ts"
   },
   "dependencies": {
     "kiba-sdk": "*",

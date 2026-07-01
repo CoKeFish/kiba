@@ -1,8 +1,7 @@
-import { TEST_TMP_DIR } from './_setup-env';
+import { TRUNCATE_SQL } from './_setup-env';
 
-import { test, after, beforeEach } from 'node:test';
+import { test, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { rmSync } from 'node:fs';
 import {
   signJwt,
   verifyJwt,
@@ -13,23 +12,18 @@ import {
   getUserByToken,
 } from '../src/auth';
 import { usdToLamports } from '../src/billing';
-import { db } from '../src/db';
+import { db, initDb, pool } from '../src/db';
 
-after(() => {
-  try {
-    db.close();
-  } catch {
-    /* ignore */
-  }
-  try {
-    rmSync(TEST_TMP_DIR, { recursive: true, force: true });
-  } catch {
-    /* ignore */
-  }
+before(async () => {
+  await initDb();
 });
 
-beforeEach(() => {
-  db.exec('DELETE FROM oauth_tokens; DELETE FROM oauth_sessions; DELETE FROM transactions; DELETE FROM users;');
+after(async () => {
+  await pool.end();
+});
+
+beforeEach(async () => {
+  await db.exec(TRUNCATE_SQL);
 });
 
 // ─── newRandomId ───────────────────────────────────────────────
@@ -102,8 +96,8 @@ test('verifyJwt incluye iat y exp en el payload', () => {
 
 // ─── createUser / authenticate ─────────────────────────────────
 
-test('createUser inserta usuario y le da bono inicial $5', () => {
-  const result = createUser('new@test.com', 'password123');
+test('createUser inserta usuario y le da bono inicial $5', async () => {
+  const result = await createUser('new@test.com', 'password123');
   assert.ok(!('error' in result));
   if (!('error' in result)) {
     assert.equal(result.email, 'new@test.com');
@@ -117,12 +111,12 @@ test('createUser inserta usuario y le da bono inicial $5', () => {
   }
 });
 
-test('createUser registra una transacción de bono "signup-bonus"', () => {
-  const result = createUser('bonus@test.com', 'password123');
+test('createUser registra una transacción de bono "signup-bonus"', async () => {
+  const result = await createUser('bonus@test.com', 'password123');
   if (!('error' in result)) {
-    const txs = db
+    const txs = (await db
       .prepare('SELECT * FROM transactions WHERE user_id = ?')
-      .all(result.id) as Array<{ type: string; service: string; amount_lamports: number }>;
+      .all(result.id)) as Array<{ type: string; service: string; amount_lamports: number }>;
     assert.equal(txs.length, 1);
     assert.equal(txs[0].type, 'topup');
     assert.equal(txs[0].service, 'signup-bonus');
@@ -130,89 +124,95 @@ test('createUser registra una transacción de bono "signup-bonus"', () => {
   }
 });
 
-test('createUser con email duplicado → error', () => {
-  createUser('dup@test.com', 'password1');
-  const second = createUser('dup@test.com', 'password2');
+test('createUser con email duplicado → error', async () => {
+  await createUser('dup@test.com', 'password1');
+  const second = await createUser('dup@test.com', 'password2');
   assert.ok('error' in second);
   if ('error' in second) {
     assert.match(second.error, /registrado/i);
   }
 });
 
-test('authenticate con password correcta → user', () => {
-  const created = createUser('auth@test.com', 'mypass');
+test('authenticate con password correcta → user', async () => {
+  const created = await createUser('auth@test.com', 'mypass');
   if (!('error' in created)) {
-    const user = authenticate('auth@test.com', 'mypass');
+    const user = await authenticate('auth@test.com', 'mypass');
     assert.ok(user);
     assert.equal(user!.id, created.id);
   }
 });
 
-test('authenticate con password incorrecta → null', () => {
-  createUser('bad@test.com', 'rightpass');
-  assert.equal(authenticate('bad@test.com', 'wrongpass'), null);
+test('authenticate con password incorrecta → null', async () => {
+  await createUser('bad@test.com', 'rightpass');
+  assert.equal(await authenticate('bad@test.com', 'wrongpass'), null);
 });
 
-test('authenticate con email inexistente → null', () => {
-  assert.equal(authenticate('nobody@test.com', 'x'), null);
+test('authenticate con email inexistente → null', async () => {
+  assert.equal(await authenticate('nobody@test.com', 'x'), null);
 });
 
 // ─── getUser ───────────────────────────────────────────────────
 
-test('getUser por id existente', () => {
-  const created = createUser('lookup@test.com', 'pass1');
+test('getUser por id existente', async () => {
+  const created = await createUser('lookup@test.com', 'pass1');
   if (!('error' in created)) {
-    const u = getUser(created.id);
+    const u = await getUser(created.id);
     assert.ok(u);
     assert.equal(u!.email, 'lookup@test.com');
   }
 });
 
-test('getUser por id inexistente → null', () => {
-  assert.equal(getUser(99999), null);
+test('getUser por id inexistente → null', async () => {
+  assert.equal(await getUser(99999), null);
 });
 
 // ─── getUserByToken ────────────────────────────────────────────
 
-test('getUserByToken con token válido en oauth_tokens → user', () => {
-  const created = createUser('tok@test.com', 'pass1');
+test('getUserByToken con token válido en oauth_tokens → user', async () => {
+  const created = await createUser('tok@test.com', 'pass1');
   if (!('error' in created)) {
     const now = Math.floor(Date.now() / 1000);
-    db.prepare(
-      `INSERT INTO oauth_tokens (token, user_id, client_name, expires_at, created_at)
+    await db
+      .prepare(
+        `INSERT INTO oauth_tokens (token, user_id, client_name, expires_at, created_at)
        VALUES (?, ?, ?, ?, ?)`,
-    ).run('tok_abc', created.id, 'mcp', now + 3600, now);
+      )
+      .run('tok_abc', created.id, 'mcp', now + 3600, now);
 
-    const u = getUserByToken('tok_abc');
+    const u = await getUserByToken('tok_abc');
     assert.ok(u);
     assert.equal(u!.id, created.id);
   }
 });
 
-test('getUserByToken con token expirado → null', () => {
-  const created = createUser('exp@test.com', 'pass1');
+test('getUserByToken con token expirado → null', async () => {
+  const created = await createUser('exp@test.com', 'pass1');
   if (!('error' in created)) {
     const now = Math.floor(Date.now() / 1000);
-    db.prepare(
-      `INSERT INTO oauth_tokens (token, user_id, client_name, expires_at, created_at)
+    await db
+      .prepare(
+        `INSERT INTO oauth_tokens (token, user_id, client_name, expires_at, created_at)
        VALUES (?, ?, ?, ?, ?)`,
-    ).run('tok_old', created.id, 'mcp', now - 1, now - 100);
-    assert.equal(getUserByToken('tok_old'), null);
+      )
+      .run('tok_old', created.id, 'mcp', now - 1, now - 100);
+    assert.equal(await getUserByToken('tok_old'), null);
   }
 });
 
-test('getUserByToken con token revocado → null', () => {
-  const created = createUser('rev@test.com', 'pass1');
+test('getUserByToken con token revocado → null', async () => {
+  const created = await createUser('rev@test.com', 'pass1');
   if (!('error' in created)) {
     const now = Math.floor(Date.now() / 1000);
-    db.prepare(
-      `INSERT INTO oauth_tokens (token, user_id, client_name, expires_at, revoked, created_at)
+    await db
+      .prepare(
+        `INSERT INTO oauth_tokens (token, user_id, client_name, expires_at, revoked, created_at)
        VALUES (?, ?, ?, ?, 1, ?)`,
-    ).run('tok_rev', created.id, 'mcp', now + 3600, now);
-    assert.equal(getUserByToken('tok_rev'), null);
+      )
+      .run('tok_rev', created.id, 'mcp', now + 3600, now);
+    assert.equal(await getUserByToken('tok_rev'), null);
   }
 });
 
-test('getUserByToken con token inexistente → null', () => {
-  assert.equal(getUserByToken('tok_unknown'), null);
+test('getUserByToken con token inexistente → null', async () => {
+  assert.equal(await getUserByToken('tok_unknown'), null);
 });
