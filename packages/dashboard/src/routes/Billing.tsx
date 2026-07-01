@@ -115,81 +115,81 @@ export default function Billing() {
           </section>
         </div>
 
-        <section className="billing-card billing-topup">
-          <img src={MASCOTS.triangulo} alt="" aria-hidden className="billing-topup__mascot" />
-          <h2 className="billing-card__title">
-            <Zap size={18} strokeWidth={2.25} />
-            Top up
-          </h2>
-          <p className="billing-card__desc">
-            Pay in dollars — we convert to {KIBIX_LABEL} instantly ($1 ={" "}
-            {formatKibix(usdToKibix(1))} {KIBIX_LABEL}). Demo mode adds them instantly; production
-            would route through Stripe Checkout.
-          </p>
-
-          <div className="billing-amounts">
-            {QUICK_AMOUNTS.map((q) => (
-              <button
-                key={q}
-                type="button"
-                className={`billing-amount${amount === q ? " is-active" : ""}`}
-                onClick={() => setAmount(q)}
-              >
-                ${q}
-              </button>
-            ))}
-            <label className="billing-custom">
-              Custom ($)
-              <input
-                type="number"
-                min={1}
-                max={1000}
-                value={amount}
-                onChange={(e) => setAmount(Number(e.target.value))}
-              />
-            </label>
-          </div>
-
-          {amount > 0 && (
-            <div className="billing-convert">
-              {formatUsd(amount)} →{" "}
-              <strong>{formatKibixLabel(usdToKibix(amount))}</strong>
-            </div>
-          )}
-
-          {error && (
-            <div className="billing-alert billing-alert--err">
-              <AlertCircle size={16} />
-              {error}
-            </div>
-          )}
-          {success && <div className="billing-alert billing-alert--ok">{success}</div>}
-
-          <button
-            type="button"
-            className="billing-submit"
-            onClick={() => submit(amount)}
-            disabled={mutation.isPending || amount <= 0}
-          >
-            <CreditCard size={16} />
-            {mutation.isPending
-              ? "Processing…"
-              : `Add ${formatKibixLabel(usdToKibix(amount))} (${formatUsd(amount)})`}
-          </button>
-        </section>
+        {wallet && (
+          <RechargeWalletKit
+            walletAddress={wallet.pubkey}
+            onFunded={() => {
+              qc.invalidateQueries({ queryKey: ["balance"] });
+              qc.invalidateQueries({ queryKey: ["wallet"] });
+            }}
+          />
+        )}
       </div>
 
       <BrebTopup />
 
-      {wallet && (
-        <RechargeWalletKit
-          walletAddress={wallet.pubkey}
-          onFunded={() => {
-            qc.invalidateQueries({ queryKey: ["balance"] });
-            qc.invalidateQueries({ queryKey: ["wallet"] });
-          }}
-        />
-      )}
+      <section className="billing-card billing-topup">
+        <img src={MASCOTS.triangulo} alt="" aria-hidden className="billing-topup__mascot" />
+        <h2 className="billing-card__title">
+          <Zap size={18} strokeWidth={2.25} />
+          Top up
+        </h2>
+        <p className="billing-card__desc">
+          Pay in dollars — we convert to {KIBIX_LABEL} instantly ($1 ={" "}
+          {formatKibix(usdToKibix(1))} {KIBIX_LABEL}). Demo mode adds them instantly; production
+          would route through Stripe Checkout.
+        </p>
+
+        <div className="billing-amounts">
+          {QUICK_AMOUNTS.map((q) => (
+            <button
+              key={q}
+              type="button"
+              className={`billing-amount${amount === q ? " is-active" : ""}`}
+              onClick={() => setAmount(q)}
+            >
+              ${q}
+            </button>
+          ))}
+          <label className="billing-custom">
+            Custom ($)
+            <input
+              type="number"
+              min={1}
+              max={1000}
+              value={amount}
+              onChange={(e) => setAmount(Number(e.target.value))}
+            />
+          </label>
+        </div>
+
+        {amount > 0 && (
+          <div className="billing-convert">
+            {formatUsd(amount)} →{" "}
+            <strong>{formatKibixLabel(usdToKibix(amount))}</strong>
+          </div>
+        )}
+
+        {error && (
+          <div className="billing-alert billing-alert--err">
+            <AlertCircle size={16} />
+            {error}
+          </div>
+        )}
+        {success && <div className="billing-alert billing-alert--ok">{success}</div>}
+
+        <button
+          type="button"
+          className="billing-submit"
+          onClick={() => submit(amount)}
+          disabled={mutation.isPending || amount <= 0}
+        >
+          <CreditCard size={16} />
+          {mutation.isPending
+            ? "Processing…"
+            : `Add ${formatKibixLabel(usdToKibix(amount))} (${formatUsd(amount)})`}
+        </button>
+      </section>
 
       <section className="billing-card">
         <div className="billing-invoices__head">
