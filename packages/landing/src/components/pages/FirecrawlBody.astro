@@ -1,0 +1,270 @@
+---
+import { getLangFromUrl, useTranslations, localizePath } from "../../i18n/utils";
+
+const lang = getLangFromUrl(Astro.url);
+const t = useTranslations(lang);
+
+const DASHBOARD_URL = import.meta.env.PUBLIC_DASHBOARD_URL || "https://dashboard.kiba.rodion.com.co";
+const home = localizePath("/", lang);
+
+// ── Pricing (debe coincidir con packages/demo-agents/src/firecrawl.ts) ──
+const XLM_USD = 0.12;
+const PRICE_SCRAPE = 0.002;
+const PRICE_EXTRACT = 0.005;
+const usd = (xlm: number) => (xlm * XLM_USD).toFixed(4);
+
+// ── Snippets de código (no se traducen) ──
+const mcpConfig = `{
+  "mcpServers": {
+    "kiba": {
+      "command": "npx",
+      "args": ["-y", "kiba-mcp"]
+    }
+  }
+}`;
+
+const callExample = `// A través del MCP (Claude / Cursor) o el REST API del Gateway
+call_agent({
+  service: "firecrawl",
+  payload: {
+    url: "https://www.amazon.com/dp/B0XXXXXXX",
+    prompt: "Extrae el título del producto y el precio más bajo como número",
+    proxy: "stealth"   // recomendado para sitios con anti-bot
+  }
+})`;
+
+const responseExample = `{
+  "result": {
+    "url": "https://books.toscrape.com/.../mystery_3/index.html",
+    "extracted": {
+      "title": "Tastes Like Fear (DI Marnie Rome #3)",
+      "price": 10.69
+    },
+    "markdown": "# Mystery\\n\\n32 results...",
+    "metadata": { "title": "Mystery | Books to Scrape", "statusCode": 200 },
+    "_payment": {
+      "claimed": true,
+      "amount": "50000",
+      "signature": "3d3c5ad2…f324de"
+    }
+  },
+  "cost": { "baseUnits": 50000, "usd": 0.0006 }
+}`;
+
+const fields = [
+  { name: "url", req: true, type: "string", desc: t("firecrawl.field.url.desc") },
+  { name: "prompt", req: false, type: "string", desc: t("firecrawl.field.prompt.desc") },
+  { name: "schema", req: false, type: "object", desc: t("firecrawl.field.schema.desc") },
+  { name: "formats", req: false, type: "string[]", desc: t("firecrawl.field.formats.desc") },
+  { name: "onlyMainContent", req: false, type: "boolean", desc: t("firecrawl.field.onlyMainContent.desc") },
+  { name: "proxy", req: false, type: "string", desc: t("firecrawl.field.proxy.desc") },
+  { name: "waitFor", req: false, type: "number", desc: t("firecrawl.field.waitFor.desc") },
+  { name: "country", req: false, type: "string", desc: t("firecrawl.field.country.desc") },
+];
+
+const steps = [
+  { n: "1", t: t("firecrawl.step1.t"), d: t("firecrawl.step1.d") },
+  { n: "2", t: t("firecrawl.step2.t"), d: t("firecrawl.step2.d") },
+  { n: "3", t: t("firecrawl.step3.t"), d: t("firecrawl.step3.d") },
+  { n: "4", t: t("firecrawl.step4.t"), d: t("firecrawl.step4.d") },
+  { n: "5", t: t("firecrawl.step5.t"), d: t("firecrawl.step5.d") },
+];
+
+const tips = [
+  t("firecrawl.tip.1"),
+  t("firecrawl.tip.2"),
+  t("firecrawl.tip.3"),
+  t("firecrawl.tip.4"),
+  t("firecrawl.tip.5"),
+  t("firecrawl.tip.6"),
+];
+
+const warnings = [
+  t("firecrawl.warn.1"),
+  t("firecrawl.warn.2"),
+  t("firecrawl.warn.3"),
+  t("firecrawl.warn.4"),
+];
+
+const sectionPad = "padding: 88px 24px;";
+const wrap = "max-width: 920px; margin: 0 auto;";
+const h2 = "font-family: var(--font-display); font-size: clamp(26px, 3vw, 34px); font-weight: 600; color: var(--fg-1); letter-spacing: -0.02em; margin-bottom: 16px;";
+const lead = "font-family: var(--font-sans); font-size: 16px; color: var(--fg-2); line-height: 1.65;";
+const card = "background: var(--bg-card); border: 1px solid var(--border-default); border-radius: var(--radius-lg); padding: 22px; box-shadow: var(--shadow-sm);";
+const pre = "background: var(--bg-inset); border: 1px solid var(--border-default); border-radius: var(--radius-md); padding: 18px; overflow-x: auto; font-family: var(--font-mono); font-size: 13px; line-height: 1.6; color: var(--fg-1);";
+---
+
+<!-- Hero -->
+<section style={`${sectionPad} background: radial-gradient(ellipse at top, color-mix(in srgb, var(--accent) 12%, transparent), transparent 55%), var(--bg-canvas); border-bottom: 1px solid var(--border-subtle);`}>
+  <div style={wrap}>
+    <a href={`${home}#agents`} style="font-family: var(--font-mono); font-size: 12px; color: var(--fg-3);">{t("firecrawl.back")}</a>
+
+    <div style="display: flex; align-items: center; gap: 16px; margin-top: 24px; flex-wrap: wrap;">
+      <div style="
+        width: 56px; height: 56px; flex-shrink: 0;
+        border-radius: var(--radius-lg);
+        background: color-mix(in srgb, var(--accent) 16%, transparent);
+        border: 1px solid var(--border-accent);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 28px;
+      ">🔥</div>
+      <div>
+        <h1 style="font-family: var(--font-display); font-size: clamp(34px, 5vw, 52px); font-weight: 600; color: var(--fg-1); letter-spacing: -0.03em; line-height: 1;">Firecrawl</h1>
+        <code style="font-family: var(--font-mono); font-size: 13px; color: var(--fg-3);">{t("firecrawl.settles")}</code>
+      </div>
+    </div>
+
+    <p style="font-family: var(--font-sans); font-size: clamp(18px, 2.4vw, 22px); color: var(--fg-1); line-height: 1.5; margin-top: 28px; max-width: 720px;" set:html={t("firecrawl.hero.lead")}></p>
+
+    <div style="display: flex; gap: 12px; margin-top: 28px; flex-wrap: wrap;">
+      <a href={`${DASHBOARD_URL}/signup`} style="font-family: var(--font-sans); font-size: 15px; font-weight: 600; background: var(--accent); color: #fff; padding: 13px 26px; border-radius: 999px; text-decoration: none; box-shadow: 0 0 26px color-mix(in srgb, var(--accent) 45%, transparent);">{t("firecrawl.hero.try")}</a>
+      <a href="#how-to-use" style="font-family: var(--font-sans); font-size: 15px; font-weight: 600; background: transparent; color: var(--fg-1); border: 1px solid var(--border-strong); padding: 13px 22px; border-radius: 999px; text-decoration: none;">{t("firecrawl.hero.howto")}</a>
+    </div>
+
+    <!-- price chips -->
+    <div style="display: flex; gap: 12px; margin-top: 32px; flex-wrap: wrap;">
+      <div style={`${card} padding: 14px 18px;`}>
+        <div style="font-family: var(--font-mono); font-size: 11px; color: var(--fg-3); text-transform: uppercase; letter-spacing: 0.08em;">{t("firecrawl.chip.scrape")}</div>
+        <div style="font-family: var(--font-mono); font-size: 18px; font-weight: 600; color: var(--success); margin-top: 4px;">${usd(PRICE_SCRAPE)} <span style="color: var(--fg-3); font-size: 12px;">· {PRICE_SCRAPE} XLM</span></div>
+      </div>
+      <div style={`${card} padding: 14px 18px;`}>
+        <div style="font-family: var(--font-mono); font-size: 11px; color: var(--fg-3); text-transform: uppercase; letter-spacing: 0.08em;">{t("firecrawl.chip.extract")}</div>
+        <div style="font-family: var(--font-mono); font-size: 18px; font-weight: 600; color: var(--success); margin-top: 4px;">${usd(PRICE_EXTRACT)} <span style="color: var(--fg-3); font-size: 12px;">· {PRICE_EXTRACT} XLM</span></div>
+      </div>
+      <div style={`${card} padding: 14px 18px;`}>
+        <div style="font-family: var(--font-mono); font-size: 11px; color: var(--fg-3); text-transform: uppercase; letter-spacing: 0.08em;">{t("firecrawl.chip.payg")}</div>
+        <div style="font-family: var(--font-mono); font-size: 18px; font-weight: 600; color: var(--fg-1); margin-top: 4px;">x402 · Stellar</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- The problem -->
+<section style={`${sectionPad} background: var(--bg-canvas);`}>
+  <div style={wrap}>
+    <div class="eyebrow" style="margin-bottom: 12px;">{t("firecrawl.why.eyebrow")}</div>
+    <h2 style={h2}>{t("firecrawl.why.h2")}</h2>
+    <p style={lead} set:html={t("firecrawl.why.p1")}></p>
+    <p style={`${lead} margin-top: 16px;`}>{t("firecrawl.why.p2")}</p>
+  </div>
+</section>
+
+<!-- How it works -->
+<section style={`${sectionPad} background: var(--bg-surface); border-top: 1px solid var(--border-subtle); border-bottom: 1px solid var(--border-subtle);`}>
+  <div style={wrap}>
+    <div class="eyebrow" style="margin-bottom: 12px;">{t("firecrawl.how.eyebrow")}</div>
+    <h2 style={h2}>{t("firecrawl.how.h2")}</h2>
+    <div style="display: flex; flex-direction: column; gap: 14px; margin-top: 28px;">
+      {steps.map((s) => (
+        <div style={`${card} display: flex; gap: 18px; align-items: flex-start;`}>
+          <div style="
+            width: 34px; height: 34px; flex-shrink: 0;
+            border-radius: 999px;
+            background: color-mix(in srgb, var(--accent) 16%, transparent);
+            border: 1px solid var(--border-accent);
+            display: flex; align-items: center; justify-content: center;
+            font-family: var(--font-mono); font-weight: 600; color: var(--accent);
+          ">{s.n}</div>
+          <div>
+            <div style="font-family: var(--font-display); font-size: 17px; font-weight: 600; color: var(--fg-1); margin-bottom: 4px;">{s.t}</div>
+            <p style="font-family: var(--font-sans); font-size: 14px; color: var(--fg-2); line-height: 1.55;">{s.d}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+    <p style={`${lead} margin-top: 24px; font-size: 14px; color: var(--fg-3);`} set:html={t("firecrawl.how.foot")}></p>
+  </div>
+</section>
+
+<!-- How to use -->
+<section id="how-to-use" style={`${sectionPad} background: var(--bg-canvas);`}>
+  <div style={wrap}>
+    <div class="eyebrow" style="margin-bottom: 12px;">{t("firecrawl.use.eyebrow")}</div>
+    <h2 style={h2}>{t("firecrawl.use.h2")}</h2>
+
+    <h3 style="font-family: var(--font-display); font-size: 18px; color: var(--fg-1); margin: 28px 0 12px;">{t("firecrawl.use.h3_1")}</h3>
+    <p style={`${lead} margin-bottom: 14px;`}>{t("firecrawl.use.p1")}</p>
+    <pre style={pre}><code>{mcpConfig}</code></pre>
+
+    <h3 style="font-family: var(--font-display); font-size: 18px; color: var(--fg-1); margin: 32px 0 12px;">{t("firecrawl.use.h3_2")}</h3>
+    <p style={`${lead} margin-bottom: 14px;`} set:html={t("firecrawl.use.p2")}></p>
+    <pre style={pre}><code>{callExample}</code></pre>
+
+    <h3 style="font-family: var(--font-display); font-size: 18px; color: var(--fg-1); margin: 32px 0 12px;">{t("firecrawl.use.h3_3")}</h3>
+    <p style={`${lead} margin-bottom: 14px;`}>{t("firecrawl.use.p3")}</p>
+    <pre style={pre}><code>{responseExample}</code></pre>
+
+    <!-- Params table -->
+    <h3 style="font-family: var(--font-display); font-size: 18px; color: var(--fg-1); margin: 36px 0 14px;">{t("firecrawl.use.params_h3")}</h3>
+    <div style={`${card} padding: 0; overflow: hidden;`}>
+      {fields.map((f, i) => (
+        <div style={`display: grid; grid-template-columns: 160px 1fr; gap: 16px; padding: 16px 20px; ${i > 0 ? "border-top: 1px solid var(--border-subtle);" : ""}`}>
+          <div>
+            <code style="font-family: var(--font-mono); font-size: 13px; color: var(--accent); font-weight: 600;">{f.name}</code>
+            <div style="margin-top: 4px;">
+              <span style={`font-family: var(--font-mono); font-size: 10px; padding: 2px 7px; border-radius: 999px; ${f.req ? "background: color-mix(in srgb, var(--danger) 16%, transparent); color: var(--danger);" : "background: var(--bg-inset); color: var(--fg-3);"}`}>{f.req ? t("firecrawl.field.required") : t("firecrawl.field.optional")}</span>
+              <code style="font-family: var(--font-mono); font-size: 11px; color: var(--fg-4); margin-left: 6px;">{f.type}</code>
+            </div>
+          </div>
+          <p style="font-family: var(--font-sans); font-size: 13px; color: var(--fg-2); line-height: 1.55; align-self: center;">{f.desc}</p>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+<!-- Pricing detail -->
+<section style={`${sectionPad} background: var(--bg-surface); border-top: 1px solid var(--border-subtle); border-bottom: 1px solid var(--border-subtle);`}>
+  <div style={wrap}>
+    <div class="eyebrow" style="margin-bottom: 12px;">{t("firecrawl.price.eyebrow")}</div>
+    <h2 style={h2}>{t("firecrawl.price.h2")}</h2>
+    <p style={lead}>
+      {t("firecrawl.price.p1")}<strong style="color: var(--success);">{PRICE_SCRAPE} XLM (${usd(PRICE_SCRAPE)})</strong>{t("firecrawl.price.p2")}<strong style="color: var(--success);">{PRICE_EXTRACT} XLM (${usd(PRICE_EXTRACT)})</strong>{t("firecrawl.price.p3")}
+    </p>
+  </div>
+</section>
+
+<!-- Tips & Warnings -->
+<section style={`${sectionPad} background: var(--bg-canvas);`}>
+  <div style={wrap}>
+    <div style="display: grid; grid-template-columns: 1fr; gap: 32px;">
+      <div>
+        <div class="eyebrow" style="margin-bottom: 12px; color: var(--success);">{t("firecrawl.tips.eyebrow")}</div>
+        <h2 style={`${h2} font-size: 24px;`}>{t("firecrawl.tips.h2")}</h2>
+        <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 16px;">
+          {tips.map((tip) => (
+            <div style={`${card} display: flex; gap: 12px; align-items: flex-start;`}>
+              <span style="color: var(--success); font-size: 16px; flex-shrink: 0;">✓</span>
+              <p style="font-family: var(--font-sans); font-size: 14px; color: var(--fg-2); line-height: 1.55;">{tip}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <div class="eyebrow" style="margin-bottom: 12px; color: var(--warning);">{t("firecrawl.warn.eyebrow")}</div>
+        <h2 style={`${h2} font-size: 24px;`}>{t("firecrawl.warn.h2")}</h2>
+        <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 16px;">
+          {warnings.map((w) => (
+            <div style={`${card} display: flex; gap: 12px; align-items: flex-start; border-color: color-mix(in srgb, var(--warning) 30%, transparent);`}>
+              <span style="color: var(--warning); font-size: 16px; flex-shrink: 0;">!</span>
+              <p style="font-family: var(--font-sans); font-size: 14px; color: var(--fg-2); line-height: 1.55;">{w}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Final CTA -->
+<section style={`${sectionPad} text-align: center; background: radial-gradient(ellipse at center, color-mix(in srgb, var(--accent) 14%, transparent), transparent 60%), var(--bg-canvas); border-top: 1px solid var(--border-subtle);`}>
+  <div style="max-width: 640px; margin: 0 auto;">
+    <h2 style={`${h2} text-align: center;`}>{t("firecrawl.final.h2")}</h2>
+    <p style={`${lead} margin-bottom: 28px;`}>{t("firecrawl.final.p")}</p>
+    <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+      <a href={`${DASHBOARD_URL}/signup`} style="font-family: var(--font-sans); font-size: 15px; font-weight: 600; background: var(--accent); color: #fff; padding: 14px 28px; border-radius: 999px; text-decoration: none; box-shadow: 0 0 30px color-mix(in srgb, var(--accent) 45%, transparent);">{t("firecrawl.final.cta1")}</a>
+      <a href={`${home}#agents`} style="font-family: var(--font-sans); font-size: 15px; font-weight: 600; background: transparent; color: var(--fg-1); border: 1px solid var(--border-strong); padding: 14px 24px; border-radius: 999px; text-decoration: none;">{t("firecrawl.final.cta2")}</a>
+    </div>
+  </div>
+</section>

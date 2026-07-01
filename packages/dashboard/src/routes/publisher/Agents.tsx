@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { MyAgentsSection, RegisterAgentForm, serviceToName } from "@/components/AgentManager";
@@ -7,6 +8,7 @@ import { Plus, X } from "lucide-react";
 import "./publisher.css";
 
 export default function PublisherAgents() {
+  const { t } = useTranslation();
   const [showRegister, setShowRegister] = useState(false);
   const [query, setQuery] = useState("");
   const { data: myAgents, isLoading } = useQuery({
@@ -30,15 +32,15 @@ export default function PublisherAgents() {
     <div className="pub-page">
       <header className="pub-head">
         <div className="pub-head__copy">
-          <h1 className="pub-title">My Agents</h1>
+          <h1 className="pub-title">{t("publisher.agents.title")}</h1>
           <p className="pub-subtitle">
-            Register, edit and retire the agents owned by your custodial wallet.
+            {t("publisher.agents.subtitle")}
           </p>
         </div>
         <div className="pub-actions">
           <Link to="/app/publisher/publish" className="pub-btn pub-btn--secondary pub-btn--sm">
             <Plus size={16} />
-            Publish agent
+            {t("publisher.agents.publish_agent")}
           </Link>
           <button
             type="button"
@@ -46,7 +48,7 @@ export default function PublisherAgents() {
             onClick={() => setShowRegister((v) => !v)}
           >
             {showRegister ? <X size={16} /> : <Plus size={16} />}
-            {showRegister ? "Cancel" : "Register agent"}
+            {showRegister ? t("publisher.agents.cancel") : t("publisher.agents.register_agent")}
           </button>
         </div>
       </header>
@@ -54,16 +56,16 @@ export default function PublisherAgents() {
       <input
         type="search"
         className="pub-search"
-        placeholder="Search agents…"
+        placeholder={t("publisher.agents.search_placeholder")}
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        aria-label="Search agents"
+        aria-label={t("publisher.agents.search_aria")}
       />
 
       {showRegister && <RegisterAgentForm onSuccess={() => setShowRegister(false)} />}
 
       {isLoading ? (
-        <p className="pub-loading">Loading agents…</p>
+        <p className="pub-loading">{t("publisher.agents.loading")}</p>
       ) : (
         <MyAgentsSection
           agents={filtered}

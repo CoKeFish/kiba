@@ -1,0 +1,158 @@
+---
+import Hero from "../Hero.astro";
+import HowItWorks from "../HowItWorks.astro";
+import AgentsCatalog from "../AgentsCatalog.tsx";
+import FeaturedAgents from "../FeaturedAgents.astro";
+import Pricing from "../Pricing.astro";
+import Footer from "../Footer.astro";
+import { getLangFromUrl, useTranslations } from "../../i18n/utils";
+
+const lang = getLangFromUrl(Astro.url);
+const t = useTranslations(lang);
+
+const BACKEND_URL = import.meta.env.PUBLIC_BACKEND_URL || "https://backend-production-c019.up.railway.app";
+const DASHBOARD_URL = import.meta.env.PUBLIC_DASHBOARD_URL || "https://dashboard.kiba.rodion.com.co";
+// Instalador de un clic (Windows) — kiba MCP en Claude Desktop / Cursor / Claude Code.
+const INSTALLER_URL = "https://github.com/CoKeFish/kiba/releases/latest/download/Kiba-Installer-x64-setup.exe";
+
+const featurePills = [
+  t("pills.1"),
+  t("pills.2"),
+  t("pills.3"),
+  t("pills.4"),
+  t("pills.5"),
+];
+
+// Textos del catálogo (isla React) calculados en el servidor y pasados como props.
+const catalogStrings = {
+  placeholder: t("catalog.placeholder"),
+  modeKeyword: t("catalog.mode.keyword"),
+  modeSemantic: t("catalog.mode.semantic"),
+  modeHybrid: t("catalog.mode.hybrid"),
+  tryLabel: t("catalog.try"),
+  suggestions: [t("catalog.suggest.1"), t("catalog.suggest.2"), t("catalog.suggest.3"), t("catalog.suggest.4")],
+  loading: t("catalog.loading"),
+  noResults: t("catalog.noresults"),
+  readDocs: t("catalog.readdocs"),
+};
+---
+
+<Hero />
+
+<!-- Feature pills row -->
+<div style="
+  display: flex; gap: 12px; flex-wrap: wrap; justify-content: center;
+  padding: 28px 64px; background: var(--bg-surface);
+  border-top: 1px solid var(--border-subtle);
+">
+  {featurePills.map((label, i) => (
+    <div class={`feat-pill js-reveal hover-wiggle ${i % 2 === 0 ? "wiggle-left" : "wiggle-right"} d${i + 1}`}>
+      {label}
+    </div>
+  ))}
+</div>
+
+<!-- Search + agent catalog -->
+<section id="agents" style="padding: 60px 64px; background: var(--bg-canvas); border-top: 1px solid var(--border-subtle);">
+  <div style="max-width: 1140px; margin: 0 auto;">
+    <h2 class="js-reveal slide-up" style="
+      font-family: var(--font-display);
+      font-size: clamp(26px, 3vw, 40px);
+      font-weight: 800; letter-spacing: -0.04em; line-height: 1.05;
+      color: var(--fg-1); margin-bottom: 8px;
+    ">{t("agents.heading.pre")}<span style="color: var(--accent);">{t("agents.heading.em")}</span><br/>{t("agents.heading.post")}</h2>
+    <p class="js-reveal slide-up d1" style="font-family: var(--font-sans); font-size: 15px; color: var(--fg-3); margin-bottom: 28px;">
+      {t("agents.subtitle")}
+    </p>
+
+    <script is:inline define:vars={{ BACKEND_URL }}>
+      window.__BACKEND_URL__ = BACKEND_URL;
+    </script>
+    <AgentsCatalog client:visible strings={catalogStrings} />
+
+    <div style="text-align: center; margin-top: 24px;">
+      <a href={`${DASHBOARD_URL}/agents`} style="
+        font-family: var(--font-sans); font-size: 14px; font-weight: 700;
+        color: var(--accent); text-decoration: none;
+      ">{t("agents.viewall")}</a>
+    </div>
+  </div>
+</section>
+
+<HowItWorks />
+
+<FeaturedAgents />
+
+<Pricing />
+
+<!-- CTA band (dark) -->
+<section style="padding: 32px 52px 64px; background: var(--bg-canvas);">
+  <div class="js-reveal bounce-pop" style="
+    position: relative; overflow: hidden;
+    max-width: 1140px; margin: 0 auto;
+    border-radius: 26px;
+    background: var(--bg-ink);
+    padding: 52px 48px;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 40px; flex-wrap: wrap;
+  ">
+    <div class="cta-glow cta-glow-pulse" style="width: 400px; height: 400px; background: var(--accent); top: -100px; left: -80px;"></div>
+    <div class="cta-glow cta-glow-pulse" style="width: 300px; height: 300px; background: var(--c-teal); bottom: -80px; right: 100px;"></div>
+
+    <div style="position: relative; z-index: 2; max-width: 480px;">
+      <h2 style="
+        font-family: var(--font-display);
+        font-size: clamp(24px, 2.8vw, 34px); font-weight: 800;
+        color: #fff; letter-spacing: -0.04em; line-height: 1.05; margin-bottom: 10px;
+      ">{t("ctaband.title.pre")}<span style="color: var(--c-yellow);">{t("ctaband.title.em")}</span></h2>
+      <p style="font-family: var(--font-sans); font-size: 14px; color: rgba(255,255,255,.55); line-height: 1.6;">
+        {t("ctaband.sub")}
+      </p>
+    </div>
+    <div style="position: relative; z-index: 2; display: flex; gap: 12px; flex-wrap: wrap;">
+      <a
+        href={`${DASHBOARD_URL}/signup`}
+        class="btn-cta"
+        style="
+          font-family: var(--font-sans); font-size: 15px; font-weight: 700;
+          background: #fff; color: var(--fg-1);
+          padding: 15px 34px; border-radius: 999px; text-decoration: none;
+          white-space: nowrap;
+          transition: transform var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+        "
+      >{t("cta.start")}</a>
+      <a
+        href={INSTALLER_URL}
+        title={t("cta.download_title")}
+        style="
+          display: inline-flex; align-items: center; gap: 8px;
+          font-family: var(--font-sans); font-size: 15px; font-weight: 700;
+          background: rgba(255,255,255,.12); color: #fff;
+          border: 1.5px solid rgba(255,255,255,.45);
+          padding: 15px 26px; border-radius: 999px; text-decoration: none;
+          white-space: nowrap;
+          transition: background var(--dur-fast) var(--ease-out);
+        "
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+        {t("cta.download")}
+      </a>
+    </div>
+  </div>
+</section>
+
+<Footer />
+
+<style>
+  .feat-pill {
+    display: flex; align-items: center; gap: 12px;
+    padding: 13px 24px; border-radius: 999px;
+    border: 1px solid var(--border-default); background: #fff;
+    font-family: var(--font-sans); font-size: 14px; font-weight: 600; color: var(--fg-1);
+    transition: all var(--dur-base) var(--ease-out); cursor: default;
+  }
+  .feat-pill:hover { border-color: var(--accent); color: var(--accent); transform: translateY(-2px); }
+
+  .cta-glow { position: absolute; border-radius: 50%; filter: blur(80px); opacity: .35; pointer-events: none; }
+  .btn-cta:hover { background: var(--c-yellow); transform: translateY(-2px); }
+</style>

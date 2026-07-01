@@ -2,6 +2,7 @@
  * Componentes reutilizables de gestión de agentes (lado publisher).
  */
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, type MyAgent } from "@/lib/api";
 import { formatUsd } from "@/lib/format";
@@ -23,14 +24,15 @@ export function serviceToName(service: string): string {
 const explorerWallet = (addr: string) => chain.explorerAddr(addr);
 const explorerTx = (sig: string) => chain.explorerTx(sig);
 
-export const PRICING_PRESETS: { label: string; usd: number; hint: string }[] = [
-  { label: "Quick lookup", usd: 0.01, hint: "Conversion, fetch, simple query" },
-  { label: "Standard agent", usd: 0.1, hint: "Single LLM call, basic reasoning" },
-  { label: "Premium agent", usd: 0.5, hint: "Multi-step reasoning, code review" },
-  { label: "Heavy compute", usd: 2.0, hint: "Long-running task, complex inference" },
+export const PRICING_PRESETS: { labelKey: string; usd: number; hintKey: string }[] = [
+  { labelKey: "agent_manager.presets.quick_lookup_label", usd: 0.01, hintKey: "agent_manager.presets.quick_lookup_hint" },
+  { labelKey: "agent_manager.presets.standard_label", usd: 0.1, hintKey: "agent_manager.presets.standard_hint" },
+  { labelKey: "agent_manager.presets.premium_label", usd: 0.5, hintKey: "agent_manager.presets.premium_hint" },
+  { labelKey: "agent_manager.presets.heavy_label", usd: 2.0, hintKey: "agent_manager.presets.heavy_hint" },
 ];
 
 export function RegisterAgentForm({ onSuccess }: { onSuccess?: () => void }) {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const [service, setService] = useState("");
   const [endpoint, setEndpoint] = useState("");
@@ -70,7 +72,7 @@ export function RegisterAgentForm({ onSuccess }: { onSuccess?: () => void }) {
     return (
       <div className="am-card am-card--success">
         <div className="am-card__body">
-          <p className="am-success-title">✓ Agent registered on-chain</p>
+          <p className="am-success-title">✓ {t("agent_manager.register.success_title")}</p>
           <div className="am-proof">
             <span className="am-proof__label">PDA</span>
             <a href={explorerWallet(success.pda)} target="_blank" rel="noopener noreferrer">
@@ -79,7 +81,7 @@ export function RegisterAgentForm({ onSuccess }: { onSuccess?: () => void }) {
             </a>
           </div>
           <div className="am-proof">
-            <span className="am-proof__label">Signature</span>
+            <span className="am-proof__label">{t("agent_manager.register.signature_label")}</span>
             <a href={explorerTx(success.signature)} target="_blank" rel="noopener noreferrer">
               {success.signature.slice(0, 8)}…{success.signature.slice(-8)}
               <ExternalLink size={12} />
@@ -93,83 +95,83 @@ export function RegisterAgentForm({ onSuccess }: { onSuccess?: () => void }) {
   return (
     <div className="am-card">
       <div className="am-card__head">
-        <h3 className="am-card__title">Register a new agent</h3>
+        <h3 className="am-card__title">{t("agent_manager.register.card_title")}</h3>
         <p className="am-card__desc">
-          Your custodial wallet signs the on-chain <code>register_agent</code> instruction.
-          Payments from clients (95%) land in this wallet directly.
+          {t("agent_manager.register.desc_1")} <code>register_agent</code>
+          {t("agent_manager.register.desc_2", { pct: 95 })}
         </p>
       </div>
       <div className="am-card__body">
         <form onSubmit={onSubmit} className="am-form">
           <div className="am-field">
-            <label htmlFor="service">Service slug</label>
+            <label htmlFor="service">{t("agent_manager.register.service_label")}</label>
             <input
               id="service"
               className="am-input"
               type="text"
               value={service}
               onChange={(e) => setService(e.target.value)}
-              placeholder="my-cool-agent"
+              placeholder={t("agent_manager.register.service_placeholder")}
               maxLength={32}
               required
             />
-            <p className="am-hint">Lowercase, alphanumeric, dashes/underscores allowed. Max 32 chars.</p>
+            <p className="am-hint">{t("agent_manager.register.service_hint")}</p>
           </div>
 
           <div className="am-field">
-            <label htmlFor="endpoint">Endpoint URL</label>
+            <label htmlFor="endpoint">{t("agent_manager.register.endpoint_label")}</label>
             <input
               id="endpoint"
               className="am-input"
               type="url"
               value={endpoint}
               onChange={(e) => setEndpoint(e.target.value)}
-              placeholder="https://my-agent.example.com/service"
+              placeholder={t("agent_manager.register.endpoint_placeholder")}
               maxLength={256}
               required
             />
-            <p className="am-hint">The HTTP endpoint clients hit. Must implement the x402 handshake.</p>
+            <p className="am-hint">{t("agent_manager.register.endpoint_hint")}</p>
           </div>
 
           <div className="am-field">
-            <label htmlFor="description">Description</label>
+            <label htmlFor="description">{t("agent_manager.register.description_label")}</label>
             <textarea
               id="description"
               className="am-textarea"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="What does this agent do? Be specific about inputs and outputs."
+              placeholder={t("agent_manager.register.description_placeholder")}
               maxLength={512}
               required
               rows={3}
             />
-            <p className="am-hint">{description.length} / 512 chars. This helps the discovery indexer.</p>
+            <p className="am-hint">{t("agent_manager.register.description_hint", { len: description.length })}</p>
           </div>
 
           <div className="am-field">
-            <label>Floor price per call</label>
+            <label>{t("agent_manager.register.floor_price_label")}</label>
             <p className="am-hint" style={{ marginBottom: 10 }}>
-              On-chain minimum. Your agent can charge more per request via{" "}
-              <code>priceFn</code> in the SDK.
+              {t("agent_manager.register.floor_price_hint_1")}{" "}
+              <code>priceFn</code>{t("agent_manager.register.floor_price_hint_2")}
             </p>
             <div className="am-presets">
               {PRICING_PRESETS.map((p) => (
                 <button
-                  key={p.label}
+                  key={p.labelKey}
                   type="button"
                   className={`am-preset${priceUsd === p.usd ? " is-active" : ""}`}
                   onClick={() => setPriceUsd(p.usd)}
                 >
-                  <p className="am-preset__title">{p.label}</p>
+                  <p className="am-preset__title">{t(p.labelKey)}</p>
                   <p className="am-preset__price">${p.usd.toFixed(2)}</p>
-                  <p className="am-preset__hint">{p.hint}</p>
+                  <p className="am-preset__hint">{t(p.hintKey)}</p>
                 </button>
               ))}
             </div>
             <div className="am-custom-price">
               <div className="am-custom-price__input">
                 <label htmlFor="custom-price" className="am-label">
-                  Custom (USD)
+                  {t("agent_manager.register.custom_label")}
                 </label>
                 <input
                   id="custom-price"
@@ -183,7 +185,7 @@ export function RegisterAgentForm({ onSuccess }: { onSuccess?: () => void }) {
               </div>
               <div className="am-custom-price__meta">
                 = {(lamports / chain.baseUnitsPerToken).toFixed(6)} {chain.asset}
-                <br />= {lamports.toLocaleString()} base units
+                <br />= {lamports.toLocaleString()} {t("agent_manager.register.base_units")}
               </div>
             </div>
           </div>
@@ -192,7 +194,7 @@ export function RegisterAgentForm({ onSuccess }: { onSuccess?: () => void }) {
 
           <div className="am-form-actions">
             <button type="submit" className="am-btn am-btn--primary" disabled={mutation.isPending}>
-              {mutation.isPending ? "Registering on-chain…" : "Register agent"}
+              {mutation.isPending ? t("agent_manager.register.registering") : t("agent_manager.register.submit")}
             </button>
           </div>
         </form>
@@ -212,6 +214,7 @@ export function MyAgentsSection({
   layout?: "list" | "grid";
   emptyMascot?: string;
 }) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(true);
 
   return (
@@ -224,10 +227,9 @@ export function MyAgentsSection({
         tabIndex={collapsible ? 0 : undefined}
       >
         <div>
-          <h3 className="am-card__title">My agents</h3>
+          <h3 className="am-card__title">{t("agent_manager.my_agents.title")}</h3>
           <p className="am-card__desc">
-            {agents.length} agent{agents.length !== 1 ? "s" : ""} owned by your custodial wallet ·
-            Total earned:{" "}
+            {t("agent_manager.my_agents.summary", { count: agents.length })}{" "}
             <strong style={{ color: "var(--color-success)", fontFamily: "var(--font-mono)" }}>
               {formatUsd(solToUsd(agents.reduce((sum, a) => sum + a.totalEarnedSol, 0)))}
             </strong>
@@ -242,7 +244,7 @@ export function MyAgentsSection({
               {emptyMascot && (
                 <img src={emptyMascot} alt="" aria-hidden className="am-empty__mascot" />
               )}
-              <p>No agents yet. Publish your first one to start earning.</p>
+              <p>{t("agent_manager.my_agents.empty")}</p>
             </div>
           ) : (
             <div className={`am-agents${layout === "grid" ? " am-agents--grid" : ""}`}>
@@ -258,6 +260,7 @@ export function MyAgentsSection({
 }
 
 function MyAgentRow({ agent }: { agent: MyAgent }) {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -297,13 +300,13 @@ function MyAgentRow({ agent }: { agent: MyAgent }) {
           <p className="am-agent__desc">{agent.description}</p>
           <div className="am-agent__stats">
             <span>
-              Price: <strong>{formatUsd(solToUsd(agent.pricePerCallSol))}</strong>
+              {t("agent_manager.agent.price_label")} <strong>{formatUsd(solToUsd(agent.pricePerCallSol))}</strong>
             </span>
             <span>
-              Calls: <strong style={{ color: "var(--color-fg)" }}>{agent.totalCalls.toLocaleString()}</strong>
+              {t("agent_manager.agent.calls_label")} <strong style={{ color: "var(--color-fg)" }}>{agent.totalCalls.toLocaleString()}</strong>
             </span>
             <span>
-              Earned: <strong>{formatUsd(solToUsd(agent.totalEarnedSol))}</strong>
+              {t("agent_manager.agent.earned_label")} <strong>{formatUsd(solToUsd(agent.totalEarnedSol))}</strong>
             </span>
             <a
               href={explorerWallet(agent.owner)}
@@ -312,14 +315,14 @@ function MyAgentRow({ agent }: { agent: MyAgent }) {
               className="pub-link"
               style={{ fontSize: 11 }}
             >
-              owner <ExternalLink size={12} />
+              {t("agent_manager.agent.owner_link")} <ExternalLink size={12} />
             </a>
           </div>
         </div>
         <div className="am-agent__actions">
           <button type="button" className="am-btn am-btn--ghost am-btn--sm" onClick={() => setEditing(true)}>
             <Pencil size={13} />
-            Edit
+            {t("agent_manager.agent.edit")}
           </button>
           {confirmDelete ? (
             <div style={{ display: "flex", gap: 4 }}>
@@ -329,7 +332,7 @@ function MyAgentRow({ agent }: { agent: MyAgent }) {
                 onClick={() => deleteMut.mutate()}
                 disabled={deleteMut.isPending}
               >
-                {deleteMut.isPending ? "…" : "Confirm"}
+                {deleteMut.isPending ? "…" : t("agent_manager.agent.confirm")}
               </button>
               <button type="button" className="am-btn am-btn--ghost am-btn--sm" onClick={() => setConfirmDelete(false)}>
                 <X size={13} />
@@ -338,7 +341,7 @@ function MyAgentRow({ agent }: { agent: MyAgent }) {
           ) : (
             <button type="button" className="am-btn am-btn--ghost am-btn--sm" onClick={() => setConfirmDelete(true)}>
               <Trash2 size={13} />
-              Delete
+              {t("agent_manager.agent.delete")}
             </button>
           )}
         </div>
@@ -361,6 +364,7 @@ function EditAgentRow({
   onCancel: () => void;
   onSaved: () => void;
 }) {
+  const { t } = useTranslation();
   const [endpoint, setEndpoint] = useState(agent.endpoint);
   const [description, setDescription] = useState(agent.description);
   const [priceUsd, setPriceUsd] = useState(() => solToUsd(agent.pricePerCallSol));
@@ -379,10 +383,10 @@ function EditAgentRow({
 
   return (
     <div className="am-agent am-agent--edit">
-      <p className="am-edit-title">Editing {agent.service}</p>
+      <p className="am-edit-title">{t("agent_manager.edit.title", { name: agent.service })}</p>
       <div className="am-form">
         <div className="am-field">
-          <label htmlFor={`ep-${agent.service}`}>Endpoint</label>
+          <label htmlFor={`ep-${agent.service}`}>{t("agent_manager.edit.endpoint_label")}</label>
           <input
             id={`ep-${agent.service}`}
             className="am-input"
@@ -392,7 +396,7 @@ function EditAgentRow({
           />
         </div>
         <div className="am-field">
-          <label htmlFor={`desc-${agent.service}`}>Description</label>
+          <label htmlFor={`desc-${agent.service}`}>{t("agent_manager.edit.description_label")}</label>
           <textarea
             id={`desc-${agent.service}`}
             className="am-textarea"
@@ -403,7 +407,7 @@ function EditAgentRow({
           />
         </div>
         <div className="am-field">
-          <label htmlFor={`price-${agent.service}`}>Floor price (USD)</label>
+          <label htmlFor={`price-${agent.service}`}>{t("agent_manager.edit.price_label")}</label>
           <input
             id={`price-${agent.service}`}
             className="am-input"
@@ -420,7 +424,7 @@ function EditAgentRow({
         {mut.isError && <div className="am-error">{(mut.error as Error).message}</div>}
         <div className="am-edit-actions">
           <button type="button" className="am-btn am-btn--ghost am-btn--sm" onClick={onCancel}>
-            Cancel
+            {t("agent_manager.edit.cancel")}
           </button>
           <button
             type="button"
@@ -428,7 +432,7 @@ function EditAgentRow({
             onClick={() => mut.mutate()}
             disabled={mut.isPending}
           >
-            {mut.isPending ? "Saving…" : "Save"}
+            {mut.isPending ? t("agent_manager.edit.saving") : t("agent_manager.edit.save")}
           </button>
         </div>
       </div>

@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -43,14 +44,15 @@ function OverviewSparks() {
 }
 
 function displayName(email?: string) {
-  if (!email) return "there";
+  if (!email) return "";
   const local = email.split("@")[0] ?? "";
   const first = local.split(/[._-]/)[0] ?? local;
-  if (!first) return "there";
+  if (!first) return "";
   return first.charAt(0).toUpperCase() + first.slice(1);
 }
 
 export default function Overview() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { data: balance } = useQuery({ queryKey: ["balance"], queryFn: api.balance });
   const { data: txs = [] } = useQuery({
@@ -60,26 +62,26 @@ export default function Overview() {
 
   const callTxs = txs.filter((t) => t.type === "call");
   const totalSpend = callTxs.reduce((acc, t) => acc + lamportsToUsd(t.amount_lamports), 0);
-  const name = displayName(user?.email);
+  const name = displayName(user?.email) || t("overview.default_name");
 
   return (
     <div className="overview-page">
       <header className="overview-head">
         <div className="overview-title-wrap">
           <OverviewSparks />
-          <h1 className="overview-title">Overview</h1>
+          <h1 className="overview-title">{t("overview.title")}</h1>
         </div>
-        <p className="overview-subtitle">A snapshot of your Kiba account.</p>
+        <p className="overview-subtitle">{t("overview.subtitle")}</p>
       </header>
 
       <section className="overview-welcome">
         <div className="overview-welcome__dots" aria-hidden="true" />
         <div className="overview-welcome__copy">
-          <p className="overview-welcome__greeting">Welcome back, {name}! 👋</p>
-          <p className="overview-welcome__tagline">Ready to build something amazing?</p>
+          <p className="overview-welcome__greeting">{t("overview.welcome_greeting", { name })}</p>
+          <p className="overview-welcome__tagline">{t("overview.welcome_tagline")}</p>
           <Link to="/app/agents" className="overview-explore-btn">
             <Bot size={17} strokeWidth={2.25} />
-            Explore agents
+            {t("overview.explore_agents")}
           </Link>
         </div>
         <img
@@ -96,14 +98,17 @@ export default function Overview() {
         <article className="overview-kpi">
           <div className="overview-kpi__row">
             <div>
-              <p className="overview-kpi__label">Balance</p>
+              <p className="overview-kpi__label">{t("overview.kpi_balance_label")}</p>
               <p className="overview-kpi__value">
                 {balance ? formatKibixLabel(usdToKibix(balance.balance_usd)) : "—"}
               </p>
               <p className="overview-kpi__hint">
                 {balance
-                  ? `= ${formatUsd(balance.balance_usd)} · spendable ${KIBIX_LABEL}`
-                  : `Spendable ${KIBIX_LABEL}`}
+                  ? t("overview.kpi_balance_hint", {
+                      usd: formatUsd(balance.balance_usd),
+                      label: KIBIX_LABEL,
+                    })
+                  : t("overview.kpi_balance_hint_empty", { label: KIBIX_LABEL })}
               </p>
             </div>
             <div
@@ -121,10 +126,12 @@ export default function Overview() {
         <article className="overview-kpi">
           <div className="overview-kpi__row">
             <div>
-              <p className="overview-kpi__label">Calls (last 5)</p>
+              <p className="overview-kpi__label">{t("overview.kpi_calls_label")}</p>
               <p className="overview-kpi__value">{callTxs.length}</p>
               <p className="overview-kpi__hint">
-                {callTxs.length > 0 ? "Recent activity logged" : "No calls yet"}
+                {callTxs.length > 0
+                  ? t("overview.kpi_calls_hint_active")
+                  : t("overview.kpi_calls_hint_empty")}
               </p>
             </div>
             <div
@@ -142,9 +149,11 @@ export default function Overview() {
         <article className="overview-kpi">
           <div className="overview-kpi__row">
             <div>
-              <p className="overview-kpi__label">Spend (last 5 calls)</p>
+              <p className="overview-kpi__label">{t("overview.kpi_spend_label")}</p>
               <p className="overview-kpi__value">{formatKibixLabel(usdToKibix(totalSpend))}</p>
-              <p className="overview-kpi__hint">= {formatUsd(totalSpend, 4)} on recent calls</p>
+              <p className="overview-kpi__hint">
+                {t("overview.kpi_spend_hint", { usd: formatUsd(totalSpend, 4) })}
+              </p>
             </div>
             <div
               className="overview-kpi__icon"
@@ -162,11 +171,11 @@ export default function Overview() {
       <section className="overview-tx-card">
         <div className="overview-tx-head">
           <div>
-            <h2 className="overview-tx-title">Recent transactions</h2>
-            <p className="overview-tx-desc">Latest 5 calls, top-ups and refunds.</p>
+            <h2 className="overview-tx-title">{t("overview.tx_title")}</h2>
+            <p className="overview-tx-desc">{t("overview.tx_desc")}</p>
           </div>
           <Link to="/app/transactions" className="overview-tx-link">
-            View all <ArrowUpRight size={14} />
+            {t("overview.tx_view_all")} <ArrowUpRight size={14} />
           </Link>
         </div>
         <div className="overview-tx-body">
@@ -175,17 +184,17 @@ export default function Overview() {
               className="text-sm text-center py-8"
               style={{ color: "var(--color-fg-muted)", fontFamily: "var(--font-sans)" }}
             >
-              No activity yet. Make your first call from a connected channel.
+              {t("overview.tx_empty")}
             </p>
           ) : (
             <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
-              {txs.map((t) => {
-                const kibix = formatKibix(baseUnitsToKibix(t.amount_lamports));
-                const usd = formatUsd(lamportsToUsd(t.amount_lamports));
-                const isTopup = t.type === "topup";
+              {txs.map((tx) => {
+                const kibix = formatKibix(baseUnitsToKibix(tx.amount_lamports));
+                const usd = formatUsd(lamportsToUsd(tx.amount_lamports));
+                const isTopup = tx.type === "topup";
 
                 return (
-                  <li key={t.id} className="overview-tx-row">
+                  <li key={tx.id} className="overview-tx-row">
                     <div className="overview-tx-left">
                       {isTopup && (
                         <span className="overview-tx-plus">
@@ -193,23 +202,23 @@ export default function Overview() {
                         </span>
                       )}
                       <span className="overview-tx-badge">
-                        {isTopup ? "Top up" : t.type}
+                        {isTopup ? t("overview.tx_badge_topup") : tx.type}
                       </span>
                       <div className="overview-tx-meta">
-                        <p className="overview-tx-service">{t.service || "—"}</p>
+                        <p className="overview-tx-service">{tx.service || "—"}</p>
                         <p className="overview-tx-time">
-                          {formatDistanceToNow(new Date(t.created_at * 1000), { addSuffix: true })}
-                          {t.tx_signature && (
+                          {formatDistanceToNow(new Date(tx.created_at * 1000), { addSuffix: true })}
+                          {tx.tx_signature && (
                             <>
                               {" · "}
                               <a
-                                href={explorerUrl(t.tx_signature)}
+                                href={explorerUrl(tx.tx_signature)}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="hover:underline"
                                 style={{ color: "inherit" }}
                               >
-                                {shortSig(t.tx_signature)}
+                                {shortSig(tx.tx_signature)}
                               </a>
                             </>
                           )}
@@ -235,8 +244,8 @@ export default function Overview() {
         <img src={MASCOTS.square} alt="" aria-hidden className="overview-help__mascot" />
         <div className="overview-help__center">
           <div>
-            <p className="overview-help__title">Need help getting started?</p>
-            <p className="overview-help__text">Check out our docs or reach out to our team.</p>
+            <p className="overview-help__title">{t("overview.help_title")}</p>
+            <p className="overview-help__text">{t("overview.help_text")}</p>
           </div>
           <div className="overview-help__actions">
             <a
@@ -246,11 +255,11 @@ export default function Overview() {
               className="overview-help-btn"
             >
               <BookOpen size={16} />
-              View docs
+              {t("overview.help_view_docs")}
             </a>
             <a href="mailto:support@kiba.dev" className="overview-help-btn">
               <MessageCircle size={16} />
-              Contact support
+              {t("overview.help_contact")}
             </a>
           </div>
         </div>

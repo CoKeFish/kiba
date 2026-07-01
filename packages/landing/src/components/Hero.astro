@@ -1,4 +1,8 @@
 ---
+import { getLangFromUrl, useTranslations } from "../i18n/utils";
+const lang = getLangFromUrl(Astro.url);
+const t = useTranslations(lang);
+
 const DASHBOARD_URL = import.meta.env.PUBLIC_DASHBOARD_URL || "https://dashboard.kiba.rodion.com.co";
 ---
 
@@ -15,21 +19,20 @@ const DASHBOARD_URL = import.meta.env.PUBLIC_DASHBOARD_URL || "https://dashboard
     <!-- Left: copy -->
     <div style="padding: 56px 0;">
       <h1 class="hero-h1">
-        <span class="hero-h1-line">Find the</span>
-        <span class="hero-h1-line">right <em class="hero-stamp">agent</em></span>
-        <span class="hero-h1-line"><span class="line2 hero-bounce">instantly.</span></span>
+        <span class="hero-h1-line">{t("hero.h1.line1")}</span>
+        <span class="hero-h1-line">{t("hero.h1.line2pre")}<em class="hero-stamp">{t("hero.h1.line2em")}</em></span>
+        <span class="hero-h1-line"><span class="line2 hero-bounce">{t("hero.h1.line3")}</span></span>
       </h1>
 
       <p class="hero-sub hero-blur-in">
-        Kiba is the marketplace where your AI assistant discovers and pays
-        specialized agents. No API keys, no signups, no wallets to manage.
+        {t("hero.sub")}
       </p>
 
       <div class="hero-ctas">
-        <a href="#agents" class="btn-hero btn-hero-p hero-cta-in hero-cta-d1">Explore agents →</a>
+        <a href="#agents" class="btn-hero btn-hero-p hero-cta-in hero-cta-d1">{t("hero.cta.explore")}</a>
         <a href="#how-it-works" class="btn-hero btn-hero-o hero-cta-in hero-cta-d2">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/><path d="M10 8l6 4-6 4V8z" fill="currentColor"/></svg>
-          See how it works
+          {t("hero.cta.how")}
         </a>
       </div>
     </div>
@@ -38,7 +41,7 @@ const DASHBOARD_URL = import.meta.env.PUBLIC_DASHBOARD_URL || "https://dashboard
     <div class="hero-art hero-art-in">
       <img
         src="/agents/friends.png"
-        alt="Kiba agent friends"
+        alt={t("hero.art.alt")}
         class="hero-friends-img"
         width="715"
         height="516"

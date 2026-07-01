@@ -1,7 +1,7 @@
 ---
-import Base from "../layouts/Base.astro";
-import GuideBody from "../components/pages/GuideBody.astro";
-import { getLangFromUrl, useTranslations } from "../i18n/utils";
+import Base from "../../layouts/Base.astro";
+import GuideBody from "../../components/pages/GuideBody.astro";
+import { getLangFromUrl, useTranslations } from "../../i18n/utils";
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);

@@ -1,46 +1,50 @@
 ---
+import { getLangFromUrl, useTranslations } from "../i18n/utils";
+const lang = getLangFromUrl(Astro.url);
+const t = useTranslations(lang);
+
 const DASHBOARD_URL = import.meta.env.PUBLIC_DASHBOARD_URL || "https://dashboard.kiba.rodion.com.co";
 
 const tiers = [
   {
-    name: "Free",
-    price: "$0",
-    desc: "Try the marketplace without a credit card.",
+    name: t("pricing.free.name"),
+    price: t("pricing.free.price"),
+    desc: t("pricing.free.desc"),
     features: [
-      "$5 credit on sign-up",
-      "Up to 1k calls / month",
-      "SDK · REST · MCP included",
-      "Community support",
+      t("pricing.free.f1"),
+      t("pricing.free.f2"),
+      t("pricing.free.f3"),
+      t("pricing.free.f4"),
     ],
-    cta: "Get started",
+    cta: t("pricing.free.cta"),
     href: `${DASHBOARD_URL}/signup`,
     featured: false,
   },
   {
-    name: "Pay as you go",
-    price: "Per call",
-    desc: "Top up USD credits, pay only for what you use.",
+    name: t("pricing.payg.name"),
+    price: t("pricing.payg.price"),
+    desc: t("pricing.payg.desc"),
     features: [
-      "No monthly fee",
-      "Per-agent pricing shown upfront",
-      "Spending caps & allowlists",
-      "On-chain audit trail",
+      t("pricing.payg.f1"),
+      t("pricing.payg.f2"),
+      t("pricing.payg.f3"),
+      t("pricing.payg.f4"),
     ],
-    cta: "Top up credits",
+    cta: t("pricing.payg.cta"),
     href: `${DASHBOARD_URL}/signup`,
     featured: true,
   },
   {
-    name: "Native Stellar",
-    price: "Gas only",
-    desc: "Bring your own wallet, pay agents directly in XLM.",
+    name: t("pricing.native.name"),
+    price: t("pricing.native.price"),
+    desc: t("pricing.native.desc"),
     features: [
-      "No gateway fee",
-      "Self-custodial",
-      "Full native SDK access",
-      "Direct on-chain settlement",
+      t("pricing.native.f1"),
+      t("pricing.native.f2"),
+      t("pricing.native.f3"),
+      t("pricing.native.f4"),
     ],
-    cta: "Read the SDK",
+    cta: t("pricing.native.cta"),
     href: "https://github.com/CoKeFish/kiba",
     featured: false,
   },
@@ -54,14 +58,14 @@ const tiers = [
 ">
   <div style="max-width: 1280px; margin: 0 auto;">
     <div style="margin-bottom: 64px; text-align: center;">
-      <div class="eyebrow js-reveal blur-up" style="margin-bottom: 16px;">Pricing</div>
+      <div class="eyebrow js-reveal blur-up" style="margin-bottom: 16px;">{t("pricing.eyebrow")}</div>
       <h2 class="js-reveal elastic-up d1" style="
         font-family: var(--font-display);
         font-size: clamp(32px, 3.5vw, 44px);
         font-weight: 600;
         color: var(--fg-1);
         letter-spacing: -0.02em;
-      ">No subscriptions. Pay only for what you use.</h2>
+      ">{t("pricing.title")}</h2>
     </div>
 
     <div style="
@@ -69,18 +73,18 @@ const tiers = [
       grid-template-columns: repeat(3, 1fr);
       gap: 20px;
     " class="pricing-grid">
-      {tiers.map((t, i) => (
+      {tiers.map((tier, i) => (
         <div class={`js-reveal tilt-in d${i + 1} hover-lift`} style={`
           background: var(--bg-card);
-          border: 1px solid ${t.featured ? 'var(--accent)' : 'var(--border-default)'};
+          border: 1px solid ${tier.featured ? 'var(--accent)' : 'var(--border-default)'};
           border-radius: 14px;
           padding: 32px;
           display: flex;
           flex-direction: column;
           position: relative;
-          ${t.featured ? 'box-shadow: 0 0 48px color-mix(in srgb, var(--accent) 22%, transparent);' : ''}
+          ${tier.featured ? 'box-shadow: 0 0 48px color-mix(in srgb, var(--accent) 22%, transparent);' : ''}
         `}>
-          {t.featured && (
+          {tier.featured && (
             <div style="
               position: absolute; top: -12px; left: 50%;
               transform: translateX(-50%);
@@ -92,7 +96,7 @@ const tiers = [
               padding: 4px 16px; border-radius: 999px;
               box-shadow: 0 0 16px color-mix(in srgb, var(--accent) 50%, transparent);
               white-space: nowrap;
-            ">Most popular</div>
+            ">{t("pricing.popular")}</div>
           )}
 
           <div style="
@@ -100,33 +104,33 @@ const tiers = [
             font-size: 12px; font-weight: 600;
             letter-spacing: 0.12em; text-transform: uppercase;
             color: var(--fg-3); margin-bottom: 8px;
-          ">{t.name}</div>
+          ">{tier.name}</div>
 
           <div style="
             font-family: var(--font-display);
             font-size: 40px; font-weight: 600;
             color: var(--fg-1); letter-spacing: -0.02em;
             line-height: 1; margin-bottom: 8px;
-          ">{t.price}</div>
+          ">{tier.price}</div>
 
           <p style="
             font-family: var(--font-sans);
             font-size: 14px; color: var(--fg-2);
             margin-bottom: 28px; line-height: 1.5;
-          ">{t.desc}</p>
+          ">{tier.desc}</p>
 
           <ul style="
             display: flex; flex-direction: column; gap: 10px;
             margin-bottom: 32px; flex: 1;
             list-style: none; padding: 0;
           ">
-            {t.features.map((f) => (
+            {tier.features.map((f) => (
               <li style="
                 display: flex; align-items: flex-start; gap: 10px;
                 font-family: var(--font-sans);
                 font-size: 14px; color: var(--fg-2);
               ">
-                <svg style={`flex-shrink: 0; margin-top: 2px; color: ${t.featured ? 'var(--accent)' : 'var(--success)'};`}
+                <svg style={`flex-shrink: 0; margin-top: 2px; color: ${tier.featured ? 'var(--accent)' : 'var(--success)'};`}
                   xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
                   fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <polyline points="20 6 9 17 4 12"/>
@@ -137,7 +141,7 @@ const tiers = [
           </ul>
 
           <a
-            href={t.href}
+            href={tier.href}
             style={`
               display: block; text-align: center;
               font-family: var(--font-sans);
@@ -145,11 +149,11 @@ const tiers = [
               padding: 12px 24px; border-radius: 999px;
               text-decoration: none;
               transition: all var(--dur-fast) var(--ease-out);
-              ${t.featured
+              ${tier.featured
                 ? 'background: var(--accent); color: #fff; box-shadow: 0 0 24px color-mix(in srgb, var(--accent) 40%, transparent);'
                 : 'background: transparent; color: var(--fg-1); border: 1px solid var(--border-strong);'}
             `}
-          >{t.cta}</a>
+          >{tier.cta}</a>
         </div>
       ))}
     </div>

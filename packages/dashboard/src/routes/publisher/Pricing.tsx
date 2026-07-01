@@ -1,10 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { api } from "@/lib/api";
 import { MyAgentsSection } from "@/components/AgentManager";
 import { Coins, Info, Zap } from "lucide-react";
 import "./publisher.css";
 
 export default function PublisherPricing() {
+  const { t } = useTranslation();
   const { data: myAgents, isLoading } = useQuery({
     queryKey: ["my-agents"],
     queryFn: () => api.myAgents(),
@@ -22,9 +24,9 @@ export default function PublisherPricing() {
     <div className="pub-page">
       <header className="pub-head">
         <div className="pub-head__copy">
-          <h1 className="pub-title">Pricing</h1>
+          <h1 className="pub-title">{t("publisher.pricing.title")}</h1>
           <p className="pub-subtitle">
-            Set a price per call for each agent. Users only pay when your agent runs.
+            {t("publisher.pricing.subtitle")}
           </p>
         </div>
       </header>
@@ -32,35 +34,35 @@ export default function PublisherPricing() {
       <section className="pub-card">
         <div className="pub-card__head">
           <div>
-            <h2 className="pub-card__title">How pricing works</h2>
-            <p className="pub-card__desc">Simple pay-per-call — no subscriptions or hidden fees.</p>
+            <h2 className="pub-card__title">{t("publisher.pricing.how_title")}</h2>
+            <p className="pub-card__desc">{t("publisher.pricing.how_desc")}</p>
           </div>
         </div>
         <div className="pub-card__body">
           <div className="pub-benefits">
             <div className="pub-benefit">
               <Zap size={18} className="pub-benefit__icon" />
-              <p className="pub-benefit__title">Pay per call</p>
-              <p className="pub-benefit__text">Each agent invocation is a single micropayment via x402.</p>
+              <p className="pub-benefit__title">{t("publisher.pricing.benefit_pay_title")}</p>
+              <p className="pub-benefit__text">{t("publisher.pricing.benefit_pay_text")}</p>
             </div>
             <div className="pub-benefit">
               <Coins size={18} className="pub-benefit__icon" />
-              <p className="pub-benefit__title">You keep {netPct}%</p>
+              <p className="pub-benefit__title">{t("publisher.pricing.benefit_keep_title", { netPct })}</p>
               <p className="pub-benefit__text">
-                Kiba takes a {feePct}% platform fee; the rest lands in your wallet instantly.
+                {t("publisher.pricing.benefit_keep_text", { feePct })}
               </p>
             </div>
             <div className="pub-benefit">
               <Info size={18} className="pub-benefit__icon" />
-              <p className="pub-benefit__title">User pays on run</p>
-              <p className="pub-benefit__text">Consumers are charged only when your agent successfully runs.</p>
+              <p className="pub-benefit__title">{t("publisher.pricing.benefit_run_title")}</p>
+              <p className="pub-benefit__text">{t("publisher.pricing.benefit_run_text")}</p>
             </div>
           </div>
         </div>
       </section>
 
       {isLoading ? (
-        <p className="pub-loading">Loading agents…</p>
+        <p className="pub-loading">{t("publisher.pricing.loading")}</p>
       ) : (
         <MyAgentsSection
           agents={myAgents ?? []}

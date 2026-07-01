@@ -1,13 +1,18 @@
 ---
+import { getLangFromUrl, useTranslations } from "../i18n/utils";
+const lang = getLangFromUrl(Astro.url);
+const t = useTranslations(lang);
+
 const DASHBOARD_URL = import.meta.env.PUBLIC_DASHBOARD_URL || "https://dashboard.kiba.rodion.com.co";
 
+// name/usd/xlm/avatar/tagColor son datos no traducibles (nombres de agente demo).
 const agents = [
   {
     name: "Token Insights",
     usd: "0.5000",
     xlm: "0.003000",
-    desc: "On-chain token analytics and smart insights.",
-    tag: "DeFi",
+    desc: t("featured.a1.desc"),
+    tag: t("featured.a1.tag"),
     tagColor: "var(--c-purple)",
     avatar: "/agents/star.png",
   },
@@ -15,8 +20,8 @@ const agents = [
     name: "Wallet Health",
     usd: "0.3500",
     xlm: "0.002000",
-    desc: "Portfolio analysis and risk scoring.",
-    tag: "Analytics",
+    desc: t("featured.a2.desc"),
+    tag: t("featured.a2.tag"),
     tagColor: "var(--c-green)",
     avatar: "/agents/circle.png",
   },
@@ -24,8 +29,8 @@ const agents = [
     name: "News Summarizer",
     usd: "0.2000",
     xlm: "0.001200",
-    desc: "Summarize crypto news in any language.",
-    tag: "Content",
+    desc: t("featured.a3.desc"),
+    tag: t("featured.a3.tag"),
     tagColor: "var(--c-pink)",
     avatar: "/agents/heart.png",
   },
@@ -33,8 +38,8 @@ const agents = [
     name: "Tx Simulator",
     usd: "0.3000",
     xlm: "0.001800",
-    desc: "Simulate Stellar transactions before you send.",
-    tag: "Dev Tools",
+    desc: t("featured.a4.desc"),
+    tag: t("featured.a4.tag"),
     tagColor: "var(--c-yellow)",
     avatar: "/agents/triangle.png",
   },
@@ -47,11 +52,11 @@ const agents = [
       <h2 class="js-reveal slide-up" style="
         font-family: var(--font-display); font-size: clamp(22px, 2.4vw, 30px);
         font-weight: 800; letter-spacing: -0.03em; color: var(--fg-1);
-      ">Featured <span style="color: var(--accent);">agents</span></h2>
+      ">{t("featured.title.pre")}<span style="color: var(--accent);">{t("featured.title.em")}</span></h2>
       <a href={`${DASHBOARD_URL}/agents`} class="js-reveal slide-up d1" style="
         font-family: var(--font-sans); font-size: 14px; font-weight: 700;
         color: var(--accent); text-decoration: none;
-      ">View all →</a>
+      ">{t("featured.viewall")}</a>
     </div>
 
     <div style="

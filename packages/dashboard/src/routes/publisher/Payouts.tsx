@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { api } from "@/lib/api";
 import { formatUsd } from "@/lib/format";
 import { chain } from "@/lib/chain";
@@ -8,6 +9,7 @@ import { Check, Copy, ExternalLink, Info, Wallet } from "lucide-react";
 import "./publisher.css";
 
 export default function PublisherPayouts() {
+  const { t } = useTranslation();
   const { data, isLoading } = useQuery({
     queryKey: ["publisher-overview"],
     queryFn: api.publisherOverview,
@@ -30,10 +32,9 @@ export default function PublisherPayouts() {
     <div className="pub-page">
       <header className="pub-head">
         <div className="pub-head__copy">
-          <h1 className="pub-title">Payouts</h1>
+          <h1 className="pub-title">{t("publisher.payouts.title")}</h1>
           <p className="pub-subtitle">
-            Earnings settle directly to your custodial wallet on {chain.networkLabel}. Publishers
-            keep {netPct}% of every paid call.
+            {t("publisher.payouts.subtitle", { network: chain.networkLabel, netPct })}
           </p>
         </div>
       </header>
@@ -42,7 +43,7 @@ export default function PublisherPayouts() {
         <article className="pub-kpi">
           <div className="pub-kpi__row">
             <div>
-              <p className="pub-kpi__label">Available payout balance</p>
+              <p className="pub-kpi__label">{t("publisher.payouts.kpi_available")}</p>
               <p className="pub-kpi__value">
                 {isLoading ? "—" : formatUsd(data?.wallet.usd ?? 0)}
               </p>
@@ -58,11 +59,11 @@ export default function PublisherPayouts() {
         <article className="pub-kpi">
           <div className="pub-kpi__row">
             <div>
-              <p className="pub-kpi__label">Lifetime earned</p>
+              <p className="pub-kpi__label">{t("publisher.payouts.kpi_lifetime")}</p>
               <p className="pub-kpi__value pub-kpi__value--ok">
                 {isLoading ? "—" : formatUsd(data?.totals.earned_usd ?? 0)}
               </p>
-              <p className="pub-kpi__hint">after {feePct}% platform fee</p>
+              <p className="pub-kpi__hint">{t("publisher.payouts.kpi_lifetime_hint", { feePct })}</p>
             </div>
             <div className="pub-kpi__icon" style={{ background: "color-mix(in srgb, var(--color-success) 14%, transparent)", color: "var(--color-success)" }}>
               <Wallet size={20} />
@@ -74,16 +75,16 @@ export default function PublisherPayouts() {
       <section className="pub-card">
         <div className="pub-card__head">
           <div>
-            <h2 className="pub-card__title">Payout wallet</h2>
+            <h2 className="pub-card__title">{t("publisher.payouts.wallet_title")}</h2>
             <p className="pub-card__desc">
-              Every paid call sends {netPct}% here atomically via the on-chain contract.
+              {t("publisher.payouts.wallet_desc", { netPct })}
             </p>
           </div>
         </div>
         <div className="pub-card__body">
           <div className="pub-wallet-row">
             <span>{pubkey || "—"}</span>
-            <button type="button" className="pub-icon-btn" onClick={copy} disabled={!pubkey} aria-label="Copy address">
+            <button type="button" className="pub-icon-btn" onClick={copy} disabled={!pubkey} aria-label={t("publisher.payouts.copy_address")}>
               {copied ? <Check size={14} /> : <Copy size={14} />}
             </button>
             {pubkey && (
@@ -92,7 +93,7 @@ export default function PublisherPayouts() {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="pub-icon-btn"
-                aria-label="Open in explorer"
+                aria-label={t("publisher.payouts.open_explorer")}
               >
                 <ExternalLink size={14} />
               </a>
@@ -102,14 +103,12 @@ export default function PublisherPayouts() {
           <div className="pub-info" style={{ marginTop: 14, display: "flex", gap: 10, alignItems: "flex-start" }}>
             <Info size={18} style={{ flexShrink: 0, color: "var(--color-primary)", marginTop: 2 }} />
             <div>
-              On testnet your earnings accrue as real {data?.asset ?? chain.asset} in this custodial
-              wallet. A self-serve withdrawal to an external address is on the roadmap; for now the
-              balance is fully visible and verifiable on-chain.
+              {t("publisher.payouts.info", { asset: data?.asset ?? chain.asset })}
             </div>
           </div>
 
           <button type="button" className="pub-btn pub-btn--primary" style={{ marginTop: 16 }} disabled>
-            Request payout (coming soon)
+            {t("publisher.payouts.request_payout")}
           </button>
         </div>
       </section>
@@ -117,17 +116,17 @@ export default function PublisherPayouts() {
       <section className="pub-card">
         <div className="pub-card__head">
           <div>
-            <h2 className="pub-card__title">Payout history</h2>
-            <p className="pub-card__desc">On-chain settlements from paid agent calls.</p>
+            <h2 className="pub-card__title">{t("publisher.payouts.history_title")}</h2>
+            <p className="pub-card__desc">{t("publisher.payouts.history_desc")}</p>
           </div>
         </div>
         <div className="pub-card__body">
           {!data || data.totals.calls === 0 ? (
             <div className="pub-empty">
               <img src="/agents/corazon.png" alt="" aria-hidden className="pub-empty__mascot" />
-              <p className="pub-empty__title">No payouts yet</p>
+              <p className="pub-empty__title">{t("publisher.payouts.empty_title")}</p>
               <p className="pub-empty__text">
-                When users call your agents, earnings appear here as paid settlements.
+                {t("publisher.payouts.empty_text")}
               </p>
             </div>
           ) : (
@@ -135,10 +134,10 @@ export default function PublisherPayouts() {
               <table className="pub-table">
                 <thead>
                   <tr>
-                    <th>Agent</th>
-                    <th className="is-right">Calls</th>
-                    <th className="is-right">Earned</th>
-                    <th>Status</th>
+                    <th>{t("publisher.payouts.th_agent")}</th>
+                    <th className="is-right">{t("publisher.payouts.th_calls")}</th>
+                    <th className="is-right">{t("publisher.payouts.th_earned")}</th>
+                    <th>{t("publisher.payouts.th_status")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -150,7 +149,7 @@ export default function PublisherPayouts() {
                         {formatUsd(solToUsd(a.totalEarnedSol))}
                       </td>
                       <td>
-                        <span className="pub-badge">Paid</span>
+                        <span className="pub-badge">{t("publisher.payouts.badge_paid")}</span>
                       </td>
                     </tr>
                   ))}

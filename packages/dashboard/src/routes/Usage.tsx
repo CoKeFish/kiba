@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import {
   Bar,
@@ -50,6 +51,7 @@ function dayKey(ts: number): string {
 }
 
 export default function Usage() {
+  const { t } = useTranslation();
   const { data: txs = [], isLoading } = useQuery({
     queryKey: ["transactions", "usage"],
     queryFn: () => api.transactions(500),
@@ -116,17 +118,17 @@ export default function Usage() {
   return (
     <div className="usage-page">
       <header className="usage-head">
-        <h1 className="usage-title">Usage</h1>
-        <p className="usage-subtitle">Spend over time, breakdown by agent and channel.</p>
+        <h1 className="usage-title">{t("usage.title")}</h1>
+        <p className="usage-subtitle">{t("usage.subtitle")}</p>
       </header>
 
       <div className="usage-kpis">
         <article className="usage-kpi">
           <div className="usage-kpi__row">
             <div>
-              <p className="usage-kpi__label">Primary channel</p>
+              <p className="usage-kpi__label">{t("usage.primary_channel")}</p>
               <p className="usage-kpi__value">{stats.topChannel}</p>
-              <p className="usage-kpi__hint">Most used integration path</p>
+              <p className="usage-kpi__hint">{t("usage.primary_channel_hint")}</p>
             </div>
             <div
               className="usage-kpi__icon"
@@ -143,11 +145,13 @@ export default function Usage() {
         <article className="usage-kpi">
           <div className="usage-kpi__row">
             <div>
-              <p className="usage-kpi__label">Total spent</p>
+              <p className="usage-kpi__label">{t("usage.total_spent")}</p>
               <p className="usage-kpi__value usage-kpi__value--normal">
                 {formatKibixLabel(usdToKibix(stats.totalSpent))}
               </p>
-              <p className="usage-kpi__hint">≈ {formatUsd(stats.totalSpent)}</p>
+              <p className="usage-kpi__hint">
+                {t("usage.approx_usd", { usd: formatUsd(stats.totalSpent) })}
+              </p>
             </div>
             <div
               className="usage-kpi__icon"
@@ -164,9 +168,9 @@ export default function Usage() {
         <article className="usage-kpi">
           <div className="usage-kpi__row">
             <div>
-              <p className="usage-kpi__label">Calls made</p>
+              <p className="usage-kpi__label">{t("usage.calls_made")}</p>
               <p className="usage-kpi__value usage-kpi__value--normal">{calls.length}</p>
-              <p className="usage-kpi__hint">Agent requests</p>
+              <p className="usage-kpi__hint">{t("usage.calls_made_hint")}</p>
             </div>
             <div
               className="usage-kpi__icon"
@@ -183,12 +187,14 @@ export default function Usage() {
         <article className="usage-kpi usage-kpi--peek">
           <div className="usage-kpi__row">
             <div>
-              <p className="usage-kpi__label">Avg cost</p>
+              <p className="usage-kpi__label">{t("usage.avg_cost")}</p>
               <p className="usage-kpi__value usage-kpi__value--normal">
                 {calls.length > 0 ? formatKibixLabel(usdToKibix(stats.avgCost)) : "—"}
               </p>
               <p className="usage-kpi__hint">
-                {calls.length > 0 ? `≈ ${formatUsd(stats.avgCost, 4)} per call` : "Per call"}
+                {calls.length > 0
+                  ? t("usage.avg_cost_per_call", { usd: formatUsd(stats.avgCost, 4) })
+                  : t("usage.per_call")}
               </p>
             </div>
             <div
@@ -208,9 +214,11 @@ export default function Usage() {
       <div className="usage-charts">
         <section className="usage-chart-card">
           <div className="usage-chart-card__head">
-            <h2 className="usage-chart-card__title">Spend by agent</h2>
+            <h2 className="usage-chart-card__title">{t("usage.spend_by_agent")}</h2>
             <p className="usage-chart-card__desc">
-              {byAgent.length === 0 ? "No calls yet" : `${byAgent.length} agent(s)`}
+              {byAgent.length === 0
+                ? t("usage.no_calls_yet")
+                : t("usage.agent_count", { count: byAgent.length })}
             </p>
           </div>
           <div
@@ -225,7 +233,7 @@ export default function Usage() {
                   className="usage-empty__mascot usage-empty__mascot--sitting"
                 />
                 <p className="usage-empty__text">
-                  {isLoading ? "Loading…" : "No agent usage yet."}
+                  {isLoading ? t("usage.loading") : t("usage.no_agent_usage")}
                 </p>
               </div>
             ) : (
@@ -268,11 +276,11 @@ export default function Usage() {
 
         <section className="usage-chart-card">
           <div className="usage-chart-card__head">
-            <h2 className="usage-chart-card__title">Daily spend ({KIBIX_LABEL})</h2>
+            <h2 className="usage-chart-card__title">{t("usage.daily_spend", { label: KIBIX_LABEL })}</h2>
             <p className="usage-chart-card__desc">
               {dailySpend.length === 0
-                ? "No calls yet"
-                : `Last ${dailySpend.length} day(s)`}
+                ? t("usage.no_calls_yet")
+                : t("usage.last_days", { count: dailySpend.length })}
             </p>
           </div>
           <div
@@ -287,7 +295,7 @@ export default function Usage() {
                   className="usage-empty__mascot usage-empty__mascot--wave"
                 />
                 <p className="usage-empty__text">
-                  {isLoading ? "Loading…" : "No spend data yet."}
+                  {isLoading ? t("usage.loading") : t("usage.no_spend_data")}
                 </p>
               </div>
             ) : (
@@ -321,10 +329,10 @@ export default function Usage() {
 
       <section className="usage-cta">
         <div className="usage-cta__copy">
-          <p className="usage-cta__text">Start exploring agents to see usage insights.</p>
+          <p className="usage-cta__text">{t("usage.cta_text")}</p>
           <Link to="/app/playground" className="usage-cta-btn">
             <Play size={16} fill="currentColor" />
-            Go to Playground
+            {t("usage.cta_button")}
           </Link>
         </div>
         <div className="usage-parade" aria-hidden="true">

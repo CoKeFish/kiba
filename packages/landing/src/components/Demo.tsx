@@ -21,14 +21,10 @@ import {
 const EASE: [number, number, number, number] = [0.2, 0.7, 0.2, 1];
 const SCENE_MS = 4400;
 
-const STEPS = [
-  { label: "Download", Icon: Download },
-  { label: "Install", Icon: PackageCheck },
-  { label: "Ask", Icon: MessageSquareText },
-  { label: "Pay", Icon: ArrowLeftRight },
-  { label: "Answer", Icon: Sparkles },
-];
+// Iconos por paso (los labels llegan traducidos por props).
+const STEP_ICONS = [Download, PackageCheck, MessageSquareText, ArrowLeftRight, Sparkles];
 
+// Chrome de ventana: marca/técnico, no se traduce.
 const WINDOW_TITLES = [
   "kiba.com  ·  download",
   "Kiba  ·  installer",
@@ -37,13 +33,22 @@ const WINDOW_TITLES = [
   "Claude Desktop",
 ];
 
-const CAPTIONS = [
-  "Download the 1.1 MB installer — no terminal, no config files.",
-  "It detects Claude Desktop, Cursor & Claude Code and wires up MCP for you.",
-  "Ask your assistant anything — it finds the right specialist agent on its own.",
-  "Payment clears over x402 and settles on-chain with an atomic 95/5 split.",
-  "The agent's answer comes back — with a verifiable on-chain receipt.",
-];
+// Textos i18n: el .astro padre los pasa como props. Defaults en inglés.
+export type DemoStrings = {
+  steps: string[];    // 5: Download, Install, Ask, Pay, Answer
+  captions: string[]; // 5
+};
+
+const DEFAULT_DEMO_STRINGS: DemoStrings = {
+  steps: ["Download", "Install", "Ask", "Pay", "Answer"],
+  captions: [
+    "Download the 1.1 MB installer — no terminal, no config files.",
+    "It detects Claude Desktop, Cursor & Claude Code and wires up MCP for you.",
+    "Ask your assistant anything — it finds the right specialist agent on its own.",
+    "Payment clears over x402 and settles on-chain with an atomic 95/5 split.",
+    "The agent's answer comes back — with a verifiable on-chain receipt.",
+  ],
+};
 
 const listV = { hidden: {}, show: { transition: { staggerChildren: 0.55, delayChildren: 0.2 } } };
 const itemV = {
@@ -450,17 +455,17 @@ function WindowFrame({ title, children }: { title: string; children: React.React
   );
 }
 
-function Stepper({ scene, setScene }: { scene: number; setScene: (n: number) => void }) {
+function Stepper({ scene, setScene, labels }: { scene: number; setScene: (n: number) => void; labels: string[] }) {
   return (
     <div style={{ marginBottom: 22 }}>
       <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
-        {STEPS.map((s, i) => {
+        {STEP_ICONS.map((Icon, i) => {
           const active = i === scene;
           const done = i < scene;
-          const { Icon } = s;
+          const label = labels[i];
           return (
             <button
-              key={s.label}
+              key={label}
               onClick={() => setScene(i)}
               style={{
                 display: "inline-flex",
@@ -482,14 +487,14 @@ function Stepper({ scene, setScene }: { scene: number; setScene: (n: number) => 
               <span style={{ display: "inline-flex" }}>
                 {done ? <Check size={14} strokeWidth={3} /> : <Icon size={14} strokeWidth={1.8} />}
               </span>
-              {s.label}
+              {label}
             </button>
           );
         })}
       </div>
       <div style={{ marginTop: 14, height: 2, borderRadius: 999, background: "var(--bg-inset)", overflow: "hidden" }}>
         <motion.div
-          animate={{ width: `${((scene + 1) / STEPS.length) * 100}%` }}
+          animate={{ width: `${((scene + 1) / STEP_ICONS.length) * 100}%` }}
           transition={{ duration: 0.5, ease: EASE }}
           style={{ height: "100%", background: "var(--accent)" }}
         />
@@ -500,7 +505,8 @@ function Stepper({ scene, setScene }: { scene: number; setScene: (n: number) => 
 
 /* ── root ────────────────────────────────────────────────────── */
 
-export default function Demo() {
+export default function Demo({ strings }: { strings?: DemoStrings }) {
+  const s = strings ?? DEFAULT_DEMO_STRINGS;
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { amount: 0.3 });
   const [scene, setScene] = useState(0);
@@ -521,7 +527,7 @@ export default function Demo() {
       onMouseLeave={() => setHover(false)}
       style={{ maxWidth: 760, margin: "0 auto" }}
     >
-      <Stepper scene={scene} setScene={setScene} />
+      <Stepper scene={scene} setScene={setScene} labels={s.steps} />
       <WindowFrame title={WINDOW_TITLES[scene]}>
         <motion.div key={scene} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: EASE }}>
           <Active />
@@ -536,7 +542,7 @@ export default function Demo() {
           style={{ fontFamily: "var(--font-sans)", fontSize: 14, color: "var(--fg-2)", maxWidth: 560, margin: "0 auto" }}
         >
           <span style={{ color: "var(--blue-300)", fontFamily: "var(--font-mono)", marginRight: 8 }}>{scene + 1}/5</span>
-          {CAPTIONS[scene]}
+          {s.captions[scene]}
         </motion.p>
       </div>
     </div>

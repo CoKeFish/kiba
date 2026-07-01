@@ -8,6 +8,8 @@ import { serviceToName, solToUsd } from "@/components/AgentManager";
 import { DEMO_AGENTS } from "@/lib/demoAgents";
 import { mascotFor } from "@/lib/agentMascots";
 import { Bot, Play } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import "./playground.css";
 
 const SAMPLE_PAYLOADS: Record<string, string> = {
@@ -32,22 +34,22 @@ const SAMPLE_PAYLOADS: Record<string, string> = {
 }`,
 };
 
-const QUICK_PROMPTS: { label: string; payload: string }[] = [
+const QUICK_PROMPTS: { labelKey: string; payload: string }[] = [
   {
-    label: "Summarize this",
+    labelKey: "playground.quick_prompts.summarize",
     payload: `{
   "text": "The quarterly report shows a 12% increase in revenue across all regions.",
   "to": "es"
 }`,
   },
   {
-    label: "List 3 risks",
+    labelKey: "playground.quick_prompts.list_risks",
     payload: `{
   "protocols": ["Blend", "YieldBlox", "Aquarius"]
 }`,
   },
   {
-    label: "Explain simply",
+    labelKey: "playground.quick_prompts.explain",
     payload: `{
   "text": "Explain blockchain escrow in simple terms for a non-technical user.",
   "to": "en"
@@ -68,41 +70,48 @@ interface CallEntry {
 
 type FlowStep = { title: string; detail: string; done: boolean; active: boolean };
 
-function buildFlowSteps(trace: X402Trace | undefined, service: string, costUsd?: number): FlowStep[] {
+function buildFlowSteps(
+  t: TFunction,
+  trace: X402Trace | undefined,
+  service: string,
+  costUsd?: number,
+): FlowStep[] {
   const quote = trace?.steps.find((s) => s.type === "402_received");
   const escrow = trace?.steps.find((s) => s.type === "escrow_opened");
   const responded = trace?.steps.find((s) => s.type === "service_responded");
 
   const steps: Omit<FlowStep, "active">[] = [
     {
-      title: "Quote received",
+      title: t("playground.flow.quote_title"),
       detail: quote
         ? `${service} · ${(Number(quote.quote.amount) / chain.baseUnitsPerToken).toFixed(4)} ${chain.asset}`
-        : "Waiting for agent quote…",
+        : t("playground.flow.quote_waiting"),
       done: !!quote,
     },
     {
-      title: "Payment authorized",
+      title: t("playground.flow.payment_title"),
       detail: escrow
         ? escrow.signature && escrow.signature !== "NO_ONCHAIN_PROGRAM_ID"
-          ? "Escrow opened on-chain"
-          : "Balance debited (demo mode)"
-        : "Authorize payment from your balance",
+          ? t("playground.flow.escrow_onchain")
+          : t("playground.flow.balance_debited_demo")
+        : t("playground.flow.authorize"),
       done: !!escrow,
     },
     {
-      title: "Agent executed",
-      detail: responded ? `HTTP ${responded.status} from agent handler` : "Agent runs your payload",
+      title: t("playground.flow.executed_title"),
+      detail: responded
+        ? t("playground.flow.executed_detail", { status: responded.status })
+        : t("playground.flow.executed_waiting"),
       done: !!responded,
     },
     {
-      title: "Result delivered",
+      title: t("playground.flow.result_title"),
       detail:
         responded && responded.status >= 200 && responded.status < 300
-          ? "Response ready in Live response"
+          ? t("playground.flow.result_ready")
           : costUsd != null
-            ? `Debited ${formatUsd(costUsd, 4)}`
-            : "Awaiting result",
+            ? t("playground.flow.debited", { amount: formatUsd(costUsd, 4) })
+            : t("playground.flow.result_awaiting"),
       done: !!(responded && responded.status >= 200 && responded.status < 300),
     },
   ];
@@ -121,6 +130,7 @@ function estimateTokens(result: unknown): string {
 }
 
 export default function Playground() {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const [params, setParams] = useSearchParams();
   const initialService = params.get("service") || "";
@@ -160,7 +170,7 @@ export default function Playground() {
 
   const estUsd = selected ? solToUsd(selected.pricePerCall) : 0;
   const agentMascot = service ? mascotFor(service) : "/agents/circulo.png";
-  const flowSteps = buildFlowSteps(latest?.trace, latest?.service ?? service, latest?.cost?.usd);
+  const flowSteps = buildFlowSteps(t, latest?.trace, latest?.service ?? service, latest?.cost?.usd);
 
   async function runCall() {
     if (!service) return;
@@ -168,7 +178,7 @@ export default function Playground() {
     try {
       payload = JSON.parse(payloadText);
     } catch (err) {
-      alert("Payload no es JSON válido: " + (err as Error).message);
+      alert(t("playground.invalid_json", { message: (err as Error).message }));
       return;
     }
 
@@ -204,24 +214,20 @@ export default function Playground() {
   return (
     <div className="playground-page">
       <header className="playground-head">
-        <h1 className="playground-title">Playground</h1>
-        <p className="playground-subtitle">
-          Describe a task, run a call, and watch the x402 payment flow settle on-chain.
-        </p>
+        <h1 className="playground-title">{t("playground.title")}</h1>
+        <p className="playground-subtitle">{t("playground.subtitle")}</p>
       </header>
 
       <div className="playground-grid">
         {/* ── Send request ── */}
         <section className="playground-card">
           <div className="playground-card__head">
-            <h2 className="playground-card__title">Send a request</h2>
-            <p className="playground-card__desc">
-              Pick an agent, edit the JSON payload, and run a live call.
-            </p>
+            <h2 className="playground-card__title">{t("playground.send_title")}</h2>
+            <p className="playground-card__desc">{t("playground.send_desc")}</p>
           </div>
           <div className="playground-card__body">
             <label className="playground-label" htmlFor="pg-agent">
-              Agent
+              {t("playground.agent_label")}
             </label>
             <select
               id="pg-agent"
@@ -230,7 +236,7 @@ export default function Playground() {
               onChange={(e) => selectService(e.target.value)}
             >
               <option value="" disabled>
-                Select an agent…
+                {t("playground.select_agent")}
               </option>
               {agents.map((a: Agent) => (
                 <option key={a.service} value={a.service}>
@@ -241,7 +247,7 @@ export default function Playground() {
 
             <div className="playground-tip">
               <p>
-                <strong>Tip:</strong> Use the prompts below or write your own JSON payload.
+                <strong>{t("playground.tip_label")}</strong> {t("playground.tip_text")}
               </p>
               <img
                 key={service}
@@ -255,18 +261,18 @@ export default function Playground() {
             <div className="playground-prompts">
               {QUICK_PROMPTS.map((p) => (
                 <button
-                  key={p.label}
+                  key={p.labelKey}
                   type="button"
                   className="playground-prompt"
                   onClick={() => setPayloadText(p.payload)}
                 >
-                  {p.label}
+                  {t(p.labelKey)}
                 </button>
               ))}
             </div>
 
             <label className="playground-label" htmlFor="pg-payload">
-              Payload (JSON)
+              {t("playground.payload_label")}
             </label>
             <textarea
               id="pg-payload"
@@ -277,8 +283,8 @@ export default function Playground() {
             />
 
             <div className="playground-cost">
-              Estimated cost: <strong>{formatUsd(estUsd, 4)}</strong>
-              <span style={{ color: "var(--color-fg-muted)" }}> · amount scales with payload</span>
+              {t("playground.estimated_cost")} <strong>{formatUsd(estUsd, 4)}</strong>
+              <span style={{ color: "var(--color-fg-muted)" }}> · {t("playground.amount_scales")}</span>
             </div>
 
             <div className="playground-run-row">
@@ -296,7 +302,7 @@ export default function Playground() {
                 disabled={!service || running}
               >
                 <Play size={16} fill="currentColor" />
-                {running ? "Running…" : "Run request"}
+                {running ? t("playground.running") : t("playground.run_request")}
               </button>
             </div>
           </div>
@@ -308,7 +314,7 @@ export default function Playground() {
             <div className="playground-card__head">
               <div className="playground-response-head">
                 <h2 className="playground-card__title" style={{ margin: 0 }}>
-                  Live response
+                  {t("playground.live_response")}
                 </h2>
                 <span
                   className={`playground-status ${
@@ -319,7 +325,11 @@ export default function Playground() {
                         : "playground-status--idle"
                   }`}
                 >
-                  {latest?.ok ? "200 OK" : latest && !latest.ok ? "Error" : "Idle"}
+                  {latest?.ok
+                    ? "200 OK"
+                    : latest && !latest.ok
+                      ? t("playground.status_error")
+                      : t("playground.status_idle")}
                 </span>
               </div>
             </div>
@@ -332,17 +342,17 @@ export default function Playground() {
                 </pre>
               ) : (
                 <p className="playground-json playground-json--placeholder">
-                  Run a request to see the agent response here.
+                  {t("playground.response_placeholder")}
                 </p>
               )}
 
               <dl className="playground-meta">
                 <div>
-                  <dt>Processing time</dt>
+                  <dt>{t("playground.processing_time")}</dt>
                   <dd>{latest ? `${Math.round(latest.durationMs)}ms` : "—"}</dd>
                 </div>
                 <div>
-                  <dt>Balance debited</dt>
+                  <dt>{t("playground.balance_debited")}</dt>
                   <dd>
                     {latest?.cost
                       ? `${formatKibix(usdToKibix(latest.cost.usd))} ${KIBIX_LABEL}`
@@ -350,7 +360,7 @@ export default function Playground() {
                   </dd>
                 </div>
                 <div>
-                  <dt>Tokens used</dt>
+                  <dt>{t("playground.tokens_used")}</dt>
                   <dd>{latest?.ok ? estimateTokens(latest.result) : "—"}</dd>
                 </div>
               </dl>
@@ -359,8 +369,8 @@ export default function Playground() {
 
           <section className="playground-card playground-flow" style={{ marginTop: 16 }}>
             <div className="playground-card__head">
-              <h2 className="playground-card__title">Payment flow</h2>
-              <p className="playground-card__desc">x402 handshake step by step.</p>
+              <h2 className="playground-card__title">{t("playground.payment_flow")}</h2>
+              <p className="playground-card__desc">{t("playground.flow_desc")}</p>
             </div>
             <div className="playground-card__body">
               {flowSteps.map((step) => (
@@ -382,10 +392,10 @@ export default function Playground() {
 
       <section className="playground-cta">
         <div>
-          <p className="playground-cta__text">Building something awesome?</p>
+          <p className="playground-cta__text">{t("playground.cta_text")}</p>
           <Link to="/app/agents" className="playground-cta-btn">
             <Bot size={16} />
-            Explore agents
+            {t("playground.explore_agents")}
           </Link>
         </div>
         <img

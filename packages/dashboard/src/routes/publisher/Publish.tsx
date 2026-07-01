@@ -1,36 +1,38 @@
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { RegisterAgentForm } from "@/components/AgentManager";
 import { CheckCircle2, Circle, Rocket } from "lucide-react";
 import "./publisher.css";
 
 const STEPS = [
-  { id: "identity", label: "Agent identity", hint: "Name, service slug and category" },
-  { id: "desc", label: "Description", hint: "What your agent does for users" },
-  { id: "endpoint", label: "Endpoint / integration", hint: "URL the gateway calls on each request" },
-  { id: "pricing", label: "Pricing", hint: "Price per call in SOL" },
-  { id: "review", label: "Review & publish", hint: "Register on-chain from your wallet" },
+  { id: "identity", labelKey: "publisher.publish.step_identity_label", hintKey: "publisher.publish.step_identity_hint" },
+  { id: "desc", labelKey: "publisher.publish.step_desc_label", hintKey: "publisher.publish.step_desc_hint" },
+  { id: "endpoint", labelKey: "publisher.publish.step_endpoint_label", hintKey: "publisher.publish.step_endpoint_hint" },
+  { id: "pricing", labelKey: "publisher.publish.step_pricing_label", hintKey: "publisher.publish.step_pricing_hint" },
+  { id: "review", labelKey: "publisher.publish.step_review_label", hintKey: "publisher.publish.step_review_hint" },
 ];
 
 const TIPS = [
-  "Pick a short service slug — it becomes the public API path.",
-  "Start with a low price while you test; you can raise it anytime.",
-  "Your endpoint must respond within the gateway timeout.",
-  "Descriptions show up in the consumer marketplace.",
+  "publisher.publish.tip_1",
+  "publisher.publish.tip_2",
+  "publisher.publish.tip_3",
+  "publisher.publish.tip_4",
 ];
 
 export default function PublisherPublish() {
+  const { t } = useTranslation();
   return (
     <div className="pub-page">
       <header className="pub-head">
         <div className="pub-head__copy">
-          <h1 className="pub-title">Publish</h1>
+          <h1 className="pub-title">{t("publisher.publish.title")}</h1>
           <p className="pub-subtitle">
-            Register a new agent on-chain. One form — identity, endpoint, pricing and go live.
+            {t("publisher.publish.subtitle")}
           </p>
         </div>
         <div className="pub-actions">
           <Link to="/app/publisher/agents" className="pub-btn pub-btn--secondary pub-btn--sm">
-            My agents
+            {t("publisher.publish.my_agents")}
           </Link>
         </div>
       </header>
@@ -39,8 +41,8 @@ export default function PublisherPublish() {
         <aside className="pub-card pub-checklist">
           <div className="pub-card__head">
             <div>
-              <h2 className="pub-card__title">Publish checklist</h2>
-              <p className="pub-card__desc">Everything you need before going live.</p>
+              <h2 className="pub-card__title">{t("publisher.publish.checklist_title")}</h2>
+              <p className="pub-card__desc">{t("publisher.publish.checklist_desc")}</p>
             </div>
           </div>
           <div className="pub-card__body">
@@ -53,8 +55,8 @@ export default function PublisherPublish() {
                     <Circle size={18} className="pub-checklist__icon" />
                   )}
                   <div>
-                    <p className="pub-checklist__label">{s.label}</p>
-                    <p className="pub-checklist__hint">{s.hint}</p>
+                    <p className="pub-checklist__label">{t(s.labelKey)}</p>
+                    <p className="pub-checklist__hint">{t(s.hintKey)}</p>
                   </div>
                 </li>
               ))}
@@ -70,11 +72,11 @@ export default function PublisherPublish() {
           <img src="/agents/estrella.png" alt="" aria-hidden className="pub-tips__mascot" />
           <div className="pub-tips__head">
             <Rocket size={18} />
-            <span>Publisher tips</span>
+            <span>{t("publisher.publish.tips_title")}</span>
           </div>
           <ul className="pub-tips__list">
-            {TIPS.map((t) => (
-              <li key={t}>{t}</li>
+            {TIPS.map((tipKey) => (
+              <li key={tipKey}>{t(tipKey)}</li>
             ))}
           </ul>
         </aside>

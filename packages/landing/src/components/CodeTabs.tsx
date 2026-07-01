@@ -7,12 +7,23 @@ type Tab = {
   code: string;
 };
 
-const tabs: Tab[] = [
-  {
-    id: "sdk",
-    label: "Native SDK",
-    desc: "Self-custodial. Sign with your own keypair — gas only, no gateway fee.",
-    code: `import { AgentClient } from 'kiba-sdk';
+// Textos i18n (label/desc): el .astro padre los pasa como props. El código NO se traduce.
+export type CodeTabsStrings = {
+  sdk: { label: string; desc: string };
+  rest: { label: string; desc: string };
+  mcp: { label: string; desc: string };
+  installer: { label: string; desc: string };
+};
+
+const DEFAULT_CODETABS_STRINGS: CodeTabsStrings = {
+  sdk: { label: "Native SDK", desc: "Self-custodial. Sign with your own keypair — gas only, no gateway fee." },
+  rest: { label: "Gateway REST", desc: "Custodial. Top up USD credits, call any agent over HTTPS with an API key." },
+  mcp: { label: "MCP Server", desc: "OAuth-based. No API keys. Plug directly into Claude Desktop or Cursor." },
+  installer: { label: "One-click .exe", desc: "For non-technical users. Download a 1.1 MB installer, double-click, and your AI assistant gains four new tools. Zero JSON, zero terminal." },
+};
+
+const TAB_CODE: Record<string, string> = {
+  sdk: `import { AgentClient } from 'kiba-sdk';
 
 const client = new AgentClient({
   keypair: myWallet,
@@ -22,12 +33,7 @@ const client = new AgentClient({
 const result = await client.call('yield-hunter', {
   token: 'USDC',
 });`,
-  },
-  {
-    id: "rest",
-    label: "Gateway REST",
-    desc: "Custodial. Top up USD credits, call any agent over HTTPS with an API key.",
-    code: `const res = await fetch('https://gateway-production-be17.up.railway.app/v1/call', {
+  rest: `const res = await fetch('https://gateway-production-be17.up.railway.app/v1/call', {
   method: 'POST',
   headers: {
     'Authorization': 'Bearer sk_live_...',
@@ -38,12 +44,7 @@ const result = await client.call('yield-hunter', {
     payload: { token: 'USDC' },
   }),
 });`,
-  },
-  {
-    id: "mcp",
-    label: "MCP Server",
-    desc: "OAuth-based. No API keys. Plug directly into Claude Desktop or Cursor.",
-    code: `// Add to your Claude Desktop config (~/claude.json):
+  mcp: `// Add to your Claude Desktop config (~/claude.json):
 {
   "mcpServers": {
     "kiba": {
@@ -55,12 +56,7 @@ const result = await client.call('yield-hunter', {
 
 // Ask Claude: "find the best yield with risk audit"
 // → browser opens once for OAuth, never again.`,
-  },
-  {
-    id: "installer",
-    label: "One-click .exe",
-    desc: "For non-technical users. Download a 1.1 MB installer, double-click, and your AI assistant gains four new tools. Zero JSON, zero terminal.",
-    code: `# Windows — downloads instantly:
+  installer: `# Windows — downloads instantly:
 https://github.com/CoKeFish/kiba/releases/latest/download/Kiba-Installer-x64-setup.exe
 
 # The installer:
@@ -71,10 +67,18 @@ https://github.com/CoKeFish/kiba/releases/latest/download/Kiba-Installer-x64-set
 
 # Other OS — same effect via npx:
 npx -y kiba-mcp`,
-  },
-];
+};
 
-export default function CodeTabs() {
+const TAB_ORDER = ["sdk", "rest", "mcp", "installer"] as const;
+
+export default function CodeTabs({ strings }: { strings?: CodeTabsStrings }) {
+  const s = strings ?? DEFAULT_CODETABS_STRINGS;
+  const tabs: Tab[] = TAB_ORDER.map((id) => ({
+    id,
+    label: s[id].label,
+    desc: s[id].desc,
+    code: TAB_CODE[id],
+  }));
   const [active, setActive] = useState(tabs[0].id);
   const tab = tabs.find((t) => t.id === active)!;
 

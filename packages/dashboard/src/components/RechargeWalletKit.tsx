@@ -6,6 +6,7 @@
  * dirección Privy que expone `/v1/wallet`. Sigue el patrón de BrebTopup (mismo `Card`/`Button`).
  */
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { CheckCircle2, ExternalLink, Send, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,6 +28,7 @@ export function RechargeWalletKit({
   walletAddress: string;
   onFunded?: () => void;
 }) {
+  const { t } = useTranslation();
   const [addr, setAddr] = useState<string | null>(null);
   const [amount, setAmount] = useState<number>(5);
   const [connecting, setConnecting] = useState(false);
@@ -41,7 +43,7 @@ export function RechargeWalletKit({
       const { connectStellarWallet } = await import("@/lib/stellar-wallet");
       setAddr(await connectStellarWallet());
     } catch (e) {
-      setErr((e as Error).message || "No se pudo conectar la wallet.");
+      setErr((e as Error).message || t("payments.wallet.connect_error"));
     } finally {
       setConnecting(false);
     }
@@ -57,7 +59,7 @@ export function RechargeWalletKit({
       setHash(h);
       onFunded?.();
     } catch (e) {
-      setErr((e as Error).message || "No se pudo enviar el pago.");
+      setErr((e as Error).message || t("payments.wallet.send_error"));
     } finally {
       setSending(false);
     }
@@ -73,12 +75,9 @@ export function RechargeWalletKit({
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Wallet size={16} className="text-[var(--color-primary)]" />
-          Recargar con tu wallet Stellar
+          {t("payments.wallet.title")}
         </CardTitle>
-        <CardDescription>
-          Conecta una wallet externa (Freighter, xBull, Albedo…) y envía USDC directo a tu wallet
-          de Kiba. Sin memo ni QR.
-        </CardDescription>
+        <CardDescription>{t("payments.wallet.description")}</CardDescription>
       </CardHeader>
       <CardBody className="space-y-4">
         {hash ? (
@@ -86,41 +85,42 @@ export function RechargeWalletKit({
             <div className="flex items-start gap-2 text-sm">
               <CheckCircle2 size={18} className="mt-0.5 shrink-0 text-[var(--color-success)]" />
               <div>
-                <div className="font-medium text-[var(--color-success)]">¡USDC enviado!</div>
-                <p className="text-[var(--color-fg-muted)]">
-                  Tu saldo on-chain se actualizará en unos segundos.
-                </p>
+                <div className="font-medium text-[var(--color-success)]">
+                  {t("payments.wallet.sent_title")}
+                </div>
+                <p className="text-[var(--color-fg-muted)]">{t("payments.wallet.sent_body")}</p>
                 <a
                   href={chain.explorerTx(hash)}
                   target="_blank"
                   rel="noreferrer"
                   className="inline-flex items-center gap-1 text-xs text-[var(--color-primary)] hover:underline mt-1"
                 >
-                  Ver transacción <ExternalLink size={12} />
+                  {t("payments.wallet.view_tx")} <ExternalLink size={12} />
                 </a>
               </div>
             </div>
             <Button variant="subtle" size="sm" onClick={reset}>
-              Hacer otra recarga
+              {t("payments.wallet.another_topup")}
             </Button>
           </div>
         ) : !addr ? (
           <Button size="sm" onClick={connect} disabled={connecting}>
             <Wallet size={14} />
-            {connecting ? "Conectando…" : "Conectar wallet"}
+            {connecting ? t("payments.wallet.connecting") : t("payments.wallet.connect")}
           </Button>
         ) : (
           <div className="space-y-3">
             <div className="flex items-center justify-between gap-2 text-xs">
               <span className="text-[var(--color-fg-muted)]">
-                Conectada: <span className="font-mono">{truncate(addr)}</span>
+                {t("payments.wallet.connected_label")}{" "}
+                <span className="font-mono">{truncate(addr)}</span>
               </span>
               <button
                 type="button"
                 onClick={() => setAddr(null)}
                 className="text-[var(--color-fg-subtle)] hover:text-[var(--color-fg)] underline"
               >
-                cambiar
+                {t("payments.wallet.change")}
               </button>
             </div>
 
@@ -146,13 +146,13 @@ export function RechargeWalletKit({
                 value={amount}
                 onChange={(e) => setAmount(Number(e.target.value) || 0)}
                 className="w-24 rounded-md border border-[var(--color-border)] bg-[var(--color-bg-elevated)] px-3 py-1.5 text-sm focus:outline-none focus:border-[var(--color-primary)]"
-                aria-label="Monto en USDC"
+                aria-label={t("payments.wallet.amount_aria")}
               />
             </div>
 
             <Button size="sm" onClick={send} disabled={sending || amount <= 0}>
               <Send size={14} className={sending ? "animate-pulse" : ""} />
-              {sending ? "Enviando…" : `Enviar ${amount} USDC`}
+              {sending ? t("payments.wallet.sending") : t("payments.wallet.send_button", { amount })}
             </Button>
           </div>
         )}

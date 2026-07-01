@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { Eye, EyeOff, Lock, Mail } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { AuthShell } from "@/components/auth/AuthShell";
@@ -7,6 +8,7 @@ import { TitleSparks } from "@/components/auth/TitleSparks";
 
 export default function Login() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -22,7 +24,7 @@ export default function Login() {
       await login(email, password);
       navigate("/app");
     } catch (err: any) {
-      setError(err.message || "Login failed");
+      setError(err.message || t("auth.login.failed"));
     } finally {
       setLoading(false);
     }
@@ -30,8 +32,8 @@ export default function Login() {
 
   return (
     <AuthShell
-      headerPrompt="New to Kiba?"
-      headerLinkLabel="Sign up free"
+      headerPrompt={t("auth.login.header_prompt")}
+      headerLinkLabel={t("auth.login.header_link")}
       headerLinkTo="/signup"
       headerLinkAccent
       mascot="heart"
@@ -40,27 +42,23 @@ export default function Login() {
         <div className="auth-title-wrap">
           <h1 className="auth-title">
             <span className="auth-title-create">
-              Wel
+              {t("auth.login.title_1")}
               <svg className="auth-squiggle auth-squiggle--short" viewBox="0 0 52 12" aria-hidden="true">
                 <path d="M2 9 C12 2, 22 10, 32 5 S44 7, 50 4" />
               </svg>
-            </span>
-            come{" "}
+            </span>{" "}
             <span className="auth-title-account">
-              bac
-              <span className="auth-title-k">
-                k
-                <TitleSparks />
-              </span>
+              {t("auth.login.title_2")}
+              <TitleSparks />
             </span>
           </h1>
         </div>
-        <p className="auth-subtitle">Log in to your Kiba account.</p>
+        <p className="auth-subtitle">{t("auth.login.subtitle")}</p>
 
         <form onSubmit={onSubmit}>
           <div className="auth-field">
             <label className="auth-label" htmlFor="email">
-              Email
+              {t("auth.email")}
             </label>
             <div className="auth-input-wrap">
               <span className="auth-input-icon">
@@ -74,14 +72,14 @@ export default function Login() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 autoComplete="email"
-                placeholder="you@example.com"
+                placeholder={t("auth.email_placeholder")}
               />
             </div>
           </div>
 
           <div className="auth-field">
             <label className="auth-label" htmlFor="password">
-              Password
+              {t("auth.password")}
             </label>
             <div className="auth-input-wrap">
               <span className="auth-input-icon">
@@ -95,13 +93,13 @@ export default function Login() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 autoComplete="current-password"
-                placeholder="Enter your password"
+                placeholder={t("auth.password_placeholder_login")}
               />
               <button
                 type="button"
                 className="auth-input-toggle"
                 onClick={() => setShowPassword((v) => !v)}
-                aria-label={showPassword ? "Hide password" : "Show password"}
+                aria-label={showPassword ? t("auth.hide_password") : t("auth.show_password")}
               >
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
@@ -110,24 +108,25 @@ export default function Login() {
 
           <p className="auth-forgot-wrap">
             <a href="#" className="auth-forgot">
-              Forgot password?
+              {t("auth.forgot")}
             </a>
           </p>
 
           {error && <p className="auth-error">{error}</p>}
 
           <button type="submit" className="auth-submit" disabled={loading}>
-            {loading ? "Signing in…" : "Sign in →"}
+            {loading ? t("auth.login.submitting") : t("auth.login.submit")}
           </button>
 
           <div className="auth-divider">
             <span className="auth-divider-line" />
-            <span className="auth-divider-text">or</span>
+            <span className="auth-divider-text">{t("auth.or")}</span>
             <span className="auth-divider-line" />
           </div>
 
           <p className="auth-footer-link">
-            No account? <Link to="/signup">Sign up free</Link>
+            {t("auth.login.footer_prompt")}{" "}
+            <Link to="/signup">{t("auth.login.footer_link")}</Link>
           </p>
         </form>
       </div>

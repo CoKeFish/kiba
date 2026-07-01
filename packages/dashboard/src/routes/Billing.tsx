@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import {
@@ -35,6 +36,7 @@ const MASCOTS = {
 } as const;
 
 export default function Billing() {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const { data: balance } = useQuery({ queryKey: ["balance"], queryFn: api.balance });
   const { data: wallet } = useQuery({ queryKey: ["wallet"], queryFn: api.wallet });
@@ -53,7 +55,11 @@ export default function Billing() {
     onSuccess: (data) => {
       const newBaseUnits = data.new_balance_base_units ?? data.new_balance_lamports;
       setSuccess(
-        `+ ${formatKibixLabel(usdToKibix(amount))} added · new balance ${formatKibixLabel(baseUnitsToKibix(newBaseUnits))} (≈ ${formatUsd(baseUnitsToUsd(newBaseUnits))})`,
+        t("billing.topup_success", {
+          added: formatKibixLabel(usdToKibix(amount)),
+          new_balance: formatKibixLabel(baseUnitsToKibix(newBaseUnits)),
+          usd: formatUsd(baseUnitsToUsd(newBaseUnits)),
+        }),
       );
       setError(null);
       qc.invalidateQueries({ queryKey: ["balance"] });
@@ -68,11 +74,11 @@ export default function Billing() {
 
   function submit(n: number) {
     if (!Number.isFinite(n) || n <= 0) {
-      setError("Amount must be positive");
+      setError(t("billing.err_amount_positive"));
       return;
     }
     if (n > 1000) {
-      setError("Single topup capped at $1000 in demo mode");
+      setError(t("billing.err_amount_cap"));
       return;
     }
     mutation.mutate(n);
@@ -81,8 +87,8 @@ export default function Billing() {
   return (
     <div className="billing-page">
       <header className="billing-head">
-        <h1 className="billing-title">Billing</h1>
-        <p className="billing-subtitle">Top up credits and review your invoices.</p>
+        <h1 className="billing-title">{t("billing.title")}</h1>
+        <p className="billing-subtitle">{t("billing.subtitle")}</p>
       </header>
 
       <div className="billing-grid">
@@ -90,14 +96,17 @@ export default function Billing() {
           <section className="billing-card billing-balance">
             <div className="billing-balance__row">
               <div>
-                <p className="billing-balance__label">Available balance</p>
+                <p className="billing-balance__label">{t("billing.available_balance")}</p>
                 <p className="billing-balance__value">
                   {balance ? formatKibixLabel(usdToKibix(balance.balance_usd)) : "—"}
                 </p>
                 <p className="billing-balance__hint">
                   {balance
-                    ? `≈ ${formatUsd(balance.balance_usd)} · ${KIBIX_LABEL} are spent on agent calls`
-                    : `${KIBIX_LABEL} are spent on agent calls`}
+                    ? t("billing.balance_hint", {
+                        usd: formatUsd(balance.balance_usd),
+                        kibix_label: KIBIX_LABEL,
+                      })
+                    : t("billing.balance_hint_short", { kibix_label: KIBIX_LABEL })}
                 </p>
               </div>
               <div className="billing-balance__icon">
@@ -108,8 +117,8 @@ export default function Billing() {
 
           <section className="billing-tip">
             <p>
-              <strong>Kibix power your agents</strong> — Top up anytime to keep your agents running
-              smoothly.
+              <strong>{t("billing.tip_title")}</strong>
+              {t("billing.tip_body")}
             </p>
             <img src={MASCOTS.circulo} alt="" aria-hidden className="billing-tip__mascot" />
           </section>
@@ -130,12 +139,13 @@ export default function Billing() {
         <img src={MASCOTS.triangulo} alt="" aria-hidden className="billing-topup__mascot" />
         <h2 className="billing-card__title">
           <Zap size={18} strokeWidth={2.25} />
-          Top up
+          {t("billing.topup_title")}
         </h2>
         <p className="billing-card__desc">
-          Pay in dollars — we convert to {KIBIX_LABEL} instantly ($1 ={" "}
-          {formatKibix(usdToKibix(1))} {KIBIX_LABEL}). Demo mode adds them instantly; production
-          would route through Stripe Checkout.
+          {t("billing.topup_desc", {
+            kibix_label: KIBIX_LABEL,
+            rate: formatKibix(usdToKibix(1)),
+          })}
         </p>
 
         <div className="billing-amounts">
@@ -150,7 +160,7 @@ export default function Billing() {
             </button>
           ))}
           <label className="billing-custom">
-            Custom ($)
+            {t("billing.custom_label")}
             <input
               type="number"
               min={1}
@@ -184,8 +194,11 @@ export default function Billing() {
         >
           <CreditCard size={16} />
           {mutation.isPending
-            ? "Processing…"
-            : `Add ${formatKibixLabel(usdToKibix(amount))} (${formatUsd(amount)})`}
+            ? t("billing.processing")
+            : t("billing.add_button", {
+                kibix: formatKibixLabel(usdToKibix(amount)),
+                usd: formatUsd(amount),
+              })}
         </button>
       </section>
 
@@ -196,12 +209,12 @@ export default function Billing() {
           <div>
             <h2 className="billing-card__title">
               <FileText size={18} strokeWidth={2.25} />
-              Invoices
+              {t("billing.invoices_title")}
             </h2>
             <p className="billing-card__desc" style={{ marginBottom: 0 }}>
               {topups.length === 0
-                ? "No top-ups yet"
-                : `${topups.length} top-up${topups.length !== 1 ? "s" : ""}`}
+                ? t("billing.no_topups")
+                : t("billing.topup_count", { count: topups.length })}
             </p>
           </div>
         </div>
@@ -209,52 +222,52 @@ export default function Billing() {
           {topups.length === 0 ? (
             <div className="billing-empty">
               <img src={MASCOTS.morado} alt="" aria-hidden className="billing-empty__mascot" />
-              <p className="billing-empty__text">Your top-ups will appear here.</p>
+              <p className="billing-empty__text">{t("billing.empty_text")}</p>
             </div>
           ) : (
             <div className="billing-table-wrap">
               <table className="billing-table">
                 <thead>
                   <tr>
-                    <th>Date</th>
-                    <th>Description</th>
-                    <th>Type</th>
-                    <th>Amount ({KIBIX_LABEL})</th>
-                    <th>Amount (USD)</th>
-                    <th>Status</th>
+                    <th>{t("billing.th_date")}</th>
+                    <th>{t("billing.th_description")}</th>
+                    <th>{t("billing.th_type")}</th>
+                    <th>{t("billing.th_amount_kibix", { kibix_label: KIBIX_LABEL })}</th>
+                    <th>{t("billing.th_amount_usd")}</th>
+                    <th>{t("billing.th_status")}</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {topups.map((t) => (
-                    <tr key={t.id}>
+                  {topups.map((t2) => (
+                    <tr key={t2.id}>
                       <td className="billing-table__muted">
-                        {format(new Date(t.created_at * 1000), "MMM d, yyyy HH:mm")}
+                        {format(new Date(t2.created_at * 1000), "MMM d, yyyy HH:mm")}
                       </td>
                       <td>
-                        <div>{t.service || "fake-stripe"}</div>
-                        {t.tx_signature && (
+                        <div>{t2.service || "fake-stripe"}</div>
+                        {t2.tx_signature && (
                           <a
-                            href={explorerUrl(t.tx_signature)}
+                            href={explorerUrl(t2.tx_signature)}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="billing-link billing-table__mono"
                             style={{ fontSize: 11 }}
                           >
-                            {shortSig(t.tx_signature)}
+                            {shortSig(t2.tx_signature)}
                             <ExternalLink size={12} />
                           </a>
                         )}
                       </td>
                       <td>
-                        <span className="billing-badge">topup</span>
+                        <span className="billing-badge">{t("billing.badge_topup")}</span>
                       </td>
                       <td className="billing-table__mono billing-table__ok">
-                        + {formatKibixLabel(baseUnitsToKibix(t.amount_lamports))}
+                        + {formatKibixLabel(baseUnitsToKibix(t2.amount_lamports))}
                       </td>
                       <td className="billing-table__muted">
-                        ≈ {formatUsd(lamportsToUsd(t.amount_lamports))}
+                        ≈ {formatUsd(lamportsToUsd(t2.amount_lamports))}
                       </td>
-                      <td className="billing-table__ok">Completed</td>
+                      <td className="billing-table__ok">{t("billing.status_completed")}</td>
                     </tr>
                   ))}
                 </tbody>

@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { format } from "date-fns";
@@ -20,13 +21,12 @@ const HELP_MASCOTS = [
 const DOCS_URL = "https://github.com/CoKeFish/kiba/tree/main/docs";
 
 export default function Credentials() {
+  const { t } = useTranslation();
   return (
     <div className="credentials-page">
       <header className="credentials-head">
-        <h1 className="credentials-title">Credentials</h1>
-        <p className="credentials-subtitle">
-          Manage who can pay agents on your behalf using API keys and OAuth-connected apps.
-        </p>
+        <h1 className="credentials-title">{t("credentials.title")}</h1>
+        <p className="credentials-subtitle">{t("credentials.subtitle")}</p>
       </header>
 
       <ApiKeysSection />
@@ -34,13 +34,10 @@ export default function Credentials() {
 
       <section className="cred-cta">
         <div>
-          <p className="cred-cta__text">
-            Need help securing your workspace? Learn best practices for API keys, permissions, and
-            integrating trusted apps.
-          </p>
+          <p className="cred-cta__text">{t("credentials.cta_text")}</p>
           <a href={DOCS_URL} target="_blank" rel="noreferrer" className="cred-cta-btn">
             <BookOpen size={16} />
-            View docs
+            {t("credentials.view_docs")}
           </a>
         </div>
         <div className="cred-cta__mascots" aria-hidden="true">
@@ -54,6 +51,7 @@ export default function Credentials() {
 }
 
 function ApiKeysSection() {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const { data: keys = [], isLoading } = useQuery({
     queryKey: ["api-keys"],
@@ -92,9 +90,9 @@ function ApiKeysSection() {
   return (
     <section className="cred-card">
       <div className="cred-card__head">
-        <h2 className="cred-card__title">API Keys</h2>
+        <h2 className="cred-card__title">{t("credentials.api_keys_title")}</h2>
         <p className="cred-card__desc">
-          Long-lived secrets for direct REST API access. Use as{" "}
+          {t("credentials.api_keys_desc")}{" "}
           <code>Authorization: Bearer …</code>.
         </p>
       </div>
@@ -104,7 +102,7 @@ function ApiKeysSection() {
             className="cred-input"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Enter key name"
+            placeholder={t("credentials.key_name_placeholder")}
           />
           <div className="cred-create-wrap">
             <img
@@ -114,17 +112,22 @@ function ApiKeysSection() {
               className="cred-create-wrap__mascot"
             />
             <button type="submit" className="cred-create-btn" disabled={createMut.isPending}>
-              {createMut.isPending ? "Creating…" : "Create key"}
+              {createMut.isPending ? t("credentials.creating") : t("credentials.create_key")}
             </button>
           </div>
         </form>
 
         {newSecret && (
           <div className="cred-secret">
-            <p className="cred-secret__hint">Copy this now — it won&apos;t be shown again.</p>
+            <p className="cred-secret__hint">{t("credentials.secret_hint")}</p>
             <div className="cred-secret__row">
               <code className="cred-secret__code">{newSecret}</code>
-              <button type="button" className="cred-copy-btn" onClick={copy} aria-label="Copy key">
+              <button
+                type="button"
+                className="cred-copy-btn"
+                onClick={copy}
+                aria-label={t("credentials.copy_key_aria")}
+              >
                 {copied ? <Check size={16} /> : <Copy size={16} />}
               </button>
             </div>
@@ -132,23 +135,21 @@ function ApiKeysSection() {
         )}
 
         {isLoading ? (
-          <p className="cred-empty__text">Loading…</p>
+          <p className="cred-empty__text">{t("credentials.loading")}</p>
         ) : keys.length === 0 ? (
           <div className="cred-empty">
             <img src={MASCOTS.estrella} alt="" aria-hidden className="cred-empty__mascot" />
-            <p className="cred-empty__text">
-              No API keys yet. Create your first API key to get started.
-            </p>
+            <p className="cred-empty__text">{t("credentials.no_keys")}</p>
           </div>
         ) : (
           <div className="cred-table-wrap">
             <table className="cred-table">
               <thead>
                 <tr>
-                  <th>Name</th>
-                  <th>Prefix</th>
-                  <th>Created</th>
-                  <th>Last used</th>
+                  <th>{t("credentials.th_name")}</th>
+                  <th>{t("credentials.th_prefix")}</th>
+                  <th>{t("credentials.th_created")}</th>
+                  <th>{t("credentials.th_last_used")}</th>
                   <th />
                 </tr>
               </thead>
@@ -163,7 +164,7 @@ function ApiKeysSection() {
                     <td className="cred-table__muted">
                       {k.last_used_at
                         ? format(new Date(k.last_used_at * 1000), "MMM d, HH:mm")
-                        : "Never"}
+                        : t("credentials.never")}
                     </td>
                     <td style={{ textAlign: "right" }}>
                       <button
@@ -171,7 +172,7 @@ function ApiKeysSection() {
                         className="cred-icon-btn"
                         onClick={() => revokeMut.mutate(k.id)}
                         disabled={revokeMut.isPending}
-                        aria-label={`Revoke ${k.name}`}
+                        aria-label={t("credentials.revoke_named_aria", { name: k.name })}
                       >
                         <Trash2 size={15} />
                       </button>
@@ -188,6 +189,7 @@ function ApiKeysSection() {
 }
 
 function OAuthSection() {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const { data: conns = [], isLoading } = useQuery({
     queryKey: ["oauth-connections"],
@@ -201,15 +203,12 @@ function OAuthSection() {
   return (
     <section className="cred-card">
       <div className="cred-card__head">
-        <h2 className="cred-card__title">Connected apps</h2>
-        <p className="cred-card__desc">
-          Apps you&apos;ve authorized via OAuth (Claude Desktop, Cursor, MCP clients). Revoke access
-          at any time.
-        </p>
+        <h2 className="cred-card__title">{t("credentials.connected_apps_title")}</h2>
+        <p className="cred-card__desc">{t("credentials.connected_apps_desc")}</p>
       </div>
       <div className="cred-card__body">
         {isLoading ? (
-          <p className="cred-empty__text">Loading…</p>
+          <p className="cred-empty__text">{t("credentials.loading")}</p>
         ) : conns.length === 0 ? (
           <div className="cred-empty">
             <img
@@ -218,19 +217,17 @@ function OAuthSection() {
               aria-hidden
               className="cred-empty__mascot cred-empty__mascot--sitting"
             />
-            <p className="cred-empty__text">
-              No connected apps installed yet. When you authorize an app, it will appear here.
-            </p>
+            <p className="cred-empty__text">{t("credentials.no_connected_apps")}</p>
           </div>
         ) : (
           <div className="cred-table-wrap">
             <table className="cred-table">
               <thead>
                 <tr>
-                  <th>App</th>
-                  <th>Scope</th>
-                  <th>Connected</th>
-                  <th>Last used</th>
+                  <th>{t("credentials.th_app")}</th>
+                  <th>{t("credentials.th_scope")}</th>
+                  <th>{t("credentials.th_connected")}</th>
+                  <th>{t("credentials.th_last_used")}</th>
                   <th />
                 </tr>
               </thead>
@@ -247,7 +244,7 @@ function OAuthSection() {
                     <td className="cred-table__muted">
                       {c.last_used_at
                         ? format(new Date(c.last_used_at * 1000), "MMM d, HH:mm")
-                        : "Never"}
+                        : t("credentials.never")}
                     </td>
                     <td style={{ textAlign: "right" }}>
                       <button
@@ -256,7 +253,7 @@ function OAuthSection() {
                         onClick={() => revokeMut.mutate(c.id)}
                         disabled={revokeMut.isPending}
                       >
-                        Revoke
+                        {t("credentials.revoke")}
                       </button>
                     </td>
                   </tr>

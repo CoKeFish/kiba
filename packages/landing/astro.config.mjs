@@ -4,6 +4,14 @@ import react from '@astrojs/react';
 import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
+  i18n: {
+    locales: ["en", "es", "pt"],
+    defaultLocale: "en",
+    routing: {
+      // Inglés sin prefijo (/), es/pt con prefijo (/es/, /pt/). No rompe URLs actuales.
+      prefixDefaultLocale: false,
+    },
+  },
   integrations: [react()],
   vite: {
     plugins: [tailwindcss()],

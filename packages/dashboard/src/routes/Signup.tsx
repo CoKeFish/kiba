@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { Eye, EyeOff, Lock, Mail } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { AuthShell } from "@/components/auth/AuthShell";
@@ -8,6 +9,7 @@ import { TitleSparks } from "@/components/auth/TitleSparks";
 
 export default function Signup() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { signup } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -18,7 +20,7 @@ export default function Signup() {
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (password.length < 8) {
-      setError("Password must be at least 8 characters.");
+      setError(t("auth.signup.password_too_short"));
       return;
     }
     setLoading(true);
@@ -27,7 +29,7 @@ export default function Signup() {
       await signup(email, password);
       navigate("/app");
     } catch (err: any) {
-      setError(err.message || "Signup failed");
+      setError(err.message || t("auth.signup.failed"));
     } finally {
       setLoading(false);
     }
@@ -35,8 +37,8 @@ export default function Signup() {
 
   return (
     <AuthShell
-      headerPrompt="Already have an account?"
-      headerLinkLabel="Log in"
+      headerPrompt={t("auth.signup.header_prompt")}
+      headerLinkLabel={t("auth.signup.header_link")}
       headerLinkTo="/login"
       mascot="triangle"
     >
@@ -44,23 +46,23 @@ export default function Signup() {
         <div className="auth-title-wrap">
           <h1 className="auth-title">
             <span className="auth-title-create">
-              Create
+              {t("auth.signup.title_1")}
               <svg className="auth-squiggle" viewBox="0 0 72 12" aria-hidden="true">
                 <path d="M2 9 C14 2, 28 10, 42 5 S62 7, 70 4" />
               </svg>
             </span>{" "}
             <span className="auth-title-account">
-              account
+              {t("auth.signup.title_2")}
               <TitleSparks />
             </span>
           </h1>
         </div>
-        <p className="auth-subtitle">Start calling agents in seconds.</p>
+        <p className="auth-subtitle">{t("auth.signup.subtitle")}</p>
 
         <form onSubmit={onSubmit}>
           <div className="auth-field">
             <label className="auth-label" htmlFor="email">
-              Email
+              {t("auth.email")}
             </label>
             <div className="auth-input-wrap">
               <span className="auth-input-icon">
@@ -74,14 +76,14 @@ export default function Signup() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 autoComplete="email"
-                placeholder="you@example.com"
+                placeholder={t("auth.email_placeholder")}
               />
             </div>
           </div>
 
           <div className="auth-field">
             <label className="auth-label" htmlFor="password">
-              Password
+              {t("auth.password")}
             </label>
             <div className="auth-input-wrap">
               <span className="auth-input-icon">
@@ -96,13 +98,13 @@ export default function Signup() {
                 required
                 minLength={8}
                 autoComplete="new-password"
-                placeholder="8+ characters"
+                placeholder={t("auth.password_placeholder_signup")}
               />
               <button
                 type="button"
                 className="auth-input-toggle"
                 onClick={() => setShowPassword((v) => !v)}
-                aria-label={showPassword ? "Hide password" : "Show password"}
+                aria-label={showPassword ? t("auth.hide_password") : t("auth.show_password")}
               >
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
@@ -112,17 +114,18 @@ export default function Signup() {
           {error && <p className="auth-error">{error}</p>}
 
           <button type="submit" className="auth-submit" disabled={loading}>
-            {loading ? "Creating…" : "Create account →"}
+            {loading ? t("auth.signup.submitting") : t("auth.signup.submit")}
           </button>
 
           <div className="auth-divider">
             <span className="auth-divider-line" />
-            <span className="auth-divider-text">or</span>
+            <span className="auth-divider-text">{t("auth.or")}</span>
             <span className="auth-divider-line" />
           </div>
 
           <p className="auth-footer-link">
-            Already have an account? <Link to="/login">Log in</Link>
+            {t("auth.signup.footer_prompt")}{" "}
+            <Link to="/login">{t("auth.signup.footer_link")}</Link>
           </p>
         </form>
       </div>

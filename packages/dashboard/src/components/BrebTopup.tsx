@@ -7,6 +7,7 @@
  *     verifica la transacción contra la API y acredita los Kibix.
  */
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { QRCodeSVG } from "qrcode.react";
 import { api, type PaymentCharge } from "@/lib/api";
@@ -33,6 +34,7 @@ const QUICK_COP = [20_000, 50_000, 100_000, 200_000];
 const PENDING_KEY = "kiba.payments.pending";
 
 export function BrebTopup() {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const [amountCop, setAmountCop] = useState<number>(50_000);
   const [charge, setCharge] = useState<PaymentCharge | null>(null);
@@ -113,7 +115,7 @@ export function BrebTopup() {
     if (!txId || !pending.chargeId) return;
 
     (async () => {
-      setVerifyMsg("Verificando tu pago…");
+      setVerifyMsg(t("payments.breb.verifying"));
       try {
         const r = await api.verifyPayment(pending.chargeId!, txId);
         setCharge(r.charge);
@@ -122,7 +124,7 @@ export function BrebTopup() {
           qc.invalidateQueries({ queryKey: ["transactions"] });
           setVerifyMsg(null);
         } else {
-          setVerifyMsg(`El pago quedó en estado ${r.status}. Puedes intentar de nuevo.`);
+          setVerifyMsg(t("payments.breb.payment_status_retry", { status: r.status }));
         }
       } catch (e) {
         setVerifyMsg((e as Error).message);
@@ -148,7 +150,7 @@ export function BrebTopup() {
   useEffect(() => {
     if (!charge || charge.status !== "pending" || charge.detail.checkoutUrl) return;
     const isDeposit = !!charge.detail.depositAddress;
-    const t = setInterval(async () => {
+    const timer = setInterval(async () => {
       try {
         const fresh = isDeposit
           ? (await api.verifyPayment(charge.id, "")).charge
@@ -162,12 +164,12 @@ export function BrebTopup() {
         /* ignore */
       }
     }, isDeposit ? 6000 : 3000);
-    return () => clearInterval(t);
+    return () => clearInterval(timer);
   }, [charge, qc]);
 
-  const copyText = (t?: string) => {
-    if (!t) return;
-    navigator.clipboard?.writeText(t).then(() => {
+  const copyText = (text?: string) => {
+    if (!text) return;
+    navigator.clipboard?.writeText(text).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     });
@@ -187,16 +189,16 @@ export function BrebTopup() {
       <Card className="border-[var(--color-success)]">
         <CardBody className="space-y-3 text-center py-8">
           <CheckCircle2 className="w-10 h-10 text-[var(--color-success)] mx-auto" />
-          <div className="text-lg font-semibold">¡Pago recibido!</div>
+          <div className="text-lg font-semibold">{t("payments.breb.paid_title")}</div>
           <p className="text-sm text-[var(--color-fg-muted)]">
-            Acreditamos{" "}
+            {t("payments.breb.paid_credited_before")}{" "}
             <span className="text-[var(--color-success)] font-semibold">
               {formatKibix(charge.kibix)} Kibix
             </span>{" "}
-            a tu saldo ({COP.format(charge.amount_cop)}).
+            {t("payments.breb.paid_credited_after", { cop: COP.format(charge.amount_cop) })}
           </p>
           <Button variant="subtle" size="sm" onClick={reset} className="mx-auto">
-            Hacer otra recarga
+            {t("payments.breb.another_topup")}
           </Button>
         </CardBody>
       </Card>
@@ -211,7 +213,7 @@ export function BrebTopup() {
           <RefreshCw className="w-7 h-7 text-[var(--color-primary)] mx-auto animate-spin" />
           <p className="text-sm text-[var(--color-fg-muted)]">{verifyMsg}</p>
           <Button variant="ghost" size="sm" onClick={reset} className="mx-auto">
-            Volver
+            {t("payments.breb.back")}
           </Button>
         </CardBody>
       </Card>
@@ -231,9 +233,9 @@ export function BrebTopup() {
       <Card>
         <CardHeader className="flex items-center justify-between flex-row">
           <div>
-            <CardTitle>Deposita USDC en {d.network ?? "Stellar"}</CardTitle>
+            <CardTitle>{t("payments.breb.deposit_title", { network: d.network ?? "Stellar" })}</CardTitle>
             <CardDescription>
-              Envía{" "}
+              {t("payments.breb.deposit_send_before")}{" "}
               <span className="text-[var(--color-fg)] font-medium">
                 {(d.amountUsdc ?? charge.amount_usd).toFixed(2)} {d.asset ?? "USDC"}
               </span>{" "}
@@ -252,7 +254,7 @@ export function BrebTopup() {
             <div className="space-y-3 flex-1 w-full min-w-0">
               <div>
                 <div className="text-xs text-[var(--color-fg-subtle)] uppercase tracking-wider mb-1">
-                  Dirección ({d.network ?? "Stellar"})
+                  {t("payments.breb.address_label", { network: d.network ?? "Stellar" })}
                 </div>
                 <div className="flex items-center gap-2 rounded-md border border-[var(--color-border)] px-3 py-2">
                   <span className="font-mono text-xs flex-1 truncate">{d.depositAddress}</span>
@@ -263,17 +265,17 @@ export function BrebTopup() {
               </div>
               <div>
                 <div className="text-xs text-[var(--color-fg-subtle)] uppercase tracking-wider mb-1">
-                  Memo (obligatorio)
+                  {t("payments.breb.memo_label")}
                 </div>
                 <div className="flex items-center gap-2 rounded-md border border-[var(--color-warning)] px-3 py-2">
                   <span className="font-mono text-sm flex-1 truncate">{charge.detail.memo}</span>
                   <Button variant="ghost" size="sm" onClick={() => copyText(charge.detail.memo)}>
                     <Copy className="w-3 h-3" />
-                    {copied ? "Copiado" : "Copiar"}
+                    {copied ? t("payments.breb.copied") : t("payments.breb.copy")}
                   </Button>
                 </div>
                 <p className="text-xs text-[var(--color-warning)] mt-1">
-                  Sin el memo el depósito NO se acredita.
+                  {t("payments.breb.memo_warning")}
                 </p>
               </div>
             </div>
@@ -282,19 +284,20 @@ export function BrebTopup() {
           <div className="flex items-center justify-between gap-3 pt-3 border-t border-[var(--color-border)]">
             <span className="inline-flex items-center gap-2 text-xs text-[var(--color-fg-muted)]">
               <RefreshCw className="w-3 h-3 animate-spin" />
-              Esperando el depósito on-chain…
+              {t("payments.breb.waiting_onchain")}
             </span>
             <Button
               size="sm"
               onClick={() => verifyDeposit.mutate(charge.id)}
               disabled={verifyDeposit.isPending}
             >
-              {verifyDeposit.isPending ? "Verificando…" : "Ya lo envié · Verificar"}
+              {verifyDeposit.isPending
+                ? t("payments.breb.verifying_short")
+                : t("payments.breb.already_sent_verify")}
             </Button>
           </div>
           <p className="text-xs text-[var(--color-fg-subtle)]">
-            Detectamos el pago automáticamente vía Horizon. Asegúrate de enviar USDC (no XLM) en
-            la red {d.network ?? "Stellar"}.
+            {t("payments.breb.deposit_note", { network: d.network ?? "Stellar" })}
           </p>
         </CardBody>
       </Card>
@@ -307,7 +310,7 @@ export function BrebTopup() {
       <Card>
         <CardHeader className="flex items-center justify-between flex-row">
           <div>
-            <CardTitle>Paga con Bre-B</CardTitle>
+            <CardTitle>{t("payments.breb.qr_title")}</CardTitle>
             <CardDescription>
               {COP.format(charge.amount_cop)} ·{" "}
               <span className="text-[var(--color-fg)] font-medium">
@@ -327,25 +330,23 @@ export function BrebTopup() {
             <div className="space-y-3 flex-1 w-full">
               <div className="flex items-start gap-2 text-sm text-[var(--color-fg-muted)]">
                 <Smartphone className="w-4 h-4 mt-0.5 shrink-0 text-[var(--color-primary)]" />
-                <span>
-                  Abre tu app bancaria, escanea el QR o paga a la llave Bre-B. La acreditación es
-                  automática.
-                </span>
+                <span>{t("payments.breb.qr_instructions")}</span>
               </div>
               <div>
                 <div className="text-xs text-[var(--color-fg-subtle)] uppercase tracking-wider mb-1">
-                  Llave Bre-B
+                  {t("payments.breb.llave_label")}
                 </div>
                 <div className="flex items-center gap-2 rounded-md border border-[var(--color-border)] px-3 py-2">
                   <span className="font-mono text-sm flex-1">{charge.detail.llave}</span>
                   <Button variant="ghost" size="sm" onClick={copyLlave}>
                     <Copy className="w-3 h-3" />
-                    {copied ? "Copiado" : "Copiar"}
+                    {copied ? t("payments.breb.copied") : t("payments.breb.copy")}
                   </Button>
                 </div>
               </div>
               <div className="text-xs text-[var(--color-fg-subtle)]">
-                Referencia: <span className="font-mono">{charge.reference}</span>
+                {t("payments.breb.reference_label")}{" "}
+                <span className="font-mono">{charge.reference}</span>
               </div>
             </div>
           </div>
@@ -353,15 +354,16 @@ export function BrebTopup() {
           <div className="flex items-center justify-between gap-3 pt-3 border-t border-[var(--color-border)]">
             <span className="inline-flex items-center gap-2 text-xs text-[var(--color-fg-muted)]">
               <RefreshCw className="w-3 h-3 animate-spin" />
-              Esperando el pago…
+              {t("payments.breb.waiting_payment")}
             </span>
             <Button size="sm" onClick={() => simulate.mutate(charge.id)} disabled={simulate.isPending}>
-              {simulate.isPending ? "Simulando…" : "Simular pago recibido"}
+              {simulate.isPending
+                ? t("payments.breb.simulating")
+                : t("payments.breb.simulate_payment")}
             </Button>
           </div>
           <p className="text-xs text-[var(--color-fg-subtle)]">
-            Modo sandbox: no hay cobro real. El botón simula el webhook del PSP que confirmaría un
-            pago Bre-B real.
+            {t("payments.breb.sandbox_note")}
           </p>
           {simulate.isError && (
             <p className="text-sm text-[var(--color-danger)]">{(simulate.error as Error).message}</p>
@@ -375,13 +377,13 @@ export function BrebTopup() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Recargar créditos</CardTitle>
+        <CardTitle>{t("payments.breb.recharge_title")}</CardTitle>
         <CardDescription>
-          Elige un método de pago. Convertimos a Kibix al instante.
+          {t("payments.breb.recharge_desc")}
           {isStripe
-            ? " Pagas con tarjeta (cobro en USD)."
+            ? t("payments.breb.recharge_desc_stripe")
             : selected?.country === "CO"
-              ? " Paga en pesos desde tu banco, sin wallet ni cripto."
+              ? t("payments.breb.recharge_desc_co")
               : ""}
         </CardDescription>
       </CardHeader>
@@ -461,11 +463,11 @@ export function BrebTopup() {
           {isRedirect ? <ExternalLink className="w-4 h-4" /> : <QrCode className="w-4 h-4" />}
           {create.isPending
             ? isRedirect
-              ? "Redirigiendo…"
-              : "Generando…"
-            : isRedirect
-              ? `Pagar con ${selected?.label ?? "el checkout"}`
-              : `Pagar con ${selected?.label ?? "Bre-B"}`}
+              ? t("payments.breb.redirecting")
+              : t("payments.breb.generating")
+            : t("payments.breb.pay_with", {
+                label: selected?.label ?? (isRedirect ? t("payments.breb.checkout_fallback") : "Bre-B"),
+              })}
         </Button>
       </CardBody>
     </Card>

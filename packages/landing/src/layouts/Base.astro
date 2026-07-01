@@ -1,32 +1,50 @@
 ---
 import "../styles/global.css";
 import "../styles/animations.css";
+import { languages } from "../i18n/ui";
+import {
+  getLangFromUrl,
+  useTranslations,
+  stripLangFromPath,
+  localizePath,
+  type Lang,
+} from "../i18n/utils";
 
 interface Props {
   title?: string;
   description?: string;
+  lang?: Lang;
 }
 
+const lang: Lang = Astro.props.lang ?? getLangFromUrl(Astro.url);
+const t = useTranslations(lang);
+
 const {
-  title = "Kiba — Find the right AI agent in any language",
-  description = "The marketplace where AI assistants discover and pay specialized agents on demand. Settled on Stellar.",
+  title = t("meta.home.title"),
+  description = t("meta.home.desc"),
 } = Astro.props;
 
 const DASHBOARD_URL = import.meta.env.PUBLIC_DASHBOARD_URL || "https://dashboard.kiba.rodion.com.co";
 // Instalador de un clic (Windows) — kiba MCP en Claude Desktop / Cursor / Claude Code.
 const INSTALLER_URL = "https://github.com/CoKeFish/kiba/releases/latest/download/Kiba-Installer-x64-setup.exe";
 
+// Home localizada (para las anclas del nav) y ruta canónica actual (sin prefijo).
+const home = localizePath("/", lang);
+const canonicalPath = stripLangFromPath(Astro.url.pathname);
+const origin = Astro.site ? Astro.site.origin : "";
+const localeList = Object.keys(languages) as Lang[];
+
 const navLinks = [
-  { label: "Agents", href: "#agents" },
-  { label: "How it works", href: "#how-it-works" },
-  { label: "Guide", href: "/guide" },
-  { label: "Pricing", href: "#pricing" },
-  { label: "Docs", href: "https://github.com/CoKeFish/kiba" },
+  { label: t("nav.agents"), href: `${home}#agents` },
+  { label: t("nav.how"), href: `${home}#how-it-works` },
+  { label: t("nav.guide"), href: localizePath("/guide", lang) },
+  { label: t("nav.pricing"), href: `${home}#pricing` },
+  { label: t("nav.docs"), href: "https://github.com/CoKeFish/kiba" },
 ];
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang={lang}>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -35,6 +53,10 @@ const navLinks = [
     <meta property="og:description" content={description} />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
+    {localeList.map((l) => (
+      <link rel="alternate" hreflang={l} href={`${origin}${localizePath(canonicalPath, l)}`} />
+    ))}
+    <link rel="alternate" hreflang="x-default" href={`${origin}${localizePath(canonicalPath, "en")}`} />
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -84,6 +106,16 @@ const navLinks = [
 
       <!-- CTAs -->
       <div style="display: flex; gap: 10px; align-items: center;">
+        <!-- Language picker -->
+        <div class="lang-picker" role="group" aria-label="Language">
+          {localeList.map((l) => (
+            <a
+              href={localizePath(canonicalPath, l)}
+              class={`lang-opt ${l === lang ? "is-active" : ""}`}
+              aria-current={l === lang ? "true" : undefined}
+            >{languages[l]}</a>
+          ))}
+        </div>
         <a
           href={`${DASHBOARD_URL}/login`}
           class="btn-ghost"
@@ -99,10 +131,10 @@ const navLinks = [
             text-decoration: none;
             transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
           "
-        >Sign in</a>
+        >{t("cta.signin")}</a>
         <a
           href={INSTALLER_URL}
-          title="Windows one-click installer (.exe)"
+          title={t("cta.download_title")}
           style="
             display: inline-flex; align-items: center; gap: 7px;
             font-family: var(--font-sans);
@@ -118,7 +150,7 @@ const navLinks = [
           "
         >
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
-          Download
+          {t("cta.download")}
         </a>
         <a
           href={`${DASHBOARD_URL}/signup`}
@@ -136,7 +168,7 @@ const navLinks = [
             box-shadow: var(--glow-sm);
             transition: transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
           "
-        >Start exploring →</a>
+        >{t("cta.start")}</a>
       </div>
     </header>
 
@@ -155,6 +187,31 @@ const navLinks = [
       }
       .nav-link:hover { color: var(--accent) !important; }
       .btn-ghost:hover { border-color: var(--accent) !important; background: var(--accent-soft) !important; }
+
+      .lang-picker {
+        display: inline-flex;
+        align-items: center;
+        gap: 2px;
+        padding: 3px;
+        border: 1.5px solid var(--border-strong);
+        border-radius: 999px;
+      }
+      .lang-opt {
+        font-family: var(--font-sans);
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--fg-3);
+        text-decoration: none;
+        padding: 9px 14px;
+        border-radius: 999px;
+        line-height: 1;
+        transition: color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+      }
+      .lang-opt:hover { color: var(--fg-1); }
+      .lang-opt.is-active {
+        color: #fff;
+        background: var(--accent);
+      }
       .btn-primary:hover { transform: translateY(-1px); background: var(--accent-hover) !important; box-shadow: var(--glow-md) !important; }
 
       .kiba-logo {

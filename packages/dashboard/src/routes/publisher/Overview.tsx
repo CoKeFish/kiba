@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { api } from "@/lib/api";
 import { formatUsd } from "@/lib/format";
 import { chain } from "@/lib/chain";
@@ -10,6 +11,7 @@ import "./publisher.css";
 const MASCOT = "/agents/triangulo.png";
 
 export default function PublisherOverview() {
+  const { t } = useTranslation();
   const { data, isLoading } = useQuery({
     queryKey: ["publisher-overview"],
     queryFn: api.publisherOverview,
@@ -23,31 +25,35 @@ export default function PublisherOverview() {
     <div className="pub-page">
       <header className="pub-head">
         <div className="pub-head__copy">
-          <h1 className="pub-title">Revenue</h1>
+          <h1 className="pub-title">{t("publisher.overview.title")}</h1>
           <p className="pub-subtitle">
-            Your agents earn {netPct}% of every paid call, settled on {chain.networkLabel}.
+            {t("publisher.overview.subtitle", { netPct, network: chain.networkLabel })}
           </p>
         </div>
         <div className="pub-actions">
           <Link to="/app/publisher/publish" className="pub-btn pub-btn--primary pub-btn--sm">
             <Plus size={16} />
-            Publish agent
+            {t("publisher.overview.publish_agent")}
           </Link>
         </div>
       </header>
 
       <section className="pub-card pub-hero">
         <div className="pub-hero__label-row">
-          <p className="pub-hero__label">Total revenue</p>
-          <span className="pub-live">Live</span>
+          <p className="pub-hero__label">{t("publisher.overview.total_revenue")}</p>
+          <span className="pub-live">{t("publisher.overview.live")}</span>
         </div>
         <p className="pub-hero__value pub-hero__value--success">
           {isLoading ? "—" : formatUsd(data?.totals.earned_usd ?? 0)}
         </p>
         <p className="pub-hero__hint">
           {data
-            ? `${(data.totals.earned_asset ?? 0).toFixed(6)} ${data.asset} · after ${feePct}% platform fee`
-            : "Lifetime earnings from your agents"}
+            ? t("publisher.overview.hero_hint", {
+                amount: (data.totals.earned_asset ?? 0).toFixed(6),
+                asset: data.asset,
+                feePct,
+              })
+            : t("publisher.overview.hero_hint_empty")}
         </p>
       </section>
 
@@ -55,11 +61,11 @@ export default function PublisherOverview() {
         <article className="pub-kpi">
           <div className="pub-kpi__row">
             <div>
-              <p className="pub-kpi__label">Calls completed</p>
+              <p className="pub-kpi__label">{t("publisher.overview.kpi_calls")}</p>
               <p className="pub-kpi__value">
                 {isLoading ? "—" : (data?.totals.calls ?? 0).toLocaleString()}
               </p>
-              <p className="pub-kpi__hint">Lifetime agent calls</p>
+              <p className="pub-kpi__hint">{t("publisher.overview.kpi_calls_hint")}</p>
             </div>
             <div className="pub-kpi__icon" style={{ background: "color-mix(in srgb, var(--color-primary) 14%, transparent)", color: "var(--color-primary)" }}>
               <Activity size={20} />
@@ -69,9 +75,9 @@ export default function PublisherOverview() {
         <article className="pub-kpi">
           <div className="pub-kpi__row">
             <div>
-              <p className="pub-kpi__label">Active agents</p>
+              <p className="pub-kpi__label">{t("publisher.overview.kpi_agents")}</p>
               <p className="pub-kpi__value">{isLoading ? "—" : String(data?.totals.agents ?? 0)}</p>
-              <p className="pub-kpi__hint">Published on-chain</p>
+              <p className="pub-kpi__hint">{t("publisher.overview.kpi_agents_hint")}</p>
             </div>
             <div className="pub-kpi__icon" style={{ background: "color-mix(in srgb, var(--c-purple) 14%, transparent)", color: "var(--c-purple)" }}>
               <Bot size={20} />
@@ -81,11 +87,11 @@ export default function PublisherOverview() {
         <article className="pub-kpi">
           <div className="pub-kpi__row">
             <div>
-              <p className="pub-kpi__label">Net earnings</p>
+              <p className="pub-kpi__label">{t("publisher.overview.kpi_net")}</p>
               <p className="pub-kpi__value pub-kpi__value--ok">
                 {isLoading ? "—" : formatUsd(data?.totals.earned_usd ?? 0)}
               </p>
-              <p className="pub-kpi__hint">You keep {netPct}%</p>
+              <p className="pub-kpi__hint">{t("publisher.overview.kpi_net_hint", { netPct })}</p>
             </div>
             <div className="pub-kpi__icon" style={{ background: "color-mix(in srgb, var(--color-success) 14%, transparent)", color: "var(--color-success)" }}>
               <Coins size={20} />
@@ -95,10 +101,10 @@ export default function PublisherOverview() {
         <article className="pub-kpi">
           <div className="pub-kpi__row">
             <div>
-              <p className="pub-kpi__label">In wallet</p>
+              <p className="pub-kpi__label">{t("publisher.overview.kpi_wallet")}</p>
               <p className="pub-kpi__value">{isLoading ? "—" : formatUsd(data?.wallet.usd ?? 0)}</p>
               <p className="pub-kpi__hint">
-                {data ? `${(data.wallet.asset_amount ?? 0).toFixed(4)} ${data.asset}` : "Available balance"}
+                {data ? `${(data.wallet.asset_amount ?? 0).toFixed(4)} ${data.asset}` : t("publisher.overview.kpi_wallet_hint_empty")}
               </p>
             </div>
             <div className="pub-kpi__icon" style={{ background: "color-mix(in srgb, #f59e0b 14%, transparent)", color: "#d97706" }}>
@@ -111,23 +117,23 @@ export default function PublisherOverview() {
       <section className="pub-card">
         <div className="pub-card__head">
           <div>
-            <h2 className="pub-card__title">Recent activity</h2>
+            <h2 className="pub-card__title">{t("publisher.overview.activity_title")}</h2>
             <p className="pub-card__desc">
-              Per-agent revenue on-chain. Platform fee: {feePct}% · you keep {netPct}%.
+              {t("publisher.overview.activity_desc", { feePct, netPct })}
             </p>
           </div>
         </div>
         <div className="pub-card__body pub-card__body--flush-top">
           {isLoading ? (
-            <p className="pub-loading">Loading activity…</p>
+            <p className="pub-loading">{t("publisher.overview.loading_activity")}</p>
           ) : !data || data.agents.length === 0 ? (
             <div className="pub-empty">
               <img src="/agents/cuadrado.png" alt="" aria-hidden className="pub-empty__mascot" />
-              <p className="pub-empty__title">No agent activity yet</p>
-              <p className="pub-empty__text">Publish your first agent to start earning per call.</p>
+              <p className="pub-empty__title">{t("publisher.overview.empty_title")}</p>
+              <p className="pub-empty__text">{t("publisher.overview.empty_text")}</p>
               <Link to="/app/publisher/publish" className="pub-btn pub-btn--primary pub-btn--sm" style={{ marginTop: 8 }}>
                 <Plus size={14} />
-                Publish your first agent
+                {t("publisher.overview.publish_first")}
               </Link>
             </div>
           ) : (
@@ -135,11 +141,11 @@ export default function PublisherOverview() {
               <table className="pub-table">
                 <thead>
                   <tr>
-                    <th>Agent</th>
-                    <th className="is-right">Price</th>
-                    <th className="is-right">Calls</th>
-                    <th className="is-right">Earned</th>
-                    <th className="is-right">Links</th>
+                    <th>{t("publisher.overview.th_agent")}</th>
+                    <th className="is-right">{t("publisher.overview.th_price")}</th>
+                    <th className="is-right">{t("publisher.overview.th_calls")}</th>
+                    <th className="is-right">{t("publisher.overview.th_earned")}</th>
+                    <th className="is-right">{t("publisher.overview.th_links")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -159,7 +165,7 @@ export default function PublisherOverview() {
                           rel="noopener noreferrer"
                           className="pub-link"
                         >
-                          Explorer <ExternalLink size={12} />
+                          {t("publisher.overview.explorer")} <ExternalLink size={12} />
                         </a>
                       </td>
                     </tr>
@@ -173,10 +179,9 @@ export default function PublisherOverview() {
 
       <section className="pub-cta">
         <div>
-          <p className="pub-cta__text">How you earn as a publisher</p>
+          <p className="pub-cta__text">{t("publisher.overview.cta_title")}</p>
           <p className="pub-cta__sub">
-            Users pay per call via x402. {netPct}% lands in your wallet automatically — Kiba keeps a{" "}
-            {feePct}% platform fee on every transaction.
+            {t("publisher.overview.cta_sub", { netPct, feePct })}
           </p>
         </div>
         <img src={MASCOT} alt="" aria-hidden className="pub-cta__mascot" />

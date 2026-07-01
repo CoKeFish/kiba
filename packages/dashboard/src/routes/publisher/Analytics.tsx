@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { api } from "@/lib/api";
 import { formatUsd } from "@/lib/format";
 import { serviceToName, solToUsd } from "@/components/AgentManager";
@@ -15,6 +16,7 @@ const BAR_COLORS = [
 ];
 
 export default function PublisherAnalytics() {
+  const { t } = useTranslation();
   const { data, isLoading } = useQuery({
     queryKey: ["publisher-overview"],
     queryFn: api.publisherOverview,
@@ -30,8 +32,8 @@ export default function PublisherAnalytics() {
     <div className="pub-page">
       <header className="pub-head">
         <div className="pub-head__copy">
-          <h1 className="pub-title">Analytics</h1>
-          <p className="pub-subtitle">Usage across your agents — calls served and revenue share.</p>
+          <h1 className="pub-title">{t("publisher.analytics.title")}</h1>
+          <p className="pub-subtitle">{t("publisher.analytics.subtitle")}</p>
         </div>
       </header>
 
@@ -39,7 +41,7 @@ export default function PublisherAnalytics() {
         <article className="pub-kpi">
           <div className="pub-kpi__row">
             <div>
-              <p className="pub-kpi__label">Total calls</p>
+              <p className="pub-kpi__label">{t("publisher.analytics.kpi_total_calls")}</p>
               <p className="pub-kpi__value">{isLoading ? "—" : totalCalls.toLocaleString()}</p>
             </div>
             <div className="pub-kpi__icon" style={{ background: "color-mix(in srgb, var(--color-primary) 14%, transparent)", color: "var(--color-primary)" }}>
@@ -50,7 +52,7 @@ export default function PublisherAnalytics() {
         <article className="pub-kpi">
           <div className="pub-kpi__row">
             <div>
-              <p className="pub-kpi__label">Total revenue</p>
+              <p className="pub-kpi__label">{t("publisher.analytics.kpi_total_revenue")}</p>
               <p className="pub-kpi__value pub-kpi__value--ok">
                 {isLoading ? "—" : formatUsd(data?.totals.earned_usd ?? 0)}
               </p>
@@ -63,7 +65,7 @@ export default function PublisherAnalytics() {
         <article className="pub-kpi">
           <div className="pub-kpi__row">
             <div>
-              <p className="pub-kpi__label">Active agents</p>
+              <p className="pub-kpi__label">{t("publisher.analytics.kpi_active_agents")}</p>
               <p className="pub-kpi__value">{isLoading ? "—" : String(data?.totals.agents ?? 0)}</p>
             </div>
             <div className="pub-kpi__icon" style={{ background: "color-mix(in srgb, var(--c-purple) 14%, transparent)", color: "var(--c-purple)" }}>
@@ -76,21 +78,24 @@ export default function PublisherAnalytics() {
       <section className="pub-card">
         <div className="pub-card__head">
           <div>
-            <h2 className="pub-card__title">Calls over time</h2>
+            <h2 className="pub-card__title">{t("publisher.analytics.calls_over_time")}</h2>
             <p className="pub-card__desc">
-              {totalCalls.toLocaleString()} total call{totalCalls !== 1 ? "s" : ""} served
+              {t("publisher.analytics.calls_over_time_desc", {
+                count: totalCalls,
+                formatted: totalCalls.toLocaleString(),
+              })}
             </p>
           </div>
         </div>
         <div className="pub-card__body">
           {isLoading ? (
-            <p className="pub-loading">Loading analytics…</p>
+            <p className="pub-loading">{t("publisher.analytics.loading")}</p>
           ) : agents.length === 0 ? (
             <div className="pub-empty">
               <img src="/agents/circulo.png" alt="" aria-hidden className="pub-empty__mascot" />
-              <p className="pub-empty__title">No analytics yet</p>
+              <p className="pub-empty__title">{t("publisher.analytics.empty_calls_title")}</p>
               <p className="pub-empty__text">
-                Once your agents start serving paid calls, usage shows up here.
+                {t("publisher.analytics.empty_calls_text")}
               </p>
             </div>
           ) : (
@@ -103,7 +108,10 @@ export default function PublisherAnalytics() {
                     <div className="pub-bar-row__head">
                       <span className="pub-bar-row__name">{serviceToName(a.service)}</span>
                       <span className="pub-bar-row__meta">
-                        {a.totalCalls.toLocaleString()} calls · {share.toFixed(0)}% ·{" "}
+                        {t("publisher.analytics.bar_meta", {
+                          calls: a.totalCalls.toLocaleString(),
+                          share: share.toFixed(0),
+                        })}{" "}
                         <span style={{ color: "var(--color-success)" }}>
                           {formatUsd(solToUsd(a.totalEarnedSol))}
                         </span>
@@ -129,15 +137,15 @@ export default function PublisherAnalytics() {
       <section className="pub-card">
         <div className="pub-card__head">
           <div>
-            <h2 className="pub-card__title">Revenue by agent</h2>
-            <p className="pub-card__desc">Top performers by lifetime earnings.</p>
+            <h2 className="pub-card__title">{t("publisher.analytics.revenue_by_agent")}</h2>
+            <p className="pub-card__desc">{t("publisher.analytics.revenue_by_agent_desc")}</p>
           </div>
         </div>
         <div className="pub-card__body">
           {agents.length === 0 ? (
             <div className="pub-empty">
               <img src="/agents/estrella.png" alt="" aria-hidden className="pub-empty__mascot" />
-              <p className="pub-empty__text">No revenue yet.</p>
+              <p className="pub-empty__text">{t("publisher.analytics.no_revenue")}</p>
             </div>
           ) : (
             <div className="pub-tiles">
@@ -145,7 +153,12 @@ export default function PublisherAnalytics() {
                 <article key={a.service} className="pub-tile">
                   <p className="pub-tile__name">{serviceToName(a.service)}</p>
                   <p className="pub-tile__value">{formatUsd(solToUsd(a.totalEarnedSol))}</p>
-                  <p className="pub-tile__hint">{a.totalCalls.toLocaleString()} calls</p>
+                  <p className="pub-tile__hint">
+                    {t("publisher.analytics.tile_calls", {
+                      count: a.totalCalls,
+                      formatted: a.totalCalls.toLocaleString(),
+                    })}
+                  </p>
                 </article>
               ))}
             </div>
@@ -154,8 +167,8 @@ export default function PublisherAnalytics() {
       </section>
 
       <p className="pub-banner">
-        <strong>Success rate:</strong> Publishers keep {100 - feePct}% of every paid call — visible
-        on-chain after each transaction.
+        <strong>{t("publisher.analytics.banner_label")}</strong>{" "}
+        {t("publisher.analytics.banner_text", { netPct: 100 - feePct })}
       </p>
     </div>
   );

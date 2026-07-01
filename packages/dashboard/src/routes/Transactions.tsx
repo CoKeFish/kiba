@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { api, type Transaction } from "@/lib/api";
 import { Card, CardBody, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -20,28 +21,29 @@ import { ExternalLink } from "lucide-react";
 type Filter = "all" | "call" | "topup" | "refund";
 
 export default function Transactions() {
+  const { t } = useTranslation();
   const [filter, setFilter] = useState<Filter>("all");
   const { data: txs = [], isLoading } = useQuery({
     queryKey: ["transactions", "all"],
     queryFn: () => api.transactions(200),
   });
 
-  const filtered = txs.filter((t: Transaction) => filter === "all" || t.type === filter);
+  const filtered = txs.filter((tx: Transaction) => filter === "all" || tx.type === filter);
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Transactions</h1>
+        <h1 className="text-2xl font-semibold">{t("transactions.title")}</h1>
         <p className="text-sm text-[var(--color-fg-muted)]">
-          Every call, top-up and refund — auditable on Stellar when on-chain mode is active.
+          {t("transactions.subtitle")}
         </p>
       </div>
 
       <Card>
         <CardHeader className="flex items-center justify-between flex-row">
           <div>
-            <CardTitle>All transactions</CardTitle>
-            <CardDescription>{filtered.length} entries</CardDescription>
+            <CardTitle>{t("transactions.card_title")}</CardTitle>
+            <CardDescription>{t("transactions.entries", { count: filtered.length })}</CardDescription>
           </div>
           <div className="flex gap-1">
             {(["all", "call", "topup", "refund"] as Filter[]).map((f) => (
@@ -51,86 +53,92 @@ export default function Transactions() {
                 variant={filter === f ? "default" : "subtle"}
                 onClick={() => setFilter(f)}
               >
-                {f}
+                {t(`transactions.filter.${f}`)}
               </Button>
             ))}
           </div>
         </CardHeader>
         <CardBody className="p-0">
           {isLoading ? (
-            <p className="p-6 text-sm text-[var(--color-fg-muted)]">Loading…</p>
+            <p className="p-6 text-sm text-[var(--color-fg-muted)]">{t("transactions.loading")}</p>
           ) : filtered.length === 0 ? (
-            <p className="p-10 text-sm text-[var(--color-fg-muted)] text-center">No transactions yet.</p>
+            <p className="p-10 text-sm text-[var(--color-fg-muted)] text-center">
+              {t("transactions.empty")}
+            </p>
           ) : (
             <Table>
               <Thead>
                 <Tr>
-                  <Th>Time</Th>
-                  <Th>Type</Th>
-                  <Th>Service / Channel</Th>
-                  <Th>Status</Th>
-                  <Th className="text-right">Amount</Th>
-                  <Th>Tx</Th>
+                  <Th>{t("transactions.col.time")}</Th>
+                  <Th>{t("transactions.col.type")}</Th>
+                  <Th>{t("transactions.col.service_channel")}</Th>
+                  <Th>{t("transactions.col.status")}</Th>
+                  <Th className="text-right">{t("transactions.col.amount")}</Th>
+                  <Th>{t("transactions.col.tx")}</Th>
                 </Tr>
               </Thead>
               <Tbody>
-                {filtered.map((t) => (
-                  <Tr key={t.id}>
+                {filtered.map((tx) => (
+                  <Tr key={tx.id}>
                     <Td className="text-xs text-[var(--color-fg-muted)] font-mono whitespace-nowrap">
-                      {format(new Date(t.created_at * 1000), "MMM d, HH:mm:ss")}
+                      {format(new Date(tx.created_at * 1000), "MMM d, HH:mm:ss")}
                     </Td>
                     <Td>
                       <Badge
                         tone={
-                          t.type === "topup" ? "success" : t.type === "refund" ? "warning" : "info"
+                          tx.type === "topup" ? "success" : tx.type === "refund" ? "warning" : "info"
                         }
                       >
-                        {t.type}
+                        {t(`transactions.type.${tx.type}`, { defaultValue: tx.type })}
                       </Badge>
                     </Td>
                     <Td>
-                      <div className="text-sm">{t.service || "—"}</div>
-                      {t.channel && (
+                      <div className="text-sm">{tx.service || "—"}</div>
+                      {tx.channel && (
                         <div className="text-xs text-[var(--color-fg-muted)] uppercase tracking-wider">
-                          {t.channel}
+                          {tx.channel}
                         </div>
                       )}
                     </Td>
                     <Td>
                       <Badge
                         tone={
-                          t.status === "success"
+                          tx.status === "success"
                             ? "success"
-                            : t.status === "failed"
+                            : tx.status === "failed"
                               ? "danger"
                               : "neutral"
                         }
                       >
-                        {t.status}
+                        {t(`transactions.status.${tx.status}`, { defaultValue: tx.status })}
                       </Badge>
                     </Td>
                     <Td className="text-right font-mono">
-                      <div className={t.type === "topup" ? "text-[var(--color-success)]" : ""}>
-                        {t.type === "topup" ? "+" : "-"}
-                        {formatKibix(baseUnitsToKibix(t.amount_lamports))} {KIBIX_LABEL}
+                      <div className={tx.type === "topup" ? "text-[var(--color-success)]" : ""}>
+                        {tx.type === "topup" ? "+" : "-"}
+                        {formatKibix(baseUnitsToKibix(tx.amount_lamports))} {KIBIX_LABEL}
                       </div>
                       <div className="text-xs text-[var(--color-fg-muted)]">
-                        ≈ {formatUsd(lamportsToUsd(t.amount_lamports))}
+                        {t("transactions.approx_usd", {
+                          usd: formatUsd(lamportsToUsd(tx.amount_lamports)),
+                        })}
                       </div>
                     </Td>
                     <Td>
-                      {t.tx_signature ? (
+                      {tx.tx_signature ? (
                         <a
-                          href={explorerUrl(t.tx_signature)}
+                          href={explorerUrl(tx.tx_signature)}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-xs font-mono text-[var(--color-primary)] hover:underline flex items-center gap-1"
                         >
-                          {shortSig(t.tx_signature)}
+                          {shortSig(tx.tx_signature)}
                           <ExternalLink className="w-3 h-3" />
                         </a>
                       ) : (
-                        <span className="text-xs text-[var(--color-fg-muted)]">off-chain</span>
+                        <span className="text-xs text-[var(--color-fg-muted)]">
+                          {t("transactions.off_chain")}
+                        </span>
                       )}
                     </Td>
                   </Tr>

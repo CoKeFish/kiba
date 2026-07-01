@@ -20,35 +20,39 @@ import {
 import { useAuth } from "@/lib/auth";
 import { useMode, type DashboardMode } from "@/lib/mode";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { api } from "@/lib/api";
 import { formatUsd, formatKibix, usdToKibix, KIBIX_LABEL } from "@/lib/format";
 import { Button } from "@/components/ui/button";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
+// `label` es una clave i18n; se resuelve con t() en el render.
 const consumerNav = [
-  { to: "/app", label: "Overview", icon: LayoutDashboard, end: true },
-  { to: "/app/connect", label: "Get started", icon: Plug },
-  { to: "/app/agents", label: "Agents", icon: Bot },
-  { to: "/app/playground", label: "Playground", icon: Play },
-  { to: "/app/usage", label: "Usage", icon: BarChart3 },
-  { to: "/app/transactions", label: "Transactions", icon: Receipt },
-  { to: "/app/credentials", label: "Credentials", icon: Key },
-  { to: "/app/billing", label: "Billing", icon: CreditCard },
-  { to: "/app/platform", label: "Platform", icon: Coins },
-  { to: "/app/settings", label: "Settings", icon: SettingsIcon },
+  { to: "/app", label: "nav.overview", icon: LayoutDashboard, end: true },
+  { to: "/app/connect", label: "nav.get_started", icon: Plug },
+  { to: "/app/agents", label: "nav.agents", icon: Bot },
+  { to: "/app/playground", label: "nav.playground", icon: Play },
+  { to: "/app/usage", label: "nav.usage", icon: BarChart3 },
+  { to: "/app/transactions", label: "nav.transactions", icon: Receipt },
+  { to: "/app/credentials", label: "nav.credentials", icon: Key },
+  { to: "/app/billing", label: "nav.billing", icon: CreditCard },
+  { to: "/app/platform", label: "nav.platform", icon: Coins },
+  { to: "/app/settings", label: "nav.settings", icon: SettingsIcon },
 ];
 
 const publisherNav = [
-  { to: "/app/publisher", label: "Revenue", icon: Coins, end: true },
-  { to: "/app/publisher/agents", label: "My Agents", icon: Bot },
-  { to: "/app/publisher/analytics", label: "Analytics", icon: BarChart3 },
-  { to: "/app/publisher/payouts", label: "Payouts", icon: Wallet },
-  { to: "/app/publisher/pricing", label: "Pricing", icon: Tag },
-  { to: "/app/publisher/publish", label: "Publish", icon: Rocket },
+  { to: "/app/publisher", label: "nav.revenue", icon: Coins, end: true },
+  { to: "/app/publisher/agents", label: "nav.my_agents", icon: Bot },
+  { to: "/app/publisher/analytics", label: "nav.analytics", icon: BarChart3 },
+  { to: "/app/publisher/payouts", label: "nav.payouts", icon: Wallet },
+  { to: "/app/publisher/pricing", label: "nav.pricing", icon: Tag },
+  { to: "/app/publisher/publish", label: "nav.publish", icon: Rocket },
 ];
 
 export function AppLayout() {
   const { user, logout } = useAuth();
   const { mode, setMode } = useMode();
+  const { t } = useTranslation();
   const navigate = useNavigate();
 
   const nav = mode === "publisher" ? publisherNav : consumerNav;
@@ -102,8 +106,8 @@ export function AppLayout() {
             }}
           >
             {([
-              { m: "consumer" as DashboardMode, label: "Consumer", icon: ShoppingBag },
-              { m: "publisher" as DashboardMode, label: "Publisher", icon: Store },
+              { m: "consumer" as DashboardMode, label: t("nav.consumer"), icon: ShoppingBag },
+              { m: "publisher" as DashboardMode, label: t("nav.publisher"), icon: Store },
             ]).map(({ m, label, icon: Icon }) => (
               <button
                 key={m}
@@ -159,16 +163,19 @@ export function AppLayout() {
               className="nav-item"
             >
               <item.icon size={15} />
-              {item.label}
+              {t(item.label)}
             </NavLink>
           ))}
         </nav>
 
-        {/* Bottom: user + logout */}
+        {/* Bottom: language + user + logout */}
         <div
           className="p-3"
           style={{ borderTop: "1px solid var(--color-border)" }}
         >
+          <div style={{ marginBottom: 10 }}>
+            <LanguageSwitcher variant="sidebar" />
+          </div>
           {user?.email && (
             <div
               style={{
@@ -214,7 +221,7 @@ export function AppLayout() {
             }}
           >
             <LogOut size={15} />
-            Log out
+            {t("nav.logout")}
           </button>
         </div>
       </aside>
@@ -248,7 +255,7 @@ export function AppLayout() {
                 color: "var(--color-fg-subtle)",
               }}
             >
-              Balance:{" "}
+              {t("topbar.balance")}{" "}
               <span style={{ color: "var(--color-fg)", fontWeight: 600 }}>
                 {balance ? `${formatKibix(usdToKibix(balance.balance_usd))} ${KIBIX_LABEL}` : "—"}
               </span>
@@ -259,7 +266,7 @@ export function AppLayout() {
               )}
             </div>
             <Button size="sm" onClick={() => navigate("/app/billing")}>
-              Top up
+              {t("topbar.top_up")}
             </Button>
           </div>
         </header>

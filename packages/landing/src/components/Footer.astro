@@ -1,37 +1,42 @@
 ---
+import { getLangFromUrl, useTranslations, localizePath } from "../i18n/utils";
+const lang = getLangFromUrl(Astro.url);
+const t = useTranslations(lang);
+const home = localizePath("/", lang);
+
 const cols = [
   {
-    heading: "Product",
+    heading: t("footer.col.product"),
     links: [
-      { label: "Agents", href: "#agents" },
-      { label: "How it works", href: "#how-it-works" },
-      { label: "Pricing", href: "#pricing" },
-      { label: "Docs", href: "https://github.com/CoKeFish/kiba" },
+      { label: t("nav.agents"), href: `${home}#agents` },
+      { label: t("nav.how"), href: `${home}#how-it-works` },
+      { label: t("nav.pricing"), href: `${home}#pricing` },
+      { label: t("nav.docs"), href: "https://github.com/CoKeFish/kiba" },
     ],
   },
   {
-    heading: "Resources",
+    heading: t("footer.col.resources"),
     links: [
-      { label: "Documentation", href: "https://github.com/CoKeFish/kiba" },
-      { label: "Blog", href: "#" },
-      { label: "Changelog", href: "#" },
-      { label: "Help Center", href: "#" },
+      { label: t("footer.resources.docs"), href: "https://github.com/CoKeFish/kiba" },
+      { label: t("footer.resources.blog"), href: "#" },
+      { label: t("footer.resources.changelog"), href: "#" },
+      { label: t("footer.resources.help"), href: "#" },
     ],
   },
   {
-    heading: "Company",
+    heading: t("footer.col.company"),
     links: [
-      { label: "About", href: "#" },
-      { label: "Careers", href: "#" },
-      { label: "Contact", href: "#" },
+      { label: t("footer.company.about"), href: "#" },
+      { label: t("footer.company.careers"), href: "#" },
+      { label: t("footer.company.contact"), href: "#" },
     ],
   },
   {
-    heading: "Legal",
+    heading: t("footer.col.legal"),
     links: [
-      { label: "Privacy", href: "#" },
-      { label: "Terms", href: "#" },
-      { label: "Security", href: "#" },
+      { label: t("footer.legal.privacy"), href: "#" },
+      { label: t("footer.legal.terms"), href: "#" },
+      { label: t("footer.legal.security"), href: "#" },
     ],
   },
 ];
@@ -73,7 +78,7 @@ const socials = [
       <p style="
         font-family: var(--font-sans); font-size: 13.5px; color: var(--fg-3);
         line-height: 1.55; max-width: 240px;
-      ">The marketplace where AI assistants discover and pay specialized agents on demand.</p>
+      ">{t("footer.tagline")}</p>
     </div>
 
     <!-- Link columns -->
@@ -117,7 +122,7 @@ const socials = [
       ))}
     </div>
     <span style="font-family: var(--font-sans); font-size: 13px; color: var(--fg-3);">
-      © 2026 Kiba Labs. All rights reserved.
+      {t("footer.copyright")}
     </span>
   </div>
 </footer>

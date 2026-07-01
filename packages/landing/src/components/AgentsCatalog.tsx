@@ -36,18 +36,33 @@ const FALLBACK: Agent[] = [
   },
 ];
 
-const SUGGESTIONS = [
-  "audit smart contract",
-  "best APY DeFi",
-  "yield optimizer",
-  "rugpull screener",
-];
-
-const MODE_LABELS: Record<Mode, string> = {
-  keyword: "Keyword",
-  semantic: "Semantic",
-  hybrid: "Hybrid",
+// Textos i18n: el .astro padre los calcula con t() y los pasa como props.
+// Defaults en inglés para que el componente funcione aislado.
+export type CatalogStrings = {
+  placeholder: string;
+  modeKeyword: string;
+  modeSemantic: string;
+  modeHybrid: string;
+  tryLabel: string;
+  suggestions: string[];
+  loading: string;
+  noResults: string; // usa el placeholder {query}
+  readDocs: string;
 };
+
+const DEFAULT_STRINGS: CatalogStrings = {
+  placeholder: "Search agents — try 'audit contract' or 'best APY'",
+  modeKeyword: "Keyword",
+  modeSemantic: "Semantic",
+  modeHybrid: "Hybrid",
+  tryLabel: "Try:",
+  suggestions: ["audit smart contract", "best APY DeFi", "yield optimizer", "rugpull screener"],
+  loading: "Searching…",
+  noResults: 'No results for "{query}". Try a different query.',
+  readDocs: "Read the docs →",
+};
+
+const MODES: Mode[] = ["keyword", "semantic", "hybrid"];
 
 const MATCH_COLORS: Record<Mode, string> = {
   keyword: "var(--success)",
@@ -87,7 +102,13 @@ const priceToUsd = (price: number, token?: string) =>
   (price * (RATES[token ?? "USDC"] ?? RATES.USDC)).toFixed(4);
 const fmtPrice = (price: number) => price.toFixed(6);
 
-export default function AgentsCatalog() {
+export default function AgentsCatalog({ strings }: { strings?: CatalogStrings }) {
+  const s = strings ?? DEFAULT_STRINGS;
+  const modeLabels: Record<Mode, string> = {
+    keyword: s.modeKeyword,
+    semantic: s.modeSemantic,
+    hybrid: s.modeHybrid,
+  };
   const [query, setQuery] = useState("");
   const [mode, setMode] = useState<Mode>("hybrid");
   const [agents, setAgents] = useState<Agent[]>(FALLBACK);
@@ -158,7 +179,7 @@ export default function AgentsCatalog() {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search agents — try 'audit contract' or 'best APY'"
+            placeholder={s.placeholder}
             style={{
               width: "100%",
               padding: "12px 16px",
@@ -191,7 +212,7 @@ export default function AgentsCatalog() {
           border: "1px solid var(--border-default)",
           overflow: "hidden",
         }}>
-          {(Object.keys(MODE_LABELS) as Mode[]).map((m) => (
+          {MODES.map((m) => (
             <button
               key={m}
               type="button"
@@ -209,7 +230,7 @@ export default function AgentsCatalog() {
                 boxShadow: mode === m ? "0 0 14px color-mix(in srgb, var(--accent) 40%, transparent)" : "none",
               }}
             >
-              {MODE_LABELS[m]}
+              {modeLabels[m]}
             </button>
           ))}
         </div>
@@ -218,12 +239,12 @@ export default function AgentsCatalog() {
       {/* Suggestion chips */}
       {!hasQuery && (
         <div style={{ marginBottom: 24, display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
-          <span style={{ fontFamily: "var(--font-sans)", fontSize: 12, color: "var(--fg-3)", marginRight: 4 }}>Try:</span>
-          {SUGGESTIONS.map((s) => (
+          <span style={{ fontFamily: "var(--font-sans)", fontSize: 12, color: "var(--fg-3)", marginRight: 4 }}>{s.tryLabel}</span>
+          {s.suggestions.map((sug) => (
             <button
-              key={s}
+              key={sug}
               type="button"
-              onClick={() => setQuery(s)}
+              onClick={() => setQuery(sug)}
               style={{
                 padding: "5px 14px",
                 borderRadius: "var(--radius-pill)",
@@ -245,7 +266,7 @@ export default function AgentsCatalog() {
                 e.currentTarget.style.color = "var(--fg-2)";
               }}
             >
-              {s}
+              {sug}
             </button>
           ))}
         </div>
@@ -281,12 +302,12 @@ export default function AgentsCatalog() {
           fontSize: 14,
           color: "var(--fg-3)",
         }}>
-          {loading ? "Searching…" : `No results for "${query}". Try a different query.`}
+          {loading ? s.loading : s.noResults.replace("{query}", query)}
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {agents.map((a, i) => (
-            <AgentCard key={a.service} agent={a} hasQuery={hasQuery} index={i} />
+            <AgentCard key={a.service} agent={a} hasQuery={hasQuery} index={i} readDocs={s.readDocs} />
           ))}
         </div>
       )}
@@ -297,7 +318,7 @@ export default function AgentsCatalog() {
 const ACCENTS = ["var(--c-pink)", "var(--c-yellow)", "var(--c-green)", "var(--c-purple)", "var(--c-teal)"];
 const AVATAR_BG = ["#FFF0F9", "#FFFBE6", "#F0FFF0", "#F0EDFF", "#E6FFFE"];
 
-function AgentCard({ agent: a, hasQuery, index }: { agent: Agent; hasQuery: boolean; index: number }) {
+function AgentCard({ agent: a, hasQuery, index, readDocs }: { agent: Agent; hasQuery: boolean; index: number; readDocs: string }) {
   const accent = ACCENTS[index % ACCENTS.length];
   const avatarBg = AVATAR_BG[index % AVATAR_BG.length];
   return (
@@ -338,7 +359,7 @@ function AgentCard({ agent: a, hasQuery, index }: { agent: Agent; hasQuery: bool
               marginTop: 6,
             }}
           >
-            Read the docs →
+            {readDocs}
           </a>
         )}
       </div>

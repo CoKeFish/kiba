@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { chain } from "@/lib/chain";
@@ -51,6 +52,7 @@ function TreasurySparkline() {
 }
 
 export default function Platform() {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   const { data, isFetching, refetch, isLoading } = useQuery({
     queryKey: ["platform-stats"],
@@ -69,11 +71,11 @@ export default function Platform() {
       <div className="platform-page">
         <header className="platform-head">
           <div>
-            <h1 className="platform-title">Platform Revenue</h1>
-            <p className="platform-subtitle">Loading marketplace stats…</p>
+            <h1 className="platform-title">{t("platform.title")}</h1>
+            <p className="platform-subtitle">{t("platform.loading_subtitle")}</p>
           </div>
         </header>
-        <p className="platform-loading">Fetching on-chain treasury data…</p>
+        <p className="platform-loading">{t("platform.loading_body")}</p>
       </div>
     );
   }
@@ -81,16 +83,18 @@ export default function Platform() {
   const { treasury, fee, marketplace, lifetime } = data;
   const agentHint =
     marketplace.total_agents > marketplace.total_agents_on_chain
-      ? `+ ${marketplace.total_agents - marketplace.total_agents_on_chain} fallback`
-      : "Active and verified";
+      ? t("platform.agent_hint_fallback", {
+          count: marketplace.total_agents - marketplace.total_agents_on_chain,
+        })
+      : t("platform.agent_hint_active");
 
   return (
     <div className="platform-page">
       <header className="platform-head">
         <div>
-          <h1 className="platform-title">Platform Revenue</h1>
+          <h1 className="platform-title">{t("platform.title")}</h1>
           <p className="platform-subtitle">
-            Treasury overview and the {fee.pct}% commission Kiba earns on agent usage.
+            {t("platform.subtitle", { pct: fee.pct })}
           </p>
         </div>
         <button
@@ -100,15 +104,15 @@ export default function Platform() {
           disabled={isFetching}
         >
           <RefreshCw size={14} className={isFetching ? "is-spinning" : ""} />
-          Refresh
+          {t("platform.refresh")}
         </button>
       </header>
 
       <section className="platform-treasury">
         <div className="platform-treasury__top">
           <div className="platform-treasury__label-row">
-            <p className="platform-treasury__label">Kiba treasury</p>
-            <span className="platform-live">Live</span>
+            <p className="platform-treasury__label">{t("platform.treasury_label")}</p>
+            <span className="platform-live">{t("platform.live")}</span>
           </div>
           <Wallet size={20} strokeWidth={2} style={{ color: "var(--color-fg-muted)" }} />
         </div>
@@ -121,7 +125,7 @@ export default function Platform() {
               ≈ {formatUsd(treasury.usd, 2)} · {treasury.asset_amount.toFixed(4)} {chain.asset}
             </p>
             <div className="platform-treasury__addr">
-              <span className="platform-treasury__addr-label">Treasury address</span>
+              <span className="platform-treasury__addr-label">{t("platform.treasury_address_label")}</span>
               <a
                 href={explorerWallet(treasury.pubkey)}
                 target="_blank"
@@ -135,7 +139,7 @@ export default function Platform() {
                 type="button"
                 className="platform-copy-btn"
                 onClick={() => copyAddress(treasury.pubkey)}
-                aria-label="Copy treasury address"
+                aria-label={t("platform.copy_treasury_aria")}
               >
                 {copied ? <Check size={14} /> : <Copy size={14} />}
               </button>
@@ -149,7 +153,7 @@ export default function Platform() {
         <article className="platform-kpi">
           <div className="platform-kpi__row">
             <div>
-              <p className="platform-kpi__label">Agents on-chain</p>
+              <p className="platform-kpi__label">{t("platform.kpi_agents_label")}</p>
               <p className="platform-kpi__value">
                 {marketplace.total_agents_on_chain.toLocaleString()}
               </p>
@@ -170,11 +174,11 @@ export default function Platform() {
         <article className="platform-kpi">
           <div className="platform-kpi__row">
             <div>
-              <p className="platform-kpi__label">Total calls</p>
+              <p className="platform-kpi__label">{t("platform.kpi_calls_label")}</p>
               <p className="platform-kpi__value">
                 {marketplace.total_calls.toLocaleString()}
               </p>
-              <p className="platform-kpi__hint">Lifetime agent calls</p>
+              <p className="platform-kpi__hint">{t("platform.kpi_calls_hint")}</p>
             </div>
             <div
               className="platform-kpi__icon"
@@ -191,7 +195,7 @@ export default function Platform() {
         <article className="platform-kpi">
           <div className="platform-kpi__row">
             <div>
-              <p className="platform-kpi__label">Lifetime volume</p>
+              <p className="platform-kpi__label">{t("platform.kpi_volume_label")}</p>
               <p className="platform-kpi__value">
                 {formatKibixLabel(usdToKibix(lifetime.total_volume_usd))}
               </p>
@@ -214,7 +218,7 @@ export default function Platform() {
         <article className="platform-kpi">
           <div className="platform-kpi__row">
             <div>
-              <p className="platform-kpi__label">Lifetime fees ({fee.pct}%)</p>
+              <p className="platform-kpi__label">{t("platform.kpi_fees_label", { pct: fee.pct })}</p>
               <p className="platform-kpi__value platform-kpi__value--fees">
                 {formatKibixLabel(usdToKibix(lifetime.estimated_fees_usd))}
               </p>
@@ -237,51 +241,49 @@ export default function Platform() {
 
       <section className="platform-commission">
         <h2 className="platform-commission__title">
-          How the {fee.pct}% commission works
+          {t("platform.commission_title", { pct: fee.pct })}
         </h2>
         <p className="platform-commission__desc">
-          Hardcoded in the smart contract. No off-chain accounting needed.
+          {t("platform.commission_desc")}
         </p>
 
         <div className="platform-steps">
           <article className="platform-step">
             <img src={MASCOTS.cuadrado} alt="" aria-hidden className="platform-step__mascot" />
-            <h3 className="platform-step__title">Agents get calls</h3>
+            <h3 className="platform-step__title">{t("platform.step1_title")}</h3>
             <p className="platform-step__text">
-              Users call agents on the Kiba platform and pay for the service.
+              {t("platform.step1_text")}
             </p>
           </article>
           <article className="platform-step">
             <img src={MASCOTS.triangulo} alt="" aria-hidden className="platform-step__mascot" />
-            <h3 className="platform-step__title">Value flows on-chain</h3>
+            <h3 className="platform-step__title">{t("platform.step2_title")}</h3>
             <p className="platform-step__text">
-              Payments are settled on-chain in {chain.asset}. Agents receive{" "}
-              {(100 - fee.pct).toFixed(0)}% of the payment.
+              {t("platform.step2_text", {
+                asset: chain.asset,
+                pct: (100 - fee.pct).toFixed(0),
+              })}
             </p>
           </article>
           <article className="platform-step">
             <img src={MASCOTS.circulo} alt="" aria-hidden className="platform-step__mascot" />
-            <h3 className="platform-step__title">Kiba earns {fee.pct}%</h3>
+            <h3 className="platform-step__title">{t("platform.step3_title", { pct: fee.pct })}</h3>
             <p className="platform-step__text">
-              Kiba automatically collects a {fee.pct}% commission and routes it to the treasury.
+              {t("platform.step3_text", { pct: fee.pct })}
             </p>
           </article>
         </div>
 
         <p className="platform-banner">
-          <strong>Transparent. On-chain. Sustainable.</strong> All fees are visible on-chain and
-          used to improve the platform for everyone.
+          <strong>{t("platform.banner_strong")}</strong> {t("platform.banner_text")}
         </p>
       </section>
 
       <section className="platform-cta">
         <div>
-          <p className="platform-cta__text">
-            Treasury funds are used to support ecosystem growth, platform reliability, and future
-            rewards for the community.
-          </p>
+          <p className="platform-cta__text">{t("platform.cta_text")}</p>
           <a href={DOCS_URL} target="_blank" rel="noreferrer" className="platform-cta-btn">
-            Learn more
+            {t("platform.cta_learn_more")}
             <ExternalLink size={14} />
           </a>
         </div>

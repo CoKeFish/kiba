@@ -1,5 +1,7 @@
 import { Link } from "react-router-dom";
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import "./auth.css";
 
 const MASCOTS = {
@@ -26,6 +28,7 @@ export function AuthShell({
   mascot = "triangle",
   children,
 }: AuthShellProps) {
+  const { t } = useTranslation();
   const mascotConfig = mascot ? MASCOTS[mascot] : null;
 
   return (
@@ -38,6 +41,7 @@ export function AuthShell({
           <img src="/logo.png" alt="Kiba" className="auth-brand-logo" />
         </Link>
         <div className="auth-header-cta">
+          <LanguageSwitcher variant="floating" />
           <span className="auth-header-prompt">{headerPrompt}</span>
           <Link
             to={headerLinkTo}
@@ -67,15 +71,15 @@ export function AuthShell({
       </main>
 
       <footer className="auth-footer">
-        <span>© 2024 Kiba Technologies, Inc.</span>
+        <span>{t("auth.footer_copyright")}</span>
         <span className="auth-footer-sep" aria-hidden="true">
           •
         </span>
-        <a href="#">Privacy</a>
+        <a href="#">{t("auth.footer_privacy")}</a>
         <span className="auth-footer-sep" aria-hidden="true">
           •
         </span>
-        <a href="#">Terms</a>
+        <a href="#">{t("auth.footer_terms")}</a>
       </footer>
     </div>
   );

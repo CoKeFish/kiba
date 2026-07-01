@@ -8,6 +8,7 @@ import { serviceToName, solToUsd } from "@/components/AgentManager";
 import { ArrowRight, BookOpen, Search } from "lucide-react";
 import { DEMO_AGENTS, DEMO_AGENT_TAGS } from "@/lib/demoAgents";
 import { mascotFor } from "@/lib/agentMascots";
+import { useTranslation } from "react-i18next";
 import "./agents.css";
 
 type Mode = "keyword" | "semantic" | "hybrid";
@@ -19,6 +20,7 @@ function matchTag(agent: Agent | AgentSearchHit, mode: Mode): Mode {
 }
 
 export default function Agents() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [query, setQuery] = useState("");
@@ -84,9 +86,9 @@ export default function Agents() {
   return (
     <div className="agents-page">
       <header className="agents-head">
-        <h1 className="agents-title">Agents</h1>
+        <h1 className="agents-title">{t("agents.title")}</h1>
         <p className="agents-subtitle">
-          Live registry on {chain.networkLabel} · browse and call specialist agents.
+          {t("agents.subtitle", { network: chain.networkLabel })}
         </p>
       </header>
 
@@ -98,10 +100,10 @@ export default function Agents() {
             className="agents-search-input"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder='Search — try "auditar contrato" or "best APY"'
+            placeholder={t("agents.search_placeholder")}
           />
         </div>
-        <div className="agents-mode-toggle" role="group" aria-label="Search mode">
+        <div className="agents-mode-toggle" role="group" aria-label={t("agents.search_mode_label")}>
           {(["keyword", "semantic", "hybrid"] as Mode[]).map((m) => (
             <button
               key={m}
@@ -109,7 +111,7 @@ export default function Agents() {
               className={`agents-mode-btn${mode === m ? " is-active" : ""}`}
               onClick={() => setMode(m)}
             >
-              {m}
+              {t(`agents.mode.${m}`)}
             </button>
           ))}
         </div>
@@ -118,10 +120,10 @@ export default function Agents() {
       {agents.length === 0 ? (
         <div className="agents-empty">
           {isFetching
-            ? "Loading…"
+            ? t("agents.loading")
             : hasQuery
-              ? `No agents matched "${debouncedQuery}". Try a different phrasing.`
-              : "No agents registered yet."}
+              ? t("agents.no_match", { query: debouncedQuery })
+              : t("agents.no_agents")}
         </div>
       ) : (
         <div className="agents-grid">
@@ -140,7 +142,9 @@ export default function Agents() {
                   <p className="agents-card__desc">{a.description}</p>
                   <div className="agents-card__meta">
                     <span className="agents-card__price">{formatUsd(priceUsd, 4)}</span>
-                    <span className={`agents-card__tag agents-card__tag--${tag}`}>{tag}</span>
+                    <span className={`agents-card__tag agents-card__tag--${tag}`}>
+                      {t(`agents.mode.${tag}`, { defaultValue: tag })}
+                    </span>
                   </div>
                   <button
                     type="button"
@@ -149,7 +153,7 @@ export default function Agents() {
                       navigate(`/app/playground?service=${encodeURIComponent(a.service)}`)
                     }
                   >
-                    Call agent
+                    {t("agents.call_agent")}
                     <ArrowRight size={15} />
                   </button>
                 </div>
@@ -163,10 +167,8 @@ export default function Agents() {
         <img src="/agents/triangulo.png" alt="" aria-hidden className="agents-help__mascot" />
         <div className="agents-help__center">
           <div>
-            <p className="agents-help__title">Not sure where to start?</p>
-            <p className="agents-help__text">
-              Explore our docs or try calling a recommended agent.
-            </p>
+            <p className="agents-help__title">{t("agents.help_title")}</p>
+            <p className="agents-help__text">{t("agents.help_text")}</p>
           </div>
           <a
             href="https://github.com/CoKeFish/kiba/tree/main/docs"
@@ -175,7 +177,7 @@ export default function Agents() {
             className="agents-help-btn"
           >
             <BookOpen size={16} />
-            Explore docs
+            {t("agents.explore_docs")}
           </a>
         </div>
         <img src="/agents/corazon.png" alt="" aria-hidden className="agents-help__mascot" />

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { Plug, Terminal, Copy, Check, ArrowRight, ExternalLink, Download } from "lucide-react";
 import "./connect.css";
@@ -34,15 +35,15 @@ const INSTALL_CONFIG = JSON.stringify(
 );
 
 const CLAUDE_STEPS = [
-  "Settings → Connectors → “Add custom connector”",
-  "Paste the connector URL above",
-  "Click “Add” and sign in to Kiba to authorize",
+  "connect.panel.claude_step_1",
+  "connect.panel.claude_step_2",
+  "connect.panel.claude_step_3",
 ];
 
 const CHATGPT_STEPS = [
-  "Settings → Apps & Connectors → Advanced settings → enable “Developer mode”",
-  "Connectors → “Create”, name it and paste the URL",
-  "Click “Create” and authorize (OAuth)",
+  "connect.panel.chatgpt_step_1",
+  "connect.panel.chatgpt_step_2",
+  "connect.panel.chatgpt_step_3",
 ];
 
 function useCopy() {
@@ -56,25 +57,27 @@ function useCopy() {
 }
 
 function CopyableUrl() {
+  const { t } = useTranslation();
   const { copied, copy } = useCopy();
   return (
     <div className="connect-url-row">
       <code className="connect-url-code">{MCP_URL}</code>
-      <button type="button" className="connect-copy-btn" onClick={() => copy(MCP_URL)} aria-label="Copy connector URL">
+      <button type="button" className="connect-copy-btn" onClick={() => copy(MCP_URL)} aria-label={t("connect.panel.copy_url_aria")}>
         {copied ? <Check size={15} /> : <Copy size={15} />}
-        {copied ? "Copied" : "Copy"}
+        {copied ? t("connect.panel.copied") : t("connect.panel.copy")}
       </button>
     </div>
   );
 }
 
 function CopyableConfig() {
+  const { t } = useTranslation();
   const { copied, copy } = useCopy();
   return (
     <div className="connect-code">
-      <button type="button" className="connect-code__copy" onClick={() => copy(INSTALL_CONFIG)} aria-label="Copy config">
+      <button type="button" className="connect-code__copy" onClick={() => copy(INSTALL_CONFIG)} aria-label={t("connect.panel.copy_config_aria")}>
         {copied ? <Check size={14} /> : <Copy size={14} />}
-        {copied ? "Copied" : "Copy"}
+        {copied ? t("connect.panel.copied") : t("connect.panel.copy")}
       </button>
       <pre className="connect-code__pre">{INSTALL_CONFIG}</pre>
     </div>
@@ -92,22 +95,23 @@ function StepCard({
   href: string;
   beta?: boolean;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="connect-step-card">
       <div className="connect-step-card__head">
         <div className="connect-step-card__title-wrap">
           <h3 className="connect-step-card__title">{title}</h3>
-          {beta && <span className="connect-beta">Beta</span>}
+          {beta && <span className="connect-beta">{t("connect.panel.beta")}</span>}
         </div>
         <a href={href} target="_blank" rel="noopener noreferrer" className="connect-open-link">
-          Open <ExternalLink size={13} />
+          {t("connect.panel.open")} <ExternalLink size={13} />
         </a>
       </div>
       <ol className="connect-steps-list">
         {steps.map((s, i) => (
           <li key={i} className="connect-step">
             <span className="connect-step__num">{i + 1}</span>
-            <span>{s}</span>
+            <span>{t(s)}</span>
           </li>
         ))}
       </ol>
@@ -122,17 +126,15 @@ function StepCard({
  * - completo: las dos opciones con pasos.
  */
 export function ConnectPanel({ compact = false }: { compact?: boolean }) {
+  const { t } = useTranslation();
   if (compact) {
     return (
       <section className="connect-banner">
         <div className="connect-banner__copy">
-          <h3 className="connect-banner__title">Get started with Kiba</h3>
-          <p className="connect-banner__text">
-            Connect it to Claude or ChatGPT, or install it in your editor — then discover and pay
-            agents straight from your chat.
-          </p>
+          <h3 className="connect-banner__title">{t("connect.panel.banner_title")}</h3>
+          <p className="connect-banner__text">{t("connect.panel.banner_text")}</p>
           <Link to="/app/connect" className="connect-banner__btn">
-            Get started <ArrowRight size={16} />
+            {t("connect.panel.banner_btn")} <ArrowRight size={16} />
           </Link>
         </div>
         <img src="/agents/estrella.png" alt="" aria-hidden className="connect-banner__mascot" />
@@ -147,19 +149,17 @@ export function ConnectPanel({ compact = false }: { compact?: boolean }) {
         <div className="connect-method__head">
           <span className="connect-method__num">1</span>
           <div>
-            <h2 className="connect-method__title">Use it in Claude or ChatGPT (web)</h2>
-            <p className="connect-method__sub">
-              Paste one URL — nothing to install. Works in Claude (web &amp; desktop) and ChatGPT.
-            </p>
+            <h2 className="connect-method__title">{t("connect.panel.method1_title")}</h2>
+            <p className="connect-method__sub">{t("connect.panel.method1_sub")}</p>
           </div>
         </div>
 
         <div className="connect-url-card">
           <p className="connect-url-card__label">
-            <Plug size={16} /> Connector URL (MCP)
+            <Plug size={16} /> {t("connect.panel.connector_url_label")}
           </p>
           <p className="connect-url-card__desc">
-            It asks you to sign in to Kiba (OAuth) — no API keys, no extra setup.
+            {t("connect.panel.connector_url_desc")}
           </p>
           <CopyableUrl />
         </div>
@@ -175,20 +175,17 @@ export function ConnectPanel({ compact = false }: { compact?: boolean }) {
         <div className="connect-method__head">
           <span className="connect-method__num">2</span>
           <div>
-            <h2 className="connect-method__title">Install in your editor (Cursor, Claude Code, Claude Desktop)</h2>
-            <p className="connect-method__sub">
-              Get the one-click installer, or add the server to your MCP config manually.
-            </p>
+            <h2 className="connect-method__title">{t("connect.panel.method2_title")}</h2>
+            <p className="connect-method__sub">{t("connect.panel.method2_sub")}</p>
           </div>
         </div>
 
         <div className="connect-url-card">
           <p className="connect-url-card__label">
-            <Download size={16} /> One-click installer (Windows)
+            <Download size={16} /> {t("connect.panel.installer_label")}
           </p>
           <p className="connect-url-card__desc">
-            Installs the kiba server into Claude Desktop, Cursor and Claude Code automatically —
-            per-user, no admin required.
+            {t("connect.panel.installer_desc")}
           </p>
           <a
             className="connect-download-btn"
@@ -196,29 +193,29 @@ export function ConnectPanel({ compact = false }: { compact?: boolean }) {
             target="_blank"
             rel="noopener noreferrer"
           >
-            <Download size={16} /> Download for Windows
+            <Download size={16} /> {t("connect.panel.download_btn")}
           </a>
-          <p className="connect-download-note">macOS / Linux? Use the manual config below.</p>
+          <p className="connect-download-note">{t("connect.panel.download_note")}</p>
         </div>
 
-        <p className="connect-or">Or add it manually (any OS):</p>
+        <p className="connect-or">{t("connect.panel.or_manual")}</p>
 
         <div className="connect-url-card">
           <p className="connect-url-card__label">
-            <Terminal size={16} /> MCP config (npx kiba-mcp)
+            <Terminal size={16} /> {t("connect.panel.config_label")}
           </p>
           <p className="connect-url-card__desc">
-            Add this to your MCP settings (e.g. <code>~/.claude.json</code> or your IDE), then restart.
-            On first use your browser opens to sign in to Kiba.
+            {t("connect.panel.config_desc_1")} <code>~/.claude.json</code>{" "}
+            {t("connect.panel.config_desc_2")}
           </p>
           <CopyableConfig />
         </div>
       </section>
 
       <p className="connect-foot">
-        Authorized apps show up under{" "}
-        <Link to="/app/credentials">Credentials → Connected apps</Link>, where you can revoke them
-        anytime.
+        {t("connect.panel.foot_1")}{" "}
+        <Link to="/app/credentials">{t("connect.panel.foot_link")}</Link>
+        {t("connect.panel.foot_2")}
       </p>
     </div>
   );

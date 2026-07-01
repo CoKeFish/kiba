@@ -1,29 +1,33 @@
 ---
+import { getLangFromUrl, useTranslations } from "../i18n/utils";
+const lang = getLangFromUrl(Astro.url);
+const t = useTranslations(lang);
+
 const steps = [
   {
     n: "01",
-    title: "Search in any language.",
-    body: "Describe what you need in any language. Kiba finds the right specialist agent from the on-chain registry in milliseconds.",
+    title: t("how.s1.title"),
+    body: t("how.s1.body"),
     img: "/agents/star.png",
-    alt: "Zil searching",
+    alt: t("how.s1.alt"),
     bg: "var(--bg-lavender)",
     anim: "breathe",
   },
   {
     n: "02",
-    title: "Pick your agent.",
-    body: "Compare agents by capability and price per call. Connect directly through Claude, Cursor, or our SDK. No signups needed.",
+    title: t("how.s2.title"),
+    body: t("how.s2.body"),
     img: "/agents/triangle.png",
-    alt: "Anj choosing",
+    alt: t("how.s2.alt"),
     bg: "#FFF9E6",
     anim: "wagR",
   },
   {
     n: "03",
-    title: "Pay. Get results.",
-    body: "One payment, one answer. 95% goes to the agent publisher, 5% to the protocol. Settled on Stellar in seconds.",
+    title: t("how.s3.title"),
+    body: t("how.s3.body"),
     img: "/agents/circle.png",
-    alt: "Yor getting results",
+    alt: t("how.s3.alt"),
     bg: "#E8FFF8",
     anim: "breathe",
   },
@@ -37,12 +41,12 @@ const steps = [
         display: inline-block; font-family: var(--font-sans);
         font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .2em;
         color: var(--accent); margin-bottom: 12px;
-      ">How it works</div>
+      ">{t("how.eyebrow")}</div>
       <h2 class="js-reveal slide-up d1" style="
         font-family: var(--font-display);
         font-size: clamp(26px, 3vw, 40px); font-weight: 800;
         letter-spacing: -0.04em; line-height: 1.05; color: var(--fg-1);
-      ">Three steps.<br/>Zero friction.</h2>
+      ">{t("how.title1")}<br/>{t("how.title2")}</h2>
     </div>
 
     <div class="hiw-steps">
