@@ -11,7 +11,7 @@ import express, { type Request, type Response, type NextFunction } from 'express
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import path from 'node:path';
-import { db } from './db';
+import { initDb } from './db';
 import {
   authenticate,
   createUser,
@@ -182,29 +182,33 @@ function requireSession(req: Request, res: Response, next: NextFunction) {
  *
  * Populates req.bearerUser so downstream handlers don't care which path was used.
  */
-function requireAuth(req: Request, res: Response, next: NextFunction) {
+async function requireAuth(req: Request, res: Response, next: NextFunction) {
   // 1. Session cookie (loadSession ran first via app.use)
   if (req.user) {
     req.bearerUser = { id: req.user.id, email: req.user.email };
     return next();
   }
   // 2. Bearer token
-  const auth = req.header('Authorization');
-  if (auth?.startsWith('Bearer ')) {
-    const token = auth.slice(7);
-    // Try OAuth-issued tokens first
-    let user = getUserByToken(token);
-    // Then try API keys (sk_live_*)
-    if (!user) {
-      const apiUser = getUserByApiKey(token);
-      if (apiUser) user = getUser(apiUser.id);
+  try {
+    const auth = req.header('Authorization');
+    if (auth?.startsWith('Bearer ')) {
+      const token = auth.slice(7);
+      // Try OAuth-issued tokens first
+      let user = await getUserByToken(token);
+      // Then try API keys (sk_live_*)
+      if (!user) {
+        const apiUser = await getUserByApiKey(token);
+        if (apiUser) user = await getUser(apiUser.id);
+      }
+      if (user) {
+        req.bearerUser = { id: user.id, email: user.email };
+        return next();
+      }
     }
-    if (user) {
-      req.bearerUser = { id: user.id, email: user.email };
-      return next();
-    }
+    res.status(401).json({ error: 'authentication required' });
+  } catch (e) {
+    res.status(500).json({ error: (e as Error).message });
   }
-  res.status(401).json({ error: 'authentication required' });
 }
 
 function wantsJson(req: Request): boolean {
@@ -231,7 +235,7 @@ app.get('/signup', (req, res) => {
   res.send(signupView(undefined, req.query.next as string | undefined));
 });
 
-app.post('/signup', (req, res) => {
+app.post('/signup', async (req, res) => {
   const json = wantsJson(req);
   const { email, password } = req.body;
   const next_url = (req.query.next as string) || '/dashboard';
@@ -243,7 +247,7 @@ app.post('/signup', (req, res) => {
   if (!email || !password) return fail(400, 'Email y contraseña requeridos');
   if (password.length < 6) return fail(400, 'Mínimo 6 caracteres');
 
-  const result = createUser(email, password);
+  const result = await createUser(email, password);
   if ('error' in result) return fail(400, result.error);
 
   const token = signJwt({ id: result.id, email: result.email });
@@ -271,11 +275,11 @@ app.get('/login', (req, res) => {
   res.send(loginView(undefined, req.query.next as string | undefined));
 });
 
-app.post('/login', (req, res) => {
+app.post('/login', async (req, res) => {
   const json = wantsJson(req);
   const { email, password } = req.body;
   const next_url = (req.query.next as string) || '/dashboard';
-  const user = authenticate(email, password);
+  const user = await authenticate(email, password);
   if (!user) {
     if (json) return res.status(401).json({ error: 'Email o contraseña incorrectos' });
     return res.status(401).send(loginView('Email o contraseña incorrectos', next_url));
@@ -312,7 +316,7 @@ app.post('/logout', (_req, res) => {
 // ─── Dashboard ─────────────────────────────────────────────────
 
 app.get('/dashboard', requireSession, async (req, res) => {
-  const user = getUser(req.user!.id);
+  const user = await getUser(req.user!.id);
   if (!user) return res.redirect('/logout');
 
   const balances = await getUserBalances(user.id);
@@ -327,12 +331,12 @@ app.get('/dashboard', requireSession, async (req, res) => {
       totalUsd: balances.totalUsd,
       totalSol: balances.totalSol,
       walletPubkey: user.custodial_wallet_pubkey,
-      transactions: getTransactions(user.id),
+      transactions: await getTransactions(user.id),
     }),
   );
 });
 
-function handleTopup(req: Request, res: Response) {
+async function handleTopup(req: Request, res: Response) {
   const json = wantsJson(req);
   const amount = Number(req.body.amount ?? req.body.amount_usd);
   const userId = req.bearerUser!.id;
@@ -343,13 +347,13 @@ function handleTopup(req: Request, res: Response) {
   }
   // Tope de saldo agregado (créditos virtuales) anti-abuso / drenaje de treasury vía refills.
   const MAX_BALANCE_USD = 10_000;
-  if (lamportsToUsd(getBalance(userId)) + amount > MAX_BALANCE_USD) {
+  if (lamportsToUsd(await getBalance(userId)) + amount > MAX_BALANCE_USD) {
     const capMsg = `balance cap exceeded (max $${MAX_BALANCE_USD})`;
     if (json) return res.status(400).json({ error: capMsg });
     return res.status(400).send(capMsg);
   }
-  topup(userId, amount);
-  const balance = getBalance(userId);
+  await topup(userId, amount);
+  const balance = await getBalance(userId);
 
   if (json) {
     return res.json({
@@ -421,8 +425,8 @@ app.post('/v1/payments/breb/charge', requireAuth, async (req, res) => {
   }
 });
 
-app.get('/v1/payments/charge/:id', requireAuth, (req, res) => {
-  const charge = getChargeById(String(req.params.id), req.bearerUser!.id);
+app.get('/v1/payments/charge/:id', requireAuth, async (req, res) => {
+  const charge = await getChargeById(String(req.params.id), req.bearerUser!.id);
   if (!charge) return res.status(404).json({ error: 'charge not found' });
   res.json(chargeToJson(charge));
 });
@@ -431,19 +435,19 @@ app.get('/v1/payments/charge/:id', requireAuth, (req, res) => {
  * Sandbox: simula que el usuario pagó por su app bancaria (representa el webhook
  * del PSP). En producción esto lo dispararía el webhook firmado del PSP, no el cliente.
  */
-app.post('/v1/payments/breb/simulate', requireAuth, (req, res) => {
+app.post('/v1/payments/breb/simulate', requireAuth, async (req, res) => {
   const chargeId = String(req.body?.chargeId ?? '');
   if (!chargeId) return res.status(400).json({ error: 'chargeId required' });
   // Enruta al provider del PROPIO cobro y exige que sea sandbox: así NO se puede
   // "simular" (auto-acreditar) un cobro real de Stripe/Wompi sin pagar.
-  const existing = getChargeById(chargeId, req.bearerUser!.id);
+  const existing = await getChargeById(chargeId, req.bearerUser!.id);
   if (!existing) return res.status(404).json({ error: 'charge not found' });
   const p = getProvider(existing.provider);
   if (!p.sandbox || !p.confirmCharge) {
     return res.status(400).json({ error: 'simulate only available for sandbox charges' });
   }
   try {
-    const { charge, newBalanceUsd } = p.confirmCharge(chargeId, req.bearerUser!.id);
+    const { charge, newBalanceUsd } = await p.confirmCharge(chargeId, req.bearerUser!.id);
     res.json({
       charge: chargeToJson(charge),
       new_balance_usd: newBalanceUsd,
@@ -537,7 +541,7 @@ app.post(
  * Crea una session, si el usuario está logueado muestra "Authorize?",
  * si no, redirige a login con next.
  */
-app.get('/auth/connect', (req, res) => {
+app.get('/auth/connect', async (req, res) => {
   // Normaliza a string: req.query.X puede ser string | string[] | ParsedQs según query parser
   const toStr = (v: unknown, fallback = ''): string => {
     if (typeof v === 'string') return v;
@@ -574,7 +578,7 @@ app.get('/auth/connect', (req, res) => {
     return res.status(400).send('redirect_uri no permitido');
   }
 
-  const sessionId = createOAuthSession({ codeChallenge, redirectUri, clientName });
+  const sessionId = await createOAuthSession({ codeChallenge, redirectUri, clientName });
 
   if (!req.user) {
     return res.redirect(`/login?next=/auth/consent?session=${sessionId}`);
@@ -582,12 +586,12 @@ app.get('/auth/connect', (req, res) => {
   res.redirect(`/auth/consent?session=${sessionId}`);
 });
 
-app.get('/auth/consent', requireSession, (req, res) => {
+app.get('/auth/consent', requireSession, async (req, res) => {
   const sessionId = req.query.session as string;
-  const session = getOAuthSession(sessionId);
+  const session = await getOAuthSession(sessionId);
   if (!session) return res.status(400).send('Invalid or expired session');
 
-  const user = getUser(req.user!.id)!;
+  const user = (await getUser(req.user!.id))!;
   res.send(
     authorizeView({
       clientName: session.client_name,
@@ -598,12 +602,12 @@ app.get('/auth/consent', requireSession, (req, res) => {
   );
 });
 
-app.post('/auth/authorize', requireSession, (req, res) => {
+app.post('/auth/authorize', requireSession, async (req, res) => {
   const sessionId = req.body.session_id;
-  const session = getOAuthSession(sessionId);
+  const session = await getOAuthSession(sessionId);
   if (!session) return res.status(400).send('Invalid session');
 
-  const code = authorizeSession(sessionId, req.user!.id);
+  const code = await authorizeSession(sessionId, req.user!.id);
   if (!code) return res.status(500).send('Failed to authorize');
 
   // Redirige al redirect_uri del cliente con el code
@@ -638,7 +642,7 @@ app.post('/auth/authorize', requireSession, (req, res) => {
  * POST /oauth/token
  * Body: { code, code_verifier, grant_type: "authorization_code" }
  */
-app.post('/oauth/token', (req, res) => {
+app.post('/oauth/token', async (req, res) => {
   const { code, code_verifier, grant_type } = req.body;
   if (grant_type !== 'authorization_code') {
     return res.status(400).json({ error: 'unsupported_grant_type' });
@@ -647,16 +651,16 @@ app.post('/oauth/token', (req, res) => {
     return res.status(400).json({ error: 'invalid_request' });
   }
 
-  const result = exchangeCodeForToken(code, code_verifier);
+  const result = await exchangeCodeForToken(code, code_verifier);
   if ('error' in result) {
     return res.status(400).json({ error: result.error });
   }
   res.json(result);
 });
 
-app.post('/oauth/revoke', (req, res) => {
+app.post('/oauth/revoke', async (req, res) => {
   const token = req.body.token;
-  if (token) revokeToken(token);
+  if (token) await revokeToken(token);
   res.json({ ok: true });
 });
 
@@ -680,7 +684,7 @@ app.get('/.well-known/oauth-protected-resource', serveProtectedResourceMetadata)
 app.get('/.well-known/oauth-protected-resource/mcp', serveProtectedResourceMetadata);
 
 // Dynamic Client Registration (RFC 7591) — Claude/ChatGPT se auto-registran.
-app.post('/register', (req, res) => {
+app.post('/register', async (req, res) => {
   const body = req.body ?? {};
   const redirectUris = Array.isArray(body.redirect_uris) ? body.redirect_uris : [];
   if (redirectUris.length === 0) {
@@ -688,7 +692,7 @@ app.post('/register', (req, res) => {
       .status(400)
       .json({ error: 'invalid_client_metadata', error_description: 'redirect_uris required' });
   }
-  const client = registerOAuthClient({
+  const client = await registerOAuthClient({
     client_name: body.client_name,
     redirect_uris: redirectUris,
     grant_types: body.grant_types,
@@ -710,7 +714,7 @@ app.post('/register', (req, res) => {
 
 // Authorization endpoint estándar (response_type=code + PKCE S256).
 // Reutiliza la pantalla de consentimiento existente (/auth/consent → /auth/authorize).
-app.get('/authorize', (req, res) => {
+app.get('/authorize', async (req, res) => {
   const toStr = (v: unknown): string =>
     typeof v === 'string' ? v : Array.isArray(v) && typeof v[0] === 'string' ? v[0] : '';
   const responseType = toStr(req.query.response_type);
@@ -731,14 +735,14 @@ app.get('/authorize', (req, res) => {
     return res.status(400).send('unsupported code_challenge_method (expected "S256")');
   }
 
-  const client = getOAuthClient(clientId);
+  const client = await getOAuthClient(clientId);
   if (!client) return res.status(400).send('unknown client_id');
   const registered: string[] = JSON.parse(client.redirect_uris || '[]');
   if (registered.length > 0 && !registered.includes(redirectUri)) {
     return res.status(400).send('redirect_uri not registered for this client');
   }
 
-  const sessionId = createOAuthSession({
+  const sessionId = await createOAuthSession({
     codeChallenge,
     redirectUri,
     clientName: client.client_name ?? clientId,
@@ -754,14 +758,14 @@ app.get('/authorize', (req, res) => {
 });
 
 // Token endpoint estándar (authorization_code + PKCE). Reutiliza exchangeCodeForToken.
-app.post('/token', (req, res) => {
+app.post('/token', async (req, res) => {
   const { grant_type, code, code_verifier, refresh_token } = req.body ?? {};
 
   if (grant_type === 'authorization_code') {
     if (!code || !code_verifier) {
       return res.status(400).json({ error: 'invalid_request' });
     }
-    const result = exchangeCodeForToken(code, code_verifier);
+    const result = await exchangeCodeForToken(code, code_verifier);
     if ('error' in result) {
       return res.status(400).json({ error: 'invalid_grant', error_description: result.error });
     }
@@ -774,7 +778,7 @@ app.post('/token', (req, res) => {
     if (!refresh_token) {
       return res.status(400).json({ error: 'invalid_request' });
     }
-    const result = refreshAccessToken(refresh_token);
+    const result = await refreshAccessToken(refresh_token);
     if ('error' in result) {
       return res.status(400).json(result); // { error: 'invalid_grant' }
     }
@@ -785,9 +789,9 @@ app.post('/token', (req, res) => {
 });
 
 // Token revocation estándar (RFC 7009).
-app.post('/revoke', (req, res) => {
+app.post('/revoke', async (req, res) => {
   const token = req.body?.token;
-  if (token) revokeToken(token);
+  if (token) await revokeToken(token);
   res.status(200).json({});
 });
 
@@ -806,7 +810,7 @@ app.all('/mcp', mcpBearer, (req, res) => {
 // ═══════════════════════════════════════════════════════════════
 
 app.get('/v1/me', requireAuth, async (req, res) => {
-  const user = getUser(req.bearerUser!.id);
+  const user = await getUser(req.bearerUser!.id);
   if (!user) return res.status(404).json({ error: 'user not found' });
   const balances = await getUserBalances(user.id);
   res.json({
@@ -863,7 +867,7 @@ app.get('/v1/balance', requireAuth, async (req, res) => {
  * Útil para mostrar transparencia: lamports reales, no solo USD virtual.
  */
 app.get('/v1/wallet', requireAuth, async (req, res) => {
-  const user = getUser(req.bearerUser!.id);
+  const user = await getUser(req.bearerUser!.id);
   if (!user) return res.status(404).json({ error: 'user not found' });
   try {
     const baseUnits = await userOnChainBalance(user.id);
@@ -973,9 +977,9 @@ app.get('/v1/platform/stats', requireAuth, async (_req, res) => {
 // Misma cuenta/login que el consumidor; "publisher" solo habilita las
 // superficies de gestión de agentes + ingresos en el dashboard.
 
-app.post('/v1/publisher/activate', requireAuth, (req, res) => {
+app.post('/v1/publisher/activate', requireAuth, async (req, res) => {
   const name = typeof req.body?.name === 'string' ? req.body.name : undefined;
-  const user = setPublisher(req.bearerUser!.id, name);
+  const user = await setPublisher(req.bearerUser!.id, name);
   if (!user) return res.status(404).json({ error: 'user not found' });
   res.json({ is_publisher: true, publisher_name: user.publisher_name ?? null });
 });
@@ -987,7 +991,7 @@ app.post('/v1/publisher/activate', requireAuth, (req, res) => {
 app.get('/v1/publisher/overview', requireAuth, async (req, res) => {
   try {
     const userId = req.bearerUser!.id;
-    const user = getUser(userId);
+    const user = await getUser(userId);
     if (!user) return res.status(404).json({ error: 'user not found' });
     const [agents, walletBaseUnits] = await Promise.all([
       listMyAgents(userId),
@@ -1062,7 +1066,7 @@ app.post('/v1/agents', requireAuth, async (req, res) => {
   try {
     const result = await registerAgent(req.bearerUser!.id, input);
     // Publicar un agente convierte al user en publisher (idempotente).
-    setPublisher(req.bearerUser!.id);
+    await setPublisher(req.bearerUser!.id);
     res.status(201).json(result);
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'unknown error';
@@ -1141,9 +1145,9 @@ app.post('/v1/call', requireAuth, async (req, res) => {
   }
 });
 
-app.get('/v1/transactions', requireAuth, (req, res) => {
+app.get('/v1/transactions', requireAuth, async (req, res) => {
   const limit = Math.min(Number(req.query.limit) || 50, 500);
-  const txs = getTransactions(req.bearerUser!.id, limit);
+  const txs = await getTransactions(req.bearerUser!.id, limit);
   res.json(
     txs.map((t) => ({
       id: String(t.id),
@@ -1161,28 +1165,28 @@ app.get('/v1/transactions', requireAuth, (req, res) => {
 
 // ─── API Keys (long-lived bearer tokens for direct REST access) ──
 
-app.get('/v1/api-keys', requireAuth, (req, res) => {
-  res.json(listApiKeys(req.bearerUser!.id));
+app.get('/v1/api-keys', requireAuth, async (req, res) => {
+  res.json(await listApiKeys(req.bearerUser!.id));
 });
 
-app.post('/v1/api-keys', requireAuth, (req, res) => {
+app.post('/v1/api-keys', requireAuth, async (req, res) => {
   const name = String(req.body?.name ?? '').trim();
   if (!name) return res.status(400).json({ error: 'name required' });
   if (name.length > 64) return res.status(400).json({ error: 'name too long (max 64)' });
-  const key = createApiKey(req.bearerUser!.id, name);
+  const key = await createApiKey(req.bearerUser!.id, name);
   res.json(key);
 });
 
-app.delete('/v1/api-keys/:id', requireAuth, (req, res) => {
-  const ok = revokeApiKey(req.bearerUser!.id, req.params.id);
+app.delete('/v1/api-keys/:id', requireAuth, async (req, res) => {
+  const ok = await revokeApiKey(req.bearerUser!.id, req.params.id);
   if (!ok) return res.status(404).json({ error: 'not found' });
   res.status(204).end();
 });
 
 // ─── OAuth connections (apps the user has authorized via PKCE) ────
 
-app.get('/v1/oauth/connections', requireAuth, (req, res) => {
-  const conns = listOAuthConnections(req.bearerUser!.id);
+app.get('/v1/oauth/connections', requireAuth, async (req, res) => {
+  const conns = await listOAuthConnections(req.bearerUser!.id);
   res.json(
     conns.map((c) => ({
       id: c.token.slice(0, 16),
@@ -1194,8 +1198,8 @@ app.get('/v1/oauth/connections', requireAuth, (req, res) => {
   );
 });
 
-app.delete('/v1/oauth/connections/:id', requireAuth, (req, res) => {
-  const ok = revokeOAuthByPrefix(req.bearerUser!.id, req.params.id);
+app.delete('/v1/oauth/connections/:id', requireAuth, async (req, res) => {
+  const ok = await revokeOAuthByPrefix(req.bearerUser!.id, req.params.id);
   if (!ok) return res.status(404).json({ error: 'not found' });
   res.status(204).end();
 });
@@ -1223,18 +1227,27 @@ try {
   /* noop */
 }
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log('╔══════════════════════════════════════════╗');
-  console.log('║  Kiba — Gateway                          ║');
-  console.log('╚══════════════════════════════════════════╝');
-  console.log(`  http://localhost:${PORT}`);
-  console.log(`  Master wallet: ${masterWalletPubkey()}`);
-  console.log(`  Platform auth key (set as KIBA_PLATFORM_PUBLIC_KEY on agents): ${platformPublicKey()}`);
-  console.log(`  DB: ${process.env.DB_PATH || '/app/data/gateway.db'}`);
-  console.log(`  asset=${ASSET}`);
-  // touch db to ensure schema applied
-  db.pragma('user_version');
-});
+// Arranque: crea/asegura el schema Postgres ANTES de escuchar. Si initDb falla
+// (DATABASE_URL ausente/incorrecto, Postgres inalcanzable), no arrancamos.
+void initDb()
+  .then(() => {
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log('╔══════════════════════════════════════════╗');
+      console.log('║  Kiba — Gateway                          ║');
+      console.log('╚══════════════════════════════════════════╝');
+      console.log(`  http://localhost:${PORT}`);
+      console.log(`  Master wallet: ${masterWalletPubkey()}`);
+      console.log(
+        `  Platform auth key (set as KIBA_PLATFORM_PUBLIC_KEY on agents): ${platformPublicKey()}`,
+      );
+      console.log(`  DB: Postgres`);
+      console.log(`  asset=${ASSET}`);
+    });
+  })
+  .catch((err) => {
+    console.error('[db] initDb falló — no se puede arrancar el gateway:', err);
+    process.exit(1);
+  });
 
 // Liquidación PROGRAMADA (opcional): si SETTLEMENT_INTERVAL_MS está seteado, liquida por lotes
 // a todos los agentes con acumulado >= mínimo. Vacío = solo bajo demanda (POST /v1/publisher/settle).

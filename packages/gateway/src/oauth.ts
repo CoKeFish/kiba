@@ -13,7 +13,14 @@
  *     → emite access_token (opaque, en DB)
  */
 import { createHash } from 'node:crypto';
-import { db, type OAuthSessionRow, type OAuthClientRow, type OAuthRefreshTokenRow } from './db';
+import {
+  db,
+  withTransaction,
+  type Tx,
+  type OAuthSessionRow,
+  type OAuthClientRow,
+  type OAuthRefreshTokenRow,
+} from './db';
 import { newRandomId } from './auth';
 
 const SESSION_TTL = 10 * 60; // 10 minutos para completar el flow
@@ -25,7 +32,7 @@ const SESSION_TTL = 10 * 60; // 10 minutos para completar el flow
 const ACCESS_TOKEN_TTL = 30 * 24 * 60 * 60; // 30 días
 const REFRESH_TOKEN_TTL = 365 * 24 * 60 * 60; // 365 días (se desliza en cada rotación)
 
-export function createOAuthSession(args: {
+export async function createOAuthSession(args: {
   codeChallenge: string;
   redirectUri: string;
   clientName: string;
@@ -34,42 +41,47 @@ export function createOAuthSession(args: {
   state?: string;
   clientId?: string;
   resource?: string;
-}): string {
+}): Promise<string> {
   const sessionId = newRandomId('sess', 16);
-  db.prepare(
-    `INSERT INTO oauth_sessions (session_id, code_challenge, redirect_uri, client_name, state, client_id, resource, expires_at)
-     VALUES (@sessionId, @codeChallenge, @redirectUri, @clientName, @state, @clientId, @resource, @expiresAt)`,
-  ).run({
-    sessionId,
-    codeChallenge: args.codeChallenge,
-    redirectUri: args.redirectUri,
-    clientName: args.clientName,
-    state: args.state ?? null,
-    clientId: args.clientId ?? null,
-    resource: args.resource ?? null,
-    expiresAt: Math.floor(Date.now() / 1000) + SESSION_TTL,
-  });
+  await db
+    .prepare(
+      `INSERT INTO oauth_sessions (session_id, code_challenge, redirect_uri, client_name, state, client_id, resource, expires_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .run(
+      sessionId,
+      args.codeChallenge,
+      args.redirectUri,
+      args.clientName,
+      args.state ?? null,
+      args.clientId ?? null,
+      args.resource ?? null,
+      Math.floor(Date.now() / 1000) + SESSION_TTL,
+    );
   return sessionId;
 }
 
-export function getOAuthSession(sessionId: string): OAuthSessionRow | null {
-  const row = db.prepare('SELECT * FROM oauth_sessions WHERE session_id = ?').get(sessionId) as
-    | OAuthSessionRow
-    | undefined;
+export async function getOAuthSession(sessionId: string): Promise<OAuthSessionRow | null> {
+  const row = (await db
+    .prepare('SELECT * FROM oauth_sessions WHERE session_id = ?')
+    .get(sessionId)) as OAuthSessionRow | undefined;
   if (!row) return null;
   if (row.expires_at < Math.floor(Date.now() / 1000)) return null;
   return row;
 }
 
-export function authorizeSession(sessionId: string, userId: number): string | null {
-  const session = getOAuthSession(sessionId);
+export async function authorizeSession(
+  sessionId: string,
+  userId: number,
+): Promise<string | null> {
+  const session = await getOAuthSession(sessionId);
   if (!session) return null;
   if (session.consumed) return null;
 
   const code = newRandomId('code', 24);
-  db.prepare(
-    'UPDATE oauth_sessions SET user_id = @userId, code = @code, consumed = 1 WHERE session_id = @sessionId',
-  ).run({ userId, code, sessionId });
+  await db
+    .prepare('UPDATE oauth_sessions SET user_id = ?, code = ?, consumed = 1 WHERE session_id = ?')
+    .run(userId, code, sessionId);
   return code;
 }
 
@@ -77,58 +89,50 @@ export function authorizeSession(sessionId: string, userId: number): string | nu
  * Mintea un par access_token + refresh_token ligados a un usuario/cliente.
  * El access va a oauth_tokens (lo que valida el verifier); el refresh a
  * oauth_refresh_tokens. Comparten `resource` (audiencia RFC 8707) y `family_id`
- * (linaje de rotación). No abre transacción propia: los callers lo envuelven en
- * db.transaction junto al resto de su trabajo (better-sqlite3 no anida tx).
+ * (linaje de rotación). Recibe el `tx` de la transacción del caller para que los
+ * inserts formen parte del mismo commit atómico.
  */
-function issueAccessAndRefresh(p: {
-  userId: number;
-  clientName: string;
-  resource: string | null;
-  familyId: string;
-}): { access_token: string; refresh_token: string; expires_in: number } {
+async function issueAccessAndRefresh(
+  tx: Tx,
+  p: {
+    userId: number;
+    clientName: string;
+    resource: string | null;
+    familyId: string;
+  },
+): Promise<{ access_token: string; refresh_token: string; expires_in: number }> {
   const now = Math.floor(Date.now() / 1000);
   const access_token = newRandomId('tok', 32);
   const refresh_token = newRandomId('rt', 32);
-  db.prepare(
-    `INSERT INTO oauth_tokens (token, user_id, client_name, resource, expires_at, created_at)
-     VALUES (@token, @userId, @clientName, @resource, @expiresAt, @createdAt)`,
-  ).run({
-    token: access_token,
-    userId: p.userId,
-    clientName: p.clientName,
-    resource: p.resource,
-    expiresAt: now + ACCESS_TOKEN_TTL,
-    createdAt: now,
-  });
-  db.prepare(
-    `INSERT INTO oauth_refresh_tokens
+  await tx
+    .prepare(
+      `INSERT INTO oauth_tokens (token, user_id, client_name, resource, expires_at, created_at)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    )
+    .run(access_token, p.userId, p.clientName, p.resource, now + ACCESS_TOKEN_TTL, now);
+  await tx
+    .prepare(
+      `INSERT INTO oauth_refresh_tokens
        (refresh_token, user_id, client_name, resource, access_token, family_id, replaced_by, revoked, expires_at, created_at)
-     VALUES (@rt, @userId, @clientName, @resource, @accessToken, @familyId, NULL, 0, @expiresAt, @createdAt)`,
-  ).run({
-    rt: refresh_token,
-    userId: p.userId,
-    clientName: p.clientName,
-    resource: p.resource,
-    accessToken: access_token,
-    familyId: p.familyId,
-    expiresAt: now + REFRESH_TOKEN_TTL,
-    createdAt: now,
-  });
+     VALUES (?, ?, ?, ?, ?, ?, NULL, 0, ?, ?)`,
+    )
+    .run(refresh_token, p.userId, p.clientName, p.resource, access_token, p.familyId, now + REFRESH_TOKEN_TTL, now);
   return { access_token, refresh_token, expires_in: ACCESS_TOKEN_TTL };
 }
 
 /**
  * Intercambia code + code_verifier por access_token + refresh_token.
  */
-export function exchangeCodeForToken(
+export async function exchangeCodeForToken(
   code: string,
   codeVerifier: string,
-):
+): Promise<
   | { access_token: string; refresh_token: string; expires_in: number; token_type: 'Bearer' }
-  | { error: string } {
-  const session = db
+  | { error: string }
+> {
+  const session = (await db
     .prepare('SELECT * FROM oauth_sessions WHERE code = ?')
-    .get(code) as OAuthSessionRow | undefined;
+    .get(code)) as OAuthSessionRow | undefined;
 
   if (!session) return { error: 'invalid_code' };
   if (!session.user_id) return { error: 'session_not_authorized' };
@@ -152,12 +156,11 @@ export function exchangeCodeForToken(
   const clientName = session.client_name;
   const resource = session.resource ?? null;
   const familyId = newRandomId('rtf', 16);
-  const issue = db.transaction(() => {
-    const pair = issueAccessAndRefresh({ userId, clientName, resource, familyId });
-    db.prepare('DELETE FROM oauth_sessions WHERE code = ?').run(code);
-    return pair;
+  const pair = await withTransaction(async (tx) => {
+    const p = await issueAccessAndRefresh(tx, { userId, clientName, resource, familyId });
+    await tx.prepare('DELETE FROM oauth_sessions WHERE code = ?').run(code);
+    return p;
   });
-  const pair = issue();
 
   return {
     access_token: pair.access_token,
@@ -174,44 +177,43 @@ export function exchangeCodeForToken(
  * Detección de reuso: si se presenta un refresh ya rotado, se asume robo y se
  * quema la familia entera.
  */
-export function refreshAccessToken(
+export async function refreshAccessToken(
   refreshToken: string,
-):
+): Promise<
   | { access_token: string; refresh_token: string; expires_in: number; token_type: 'Bearer' }
-  | { error: 'invalid_grant' } {
-  const row = db
+  | { error: 'invalid_grant' }
+> {
+  const row = (await db
     .prepare('SELECT * FROM oauth_refresh_tokens WHERE refresh_token = ?')
-    .get(refreshToken) as OAuthRefreshTokenRow | undefined;
+    .get(refreshToken)) as OAuthRefreshTokenRow | undefined;
 
   if (!row) return { error: 'invalid_grant' };
   // Reuso de un refresh ya consumido → señal de robo: quema toda la familia.
   if (row.replaced_by) {
-    burnRefreshFamily(row.family_id);
+    await burnRefreshFamily(row.family_id);
     return { error: 'invalid_grant' };
   }
   if (row.revoked) return { error: 'invalid_grant' };
   const now = Math.floor(Date.now() / 1000);
   if (row.expires_at < now) return { error: 'invalid_grant' };
 
-  const rotate = db.transaction(() => {
+  const pair = await withTransaction(async (tx) => {
     // Access TTL largo (30d): al rotar revocamos el access viejo para que solo haya
     // un access vivo por conexión (mantiene listOAuthConnections limpio).
     if (row.access_token) {
-      db.prepare('UPDATE oauth_tokens SET revoked = 1 WHERE token = ?').run(row.access_token);
+      await tx.prepare('UPDATE oauth_tokens SET revoked = 1 WHERE token = ?').run(row.access_token);
     }
-    const pair = issueAccessAndRefresh({
+    const p = await issueAccessAndRefresh(tx, {
       userId: row.user_id,
       clientName: row.client_name,
       resource: row.resource, // PRESERVA la audiencia; ignora cualquier `resource` del form
       familyId: row.family_id, // MISMA familia (linaje de rotación)
     });
-    db.prepare('UPDATE oauth_refresh_tokens SET replaced_by = ? WHERE refresh_token = ?').run(
-      pair.refresh_token,
-      refreshToken,
-    );
-    return pair;
+    await tx
+      .prepare('UPDATE oauth_refresh_tokens SET replaced_by = ? WHERE refresh_token = ?')
+      .run(p.refresh_token, refreshToken);
+    return p;
   });
-  const pair = rotate();
 
   return {
     access_token: pair.access_token,
@@ -225,39 +227,42 @@ export function refreshAccessToken(
  * Revoca toda una familia de refresh (todos los refresh + sus access tokens).
  * Idempotente. Usada en detección de reuso y en la cascada de revocación.
  */
-export function burnRefreshFamily(familyId: string): void {
-  const burn = db.transaction(() => {
-    db.prepare(
-      `UPDATE oauth_tokens SET revoked = 1
+export async function burnRefreshFamily(familyId: string): Promise<void> {
+  await withTransaction(async (tx) => {
+    await tx
+      .prepare(
+        `UPDATE oauth_tokens SET revoked = 1
        WHERE token IN (
          SELECT access_token FROM oauth_refresh_tokens
          WHERE family_id = ? AND access_token IS NOT NULL
        )`,
-    ).run(familyId);
-    db.prepare('UPDATE oauth_refresh_tokens SET revoked = 1 WHERE family_id = ?').run(familyId);
+      )
+      .run(familyId);
+    await tx
+      .prepare('UPDATE oauth_refresh_tokens SET revoked = 1 WHERE family_id = ?')
+      .run(familyId);
   });
-  burn();
 }
 
 /**
  * Dado un token (access O refresh), quema su familia de refresh. `family_id` es
  * la identidad durable de la conexión.
  */
-export function revokeRefreshFamilyForToken(token: string): void {
-  const row = db
+export async function revokeRefreshFamilyForToken(token: string): Promise<void> {
+  const row = (await db
     .prepare(
       'SELECT family_id FROM oauth_refresh_tokens WHERE refresh_token = ? OR access_token = ? LIMIT 1',
     )
-    .get(token, token) as { family_id: string } | undefined;
-  if (row) burnRefreshFamily(row.family_id);
+    .get(token, token)) as { family_id: string } | undefined;
+  if (row) await burnRefreshFamily(row.family_id);
 }
 
-export function revokeToken(token: string): void {
-  db.prepare('UPDATE oauth_tokens SET revoked = 1 WHERE token = ?').run(token);
+export async function revokeToken(token: string): Promise<void> {
+  await db.prepare('UPDATE oauth_tokens SET revoked = 1 WHERE token = ?').run(token);
   // Cascada: revocar también la familia de refresh asociada (RFC 7009: revocar un
   // refresh debe matar su access, y al revés). Sin esto, un access revocado podría
   // "revivir" vía su refresh token. `token` puede ser un access o un refresh.
-  revokeRefreshFamilyForToken(token);
+  await revokeRefreshFamilyForToken(token);
 }
 
 // ─── Dynamic Client Registration (RFC 7591) ────────────────────
@@ -286,39 +291,42 @@ function canonicalRedirectUris(uris: string[]): string {
  * oauth_clients acotada pese a que Claude se re-registra en cada conexión.
  * `NOT EXISTS` (no `NOT IN`) para evitar trampas con NULL.
  */
-function purgeOrphanClients(): void {
+async function purgeOrphanClients(): Promise<void> {
   const now = Math.floor(Date.now() / 1000);
   const cutoff = now - CLIENT_PURGE_DAYS * 24 * 60 * 60;
-  db.prepare(
-    `DELETE FROM oauth_clients
-     WHERE created_at < @cutoff
+  await db
+    .prepare(
+      `DELETE FROM oauth_clients
+     WHERE created_at < ?
        AND client_name IS NOT NULL
        AND NOT EXISTS (
          SELECT 1 FROM oauth_tokens t
-         WHERE t.client_name = oauth_clients.client_name AND t.revoked = 0 AND t.expires_at > @now
+         WHERE t.client_name = oauth_clients.client_name AND t.revoked = 0 AND t.expires_at > ?
        )
        AND NOT EXISTS (
          SELECT 1 FROM oauth_refresh_tokens r
-         WHERE r.client_name = oauth_clients.client_name AND r.revoked = 0 AND r.expires_at > @now
+         WHERE r.client_name = oauth_clients.client_name AND r.revoked = 0 AND r.expires_at > ?
        )`,
-  ).run({ cutoff, now });
+    )
+    .run(cutoff, now, now);
 }
 
-export function registerOAuthClient(input: RegisterClientInput): OAuthClientRow {
+export async function registerOAuthClient(input: RegisterClientInput): Promise<OAuthClientRow> {
   const clientName = input.client_name ?? null;
   const redirectUris = canonicalRedirectUris(input.redirect_uris ?? []);
 
   // Limpieza oportunista de huérfanos viejos (nunca toca filas con created_at = now).
-  purgeOrphanClients();
+  await purgeOrphanClients();
 
   // Dedup: Claude (DCR) se re-registra en cada conexión con el mismo nombre y el
   // mismo callback. Si ya existe un cliente con idéntico (client_name, redirect_uris)
-  // reutilizamos su client_id → oauth_clients deja de crecer. `IS` = null-safe.
-  const existing = db
+  // reutilizamos su client_id → oauth_clients deja de crecer. `IS NOT DISTINCT FROM`
+  // = igualdad null-safe en Postgres (equivalente al `IS ?` de SQLite).
+  const existing = (await db
     .prepare(
-      'SELECT * FROM oauth_clients WHERE client_name IS ? AND redirect_uris = ? ORDER BY created_at ASC LIMIT 1',
+      'SELECT * FROM oauth_clients WHERE client_name IS NOT DISTINCT FROM ? AND redirect_uris = ? ORDER BY created_at ASC LIMIT 1',
     )
-    .get(clientName, redirectUris) as OAuthClientRow | undefined;
+    .get(clientName, redirectUris)) as OAuthClientRow | undefined;
   if (existing) return existing;
 
   const row: OAuthClientRow = {
@@ -332,18 +340,29 @@ export function registerOAuthClient(input: RegisterClientInput): OAuthClientRow 
     token_endpoint_auth_method: input.token_endpoint_auth_method ?? 'none',
     created_at: Math.floor(Date.now() / 1000),
   };
-  db.prepare(
-    `INSERT INTO oauth_clients
+  await db
+    .prepare(
+      `INSERT INTO oauth_clients
        (client_id, client_secret, client_name, redirect_uris, grant_types, response_types, scope, token_endpoint_auth_method, created_at)
-     VALUES
-       (@client_id, @client_secret, @client_name, @redirect_uris, @grant_types, @response_types, @scope, @token_endpoint_auth_method, @created_at)`,
-  ).run(row);
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .run(
+      row.client_id,
+      row.client_secret,
+      row.client_name,
+      row.redirect_uris,
+      row.grant_types,
+      row.response_types,
+      row.scope,
+      row.token_endpoint_auth_method,
+      row.created_at,
+    );
   return row;
 }
 
-export function getOAuthClient(clientId: string): OAuthClientRow | null {
-  const row = db.prepare('SELECT * FROM oauth_clients WHERE client_id = ?').get(clientId) as
-    | OAuthClientRow
-    | undefined;
+export async function getOAuthClient(clientId: string): Promise<OAuthClientRow | null> {
+  const row = (await db
+    .prepare('SELECT * FROM oauth_clients WHERE client_id = ?')
+    .get(clientId)) as OAuthClientRow | undefined;
   return row ?? null;
 }

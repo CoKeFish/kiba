@@ -1,220 +1,280 @@
 /**
- * SQLite DB setup. Usamos better-sqlite3 (sync API).
- * Schema: users, oauth_sessions, oauth_tokens, transactions.
+ * Postgres DB setup (pg). Reemplaza a better-sqlite3 (que era síncrono).
+ *
+ * El wrapper `db` mantiene la MISMA forma que el código existente usaba con better-sqlite3
+ * (`db.prepare(sql).get/all/run(...)`, `db.exec(sql)`) pero **async**, sobre un Pool de `pg`.
+ * Las transacciones van por `withTransaction(async (tx) => ...)`, que liga las queries a un
+ * único client (BEGIN/COMMIT/ROLLBACK) — necesario para la atomicidad de débitos/créditos.
+ *
+ * Los `?` (estilo SQLite) se convierten a `$1..$n` (estilo pg) automáticamente en el wrapper.
  */
-import Database from 'better-sqlite3';
-import { mkdirSync } from 'node:fs';
-import { dirname } from 'node:path';
+import pg from 'pg';
 
-const DB_PATH = process.env.DB_PATH || '/app/data/gateway.db';
-mkdirSync(dirname(DB_PATH), { recursive: true });
+const { Pool, types } = pg;
 
-export const db: Database.Database = new Database(DB_PATH);
-db.pragma('journal_mode = WAL');
-db.pragma('foreign_keys = ON');
+// pg devuelve BIGINT (oid 20) como *string* por defecto. Los `*_lamports` (stroops) van en
+// BIGINT y necesitan aritmética numérica, así que los parseamos a Number (los montos realistas
+// caben de sobra en 2^53). Aplica también a ids IDENTITY y a los timestamps unix (BIGINT).
+types.setTypeParser(20, (v) => (v == null ? null : Number(v)));
 
-db.exec(`
-  CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    email TEXT UNIQUE NOT NULL,
-    password_hash TEXT NOT NULL,
-    custodial_wallet_secret TEXT NOT NULL,
-    custodial_wallet_pubkey TEXT NOT NULL,
-    balance_lamports INTEGER NOT NULL DEFAULT 0,
-    created_at INTEGER NOT NULL
-  );
-
-  CREATE TABLE IF NOT EXISTS oauth_sessions (
-    session_id TEXT PRIMARY KEY,
-    user_id INTEGER,
-    code_challenge TEXT NOT NULL,
-    redirect_uri TEXT NOT NULL,
-    client_name TEXT NOT NULL,
-    code TEXT,
-    expires_at INTEGER NOT NULL,
-    consumed INTEGER NOT NULL DEFAULT 0,
-    FOREIGN KEY (user_id) REFERENCES users(id)
-  );
-
-  CREATE TABLE IF NOT EXISTS oauth_tokens (
-    token TEXT PRIMARY KEY,
-    user_id INTEGER NOT NULL,
-    client_name TEXT NOT NULL,
-    expires_at INTEGER NOT NULL,
-    revoked INTEGER NOT NULL DEFAULT 0,
-    created_at INTEGER NOT NULL,
-    FOREIGN KEY (user_id) REFERENCES users(id)
-  );
-
-  CREATE TABLE IF NOT EXISTS transactions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    type TEXT NOT NULL,
-    amount_lamports INTEGER NOT NULL,
-    service TEXT,
-    signature TEXT,
-    metadata TEXT,
-    created_at INTEGER NOT NULL,
-    FOREIGN KEY (user_id) REFERENCES users(id)
-  );
-
-  CREATE TABLE IF NOT EXISTS api_keys (
-    id TEXT PRIMARY KEY,
-    user_id INTEGER NOT NULL,
-    name TEXT NOT NULL,
-    key_hash TEXT NOT NULL,
-    prefix TEXT NOT NULL,
-    revoked INTEGER NOT NULL DEFAULT 0,
-    last_used_at INTEGER,
-    expires_at INTEGER,
-    created_at INTEGER NOT NULL,
-    FOREIGN KEY (user_id) REFERENCES users(id)
-  );
-
-  -- OAuth clients registrados vía Dynamic Client Registration (RFC 7591).
-  -- Usado por connectors remotos (Claude.ai, ChatGPT Apps) que se auto-registran.
-  CREATE TABLE IF NOT EXISTS oauth_clients (
-    client_id TEXT PRIMARY KEY,
-    client_secret TEXT,
-    client_name TEXT,
-    redirect_uris TEXT NOT NULL,            -- JSON array
-    grant_types TEXT,                       -- JSON array
-    response_types TEXT,                    -- JSON array
-    scope TEXT,
-    token_endpoint_auth_method TEXT,
-    created_at INTEGER NOT NULL
-  );
-
-  -- Refresh tokens (OAuth 2.1) para connectors remotos. El access token dura 30d
-  -- y se renueva con el refresh_token (rotación + detección de reuso por familia).
-  -- Tabla separada de oauth_tokens a propósito: una "familia" abarca una secuencia
-  -- de access tokens a lo largo de ~1 año, y los refresh consumidos se conservan
-  -- (marcados con replaced_by) para detectar replay, sin contaminar la tabla de
-  -- access tokens que lee el verifier.
-  CREATE TABLE IF NOT EXISTS oauth_refresh_tokens (
-    refresh_token TEXT PRIMARY KEY,
-    user_id INTEGER NOT NULL,
-    client_name TEXT NOT NULL,
-    resource TEXT,            -- audiencia RFC 8707; espeja oauth_tokens.resource; NULL = stdio/legacy
-    access_token TEXT,        -- access token emparejado actual (cascada de revocación)
-    family_id TEXT NOT NULL,  -- linaje de rotación (constante en toda la cadena)
-    replaced_by TEXT,         -- el refresh_token que lo sucedió; NULL = cabeza/activo
-    revoked INTEGER NOT NULL DEFAULT 0,
-    expires_at INTEGER NOT NULL,
-    created_at INTEGER NOT NULL,
-    FOREIGN KEY (user_id) REFERENCES users(id)
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_tokens_user ON oauth_tokens(user_id);
-  CREATE INDEX IF NOT EXISTS idx_tx_user ON transactions(user_id);
-  CREATE INDEX IF NOT EXISTS idx_apikeys_user ON api_keys(user_id);
-  CREATE INDEX IF NOT EXISTS idx_apikeys_hash ON api_keys(key_hash);
-  CREATE INDEX IF NOT EXISTS idx_refresh_family ON oauth_refresh_tokens(family_id);
-  CREATE INDEX IF NOT EXISTS idx_refresh_access ON oauth_refresh_tokens(access_token);
-  CREATE INDEX IF NOT EXISTS idx_clients_name ON oauth_clients(client_name);
-
-  CREATE TABLE IF NOT EXISTS user_agents (
-    service TEXT PRIMARY KEY,
-    user_id INTEGER NOT NULL,
-    created_at INTEGER NOT NULL,
-    FOREIGN KEY (user_id) REFERENCES users(id)
-  );
-  CREATE INDEX IF NOT EXISTS idx_user_agents_user ON user_agents(user_id);
-
-  -- Ledger off-chain de ganancias de agentes: en modo crédito cada call_agent acredita aquí
-  -- el precio COMPLETO de la llamada (sin tocar la cadena). settlement_id IS NULL = acumulado
-  -- (pendiente de liquidar). Se liquida por lotes vía Trustless Work (ver settlement.ts).
-  CREATE TABLE IF NOT EXISTS agent_earnings (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    service TEXT NOT NULL,
-    pay_to TEXT NOT NULL,
-    amount_lamports INTEGER NOT NULL,
-    settlement_id INTEGER,
-    settled_at INTEGER,
-    created_at INTEGER NOT NULL
-  );
-
-  -- Liquidaciones on-chain: un escrow TW por payout (en lotes). status: pending|settled|failed.
-  CREATE TABLE IF NOT EXISTS settlements (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    service TEXT NOT NULL,
-    pay_to TEXT NOT NULL,
-    amount_lamports INTEGER NOT NULL,
-    escrow_id TEXT,
-    signature TEXT,
-    status TEXT NOT NULL,
-    created_at INTEGER NOT NULL,
-    settled_at INTEGER
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_earnings_settlement ON agent_earnings(settlement_id);
-  CREATE INDEX IF NOT EXISTS idx_earnings_service ON agent_earnings(service);
-`);
-
-// Migración idempotente: añade expires_at a api_keys en DBs creadas antes de esta columna.
-try {
-  db.exec('ALTER TABLE api_keys ADD COLUMN expires_at INTEGER');
-} catch {
-  /* la columna ya existe */
+const DATABASE_URL = process.env.DATABASE_URL;
+if (!DATABASE_URL) {
+  throw new Error('DATABASE_URL no está seteado — el gateway ahora requiere Postgres.');
 }
-// Backfill: keys preexistentes sin expiración → 1 año desde su creación (evita que las
-// keys con expires_at NULL se traten como inmortales tras añadir la columna).
-db.exec('UPDATE api_keys SET expires_at = created_at + 31536000 WHERE expires_at IS NULL');
 
-// Migración idempotente: el connector remoto (OAuth estándar) guarda state /
-// client_id / resource en las sesiones OAuth. Aditivo; el flujo stdio existente
-// sigue usando solo code_challenge / redirect_uri / client_name.
-function ensureColumn(table: string, column: string, ddl: string): void {
-  const cols = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
-  if (!cols.some((c) => c.name === column)) {
-    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${ddl}`);
+export const pool = new Pool({ connectionString: DATABASE_URL });
+
+/** `?` (sqlite) → `$1..$n` (pg). */
+function convert(sql: string): string {
+  let i = 0;
+  return sql.replace(/\?/g, () => `$${++i}`);
+}
+
+type Params = unknown[];
+type Row = Record<string, unknown>;
+interface Runner {
+  query: (text: string, params?: Params) => Promise<{ rows: Row[]; rowCount: number | null }>;
+}
+
+export interface Stmt {
+  get<T = Row>(...params: Params): Promise<T | undefined>;
+  all<T = Row>(...params: Params): Promise<T[]>;
+  /** `lastInsertRowid` solo se puebla si el SQL trae `RETURNING id`. */
+  run(...params: Params): Promise<{ changes: number; lastInsertRowid: number | undefined }>;
+}
+
+function makePrepare(runner: Runner): (sql: string) => Stmt {
+  return (sql: string): Stmt => {
+    const text = convert(sql);
+    return {
+      async get<T = Row>(...params: Params) {
+        const r = await runner.query(text, params);
+        return r.rows[0] as T | undefined;
+      },
+      async all<T = Row>(...params: Params) {
+        const r = await runner.query(text, params);
+        return r.rows as T[];
+      },
+      async run(...params: Params) {
+        const r = await runner.query(text, params);
+        return {
+          changes: r.rowCount ?? 0,
+          lastInsertRowid: (r.rows[0] as { id?: number } | undefined)?.id,
+        };
+      },
+    };
+  };
+}
+
+export const db = {
+  prepare: makePrepare(pool),
+  async exec(sql: string): Promise<void> {
+    await pool.query(sql);
+  },
+};
+
+/** API de statements dentro de una transacción (ligada a un único client). */
+export interface Tx {
+  prepare: (sql: string) => Stmt;
+}
+
+/** Corre `fn` dentro de una transacción; commit al éxito, rollback ante error. */
+export async function withTransaction<T>(fn: (tx: Tx) => Promise<T>): Promise<T> {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const result = await fn({ prepare: makePrepare(client) });
+    await client.query('COMMIT');
+    return result;
+  } catch (e) {
+    try {
+      await client.query('ROLLBACK');
+    } catch {
+      /* noop */
+    }
+    throw e;
+  } finally {
+    client.release();
   }
 }
-ensureColumn('oauth_sessions', 'state', 'TEXT');
-ensureColumn('oauth_sessions', 'client_id', 'TEXT');
-ensureColumn('oauth_sessions', 'resource', 'TEXT');
 
-// Publisher mode: un mismo user/cuenta puede ser consumidor Y publisher (mismo login,
-// misma custodial wallet que recibe el 95% de cada call). `is_publisher` se activa al
-// publicar el primer agente o vía POST /v1/publisher/activate. `publisher_name` es el
-// nombre/marca visible del publisher (opcional).
-ensureColumn('users', 'is_publisher', 'INTEGER NOT NULL DEFAULT 0');
-ensureColumn('users', 'publisher_name', 'TEXT');
-// Backfill: quien ya tiene agentes registrados es publisher de facto.
-db.exec(
-  'UPDATE users SET is_publisher = 1 WHERE is_publisher = 0 AND id IN (SELECT DISTINCT user_id FROM user_agents)',
-);
-// El access token queda ligado al `resource` (audiencia) del flujo estándar
-// (RFC 8707): connectors remotos como ChatGPT mandan `resource` y el token no
-// debe ser válido contra otro recurso. NULL para tokens stdio/legacy.
-ensureColumn('oauth_tokens', 'resource', 'TEXT');
+/**
+ * Crea el schema (idempotente) + columnas evolutivas. Se llama con `await` al arrancar el
+ * gateway, ANTES de `app.listen`. Como el Postgres de prod arranca limpio, `CREATE TABLE IF NOT
+ * EXISTS` basta; los `ADD COLUMN IF NOT EXISTS` protegen ante evoluciones futuras del schema.
+ */
+export async function initDb(): Promise<void> {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS users (
+      id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      email TEXT UNIQUE NOT NULL,
+      password_hash TEXT NOT NULL,
+      custodial_wallet_secret TEXT NOT NULL,
+      custodial_wallet_pubkey TEXT NOT NULL,
+      balance_lamports BIGINT NOT NULL DEFAULT 0,
+      created_at BIGINT NOT NULL,
+      is_publisher INTEGER NOT NULL DEFAULT 0,
+      publisher_name TEXT,
+      privy_wallet_id TEXT,
+      stellar_address TEXT
+    );
 
-// Privy server wallets: la clave ed25519 vive en el TEE de Privy, no en la DB de Kiba.
-// `privy_wallet_id` + `stellar_address` reemplazan a custodial_wallet_secret (que queda
-// vacío '' al migrar un usuario). Nullable: los usuarios legacy siguen con su secret local.
-ensureColumn('users', 'privy_wallet_id', 'TEXT');
-ensureColumn('users', 'stellar_address', 'TEXT');
+    CREATE TABLE IF NOT EXISTS oauth_sessions (
+      session_id TEXT PRIMARY KEY,
+      user_id BIGINT,
+      code_challenge TEXT NOT NULL,
+      redirect_uri TEXT NOT NULL,
+      client_name TEXT NOT NULL,
+      code TEXT,
+      expires_at BIGINT NOT NULL,
+      consumed INTEGER NOT NULL DEFAULT 0,
+      state TEXT,
+      client_id TEXT,
+      resource TEXT,
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    );
 
-// Cargos de pago fiat (Bre-B / PSP). Un "charge" es una intención de recarga:
-// se crea pending, el usuario paga por el PSP (en sandbox lo simulamos), y al
-// confirmarse se acreditan créditos. Idempotente por `status` (pending→paid).
-db.exec(`
-  CREATE TABLE IF NOT EXISTS payment_charges (
-    id TEXT PRIMARY KEY,
-    user_id INTEGER NOT NULL,
-    provider TEXT NOT NULL,
-    method TEXT NOT NULL,
-    reference TEXT NOT NULL,
-    amount_cop INTEGER NOT NULL,
-    amount_usd REAL NOT NULL,
-    status TEXT NOT NULL DEFAULT 'pending',
-    metadata TEXT,
-    created_at INTEGER NOT NULL,
-    paid_at INTEGER,
-    FOREIGN KEY (user_id) REFERENCES users(id)
+    CREATE TABLE IF NOT EXISTS oauth_tokens (
+      token TEXT PRIMARY KEY,
+      user_id BIGINT NOT NULL,
+      client_name TEXT NOT NULL,
+      expires_at BIGINT NOT NULL,
+      revoked INTEGER NOT NULL DEFAULT 0,
+      created_at BIGINT NOT NULL,
+      resource TEXT,
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS transactions (
+      id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      user_id BIGINT NOT NULL,
+      type TEXT NOT NULL,
+      amount_lamports BIGINT NOT NULL,
+      service TEXT,
+      signature TEXT,
+      metadata TEXT,
+      created_at BIGINT NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS api_keys (
+      id TEXT PRIMARY KEY,
+      user_id BIGINT NOT NULL,
+      name TEXT NOT NULL,
+      key_hash TEXT NOT NULL,
+      prefix TEXT NOT NULL,
+      revoked INTEGER NOT NULL DEFAULT 0,
+      last_used_at BIGINT,
+      expires_at BIGINT,
+      created_at BIGINT NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS oauth_clients (
+      client_id TEXT PRIMARY KEY,
+      client_secret TEXT,
+      client_name TEXT,
+      redirect_uris TEXT NOT NULL,
+      grant_types TEXT,
+      response_types TEXT,
+      scope TEXT,
+      token_endpoint_auth_method TEXT,
+      created_at BIGINT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS oauth_refresh_tokens (
+      refresh_token TEXT PRIMARY KEY,
+      user_id BIGINT NOT NULL,
+      client_name TEXT NOT NULL,
+      resource TEXT,
+      access_token TEXT,
+      family_id TEXT NOT NULL,
+      replaced_by TEXT,
+      revoked INTEGER NOT NULL DEFAULT 0,
+      expires_at BIGINT NOT NULL,
+      created_at BIGINT NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS user_agents (
+      service TEXT PRIMARY KEY,
+      user_id BIGINT NOT NULL,
+      created_at BIGINT NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS agent_earnings (
+      id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      service TEXT NOT NULL,
+      pay_to TEXT NOT NULL,
+      amount_lamports BIGINT NOT NULL,
+      settlement_id BIGINT,
+      settled_at BIGINT,
+      created_at BIGINT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS settlements (
+      id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      service TEXT NOT NULL,
+      pay_to TEXT NOT NULL,
+      amount_lamports BIGINT NOT NULL,
+      escrow_id TEXT,
+      signature TEXT,
+      status TEXT NOT NULL,
+      created_at BIGINT NOT NULL,
+      settled_at BIGINT
+    );
+
+    CREATE TABLE IF NOT EXISTS payment_charges (
+      id TEXT PRIMARY KEY,
+      user_id BIGINT NOT NULL,
+      provider TEXT NOT NULL,
+      method TEXT NOT NULL,
+      reference TEXT NOT NULL,
+      amount_cop BIGINT NOT NULL,
+      amount_usd DOUBLE PRECISION NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending',
+      metadata TEXT,
+      created_at BIGINT NOT NULL,
+      paid_at BIGINT,
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_tokens_user ON oauth_tokens(user_id);
+    CREATE INDEX IF NOT EXISTS idx_tx_user ON transactions(user_id);
+    CREATE INDEX IF NOT EXISTS idx_apikeys_user ON api_keys(user_id);
+    CREATE INDEX IF NOT EXISTS idx_apikeys_hash ON api_keys(key_hash);
+    CREATE INDEX IF NOT EXISTS idx_refresh_family ON oauth_refresh_tokens(family_id);
+    CREATE INDEX IF NOT EXISTS idx_refresh_access ON oauth_refresh_tokens(access_token);
+    CREATE INDEX IF NOT EXISTS idx_clients_name ON oauth_clients(client_name);
+    CREATE INDEX IF NOT EXISTS idx_user_agents_user ON user_agents(user_id);
+    CREATE INDEX IF NOT EXISTS idx_earnings_settlement ON agent_earnings(settlement_id);
+    CREATE INDEX IF NOT EXISTS idx_earnings_service ON agent_earnings(service);
+    CREATE INDEX IF NOT EXISTS idx_charges_user ON payment_charges(user_id);
+  `);
+
+  // Columnas evolutivas (idempotentes). En Postgres `ADD COLUMN IF NOT EXISTS` es nativo, así
+  // que no hace falta el PRAGMA table_info / try-catch que usaba SQLite.
+  await pool.query(`ALTER TABLE api_keys ADD COLUMN IF NOT EXISTS expires_at BIGINT`);
+  await pool.query(`ALTER TABLE oauth_sessions ADD COLUMN IF NOT EXISTS state TEXT`);
+  await pool.query(`ALTER TABLE oauth_sessions ADD COLUMN IF NOT EXISTS client_id TEXT`);
+  await pool.query(`ALTER TABLE oauth_sessions ADD COLUMN IF NOT EXISTS resource TEXT`);
+  await pool.query(`ALTER TABLE oauth_tokens ADD COLUMN IF NOT EXISTS resource TEXT`);
+  await pool.query(
+    `ALTER TABLE users ADD COLUMN IF NOT EXISTS is_publisher INTEGER NOT NULL DEFAULT 0`,
   );
-  CREATE INDEX IF NOT EXISTS idx_charges_user ON payment_charges(user_id);
-`);
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS publisher_name TEXT`);
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS privy_wallet_id TEXT`);
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS stellar_address TEXT`);
+
+  // Backfills idempotentes (no-op en DB fresca; protegen DBs existentes).
+  await pool.query(
+    `UPDATE api_keys SET expires_at = created_at + 31536000 WHERE expires_at IS NULL`,
+  );
+  await pool.query(
+    `UPDATE users SET is_publisher = 1 WHERE is_publisher = 0 AND id IN (SELECT DISTINCT user_id FROM user_agents)`,
+  );
+}
 
 export interface UserRow {
   id: number;

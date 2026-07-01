@@ -70,13 +70,16 @@ export function verifyJwt<T = unknown>(token: string): T | null {
 
 // ─── User CRUD ─────────────────────────────────────────────────
 
-export function createUser(email: string, password: string): UserRow | { error: string } {
-  const exists = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
+export async function createUser(
+  email: string,
+  password: string,
+): Promise<UserRow | { error: string }> {
+  const exists = await db.prepare('SELECT id FROM users WHERE email = ?').get(email);
   if (exists) return { error: 'Email ya registrado' };
 
   const password_hash = bcrypt.hashSync(password, 10);
   const wallet = Keypair.generate();
-  // TODO(seguridad/custodia): la private key se guarda en CLARO en SQLite — aceptable en
+  // TODO(seguridad/custodia): la private key se guarda en CLARO — aceptable en
   // testnet/hackathon, NO en mainnet. Endurecer antes de producción real: cifrado en reposo
   // (AES-256-GCM + KMS) o delegar la custodia a Accesly (social login + gasless sobre Stellar)
   // y dejar de almacenar claves aquí. Ver docs/TEST_PLAN.md (gateway-20/21).
@@ -86,33 +89,39 @@ export function createUser(email: string, password: string): UserRow | { error: 
   // Bono inicial en USD → unidades base del activo activo (chain-aware).
   const bonusLamports = usdToLamports(SIGNUP_BONUS_USD);
 
-  const result = db
+  const result = await db
     .prepare(
       `INSERT INTO users (email, password_hash, custodial_wallet_secret, custodial_wallet_pubkey, balance_lamports, created_at)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?) RETURNING id`,
     )
     .run(email, password_hash, custodial_wallet_secret, custodial_wallet_pubkey, bonusLamports, Math.floor(Date.now() / 1000));
 
   const userId = result.lastInsertRowid as number;
 
   // Registrar bono
-  db.prepare(
-    `INSERT INTO transactions (user_id, type, amount_lamports, service, created_at)
+  await db
+    .prepare(
+      `INSERT INTO transactions (user_id, type, amount_lamports, service, created_at)
      VALUES (?, 'topup', ?, 'signup-bonus', ?)`,
-  ).run(userId, bonusLamports, Math.floor(Date.now() / 1000));
+    )
+    .run(userId, bonusLamports, Math.floor(Date.now() / 1000));
 
-  return db.prepare('SELECT * FROM users WHERE id = ?').get(userId) as UserRow;
+  return (await db.prepare('SELECT * FROM users WHERE id = ?').get(userId)) as UserRow;
 }
 
-export function authenticate(email: string, password: string): UserRow | null {
-  const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email) as UserRow | undefined;
+export async function authenticate(email: string, password: string): Promise<UserRow | null> {
+  const user = (await db.prepare('SELECT * FROM users WHERE email = ?').get(email)) as
+    | UserRow
+    | undefined;
   if (!user) return null;
   if (!bcrypt.compareSync(password, user.password_hash)) return null;
   return user;
 }
 
-export function getUser(id: number): UserRow | null {
-  return (db.prepare('SELECT * FROM users WHERE id = ?').get(id) as UserRow | undefined) ?? null;
+export async function getUser(id: number): Promise<UserRow | null> {
+  return (
+    ((await db.prepare('SELECT * FROM users WHERE id = ?').get(id)) as UserRow | undefined) ?? null
+  );
 }
 
 /**
@@ -120,22 +129,21 @@ export function getUser(id: number): UserRow | null {
  * habilita las superficies de publisher en el dashboard. Se llama explícitamente
  * (POST /v1/publisher/activate) o automáticamente al registrar el primer agente.
  */
-export function setPublisher(userId: number, name?: string): UserRow | null {
+export async function setPublisher(userId: number, name?: string): Promise<UserRow | null> {
   if (name && name.trim().length > 0) {
-    db.prepare('UPDATE users SET is_publisher = 1, publisher_name = ? WHERE id = ?').run(
-      name.trim().slice(0, 80),
-      userId,
-    );
+    await db
+      .prepare('UPDATE users SET is_publisher = 1, publisher_name = ? WHERE id = ?')
+      .run(name.trim().slice(0, 80), userId);
   } else {
-    db.prepare('UPDATE users SET is_publisher = 1 WHERE id = ?').run(userId);
+    await db.prepare('UPDATE users SET is_publisher = 1 WHERE id = ?').run(userId);
   }
   return getUser(userId);
 }
 
-export function getUserByToken(token: string): UserRow | null {
-  const row = db
+export async function getUserByToken(token: string): Promise<UserRow | null> {
+  const row = (await db
     .prepare('SELECT * FROM oauth_tokens WHERE token = ? AND revoked = 0')
-    .get(token) as { user_id: number; expires_at: number } | undefined;
+    .get(token)) as { user_id: number; expires_at: number } | undefined;
   if (!row) return null;
   if (row.expires_at < Math.floor(Date.now() / 1000)) return null;
   return getUser(row.user_id);

@@ -111,6 +111,25 @@ services:
     depends_on:
       - backend
 
+  postgres:
+    image: postgres:16-alpine
+    container_name: kiba-postgres
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-kiba}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-kiba}
+      - POSTGRES_DB=${POSTGRES_DB:-kiba}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    # Sin binding de puerto al host: el gateway se conecta por la red interna a
+    # postgres:5432. (Para acceder desde el host, descomentar y usar un puerto libre.)
+    # ports:
+    #   - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kiba -d kiba"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   gateway:
     build:
       context: .
@@ -126,6 +145,7 @@ services:
       - NODE_ENV=development
       - BACKEND_URL=http://backend:4000
       - PORT=8000
+      - DATABASE_URL=${DATABASE_URL:-postgres://kiba:kiba@postgres:5432/kiba}
       - JWT_SECRET=${JWT_SECRET:-}
       - PUBLIC_URL=${PUBLIC_URL:-http://localhost:8000}
       # Cadena: con CHAIN=stellar las custodiales y el proxy x402 operan en Soroban.
@@ -174,8 +194,12 @@ services:
       # TRUSTLESS_WORK_PLATFORM_ADDRESS; el issuer/Horizon ya van arriba.
       - STELLAR_DEPOSIT_ADDRESS=${STELLAR_DEPOSIT_ADDRESS:-}
     depends_on:
-      - backend
-      - demo-agents
+      postgres:
+        condition: service_healthy
+      backend:
+        condition: service_started
+      demo-agents:
+        condition: service_started
 
   orchestrator-agent:
     build:
@@ -216,3 +240,4 @@ volumes:
   gateway-data:
   backend-data:
   backend-models:
+  postgres-data:

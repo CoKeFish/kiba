@@ -21,7 +21,7 @@ function hashKey(secret: string): string {
   return createHash('sha256').update(secret).digest('hex');
 }
 
-export function createApiKey(userId: number, name: string, expiresInDays = 365) {
+export async function createApiKey(userId: number, name: string, expiresInDays = 365) {
   const id = `key_${randomBytes(8).toString('hex')}`;
   const rand = randomBytes(24).toString('base64url');
   const secret = `sk_live_${rand}`;
@@ -30,15 +30,17 @@ export function createApiKey(userId: number, name: string, expiresInDays = 365) 
   const now = Math.floor(Date.now() / 1000);
   const expiresAt = now + expiresInDays * 24 * 60 * 60;
 
-  db.prepare(
-    `INSERT INTO api_keys (id, user_id, name, key_hash, prefix, created_at, expires_at)
+  await db
+    .prepare(
+      `INSERT INTO api_keys (id, user_id, name, key_hash, prefix, created_at, expires_at)
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
-  ).run(id, userId, name, hash, prefix, now, expiresAt);
+    )
+    .run(id, userId, name, hash, prefix, now, expiresAt);
 
   return { id, secret, prefix, name, created_at: now, expires_at: expiresAt };
 }
 
-export function listApiKeys(userId: number) {
+export async function listApiKeys(userId: number) {
   return db
     .prepare(
       `SELECT id, name, prefix, last_used_at, created_at, expires_at
@@ -49,25 +51,24 @@ export function listApiKeys(userId: number) {
     .all(userId);
 }
 
-export function revokeApiKey(userId: number, id: string): boolean {
-  const result = db
+export async function revokeApiKey(userId: number, id: string): Promise<boolean> {
+  const result = await db
     .prepare('UPDATE api_keys SET revoked = 1 WHERE id = ? AND user_id = ?')
     .run(id, userId);
   return result.changes > 0;
 }
 
-export function getUserByApiKey(secret: string): { id: number } | null {
+export async function getUserByApiKey(secret: string): Promise<{ id: number } | null> {
   const hash = hashKey(secret);
-  const row = db
+  const row = (await db
     .prepare('SELECT id, user_id, expires_at FROM api_keys WHERE key_hash = ? AND revoked = 0')
-    .get(hash) as { id: string; user_id: number; expires_at: number | null } | undefined;
+    .get(hash)) as { id: string; user_id: number; expires_at: number | null } | undefined;
   if (!row) return null;
   if (row.expires_at != null && row.expires_at < Math.floor(Date.now() / 1000)) return null;
-  // Update last_used_at (best-effort, async-style)
-  db.prepare('UPDATE api_keys SET last_used_at = ? WHERE id = ?').run(
-    Math.floor(Date.now() / 1000),
-    row.id,
-  );
+  // Update last_used_at (best-effort)
+  await db
+    .prepare('UPDATE api_keys SET last_used_at = ? WHERE id = ?')
+    .run(Math.floor(Date.now() / 1000), row.id);
   return { id: row.user_id };
 }
 
@@ -75,15 +76,15 @@ export function getUserByApiKey(secret: string): { id: number } | null {
  * List OAuth-issued tokens (apps connected via PKCE flow — Claude, Cursor, etc).
  * Different from API keys: OAuth tokens come from MCP/external clients.
  */
-export function listOAuthConnections(userId: number) {
-  return db
+export async function listOAuthConnections(userId: number) {
+  return (await db
     .prepare(
       `SELECT token, client_name, created_at, expires_at
        FROM oauth_tokens
        WHERE user_id = ? AND revoked = 0 AND expires_at > ?
        ORDER BY created_at DESC`,
     )
-    .all(userId, Math.floor(Date.now() / 1000)) as Array<{
+    .all(userId, Math.floor(Date.now() / 1000))) as Array<{
     token: string;
     client_name: string;
     created_at: number;
@@ -91,17 +92,17 @@ export function listOAuthConnections(userId: number) {
   }>;
 }
 
-export function revokeOAuthByPrefix(userId: number, idPrefix: string): boolean {
+export async function revokeOAuthByPrefix(userId: number, idPrefix: string): Promise<boolean> {
   // Use the first 16 chars of the token as the public id surfaced to the dashboard.
-  const rows = db
+  const rows = (await db
     .prepare('SELECT token FROM oauth_tokens WHERE user_id = ? AND revoked = 0')
-    .all(userId) as Array<{ token: string }>;
+    .all(userId)) as Array<{ token: string }>;
   const match = rows.find((r) => r.token.startsWith(idPrefix));
   if (!match) return false;
-  db.prepare('UPDATE oauth_tokens SET revoked = 1 WHERE token = ?').run(match.token);
+  await db.prepare('UPDATE oauth_tokens SET revoked = 1 WHERE token = ?').run(match.token);
   // Cascada: el "disconnect" del dashboard también quema la familia de refresh;
   // si no, la conexión podría renovarse de vuelta a la vida con su refresh token.
-  revokeRefreshFamilyForToken(match.token);
+  await revokeRefreshFamilyForToken(match.token);
   return true;
 }
 

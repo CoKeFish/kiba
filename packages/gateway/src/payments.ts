@@ -13,7 +13,7 @@
  * FX: COP → USD → créditos. Tasa fija configurable (COP_USD_RATE).
  */
 import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
-import { db } from './db';
+import { db, withTransaction } from './db';
 import { usdToLamports, lamportsToUsd, getBalance } from './billing';
 import { ASSET_USD_RATE } from './chain';
 
@@ -128,10 +128,10 @@ export interface PaymentProvider {
   readonly country?: string;
   /** 'qr' = pago in-app; 'redirect' = checkout del PSP; 'deposit' = enviar cripto a una dirección. */
   readonly mode: 'qr' | 'redirect' | 'deposit';
-  createCharge(input: CreateChargeInput): Charge | Promise<Charge>;
-  getCharge(id: string, userId: number): Charge | null;
+  createCharge(input: CreateChargeInput): Promise<Charge>;
+  getCharge(id: string, userId: number): Promise<Charge | null>;
   /** Sandbox: simula el webhook del PSP. */
-  confirmCharge?(id: string, userId: number): { charge: Charge; newBalanceUsd: number };
+  confirmCharge?(id: string, userId: number): Promise<{ charge: Charge; newBalanceUsd: number }>;
   /** Redirect providers: verifica una transacción devuelta (?id=) y acredita si está aprobada. */
   verifyCharge?(args: {
     chargeId: string;
@@ -175,41 +175,42 @@ function rowToCharge(r: ChargeRow): Charge {
   };
 }
 
-function loadCharge(id: string, userId: number): Charge | null {
-  const r = db
+async function loadCharge(id: string, userId: number): Promise<Charge | null> {
+  const r = (await db
     .prepare('SELECT * FROM payment_charges WHERE id = ? AND user_id = ?')
-    .get(id, userId) as ChargeRow | undefined;
+    .get(id, userId)) as ChargeRow | undefined;
   return r ? rowToCharge(r) : null;
 }
 
-function loadChargeByReference(reference: string): ChargeRow | null {
+async function loadChargeByReference(reference: string): Promise<ChargeRow | null> {
   return (
-    (db.prepare('SELECT * FROM payment_charges WHERE reference = ?').get(reference) as
+    ((await db.prepare('SELECT * FROM payment_charges WHERE reference = ?').get(reference)) as
       | ChargeRow
       | undefined) ?? null
   );
 }
 
 /** Mezcla campos en el `detail` (metadata JSON) de un cobro. */
-function mergeChargeDetail(id: string, patch: Record<string, unknown>): void {
-  const r = db.prepare('SELECT metadata FROM payment_charges WHERE id = ?').get(id) as
+async function mergeChargeDetail(id: string, patch: Record<string, unknown>): Promise<void> {
+  const r = (await db.prepare('SELECT metadata FROM payment_charges WHERE id = ?').get(id)) as
     | { metadata: string | null }
     | undefined;
   const cur = r?.metadata ? (JSON.parse(r.metadata) as Record<string, unknown>) : {};
-  db.prepare('UPDATE payment_charges SET metadata = ? WHERE id = ?').run(
-    JSON.stringify({ ...cur, ...patch }),
-    id,
-  );
+  await db
+    .prepare('UPDATE payment_charges SET metadata = ? WHERE id = ?')
+    .run(JSON.stringify({ ...cur, ...patch }), id);
 }
 
 /**
  * Acredita un cobro pendiente: pending→paid + suma al saldo + registra la transacción.
  * Idempotente y atómico: si ya está `paid`, no hace nada. Devuelve el resultado.
  */
-function applyCredit(id: string): 'credited' | 'already' | 'notfound' {
+async function applyCredit(id: string): Promise<'credited' | 'already' | 'notfound'> {
   let outcome: 'credited' | 'already' | 'notfound' = 'notfound';
-  const tx = db.transaction(() => {
-    const r = db.prepare('SELECT * FROM payment_charges WHERE id = ?').get(id) as ChargeRow | undefined;
+  await withTransaction(async (tx) => {
+    const r = (await tx.prepare('SELECT * FROM payment_charges WHERE id = ?').get(id)) as
+      | ChargeRow
+      | undefined;
     if (!r) return;
     if (r.status === 'paid') {
       outcome = 'already';
@@ -217,36 +218,38 @@ function applyCredit(id: string): 'credited' | 'already' | 'notfound' {
     }
     const now = Math.floor(Date.now() / 1000);
     const lamports = usdToLamports(r.amount_usd);
-    db.prepare('UPDATE users SET balance_lamports = balance_lamports + ? WHERE id = ?').run(
-      lamports,
-      r.user_id,
-    );
-    db.prepare(
-      `INSERT INTO transactions (user_id, type, amount_lamports, service, signature, metadata, created_at)
+    await tx
+      .prepare('UPDATE users SET balance_lamports = balance_lamports + ? WHERE id = ?')
+      .run(lamports, r.user_id);
+    await tx
+      .prepare(
+        `INSERT INTO transactions (user_id, type, amount_lamports, service, signature, metadata, created_at)
        VALUES (?, 'topup', ?, ?, ?, ?, ?)`,
-    ).run(
-      r.user_id,
-      lamports,
-      r.method,
-      r.reference,
-      JSON.stringify({
-        provider: r.provider,
-        method: r.method,
-        amount_cop: r.amount_cop,
-        usd: r.amount_usd,
-        cop_usd_rate: COP_USD_RATE,
-        rate: ASSET_USD_RATE,
-      }),
-      now,
-    );
-    db.prepare('UPDATE payment_charges SET status = ?, paid_at = ? WHERE id = ?').run('paid', now, id);
+      )
+      .run(
+        r.user_id,
+        lamports,
+        r.method,
+        r.reference,
+        JSON.stringify({
+          provider: r.provider,
+          method: r.method,
+          amount_cop: r.amount_cop,
+          usd: r.amount_usd,
+          cop_usd_rate: COP_USD_RATE,
+          rate: ASSET_USD_RATE,
+        }),
+        now,
+      );
+    await tx
+      .prepare('UPDATE payment_charges SET status = ?, paid_at = ? WHERE id = ?')
+      .run('paid', now, id);
     outcome = 'credited';
   });
-  tx();
   return outcome;
 }
 
-function insertCharge(args: {
+async function insertCharge(args: {
   userId: number;
   provider: string;
   method: string;
@@ -254,25 +257,27 @@ function insertCharge(args: {
   amountCop: number;
   amountUsd: number;
   detail: Record<string, unknown>;
-}): Charge {
+}): Promise<Charge> {
   const id = `chg_${randomBytes(12).toString('hex')}`;
   const now = Math.floor(Date.now() / 1000);
-  db.prepare(
-    `INSERT INTO payment_charges
+  await db
+    .prepare(
+      `INSERT INTO payment_charges
        (id, user_id, provider, method, reference, amount_cop, amount_usd, status, metadata, created_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`,
-  ).run(
-    id,
-    args.userId,
-    args.provider,
-    args.method,
-    args.reference,
-    args.amountCop,
-    args.amountUsd,
-    JSON.stringify(args.detail),
-    now,
-  );
-  return loadCharge(id, args.userId)!;
+    )
+    .run(
+      id,
+      args.userId,
+      args.provider,
+      args.method,
+      args.reference,
+      args.amountCop,
+      args.amountUsd,
+      JSON.stringify(args.detail),
+      now,
+    );
+  return (await loadCharge(id, args.userId))!;
 }
 
 // ─── Bre-B sandbox provider ────────────────────────────────────
@@ -284,7 +289,7 @@ class BrebSandboxProvider implements PaymentProvider {
   readonly country = 'CO';
   readonly mode = 'qr' as const;
 
-  createCharge({ userId, amountCop }: CreateChargeInput): Charge {
+  async createCharge({ userId, amountCop }: CreateChargeInput): Promise<Charge> {
     const reference = `KIBA-${randomBytes(4).toString('hex').toUpperCase()}`;
     const qrPayload =
       `BREB://pay?llave=${encodeURIComponent(BREB_MERCHANT_LLAVE)}` +
@@ -304,16 +309,22 @@ class BrebSandboxProvider implements PaymentProvider {
     });
   }
 
-  getCharge(id: string, userId: number): Charge | null {
+  async getCharge(id: string, userId: number): Promise<Charge | null> {
     return loadCharge(id, userId);
   }
 
-  confirmCharge(id: string, userId: number): { charge: Charge; newBalanceUsd: number } {
-    const existing = loadCharge(id, userId);
+  async confirmCharge(
+    id: string,
+    userId: number,
+  ): Promise<{ charge: Charge; newBalanceUsd: number }> {
+    const existing = await loadCharge(id, userId);
     if (!existing) throw new Error('charge not found');
-    if (existing.status === 'pending') applyCredit(id);
+    if (existing.status === 'pending') await applyCredit(id);
     else if (existing.status !== 'paid') throw new Error(`charge is ${existing.status}`);
-    return { charge: loadCharge(id, userId)!, newBalanceUsd: lamportsToUsd(getBalance(userId)) };
+    return {
+      charge: (await loadCharge(id, userId))!,
+      newBalanceUsd: lamportsToUsd(await getBalance(userId)),
+    };
   }
 }
 
@@ -334,7 +345,7 @@ class WompiProvider implements PaymentProvider {
   readonly country = 'CO';
   readonly mode = 'redirect' as const;
 
-  createCharge({ userId, amountCop, redirectUrl }: CreateChargeInput): Charge {
+  async createCharge({ userId, amountCop, redirectUrl }: CreateChargeInput): Promise<Charge> {
     // Wompi opera en centavos. COP no tiene decimales en la práctica → *100.
     const amountInCents = Math.round(amountCop * 100);
     const reference = `KIBA-${randomBytes(8).toString('hex').toUpperCase()}`;
@@ -361,7 +372,7 @@ class WompiProvider implements PaymentProvider {
     });
   }
 
-  getCharge(id: string, userId: number): Charge | null {
+  async getCharge(id: string, userId: number): Promise<Charge | null> {
     return loadCharge(id, userId);
   }
 
@@ -383,10 +394,10 @@ class WompiProvider implements PaymentProvider {
     userId: number;
     providerTxId: string;
   }): Promise<VerifyResult> {
-    const charge = loadCharge(chargeId, userId);
+    const charge = await loadCharge(chargeId, userId);
     if (!charge) throw new Error('charge not found');
     if (charge.status === 'paid') {
-      return { charge, newBalanceUsd: lamportsToUsd(getBalance(userId)), status: 'APPROVED' };
+      return { charge, newBalanceUsd: lamportsToUsd(await getBalance(userId)), status: 'APPROVED' };
     }
 
     const tx = await this.fetchTransaction(providerTxId);
@@ -395,15 +406,15 @@ class WompiProvider implements PaymentProvider {
     if (tx.amount_in_cents !== Math.round(charge.amountCop * 100)) throw new Error('amount mismatch');
 
     if (tx.status === 'APPROVED') {
-      applyCredit(chargeId);
+      await applyCredit(chargeId);
     } else if (tx.status === 'DECLINED' || tx.status === 'VOIDED' || tx.status === 'ERROR') {
-      db.prepare(
-        "UPDATE payment_charges SET status = 'expired' WHERE id = ? AND status = 'pending'",
-      ).run(chargeId);
+      await db
+        .prepare("UPDATE payment_charges SET status = 'expired' WHERE id = ? AND status = 'pending'")
+        .run(chargeId);
     }
     return {
-      charge: loadCharge(chargeId, userId)!,
-      newBalanceUsd: lamportsToUsd(getBalance(userId)),
+      charge: (await loadCharge(chargeId, userId))!,
+      newBalanceUsd: lamportsToUsd(await getBalance(userId)),
       status: tx.status,
     };
   }
@@ -433,10 +444,10 @@ class WompiProvider implements PaymentProvider {
     if (event.event !== 'transaction.updated' || !t) return { ok: true, credited: false };
     if (t.status !== 'APPROVED') return { ok: true, credited: false };
 
-    const row = loadChargeByReference(t.reference);
+    const row = await loadChargeByReference(t.reference);
     if (!row) return { ok: true, credited: false };
     if (Math.round(row.amount_cop * 100) !== t.amount_in_cents) return { ok: true, credited: false };
-    const outcome = applyCredit(row.id);
+    const outcome = await applyCredit(row.id);
     return { ok: true, credited: outcome === 'credited' };
   }
 }
@@ -481,7 +492,7 @@ class StripeProvider implements PaymentProvider {
     const reference = `KIBA-${randomBytes(8).toString('hex').toUpperCase()}`;
 
     // 1. Creamos el cobro local para tener el id (va en metadata de Stripe).
-    const charge = insertCharge({
+    const charge = await insertCharge({
       userId,
       provider: this.id,
       method: 'stripe',
@@ -506,11 +517,11 @@ class StripeProvider implements PaymentProvider {
     const session = (await this.stripe('/checkout/sessions', 'POST', form)) as StripeSession;
 
     // 3. Guardamos la URL + el session id en el cobro.
-    mergeChargeDetail(charge.id, { checkoutUrl: session.url, sessionId: session.id, amountUsdCents: cents });
-    return loadCharge(charge.id, userId)!;
+    await mergeChargeDetail(charge.id, { checkoutUrl: session.url, sessionId: session.id, amountUsdCents: cents });
+    return (await loadCharge(charge.id, userId))!;
   }
 
-  getCharge(id: string, userId: number): Charge | null {
+  async getCharge(id: string, userId: number): Promise<Charge | null> {
     return loadCharge(id, userId);
   }
 
@@ -523,10 +534,10 @@ class StripeProvider implements PaymentProvider {
     userId: number;
     providerTxId: string;
   }): Promise<VerifyResult> {
-    const charge = loadCharge(chargeId, userId);
+    const charge = await loadCharge(chargeId, userId);
     if (!charge) throw new Error('charge not found');
     if (charge.status === 'paid') {
-      return { charge, newBalanceUsd: lamportsToUsd(getBalance(userId)), status: 'paid' };
+      return { charge, newBalanceUsd: lamportsToUsd(await getBalance(userId)), status: 'paid' };
     }
     const session = (await this.stripe(
       `/checkout/sessions/${encodeURIComponent(providerTxId)}`,
@@ -535,15 +546,15 @@ class StripeProvider implements PaymentProvider {
     if (session.client_reference_id !== charge.reference) throw new Error('reference mismatch');
 
     if (session.payment_status === 'paid') {
-      applyCredit(chargeId);
+      await applyCredit(chargeId);
     } else if (session.status === 'expired') {
-      db.prepare(
-        "UPDATE payment_charges SET status = 'expired' WHERE id = ? AND status = 'pending'",
-      ).run(chargeId);
+      await db
+        .prepare("UPDATE payment_charges SET status = 'expired' WHERE id = ? AND status = 'pending'")
+        .run(chargeId);
     }
     return {
-      charge: loadCharge(chargeId, userId)!,
-      newBalanceUsd: lamportsToUsd(getBalance(userId)),
+      charge: (await loadCharge(chargeId, userId))!,
+      newBalanceUsd: lamportsToUsd(await getBalance(userId)),
       status: session.payment_status ?? session.status ?? 'pending',
     };
   }
@@ -568,9 +579,9 @@ class StripeProvider implements PaymentProvider {
     if (!session || session.payment_status !== 'paid' || !session.client_reference_id) {
       return { ok: true, credited: false };
     }
-    const row = loadChargeByReference(session.client_reference_id);
+    const row = await loadChargeByReference(session.client_reference_id);
     if (!row) return { ok: true, credited: false };
-    const outcome = applyCredit(row.id);
+    const outcome = await applyCredit(row.id);
     return { ok: true, credited: outcome === 'credited' };
   }
 }
@@ -625,7 +636,7 @@ class PayPalProvider implements PaymentProvider {
   async createCharge({ userId, amountCop, redirectUrl }: CreateChargeInput): Promise<Charge> {
     const amountUsd = copToUsd(amountCop);
     const reference = `KIBA-${randomBytes(8).toString('hex').toUpperCase()}`;
-    const charge = insertCharge({
+    const charge = await insertCharge({
       userId,
       provider: this.id,
       method: 'paypal',
@@ -660,11 +671,11 @@ class PayPalProvider implements PaymentProvider {
     const approve = order.links?.find((l) => l.rel === 'approve' || l.rel === 'payer-action');
     if (!approve) throw new Error('PayPal approve link missing');
 
-    mergeChargeDetail(charge.id, { checkoutUrl: approve.href, orderId: order.id });
-    return loadCharge(charge.id, userId)!;
+    await mergeChargeDetail(charge.id, { checkoutUrl: approve.href, orderId: order.id });
+    return (await loadCharge(charge.id, userId))!;
   }
 
-  getCharge(id: string, userId: number): Charge | null {
+  async getCharge(id: string, userId: number): Promise<Charge | null> {
     return loadCharge(id, userId);
   }
 
@@ -677,10 +688,10 @@ class PayPalProvider implements PaymentProvider {
     userId: number;
     providerTxId: string;
   }): Promise<VerifyResult> {
-    const charge = loadCharge(chargeId, userId);
+    const charge = await loadCharge(chargeId, userId);
     if (!charge) throw new Error('charge not found');
     if (charge.status === 'paid') {
-      return { charge, newBalanceUsd: lamportsToUsd(getBalance(userId)), status: 'COMPLETED' };
+      return { charge, newBalanceUsd: lamportsToUsd(await getBalance(userId)), status: 'COMPLETED' };
     }
 
     // Captura la orden (providerTxId = orderId que vuelve como ?token=).
@@ -696,15 +707,15 @@ class PayPalProvider implements PaymentProvider {
     if (ref && ref !== charge.reference) throw new Error('reference mismatch');
 
     if (order.status === 'COMPLETED') {
-      applyCredit(chargeId);
+      await applyCredit(chargeId);
     } else if (order.status === 'VOIDED') {
-      db.prepare(
-        "UPDATE payment_charges SET status = 'expired' WHERE id = ? AND status = 'pending'",
-      ).run(chargeId);
+      await db
+        .prepare("UPDATE payment_charges SET status = 'expired' WHERE id = ? AND status = 'pending'")
+        .run(chargeId);
     }
     return {
-      charge: loadCharge(chargeId, userId)!,
-      newBalanceUsd: lamportsToUsd(getBalance(userId)),
+      charge: (await loadCharge(chargeId, userId))!,
+      newBalanceUsd: lamportsToUsd(await getBalance(userId)),
       status: order.status ?? 'pending',
     };
   }
@@ -729,7 +740,7 @@ class StellarUsdcProvider implements PaymentProvider {
   readonly country = 'Cripto';
   readonly mode = 'deposit' as const;
 
-  createCharge({ userId, amountCop }: CreateChargeInput): Charge {
+  async createCharge({ userId, amountCop }: CreateChargeInput): Promise<Charge> {
     const amountUsd = copToUsd(amountCop);
     // Memo Stellar: máx 28 bytes. Único por cobro → atribuye el depósito.
     const memo = `KIBA${randomBytes(6).toString('hex').toUpperCase()}`;
@@ -754,7 +765,7 @@ class StellarUsdcProvider implements PaymentProvider {
     });
   }
 
-  getCharge(id: string, userId: number): Charge | null {
+  async getCharge(id: string, userId: number): Promise<Charge | null> {
     return loadCharge(id, userId);
   }
 
@@ -770,10 +781,10 @@ class StellarUsdcProvider implements PaymentProvider {
     userId: number;
     providerTxId: string;
   }): Promise<VerifyResult> {
-    const charge = loadCharge(chargeId, userId);
+    const charge = await loadCharge(chargeId, userId);
     if (!charge) throw new Error('charge not found');
     if (charge.status === 'paid') {
-      return { charge, newBalanceUsd: lamportsToUsd(getBalance(userId)), status: 'paid' };
+      return { charge, newBalanceUsd: lamportsToUsd(await getBalance(userId)), status: 'paid' };
     }
 
     const memo = String(charge.detail.memo ?? charge.reference);
@@ -783,7 +794,7 @@ class StellarUsdcProvider implements PaymentProvider {
     );
     if (!res.ok) {
       // Cuenta sin movimientos aún (404) u otro → sigue pendiente, no es error fatal.
-      return { charge, newBalanceUsd: lamportsToUsd(getBalance(userId)), status: 'pending' };
+      return { charge, newBalanceUsd: lamportsToUsd(await getBalance(userId)), status: 'pending' };
     }
     const json = (await res.json().catch(() => ({}))) as { _embedded?: { records?: HorizonPayment[] } };
     const records = json._embedded?.records ?? [];
@@ -800,12 +811,12 @@ class StellarUsdcProvider implements PaymentProvider {
 
     if (match) {
       // Guarda el hash del depósito y acredita.
-      mergeChargeDetail(chargeId, { depositTxHash: match.transaction_hash });
-      applyCredit(chargeId);
+      await mergeChargeDetail(chargeId, { depositTxHash: match.transaction_hash });
+      await applyCredit(chargeId);
     }
     return {
-      charge: loadCharge(chargeId, userId)!,
-      newBalanceUsd: lamportsToUsd(getBalance(userId)),
+      charge: (await loadCharge(chargeId, userId))!,
+      newBalanceUsd: lamportsToUsd(await getBalance(userId)),
       status: match ? 'paid' : 'pending',
     };
   }
@@ -875,9 +886,9 @@ export async function verifyCharge(args: {
   userId: number;
   providerTxId: string;
 }): Promise<VerifyResult> {
-  const row = db
+  const row = (await db
     .prepare('SELECT provider FROM payment_charges WHERE id = ? AND user_id = ?')
-    .get(args.chargeId, args.userId) as { provider: string } | undefined;
+    .get(args.chargeId, args.userId)) as { provider: string } | undefined;
   if (!row) throw new Error('charge not found');
   const p = getProvider(row.provider);
   if (!p.verifyCharge) throw new Error('verify not supported by provider');
@@ -885,6 +896,6 @@ export async function verifyCharge(args: {
 }
 
 /** Lectura de un cobro (agnóstica al provider). */
-export function getCharge(id: string, userId: number): Charge | null {
+export async function getCharge(id: string, userId: number): Promise<Charge | null> {
   return loadCharge(id, userId);
 }

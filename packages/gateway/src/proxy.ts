@@ -17,7 +17,7 @@
 import axios from 'axios';
 import { AgentClient, type X402Trace } from 'kiba-sdk';
 import { debit, getBalance, lamportsToUsd } from './billing';
-import { db } from './db';
+import { db, withTransaction } from './db';
 import {
   getPlatformSigner,
   loadUserSigner,
@@ -56,44 +56,51 @@ function pickOnChainSignature(trace: X402Trace): string | undefined {
   return sig;
 }
 
-function refundDebit(userId: number, lamports: number, service: string, reason: string) {
+async function refundDebit(
+  userId: number,
+  lamports: number,
+  service: string,
+  reason: string,
+): Promise<void> {
   const now = Math.floor(Date.now() / 1000);
-  const tx = db.transaction(() => {
-    db.prepare('UPDATE users SET balance_lamports = balance_lamports + ? WHERE id = ?').run(
-      lamports,
-      userId,
-    );
-    db.prepare(
-      `INSERT INTO transactions (user_id, type, amount_lamports, service, metadata, created_at)
+  await withTransaction(async (tx) => {
+    await tx
+      .prepare('UPDATE users SET balance_lamports = balance_lamports + ? WHERE id = ?')
+      .run(lamports, userId);
+    await tx
+      .prepare(
+        `INSERT INTO transactions (user_id, type, amount_lamports, service, metadata, created_at)
        VALUES (?, 'refund', ?, ?, ?, ?)`,
-    ).run(userId, lamports, service, JSON.stringify({ reason }), now);
+      )
+      .run(userId, lamports, service, JSON.stringify({ reason }), now);
   });
-  tx();
 }
 
-function recordWalletDirectCall(args: {
+async function recordWalletDirectCall(args: {
   userId: number;
   lamports: number;
   service: string;
   floorPricePerCall: number;
   signature?: string;
-}) {
+}): Promise<void> {
   const now = Math.floor(Date.now() / 1000);
-  db.prepare(
-    `INSERT INTO transactions (user_id, type, amount_lamports, service, signature, metadata, created_at)
+  await db
+    .prepare(
+      `INSERT INTO transactions (user_id, type, amount_lamports, service, signature, metadata, created_at)
      VALUES (?, 'call', ?, ?, ?, ?, ?)`,
-  ).run(
-    args.userId,
-    -args.lamports,
-    args.service,
-    args.signature ?? null,
-    JSON.stringify({
-      mode: 'wallet-direct',
-      floorPricePerCall: args.floorPricePerCall,
-      dynamicAmountLamports: args.lamports,
-    }),
-    now,
-  );
+    )
+    .run(
+      args.userId,
+      -args.lamports,
+      args.service,
+      args.signature ?? null,
+      JSON.stringify({
+        mode: 'wallet-direct',
+        floorPricePerCall: args.floorPricePerCall,
+        dynamicAmountLamports: args.lamports,
+      }),
+      now,
+    );
 }
 
 export async function callOnBehalf(args: {
@@ -124,7 +131,7 @@ export async function callOnBehalf(args: {
     timeoutMs: 30_000,
   });
   const lamports = Number(quote.amount);
-  const virtualBalance = getBalance(args.userId);
+  const virtualBalance = await getBalance(args.userId);
 
   // 2. Cascada — decide modo según el crédito disponible.
 
@@ -137,7 +144,7 @@ export async function callOnBehalf(args: {
     // Firmante de la plataforma (asimétrico). Deriva de la treasury si no hay KIBA_PLATFORM_SECRET.
     const platformSigner = getPlatformSigner();
 
-    const debited = debit({
+    const debited = await debit({
       userId: args.userId,
       lamports,
       service: args.service,
@@ -160,13 +167,13 @@ export async function callOnBehalf(args: {
       });
     } catch (err) {
       // El agente no entregó (o rechazó la firma de la plataforma) → reembolsa el crédito.
-      refundDebit(args.userId, lamports, args.service, (err as Error).message);
+      await refundDebit(args.userId, lamports, args.service, (err as Error).message);
       throw err;
     }
 
     // Acredita la ganancia del agente con el precio COMPLETO (el 95/5 se aplica al liquidar
     // vía TW). Solo tras una llamada exitosa → un fallo nunca acumula ganancia.
-    recordEarning({ service: args.service, payTo: quote.payTo, lamports });
+    await recordEarning({ service: args.service, payTo: quote.payTo, lamports });
 
     // Trace mínimo (sin escrow): solo discover + service_responded — los únicos step types
     // que el dashboard conoce. No hay signature on-chain por llamada (la liquidación es aparte).
@@ -215,7 +222,7 @@ export async function callOnBehalf(args: {
     timeoutMs: 120_000,
   });
   const onChainSig = pickOnChainSignature(traced.trace);
-  recordWalletDirectCall({
+  await recordWalletDirectCall({
     userId: args.userId,
     lamports,
     service: args.service,

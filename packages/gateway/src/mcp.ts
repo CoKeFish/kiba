@@ -157,7 +157,7 @@ export function buildMcpServer(userId: number): Server {
         }
         case 'get_transactions': {
           const { limit } = (args ?? {}) as { limit?: number };
-          const txs = getTransactions(userId, Math.min(limit ?? 50, 500));
+          const txs = await getTransactions(userId, Math.min(limit ?? 50, 500));
           return jsonResult(
             txs.map((t) => ({
               id: String(t.id),

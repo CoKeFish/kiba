@@ -106,9 +106,12 @@ export async function registerAgent(
   });
 
   // Trackear para poder listar (Soroban no enumera).
-  db.prepare(
-    'INSERT OR REPLACE INTO user_agents (service, user_id, created_at) VALUES (?, ?, ?)',
-  ).run(input.service, userId, Math.floor(Date.now() / 1000));
+  await db
+    .prepare(
+      `INSERT INTO user_agents (service, user_id, created_at) VALUES (?, ?, ?)
+       ON CONFLICT (service) DO UPDATE SET user_id = EXCLUDED.user_id, created_at = EXCLUDED.created_at`,
+    )
+    .run(input.service, userId, Math.floor(Date.now() / 1000));
 
   return {
     signature,
@@ -170,7 +173,7 @@ export async function deregisterAgent(userId: number, service: string): Promise<
   await ensureFunded(userId, UPDATE_FUND_BASE_UNITS);
 
   const signature = await cc.deregisterAgent(service);
-  db.prepare('DELETE FROM user_agents WHERE service = ? AND user_id = ?').run(service, userId);
+  await db.prepare('DELETE FROM user_agents WHERE service = ? AND user_id = ?').run(service, userId);
 
   return { signature, service };
 }
@@ -191,16 +194,16 @@ export interface AgentSummary {
 
 export async function listMyAgents(userId: number): Promise<AgentSummary[]> {
   const cc = await chainFor(userId);
-  const rows = db
+  const rows = (await db
     .prepare('SELECT service FROM user_agents WHERE user_id = ? ORDER BY created_at DESC')
-    .all(userId) as { service: string }[];
+    .all(userId)) as { service: string }[];
 
   const out: AgentSummary[] = [];
   for (const { service } of rows) {
     const a = await cc.fetchAgent(service);
     if (!a) {
       // Ya no existe on-chain → limpiar el tracking y omitir.
-      db.prepare('DELETE FROM user_agents WHERE service = ? AND user_id = ?').run(service, userId);
+      await db.prepare('DELETE FROM user_agents WHERE service = ? AND user_id = ?').run(service, userId);
       continue;
     }
     const price = Number(a.pricePerCallBaseUnits);

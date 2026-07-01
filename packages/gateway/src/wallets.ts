@@ -84,10 +84,10 @@ export function masterWalletPubkey(): string {
   return cc?.ownerAddress ?? masterWallet.publicKey.toBase58();
 }
 
-export function loadUserWallet(userId: number): Keypair {
-  const row = db
+export async function loadUserWallet(userId: number): Promise<Keypair> {
+  const row = (await db
     .prepare('SELECT custodial_wallet_secret FROM users WHERE id = ?')
-    .get(userId) as { custodial_wallet_secret: string } | undefined;
+    .get(userId)) as { custodial_wallet_secret: string } | undefined;
   if (!row) throw new Error(`user ${userId} not found`);
   const secret = JSON.parse(row.custodial_wallet_secret) as number[];
   return Keypair.fromSecretKey(new Uint8Array(secret));
@@ -101,9 +101,9 @@ export function loadUserWallet(userId: number): Keypair {
  *  - Privy no configurado → firma local con el secret guardado (legacy/degradado).
  */
 export async function loadUserSigner(userId: number): Promise<StellarSigner> {
-  const row = db
+  const row = (await db
     .prepare('SELECT custodial_wallet_secret, privy_wallet_id, stellar_address FROM users WHERE id = ?')
-    .get(userId) as
+    .get(userId)) as
     | { custodial_wallet_secret: string | null; privy_wallet_id: string | null; stellar_address: string | null }
     | undefined;
   if (!row) throw new Error(`user ${userId} not found`);
@@ -114,15 +114,17 @@ export async function loadUserSigner(userId: number): Promise<StellarSigner> {
 
   if (privyEnabled()) {
     const w = await createStellarWallet();
-    db.prepare(
-      "UPDATE users SET privy_wallet_id = ?, stellar_address = ?, custodial_wallet_pubkey = ?, custodial_wallet_secret = '' WHERE id = ?",
-    ).run(w.walletId, w.address, w.address, userId);
+    await db
+      .prepare(
+        "UPDATE users SET privy_wallet_id = ?, stellar_address = ?, custodial_wallet_pubkey = ?, custodial_wallet_secret = '' WHERE id = ?",
+      )
+      .run(w.walletId, w.address, w.address, userId);
     console.log(`[wallets] user ${userId} migrado a Privy ${w.walletId} (${w.address})`);
     return new PrivyStellarSigner(w.walletId, w.address);
   }
 
   // Legacy: deriva el keypair Stellar del seed ed25519 guardado.
-  const kp = loadUserWallet(userId);
+  const kp = await loadUserWallet(userId);
   return new LocalKeypairSigner(StellarKeypair.fromRawEd25519Seed(Buffer.from(kp.secretKey.slice(0, 32))));
 }
 
@@ -179,7 +181,7 @@ export interface UserBalances {
 }
 
 export async function getUserBalances(userId: number): Promise<UserBalances> {
-  const creditLamports = getBalance(userId);
+  const creditLamports = await getBalance(userId);
   let walletLamports = 0;
   try {
     walletLamports = await userOnChainBalance(userId);

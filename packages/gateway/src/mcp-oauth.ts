@@ -45,9 +45,9 @@ export const mcpTokenVerifier: OAuthTokenVerifier = {
     const now = Math.floor(Date.now() / 1000);
 
     // 1. Token OAuth emitido por el gateway (PKCE flow).
-    const tokenRow = db
+    const tokenRow = (await db
       .prepare('SELECT user_id, expires_at, resource FROM oauth_tokens WHERE token = ? AND revoked = 0')
-      .get(token) as { user_id: number; expires_at: number; resource: string | null } | undefined;
+      .get(token)) as { user_id: number; expires_at: number; resource: string | null } | undefined;
     if (tokenRow && tokenRow.expires_at > now) {
       // RFC 8707: si el token se ligó a una audiencia (`resource`), su origin debe
       // coincidir con el de este gateway. Comparamos solo el origin (lenient): es
@@ -64,7 +64,7 @@ export const mcpTokenVerifier: OAuthTokenVerifier = {
           throw new InvalidTokenError('Token audience mismatch');
         }
       }
-      const user = getUser(tokenRow.user_id);
+      const user = await getUser(tokenRow.user_id);
       if (user) {
         return {
           token,
@@ -78,9 +78,9 @@ export const mcpTokenVerifier: OAuthTokenVerifier = {
     }
 
     // 2. API key sk_live_ (acceso server-side de larga vida).
-    const apiUser = getUserByApiKey(token);
+    const apiUser = await getUserByApiKey(token);
     if (apiUser) {
-      const user = getUser(apiUser.id);
+      const user = await getUser(apiUser.id);
       if (user) {
         return {
           token,
