@@ -44,9 +44,9 @@ const DEFAULT_DEMO_STRINGS: DemoStrings = {
   captions: [
     "Download the 1.1 MB installer — no terminal, no config files.",
     "It detects Claude Desktop, Cursor & Claude Code and wires up MCP for you.",
-    "Ask your assistant anything — it finds the right specialist agent on its own.",
+    "Ask your assistant anything — it finds the right specialized service on its own.",
     "Payment clears over x402 and settles on-chain with an atomic 95/5 split.",
-    "The agent's answer comes back — with a verifiable on-chain receipt.",
+    "The service's answer comes back — with a verifiable on-chain receipt.",
   ],
 };
 
@@ -257,7 +257,7 @@ function SceneAsk() {
         What's the best USDC yield on Stellar right now?
       </Bubble>
       <Bubble side="left" delay={1.1} icon={<Bot size={15} />}>
-        One sec — let me ask a specialist agent for live numbers.
+        One sec — let me ask a specialized service for live numbers.
       </Bubble>
       <motion.div
         initial={{ opacity: 0, y: 8 }}

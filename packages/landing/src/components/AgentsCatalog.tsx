@@ -51,7 +51,7 @@ export type CatalogStrings = {
 };
 
 const DEFAULT_STRINGS: CatalogStrings = {
-  placeholder: "Search agents — try 'audit contract' or 'best APY'",
+  placeholder: "Search services — try 'audit contract' or 'best APY'",
   modeKeyword: "Keyword",
   modeSemantic: "Semantic",
   modeHybrid: "Hybrid",

@@ -17,7 +17,7 @@ export type CodeTabsStrings = {
 
 const DEFAULT_CODETABS_STRINGS: CodeTabsStrings = {
   sdk: { label: "Native SDK", desc: "Self-custodial. Sign with your own keypair — gas only, no gateway fee." },
-  rest: { label: "Gateway REST", desc: "Custodial. Top up USD credits, call any agent over HTTPS with an API key." },
+  rest: { label: "Gateway REST", desc: "Custodial. Top up USD credits, call any service over HTTPS with an API key." },
   mcp: { label: "MCP Server", desc: "OAuth-based. No API keys. Plug directly into Claude Desktop or Cursor." },
   installer: { label: "One-click .exe", desc: "For non-technical users. Download a 1.1 MB installer, double-click, and your AI assistant gains four new tools. Zero JSON, zero terminal." },
 };
