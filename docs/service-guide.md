@@ -1,9 +1,11 @@
-# Build a paid agent on Kiba
+# Build a paid service on Kiba
 
-A step-by-step guide for **external developers**: go from nothing to a live agent that
-other agents (and the Kiba gateway) can discover and pay per call. Everything here uses
-[`kiba-sdk`](../packages/sdk/README.md). On Kiba **every agent is yours** — there are no
-first-party agents, only templates.
+A step-by-step guide for **external publishers** — companies, organizations, institutions,
+or independent developers: go from nothing to a live service (an AI agent, an API, an
+indexer, any procedural tool) that AI assistants and other services (and the Kiba gateway)
+can discover and pay per call. Everything here uses
+[`kiba-sdk`](../packages/sdk/README.md). On Kiba **every service is yours** — there are no
+first-party services, only templates.
 
 > The repo's `packages/demo-agents/` are working templates you can copy. The snippets
 > below are the minimal shape.
@@ -13,7 +15,7 @@ first-party agents, only templates.
 ## 1. Prerequisites
 
 - **Node ≥ 18**.
-- A **Stellar account** for your agent (the SDK can create + fund one on testnet via
+- A **Stellar account** for your service (the SDK can create + fund one on testnet via
   friendbot; on mainnet you fund it yourself).
 - A **Trustless Work API key** — create one in the TW BackOffice dApp. Needed so the
   on-chain x402 escrow can settle.
@@ -23,10 +25,10 @@ first-party agents, only templates.
 
 ---
 
-## 2. Scaffold the agent
+## 2. Scaffold the service
 
 ```bash
-mkdir my-agent && cd my-agent
+mkdir my-service && cd my-service
 npm init -y
 npm install kiba-sdk express
 ```
@@ -36,7 +38,7 @@ npm install kiba-sdk express
 ```ts
 import { AgentProvider, loadOrCreateKeypair } from 'kiba-sdk';
 
-const agent = new AgentProvider({
+const provider = new AgentProvider({
   wallet: loadOrCreateKeypair(process.env.KEYPAIR_PATH ?? './data/wallet.json'),
 
   service: 'sentiment',                       // unique id, max 32 chars
@@ -58,14 +60,14 @@ const agent = new AgentProvider({
     : undefined,
 });
 
-agent.serve(async (req: { text: string }) => {
+provider.serve(async (req: { text: string }) => {
   const score = analyze(req.text);            // your model / business logic
   return { label: score > 0 ? 'positive' : 'negative', score };
 });
 
 (async () => {
-  await agent.bootstrap();                     // fund + register on-chain
-  await agent.listen(Number(process.env.PORT) ?? 5010);
+  await provider.bootstrap();                  // fund + register on-chain
+  await provider.listen(Number(process.env.PORT) ?? 5010);
 })();
 
 function analyze(text: string): number {
@@ -97,7 +99,7 @@ payload and returns any JSON-serializable value. **Validate your own input** —
 (and LLMs) may send unexpected shapes:
 
 ```ts
-agent.serve(async (req: unknown) => {
+provider.serve(async (req: unknown) => {
   const text = String((req as { text?: unknown })?.text ?? '');
   if (!text) throw new Error('field "text" is required');
   /* … */
@@ -114,7 +116,7 @@ unpaid quote path (`rateLimitPerMinute`, default 60) for you.
 Host the process anywhere that gives it a stable public URL (Railway, Fly, a VM…). Set
 `endpoint`/`PUBLIC_ENDPOINT` to that URL — it is what callers will hit, and it's stored
 on-chain at registration. Persist the keypair file (or pass the secret via
-`AGENT_WALLET_SECRET` / an `S...` secret) so your agent keeps its identity and
+`AGENT_WALLET_SECRET` / an `S...` secret) so your service keeps its identity and
 registration across restarts.
 
 Re-running `bootstrap()` after a config change (price/description/endpoint) reconciles
@@ -126,7 +128,7 @@ If you'd rather use Fastify/Hono/serverless, skip `listen()` and mount the
 framework-agnostic core:
 
 ```ts
-const { status, body } = await agent.verifyAndServe({
+const { status, body } = await provider.verifyAndServe({
   body,            // parsed JSON
   headers,         // request headers
   rawBody,         // exact request bytes (needed to verify platform-signed calls)
@@ -191,7 +193,7 @@ The platform takes a small fee (default 5%) on settlement; you receive the rest.
 Service names are **global and first-come** in the on-chain registry. The contract
 guarantees that only the owner can create/modify/delete **their** registration
 (`owner.require_auth`), so nobody can hijack an existing one. Two further protections
-matter when you consume agents:
+matter when you consume services:
 
 - **Endpoint verification** — a squatter could register a name pointing at *someone
   else's* endpoint. Pass `verifyEndpoint: true` to `AgentClient` and discovery will
@@ -219,7 +221,7 @@ non-goal).
 - **`ConfigError: … platformAddress`** — you set a Trustless Work `apiKey` but no
   `platformAddress`. Provide a funded `G...` address.
 - **`escrow receiver does not match`** — the caller funded an escrow for a different
-  agent. Expected: the SDK is refusing a cross-agent reuse.
+  service. Expected: the SDK is refusing a cross-service reuse.
 - **Mainnet account not funded** — there is no friendbot on mainnet; fund the account
   and set its USDC trustline before `bootstrap()`.
 - **Platform-signed calls rejected** — confirm `platform.publicKey` matches the gateway's
