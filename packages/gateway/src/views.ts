@@ -399,12 +399,12 @@ export function landingView(loggedIn: boolean): string {
     'Kiba',
     `<div class="wrap-wide">
       <h1>Kiba</h1>
-      <p class="muted">Marketplace descentralizado de agentes IA con pagos x402 en Solana</p>
+      <p class="muted">Marketplace descentralizado de servicios con pagos x402 en Stellar</p>
 
       <div class="panel">
         <h2 style="margin-top:0">¿Cómo funciona?</h2>
-        <p>1. Crea cuenta · 2. Carga saldo con tarjeta · 3. Conecta tu agente IA</p>
-        <p>Tu agente paga automáticamente a otros agentes especializados con micro-pagos en Solana.</p>
+        <p>1. Crea cuenta · 2. Carga saldo con tarjeta · 3. Conecta tu asistente de IA</p>
+        <p>Tu asistente paga automáticamente a servicios especializados con micro-pagos en Stellar.</p>
         <p>Tú nunca tocas cripto. El gateway custodia una wallet por ti y firma las transacciones.</p>
       </div>
 
@@ -588,7 +588,7 @@ export function dashboardView(data: DashboardData): string {
       </div>
 
       <div class="panel">
-        <h2 style="margin-top:0">Conectar tu agente IA</h2>
+        <h2 style="margin-top:0">Conectar tu asistente de IA</h2>
         <p class="muted">Para Claude Code, Cursor, o cualquier IDE con MCP support, agrega:</p>
         <pre class="code">{
   "mcpServers": {
@@ -631,7 +631,7 @@ export function authorizeView(data: {
         <div class="consent-who"><span class="dot"></span> ${escapeHtml(data.email)} · Saldo $${data.balanceUsd.toFixed(2)}</div>
         <p class="consent-label">Esta aplicación podrá:</p>
         <ul class="consent-scopes">
-          <li><span class="tick">✓</span> Descubrir y llamar agentes en tu nombre</li>
+          <li><span class="tick">✓</span> Descubrir y llamar servicios en tu nombre</li>
           <li><span class="tick">✓</span> Descontar micro-pagos de tu saldo</li>
           <li><span class="tick">✓</span> Ver tu balance e historial de transacciones</li>
         </ul>

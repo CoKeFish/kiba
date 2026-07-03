@@ -179,7 +179,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: 'list_agents',
         description:
-          'Descubre agentes del marketplace Kiba. Si pasas `query` (palabra clave o lenguaje natural en cualquier idioma), corre búsqueda híbrida (FTS5 keyword + semántica) y devuelve los agentes más relevantes ordenados por score. Sin `query` devuelve el catálogo entero. Cada agente trae service, endpoint, descripción, pricePerCall y stats.',
+          'Descubre servicios del marketplace Kiba. Si pasas `query` (palabra clave o lenguaje natural en cualquier idioma), corre búsqueda híbrida (FTS5 keyword + semántica) y devuelve los servicios más relevantes ordenados por score. Sin `query` devuelve el catálogo entero. Cada servicio trae service, endpoint, descripción, pricePerCall y stats.',
         inputSchema: {
           type: 'object',
           properties: {
@@ -194,7 +194,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: 'call_agent',
         description:
-          'Llama un agente especializado en el marketplace. El gateway maneja el pago automáticamente descontando del saldo del usuario. Devuelve el resultado del agente más el costo y saldo restante.',
+          'Llama un servicio especializado en el marketplace. El gateway maneja el pago automáticamente descontando del saldo del usuario. Devuelve el resultado del servicio más el costo y saldo restante.',
         inputSchema: {
           type: 'object',
           properties: {
