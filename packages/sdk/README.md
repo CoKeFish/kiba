@@ -1,10 +1,11 @@
 # kiba-sdk
 
-Build **paid AI agents** for the [Kiba](https://github.com/CoKeFish/kiba) marketplace.
-Agents charge per call in **USDC on Stellar**; payments settle either off-chain via
-the Kiba gateway (fast) or trustlessly via [Trustless Work](https://www.trustlesswork.com)
-escrow (no intermediary). The SDK is open — **every agent is built and owned by an
-external developer**; there is no privileged "Kiba agent".
+Build **paid services** for the [Kiba](https://github.com/CoKeFish/kiba) marketplace —
+AI agents, APIs, indexers, any procedural tool. Services charge per call in **USDC on
+Stellar**; payments settle either off-chain via the Kiba gateway (fast) or trustlessly
+via [Trustless Work](https://www.trustlesswork.com) escrow (no intermediary). The SDK is
+open — **every service is built and owned by an external publisher** (a company, an
+organization, or an independent developer); there is no privileged "Kiba service".
 
 ```bash
 npm install kiba-sdk
@@ -20,8 +21,11 @@ Requires **Node ≥ 18** (uses global `fetch`, `performance`, `node:crypto`).
 
 - **`AgentProvider`** — you OFFER a service. It verifies payment *before* running your
   handler, then serves and settles.
-- **`AgentClient`** — you CONSUME a service. It discovers the agent and handles payment
+- **`AgentClient`** — you CONSUME a service. It discovers the service and handles payment
   automatically (the x402 handshake).
+
+> The classes keep their historical `Agent*` names for API stability — they work for any
+> kind of service, not just AI agents.
 
 ---
 
@@ -30,7 +34,7 @@ Requires **Node ≥ 18** (uses global `fetch`, `performance`, `node:crypto`).
 ```ts
 import { AgentProvider, loadOrCreateKeypair } from 'kiba-sdk';
 
-const agent = new AgentProvider({
+const provider = new AgentProvider({
   // Identity (any of: wallet | secret | signer).
   wallet: loadOrCreateKeypair('./data/wallet.json'),
 
@@ -38,7 +42,7 @@ const agent = new AgentProvider({
   service: 'translate-en-es',
   pricePerCall: 0.01,                 // floor price in USDC
   description: 'English → Spanish translation',
-  endpoint: 'https://my-agent.example.com',
+  endpoint: 'https://my-service.example.com',
 
   // Where it settles.
   network: 'testnet',                 // 'testnet' | 'mainnet'
@@ -52,12 +56,12 @@ const agent = new AgentProvider({
   platform: { publicKey: process.env.KIBA_PLATFORM_PUBLIC_KEY! },
 });
 
-agent.serve(async (req: { text: string }) => ({
+provider.serve(async (req: { text: string }) => ({
   translation: translate(req.text),
 }));
 
-await agent.bootstrap();   // fund (testnet friendbot) + register on-chain
-await agent.listen(5001);  // built-in express server (optional, see below)
+await provider.bootstrap();   // fund (testnet friendbot) + register on-chain
+await provider.listen(5001);  // built-in express server (optional, see below)
 ```
 
 ### Dynamic pricing
@@ -98,32 +102,32 @@ const result = await client.call('translate-en-es', { text: 'hello' });
 // → { translation: 'hola', _payment: { … } }
 ```
 
-`client.call()` discovers the agent (on-chain registry, with a discovery-backend
-fallback), funds a Trustless Work escrow naming the agent as receiver, then re-calls
+`client.call()` discovers the service (on-chain registry, with a discovery-backend
+fallback), funds a Trustless Work escrow naming the service as receiver, then re-calls
 with proof of payment. Use `callWithTrace()` to also get a step-by-step timeline.
 
 ---
 
 ## Trust model
 
-The platform proves a paid call to an agent **without sharing any secret**:
+The platform proves a paid call to a service **without sharing any secret**:
 
 - The platform holds an ed25519 **private** key it never discloses.
-- Each agent is configured with the platform's **public** key (`platform.publicKey`,
+- Each service is configured with the platform's **public** key (`platform.publicKey`,
   a Stellar `G…` address — safe to publish).
 - For each call the platform mints a short certificate `{ service, payloadHash, ts,
-  nonce }` and **signs** it; the agent **verifies** the signature, that the payload
+  nonce }` and **signs** it; the service **verifies** the signature, that the payload
   matches, that the cert is fresh, and that the nonce hasn't been replayed.
 
-Because the value an agent holds (a public key) cannot mint calls, a leak of any single
-agent's config can never impersonate the platform to other agents. Mint the headers
+Because the value a service holds (a public key) cannot mint calls, a leak of any single
+service's config can never impersonate the platform to other services. Mint the headers
 yourself if you operate the platform:
 
 ```ts
 import { LocalPlatformSigner } from 'kiba-sdk';
 
 const platform = LocalPlatformSigner.fromSecret(process.env.KIBA_PLATFORM_SECRET!);
-await client.callSigned(agentEndpoint, payload, { signer: platform, service });
+await client.callSigned(serviceEndpoint, payload, { signer: platform, service });
 ```
 
 Standalone callers that don't trust the platform use the **x402 escrow** path instead
@@ -156,11 +160,11 @@ RPC/Trustless Work endpoints typically need a provider plan; v0.1 is verified on
 `express` is an **optional** peer dependency. The core entry point is framework-agnostic:
 
 ```ts
-const { status, body } = await agent.verifyAndServe({ body, headers, rawBody, ip });
+const { status, body } = await provider.verifyAndServe({ body, headers, rawBody, ip });
 ```
 
 Mount that in Fastify, Hono, a serverless function, etc. You only need express if you
-use the built-in `agent.app` / `agent.listen()`.
+use the built-in `provider.app` / `provider.listen()`.
 
 ---
 
@@ -187,8 +191,8 @@ try {
 
 ## Guide
 
-A full walkthrough — **create → deploy → register** an external agent — lives in
-[`docs/agent-guide.md`](https://github.com/CoKeFish/kiba/blob/main/docs/agent-guide.md).
+A full walkthrough — **create → deploy → register** an external service — lives in
+[`docs/service-guide.md`](https://github.com/CoKeFish/kiba/blob/main/docs/service-guide.md).
 
 ## License
 

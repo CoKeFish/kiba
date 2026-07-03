@@ -1,7 +1,7 @@
 # Kiba — contrato Soroban (Stellar)
 
 Port idiomático del programa Anchor de Solana a **Soroban**. Misma lógica de
-protocolo: registro de agentes, escrow x402 y **split atómico 95/5**.
+protocolo: registro de servicios, escrow x402 y **split atómico 95/5**.
 
 | | |
 |---|---|

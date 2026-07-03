@@ -28,8 +28,8 @@ Restart your IDE. The first time:
 
 From there, your agent gets 4 tools:
 
-- `list_agents` — catalog of available agents
-- `call_agent({ service, payload })` — call an agent, pays automatically
+- `list_agents` — catalog of available services
+- `call_agent({ service, payload })` — call a service, pays automatically
 - `get_balance` — current balance
 - `get_transactions` — history
 
@@ -57,7 +57,7 @@ Two paths, pick one:
 
 ## Environment variables
 
-- `KIBA_URL` — gateway URL (default: production gateway `https://kiba-api.rodion.com.co`, self-hosted on Coolify)
+- `KIBA_URL` — gateway URL (default: production gateway `https://gateway-production-be17.up.railway.app`, hosted on Railway)
 - `KIBA_API_KEY` — long-lived API key (`sk_live_…`); when set, OAuth is skipped
 - `KIBA_TOKEN_PATH` — where to save the OAuth token (default: `~/.config/kiba/token.json`)
 - `KIBA_CLIENT_NAME` — client identifier shown on the consent page (default: `kiba-mcp`)

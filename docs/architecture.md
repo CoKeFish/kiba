@@ -1,6 +1,6 @@
 # Arquitectura — Kiba
 
-> **Marketplace descentralizado de agentes IA con pagos x402 sobre Stellar (Soroban).**
+> **Marketplace descentralizado de servicios con pagos x402 sobre Stellar (Soroban).**
 > Producto del Dev3pack Global Hackathon (8-10 mayo 2026).
 
 ---
@@ -27,7 +27,7 @@ graph TB
         ORCH["Orchestrator :6001<br/>LLM planner + executor"]
     end
 
-    subgraph agents["Agentes especializados"]
+    subgraph agents["Servicios especializados"]
         A1["yield-hunter :5001"]
         A2["risk-auditor :5002"]
     end
@@ -136,7 +136,7 @@ Ningún canal le pertenece a una persona en exclusiva: Alice podría usar el Gat
 |-----------|--------|-------------|---------|-----|
 | `kiba-contracts` | — | rust:1.85-slim + stellar-cli + Soroban SDK | `stellar-keys`, `cargo-cache`, `soroban-cache` | CLI `kiba` (build, deploy, friendbot fund, logs, test) |
 | `kiba-backend` | **4000** | node:20-slim + better-sqlite3 + @xenova/transformers | `backend-data` (SQLite), `backend-models` (cache embeddings ~22 MB) | Discovery híbrido: keyword + semantic + hybrid search; WS `/ws`; indexer chain → SQLite |
-| `kiba-landing` | **3010** | node:20-alpine (Astro 5) | — | Landing pública con buscador de agentes en vivo |
+| `kiba-landing` | **3010** | node:20-alpine (Astro 5) | — | Landing pública con buscador de servicios en vivo |
 | `kiba-dashboard` | **3020** | node:20-alpine (Vite 6 + React 19) | — | SPA logueada: balance, txs, API keys, OAuth |
 | `kiba-agents` | **5001**, **5002** | node:20-alpine | `agents-data` | yield-hunter + risk-auditor |
 | `kiba-orchestrator` | **6001** | node:20-alpine | `orchestrator-data` | Planner LLM + executor paralelo |
@@ -195,7 +195,7 @@ graph LR
 
 > **Escrow vía Trustless Work.** El escrow del pago x402 (open/fund/release/refund) se migró a
 > [Trustless Work](https://www.trustlesswork.com) (escrow-as-a-service en Stellar). Este contrato
-> queda como **registro de agentes**; sus funciones `open_escrow`/`claim_payment`/`refund_escrow`
+> queda como **registro de servicios**; sus funciones `open_escrow`/`claim_payment`/`refund_escrow`
 > ya no se invocan desde el SDK (quedan latentes). Ver [`trustless-work.md`](trustless-work.md).
 > Las secciones 4.2/4.3 describen el escrow del contrato propio (histórico/registro).
 
@@ -542,7 +542,7 @@ flowchart TB
 |---|---|---|
 | Keyword | SQLite **FTS5** + BM25 nativo | sin servidor extra; tokenizer `unicode61 remove_diacritics 2` cubre ES sin acentos |
 | Semantic | `@xenova/transformers` con **Xenova/all-MiniLM-L6-v2** (384-d) | corre en proceso, sin API key, ~22 MB modelo cacheado en `backend-models` volume |
-| Distancia | cosine en memoria (brute-force) | Trivial hasta ~10K agentes; para escala migrar a `pgvector` o `faiss` |
+| Distancia | cosine en memoria (brute-force) | Trivial hasta ~10K servicios; para escala migrar a `pgvector` o `faiss` |
 
 **Sincronización chain ↔ off-chain (indexer)** — Soroban no permite enumerar contratos ni suscribirse a un stream de eventos, así que el registry se sincroniza leyendo una **lista configurada de servicios** (`STELLAR_SERVICES`). Dos capas en `packages/backend/src/indexer.ts`:
 
@@ -551,7 +551,7 @@ flowchart TB
 
 **Fail-soft del semántico**: si el modelo no carga (sin red, error transitorio), `embed()` devuelve `null`, el módulo entra en disabled, y el server sigue sirviendo solo con keyword. La env `SEMANTIC_SEARCH=false` desactiva el modelo a propósito.
 
-**Resultados típicos** (10 agentes ES+EN, post-warmup):
+**Resultados típicos** (10 servicios ES+EN, post-warmup):
 - latencia por query: 1–3 ms (cualquier modo)
 - aciertos top-1 hybrid: 6/9 sobre queries cross-lingüe; el modo semántico solo es el único que encuentra `risk-auditor` cuando el query es `"auditar contrato inteligente"` (ningún token matchea la descripción mixta ES/EN)
 
@@ -649,10 +649,10 @@ flowchart TB
 - ✅ 7 containers en `docker compose up`
 - ✅ **Smart contract deployado en testnet**: `CDYLMRS2UTBHNTWS67NC2OPQIH2HXGS36WZYC4JUMLKZWT7XXVUUX7XF`
 - ✅ **Tests Soroban 18/18 verdes** (`cargo test` en `packages/contracts-soroban/src/test.rs`)
-- ✅ Demo agents (yield-hunter, risk-auditor) auto-registrados on-chain
+- ✅ Servicios demo (yield-hunter, risk-auditor) auto-registrados on-chain
 - ✅ **E2E real on-chain probado**: signup → topup → `/v1/call` → `open_escrow` + `claim_payment` ambos confirmados en testnet (split 95/5 a agent/treasury con hashes reales), balance del agent on-chain incrementa
 - ✅ Discovery híbrido en backend: keyword (FTS5) + semantic (embeddings) + hybrid; latencia 1–3 ms
-- ✅ Landing con buscador de agentes en vivo + 7 demo agents en mezcla ES/EN
+- ✅ Landing con buscador de servicios en vivo + 7 servicios demo en mezcla ES/EN
 - ✅ Dashboard con auth: signup, login, balance, transacciones, credentials (API keys + OAuth connections)
 - ✅ Dual-auth (cookie OR bearer) + CORS allowlist verificados
 - 📋 Stubs todavía: `/app/usage` (charts), `/app/agents` (browse + allowlist), `/app/billing` (Stripe real), `/app/settings`, `/app/playground` (intent UI)
