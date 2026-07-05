@@ -137,6 +137,7 @@ services:
     container_name: kiba-gateway
     volumes:
       - ./packages/gateway/src:/app/packages/gateway/src
+      - ./packages/gateway/test:/app/packages/gateway/test
       - ./packages/sdk/src:/app/packages/sdk/src
       - gateway-data:/app/data
     ports:
@@ -170,6 +171,10 @@ services:
       # Liquidación por lotes (mínimo + schedule).
       - SETTLEMENT_MIN_PAYOUT=${SETTLEMENT_MIN_PAYOUT:-10000000}
       - SETTLEMENT_INTERVAL_MS=${SETTLEMENT_INTERVAL_MS:-}
+      # Fund per-call: cada call_agent en modo crédito fondea el escrow TW del servicio
+      # (una tx Stellar consultable por llamada). PER_CALL_FUND=0 lo apaga (kill-switch).
+      - PER_CALL_FUND=${PER_CALL_FUND:-}
+      - WARM_ESCROW_SERVICES=${WARM_ESCROW_SERVICES:-}
       # Privy server wallets (no-custodial) para las wallets de usuario. Sin estas, las
       # wallets caen al keypair custodial local (legacy).
       - PRIVY_APP_ID=${PRIVY_APP_ID:-}
