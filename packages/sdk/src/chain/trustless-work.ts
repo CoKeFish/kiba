@@ -161,14 +161,17 @@ export class TrustlessWorkEscrowClient {
     const tx = TransactionBuilder.fromXDR(unsignedXdr, this.cfg.networkPassphrase);
     await this.signer.signTransaction(tx);
     const signedXdr = tx.toXDR();
+    // Hash de la tx INTERNA firmada. TW fee-bumpea el envelope (el hash externo cambia),
+    // pero Horizon indexa los fee-bumps también por el hash interno → es consultable.
+    const innerTxHash = tx.hash().toString('hex');
     try {
       const res = await this.http.post('/helper/send-transaction', { signedXdr });
-      return (res.data ?? {}) as Record<string, unknown>;
+      return { ...((res.data ?? {}) as Record<string, unknown>), innerTxHash };
     } catch (err) {
       const msg =
         (err as { response?: { data?: { message?: string } } }).response?.data?.message ?? '';
       if (/resultMetaXdr|not be complete/i.test(msg)) {
-        return { pending: true }; // la tx pudo aterrizar; el caller verifica vía indexer
+        return { pending: true, innerTxHash }; // la tx pudo aterrizar; el caller verifica vía indexer
       }
       throw err;
     }
@@ -217,11 +220,16 @@ export class TrustlessWorkEscrowClient {
    * milestone) y devuelve el unsignedTransaction. Reintenta si el estado on-chain
    * (deploy/fund recién enviados) todavía no confirmó → `Error(Storage, MissingValue)`.
    */
-  private async postSim(path: string, body: object, label: string): Promise<string> {
+  private async postSim(
+    path: string,
+    body: object,
+    label: string,
+    method: 'post' | 'put' = 'post',
+  ): Promise<string> {
     let lastErr: unknown;
     for (let i = 0; i < 6; i++) {
       try {
-        const resp = await this.http.post(path, body);
+        const resp = await this.http[method](path, body);
         return this.unsignedXdr(resp.data, label);
       } catch (err) {
         lastErr = err;
@@ -251,10 +259,11 @@ export class TrustlessWorkEscrowClient {
     path: string,
     body: object,
     label: string,
+    method: 'post' | 'put' = 'post',
   ): Promise<Record<string, unknown>> {
     for (let attempt = 0; ; attempt++) {
       try {
-        const xdr = await this.postSim(path, body, label);
+        const xdr = await this.postSim(path, body, label, method);
         return await this.signAndSend(xdr);
       } catch (err) {
         const msg =
@@ -351,14 +360,45 @@ export class TrustlessWorkEscrowClient {
 
     // 2) Fund (lo firma el funder). postSim reintenta hasta que el deploy confirme
     //    on-chain; luego verificamos vía indexer que el balance llegó.
-    await this.postSimAndSend(
-      '/escrow/single-release/fund-escrow',
-      { contractId: escrowId, signer: this.address, amount },
-      'fund',
-    );
+    const fundTxHash = await this.fund(escrowId, args.amountBaseUnits);
     // No esperamos al indexer de TW aquí (lag ~30s): el agente verifica el fondeo
     // leyendo el balance del escrow on-chain (rápido) antes de servir.
-    return { escrowId, signature: escrowId };
+    return { escrowId, signature: escrowId, fundTxHash };
+  }
+
+  /**
+   * Fondeo incremental de un escrow existente (single-release acepta múltiples funds;
+   * cada uno es una tx Stellar propia). Devuelve el hash de la tx interna firmada,
+   * consultable en Horizon/stellar.expert (que indexan fee-bumps por ambos hashes).
+   */
+  async fund(escrowId: string, amountBaseUnits: bigint): Promise<string> {
+    const resp = await this.postSimAndSend(
+      '/escrow/single-release/fund-escrow',
+      { contractId: escrowId, signer: this.address, amount: this.toDecimal(amountBaseUnits) },
+      'fund',
+    );
+    return String(resp.innerTxHash ?? '');
+  }
+
+  /**
+   * Deploy+fund de un escrow de liquidación SELF-RELEASE, SIN liberarlo: la treasury
+   * (este signer) conserva los roles de liberación y el agente es solo receiver. Es el
+   * escrow por servicio/ciclo que el gateway fondea incrementalmente con `fund()` en
+   * cada llamada y libera por lotes con `release()`.
+   */
+  async openSettlementEscrow(args: {
+    receiver: string;
+    service: string;
+    engagementId: string;
+    amountBaseUnits: bigint;
+  }): Promise<OpenEscrowResult> {
+    return this.deployAndFund({
+      agentOwner: args.receiver,
+      service: args.service,
+      engagementId: args.engagementId,
+      amountBaseUnits: args.amountBaseUnits,
+      roles: this.selfReleaseRoles(args.receiver),
+    });
   }
 
   /**
@@ -374,13 +414,7 @@ export class TrustlessWorkEscrowClient {
     engagementId: string;
     amountBaseUnits: bigint;
   }): Promise<string> {
-    const { escrowId } = await this.deployAndFund({
-      agentOwner: args.receiver,
-      service: args.service,
-      engagementId: args.engagementId,
-      amountBaseUnits: args.amountBaseUnits,
-      roles: this.selfReleaseRoles(args.receiver),
-    });
+    const { escrowId } = await this.openSettlementEscrow(args);
     await this.release(escrowId);
     return escrowId;
   }
@@ -400,36 +434,109 @@ export class TrustlessWorkEscrowClient {
   }
 
   /**
+   * Actualiza el `amount` DECLARADO del escrow. Crítico para el escrow por ciclo: el
+   * release de un single-release paga el amount declarado (no el balance) — antes de
+   * liberar un escrow fondeado incrementalmente hay que igualar el declarado al balance
+   * real, o el excedente queda atrapado en el contrato (verificado en vivo: release de
+   * un escrow con declarado 0.01 y balance 0.02 pagó solo ~0.0095). Firma el deployer.
+   *
+   * OJO (verificado en vivo 2026-07-05): la API DEV de TW rechaza cualquier cambio real
+   * ("The provided escrow properties do not match the stored escrow" — solo acepta el
+   * payload idéntico al almacenado). Este método queda listo para cuando TW habilite
+   * updates de propiedades; hoy el gateway liquida por el settle clásico (settle()).
+   */
+  async updateAmount(escrowId: string, amountBaseUnits: bigint): Promise<string | null> {
+    const e = await this.getEscrowRaw(escrowId);
+    if (!e) {
+      throw new Error(`[${this.label}] update-amount: escrow ${escrowId} no visible en el indexer`);
+    }
+    const current = Number(e.amount ?? 0);
+    const target = this.toDecimal(amountBaseUnits);
+    if (Math.abs(current - target) < 1 / this.cfg.baseUnitsPerToken) return null; // ya coincide
+    // El PUT exige el escrow completo: passthrough del record del indexer con el amount nuevo.
+    const escrow = {
+      engagementId: e.engagementId,
+      title: e.title,
+      description: e.description,
+      roles: e.roles,
+      amount: target,
+      platformFee: e.platformFee ?? this.cfg.platformFee,
+      milestones: e.milestones ?? [{ description: String(e.title ?? 'kiba') }],
+      flags: e.flags ?? {},
+      isActive: e.isActive ?? true,
+      receiverMemo: e.receiverMemo ?? 0,
+      trustline: e.trustline ?? this.cfg.trustline,
+    };
+    const resp = await this.postSimAndSend(
+      '/escrow/single-release/update-escrow',
+      { contractId: escrowId, signer: this.address, escrow },
+      'update-amount',
+      'put',
+    );
+    // El caller DEBE confirmar este hash en Horizon antes de liberar: una colisión de
+    // secuencia con el paso siguiente puede dejar caer esta tx sin error del send.
+    return String(resp.innerTxHash ?? '') || null;
+  }
+
+  /** ¿El error dice que el paso ya se aplicó? (release reintentado tras fallo a mitad). */
+  private isAlreadyDone(err: unknown): boolean {
+    const msg = String(
+      (err as { response?: { data?: { message?: string } } }).response?.data?.message ??
+        (err as Error).message ??
+        '',
+    );
+    return /already|completed|approved|released/i.test(msg);
+  }
+
+  /**
    * Libera los fondos al receiver. En single-release TW exige el milestone "completado"
    * y aprobado antes del release; el agente (que tiene los roles serviceProvider/approver/
    * releaseSigner) ejecuta la secuencia. `milestoneIndex` va como STRING.
+   *
+   * IDEMPOTENTE: un release reintentado (fallo a mitad de la coreografía) salta los pasos
+   * ya aplicados y nunca puede pagar dos veces (released es terminal en el contrato).
    */
   async release(escrowId: string): Promise<string> {
+    const existing = await this.getEscrowRaw(escrowId);
+    if (((existing?.flags ?? {}) as Record<string, boolean>).released) return escrowId;
     // a) serviceProvider marca el milestone como completado.
-    await this.postSimAndSend(
-      '/escrow/single-release/change-milestone-status',
-      {
-        contractId: escrowId,
-        milestoneIndex: '0',
-        newStatus: 'completed',
-        // la REST de TW lista newEvidence como required; mandarlo evita 400 intermitentes.
-        newEvidence: 'Kiba x402: service delivered',
-        serviceProvider: this.address,
-      },
-      'change-milestone-status',
-    );
+    try {
+      await this.postSimAndSend(
+        '/escrow/single-release/change-milestone-status',
+        {
+          contractId: escrowId,
+          milestoneIndex: '0',
+          newStatus: 'completed',
+          // la REST de TW lista newEvidence como required; mandarlo evita 400 intermitentes.
+          newEvidence: 'Kiba x402: service delivered',
+          serviceProvider: this.address,
+        },
+        'change-milestone-status',
+      );
+    } catch (err) {
+      if (!this.isAlreadyDone(err)) throw err;
+    }
     // b) approver aprueba el milestone.
-    await this.postSimAndSend(
-      '/escrow/single-release/approve-milestone',
-      { contractId: escrowId, milestoneIndex: '0', approver: this.address },
-      'approve-milestone',
-    );
-    // c) releaseSigner libera los fondos al receiver.
-    await this.postSimAndSend(
-      '/escrow/single-release/release-funds',
-      { contractId: escrowId, releaseSigner: this.address },
-      'release',
-    );
+    try {
+      await this.postSimAndSend(
+        '/escrow/single-release/approve-milestone',
+        { contractId: escrowId, milestoneIndex: '0', approver: this.address },
+        'approve-milestone',
+      );
+    } catch (err) {
+      if (!this.isAlreadyDone(err)) throw err;
+    }
+    // c) releaseSigner libera los fondos al receiver. "already released" (el release
+    //    anterior sí aterrizó pero el indexer no lo reflejaba al entrar) NO es error.
+    try {
+      await this.postSimAndSend(
+        '/escrow/single-release/release-funds',
+        { contractId: escrowId, releaseSigner: this.address },
+        'release',
+      );
+    } catch (err) {
+      if (!this.isAlreadyDone(err)) throw err;
+    }
     await this.waitFor(escrowId, (e) => !!(e.flags as Record<string, boolean>)?.released, 'release');
     return escrowId;
   }

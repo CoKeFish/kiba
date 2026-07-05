@@ -143,18 +143,35 @@ test('release: change-status (idx string) → approve → release-funds', async 
     assert.equal((body as { approver: string }).approver, keypair.publicKey());
     return unsigned();
   };
+  // released es STATEFUL: false hasta que se postea release-funds. El release()
+  // idempotente consulta el indexer al entrar — con true fijo se saltaría los 3 pasos.
+  let released = false;
   postRoutes['/escrow/single-release/release-funds'] = (body) => {
     assert.equal((body as { releaseSigner: string }).releaseSigner, keypair.publicKey());
+    released = true;
     return unsigned();
   };
   postRoutes['/helper/send-transaction'] = () => ({ status: 201, data: { status: 'SUCCESS' } });
   getRoutes['/helper/get-escrow-by-contract-ids'] = () => ({
     status: 200,
-    data: [{ contractId: 'CESCROW123', flags: { released: true } }],
+    data: [{ contractId: 'CESCROW123', flags: { released } }],
   });
 
   const sig = await client.release('CESCROW123');
   assert.equal(sig, 'CESCROW123');
+  assert.ok(posted['/escrow/single-release/change-milestone-status'], 'debe correr la coreografía');
+});
+
+test('release idempotente: escrow ya released → no repite la coreografía', async () => {
+  const { client } = makeClient();
+  getRoutes['/helper/get-escrow-by-contract-ids'] = () => ({
+    status: 200,
+    data: [{ contractId: 'CESCROW123', flags: { released: true } }],
+  });
+  const sig = await client.release('CESCROW123');
+  assert.equal(sig, 'CESCROW123');
+  assert.equal(posted['/escrow/single-release/change-milestone-status'], undefined);
+  assert.equal(posted['/escrow/single-release/release-funds'], undefined);
 });
 
 test('settle: self-release — treasury en approver/serviceProvider/releaseSigner, agente receiver', async () => {
@@ -169,10 +186,16 @@ test('settle: self-release — treasury en approver/serviceProvider/releaseSigne
   postRoutes['/escrow/single-release/fund-escrow'] = () => unsigned();
   postRoutes['/escrow/single-release/change-milestone-status'] = () => unsigned();
   postRoutes['/escrow/single-release/approve-milestone'] = () => unsigned();
-  postRoutes['/escrow/single-release/release-funds'] = () => unsigned();
+  // released STATEFUL (ver test de release): el release() idempotente no debe saltarse
+  // la coreografía en un escrow recién desplegado.
+  let released = false;
+  postRoutes['/escrow/single-release/release-funds'] = () => {
+    released = true;
+    return unsigned();
+  };
   getRoutes['/helper/get-escrow-by-contract-ids'] = () => ({
     status: 200,
-    data: [{ contractId: 'CSETTLE1', flags: { released: true } }],
+    data: [{ contractId: 'CSETTLE1', flags: { released } }],
   });
 
   const escrowId = await client.settle({

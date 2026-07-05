@@ -93,6 +93,8 @@ export interface OpenEscrowResult {
   escrowId: string;
   /** Id/hash de la transacción de apertura (para el trace x402). */
   signature: string;
+  /** Hash de la tx del fondeo inicial (consultable en el explorer), si la capa lo expone. */
+  fundTxHash?: string;
 }
 
 export interface FetchEscrowArgs {
@@ -181,4 +183,25 @@ export interface ChainClient {
    * del payout (su identidad on-chain).
    */
   settlePayout(args: SettlePayoutArgs): Promise<string>;
+
+  /**
+   * Abre (deploy+fund) un escrow de liquidación self-release SIN liberarlo: la treasury
+   * conserva los roles de liberación y el agente es solo receiver. Es el escrow por
+   * servicio/ciclo que se fondea incrementalmente con `fundEscrow` en cada llamada y se
+   * libera por lotes con `claimPayment`. Opcional: solo capas que soporten funds múltiples.
+   */
+  openSettlementEscrow?(args: SettlePayoutArgs): Promise<OpenEscrowResult>;
+
+  /**
+   * Fondeo incremental de un escrow de liquidación existente (per-call). Devuelve el hash
+   * de la transacción de fondeo, consultable en el explorer. Opcional (ver arriba).
+   */
+  fundEscrow?(args: { escrowId: string; amountBaseUnits: bigint }): Promise<string>;
+
+  /**
+   * Iguala el monto DECLARADO del escrow al dado. El release de Trustless Work paga el
+   * declarado (no el balance): llamarlo antes de `claimPayment` en escrows fondeados
+   * incrementalmente, o el excedente queda atrapado en el contrato. Opcional.
+   */
+  updateEscrowAmount?(args: { escrowId: string; amountBaseUnits: bigint }): Promise<void>;
 }

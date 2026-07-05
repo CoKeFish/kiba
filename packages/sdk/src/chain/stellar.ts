@@ -447,6 +447,50 @@ export class StellarChainClient implements ChainClient {
     });
   }
 
+  async openSettlementEscrow(args: SettlePayoutArgs): Promise<OpenEscrowResult> {
+    // Escrow por servicio/ciclo: deploy+fund self-release SIN release. La treasury lo
+    // fondea incrementalmente por llamada (fundEscrow) y lo libera por lotes (claimPayment).
+    return this.requireTw().openSettlementEscrow({
+      receiver: args.receiver,
+      service: args.service,
+      engagementId: args.engagementId,
+      amountBaseUnits: args.amountBaseUnits,
+    });
+  }
+
+  async fundEscrow(args: { escrowId: string; amountBaseUnits: bigint }): Promise<string> {
+    // Fondeo incremental per-call del escrow de liquidación del servicio.
+    return this.requireTw().fund(args.escrowId, args.amountBaseUnits);
+  }
+
+  async updateEscrowAmount(args: { escrowId: string; amountBaseUnits: bigint }): Promise<void> {
+    // Iguala el declarado al balance real antes del release (el release paga el declarado).
+    // CONFIRMADO en Horizon antes de devolver: la tx de update puede perderse por colisión
+    // de secuencia con los pasos del release (verificado en vivo) — sin confirmación, el
+    // release pagaría el declarado viejo y el excedente quedaría atrapado en el contrato.
+    const tw = this.requireTw();
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const innerHash = await tw.updateAmount(args.escrowId, args.amountBaseUnits);
+      if (!innerHash) return; // el declarado ya coincidía
+      for (let i = 0; i < 8; i++) {
+        try {
+          const rec = (await this.horizon
+            .transactions()
+            .transaction(innerHash)
+            .call()) as unknown as { successful?: boolean };
+          if (rec.successful !== false) return; // aterrizó
+          break; // aterrizó pero falló → re-simular con seq fresco
+        } catch {
+          await new Promise((r) => setTimeout(r, 2_000)); // aún no visible
+        }
+      }
+      console.warn(
+        `[${this.label}] update-amount de ${args.escrowId} no confirmó (intento ${attempt + 1}); reintentando`,
+      );
+    }
+    throw new Error(`[${this.label}] update-amount de ${args.escrowId} no aterrizó tras 3 intentos`);
+  }
+
   async fetchEscrow(args: FetchEscrowArgs): Promise<ChainEscrowInfo | null> {
     const info = await this.requireTw().getEscrow(args.escrowId);
     if (!info) return null;
