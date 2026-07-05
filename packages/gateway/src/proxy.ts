@@ -27,6 +27,10 @@ import {
 } from './wallets';
 import { BASE_UNITS_PER_TOKEN, explorerTxUrl } from './chain';
 import { recordEarning } from './settlement';
+import { fundForCall, perCallFundEnabled, type PerCallFundResult } from './escrows';
+
+/** Máximo que la respuesta espera al fund per-call; la tarea sigue en background si excede. */
+const FUND_WAIT_TIMEOUT_MS = Number(process.env.PER_CALL_FUND_TIMEOUT_MS) || 90_000;
 
 const WALLET_TX_FEE_BUFFER = 5_000_000;
 
@@ -114,8 +118,8 @@ export async function callOnBehalf(args: {
   paidWith: 'credit' | 'wallet';
   newBalance: { lamports: number; usd: number };
   trace: X402Trace;
-  /** Link a stellar.expert para inspeccionar la tx on-chain. Solo en wallet-direct
-   *  (en modo crédito el pago es off-chain y la liquidación es por lotes → no hay tx por llamada). */
+  /** Link a stellar.expert para inspeccionar la tx on-chain de ESTA llamada: el escrow
+   *  x402 en wallet-direct, o el fondeo per-call del escrow del ciclo en modo crédito. */
   explorerUrl?: string;
 }> {
   const userSigner = await loadUserSigner(args.userId);
@@ -173,10 +177,33 @@ export async function callOnBehalf(args: {
 
     // Acredita la ganancia del agente con el precio COMPLETO (el 95/5 se aplica al liquidar
     // vía TW). Solo tras una llamada exitosa → un fallo nunca acumula ganancia.
-    await recordEarning({ service: args.service, payTo: quote.payTo, lamports });
+    const earningId = await recordEarning({ service: args.service, payTo: quote.payTo, lamports });
 
-    // Trace mínimo (sin escrow): solo discover + service_responded — los únicos step types
-    // que el dashboard conoce. No hay signature on-chain por llamada (la liquidación es aparte).
+    // Fund per-call: fondea el escrow TW del ciclo del servicio con el monto de ESTA
+    // llamada — una tx Stellar consultable por llamada. Esperamos el hash en línea (la
+    // demo lo muestra en la respuesta), con tope: si excede, la tarea sigue en background
+    // (la fila y transactions.signature quedan bien; solo esta respuesta sale sin link).
+    // Ante cualquier fallo on-chain la ganancia ya quedó acumulada (legacy) — la llamada
+    // nunca falla por la cadena.
+    let onchain: PerCallFundResult = {};
+    const t1 = Date.now();
+    if (perCallFundEnabled()) {
+      onchain = await Promise.race([
+        fundForCall({
+          service: args.service,
+          payTo: quote.payTo,
+          lamports,
+          earningId,
+          transactionId: debited.transactionId,
+        }),
+        new Promise<PerCallFundResult>((resolve) =>
+          setTimeout(() => resolve({}), FUND_WAIT_TIMEOUT_MS),
+        ),
+      ]);
+    }
+
+    // Trace: discover + (escrow_opened si el fund confirmó) + service_responded — step
+    // types que el dashboard ya conoce. En escrow_opened va el hash REAL del fondeo.
     const elapsed = Math.max(1, Date.now() - t0);
     const trace: X402Trace = {
       service: manifest.service,
@@ -191,6 +218,19 @@ export async function callOnBehalf(args: {
           durationMs: 1,
           timestamp: t0,
         },
+        ...(onchain.txHash
+          ? [
+              {
+                type: 'escrow_opened' as const,
+                signature: onchain.txHash,
+                escrowId: onchain.escrowId,
+                amount: String(lamports),
+                nonce: onchain.escrowId ?? '',
+                durationMs: Math.max(1, Date.now() - t1),
+                timestamp: t1,
+              },
+            ]
+          : []),
         { type: 'service_responded', status: 200, durationMs: elapsed, timestamp: Date.now() },
       ],
     };
@@ -202,6 +242,7 @@ export async function callOnBehalf(args: {
       paidWith: 'credit',
       newBalance: { lamports: debited.newBalance, usd: lamportsToUsd(debited.newBalance) },
       trace,
+      explorerUrl: onchain.txHash ? explorerTxUrl(onchain.txHash) : undefined,
     };
   }
 

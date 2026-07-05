@@ -238,6 +238,21 @@ async function runInit(): Promise<void> {
       settled_at BIGINT
     );
 
+    -- Escrow TW por servicio y por ciclo de liquidación (fund incremental per-call).
+    -- 'active' recibe funds; 'releasing' está en liquidación (ya no acepta funds);
+    -- 'released' es terminal (el release de TW mata el escrow → ciclo nuevo).
+    CREATE TABLE IF NOT EXISTS service_escrows (
+      id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      service TEXT NOT NULL,
+      pay_to TEXT NOT NULL,
+      escrow_id TEXT NOT NULL,
+      engagement_id TEXT NOT NULL UNIQUE,
+      status TEXT NOT NULL DEFAULT 'active',
+      funded_lamports BIGINT NOT NULL DEFAULT 0,
+      created_at BIGINT NOT NULL,
+      released_at BIGINT
+    );
+
     CREATE TABLE IF NOT EXISTS payment_charges (
       id TEXT PRIMARY KEY,
       user_id BIGINT NOT NULL,
@@ -264,6 +279,9 @@ async function runInit(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_earnings_settlement ON agent_earnings(settlement_id);
     CREATE INDEX IF NOT EXISTS idx_earnings_service ON agent_earnings(service);
     CREATE INDEX IF NOT EXISTS idx_charges_user ON payment_charges(user_id);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_service_escrows_one_active
+      ON service_escrows(service) WHERE status = 'active';
+    CREATE INDEX IF NOT EXISTS idx_service_escrows_service ON service_escrows(service);
   `);
 
   // Columnas evolutivas (idempotentes). En Postgres `ADD COLUMN IF NOT EXISTS` es nativo, así
@@ -279,6 +297,9 @@ async function runInit(): Promise<void> {
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS publisher_name TEXT`);
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS privy_wallet_id TEXT`);
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS stellar_address TEXT`);
+  // Fund per-call: earning fondeada on-chain apunta al escrow del ciclo (NULL = legacy/acumulado).
+  await pool.query(`ALTER TABLE agent_earnings ADD COLUMN IF NOT EXISTS escrow_id TEXT`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_earnings_escrow ON agent_earnings(escrow_id)`);
 
   // Backfills idempotentes (no-op en DB fresca; protegen DBs existentes).
   await pool.query(

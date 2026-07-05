@@ -50,6 +50,7 @@ import {
 } from './payments';
 import { callOnBehalf, listAgents, masterWalletPubkey, platformPublicKey } from './proxy';
 import { settleAgent, settleAllDue } from './settlement';
+import { warmEscrows } from './escrows';
 import { getMasterWallet, getOnChainBalance, getUserBalances, userOnChainBalance } from './wallets';
 import { ASSET, ASSET_USD_RATE, BASE_UNITS_PER_TOKEN, explorerTxUrl } from './chain';
 import { BASE_UNIT_NAME } from './wallets';
@@ -1231,6 +1232,9 @@ try {
 // (DATABASE_URL ausente/incorrecto, Postgres inalcanzable), no arrancamos.
 void initDb()
   .then(() => {
+    // Pre-calienta los escrows del ciclo (WARM_ESCROW_SERVICES) para que la primera
+    // llamada de cada servicio pague solo el fund, no el deploy. Best-effort.
+    warmEscrows();
     app.listen(PORT, '0.0.0.0', () => {
       console.log('╔══════════════════════════════════════════╗');
       console.log('║  Kiba — Gateway                          ║');
