@@ -365,6 +365,8 @@
       "settle_success_other": "Settled {{count}} payouts.",
       "settle_none": "Nothing to settle yet — earnings are below the minimum payout.",
       "settle_error": "Settlement failed. Please try again in a moment.",
+      "nothing_pending": "No earnings pending settlement right now.",
+      "pending_hint": "{{amount}} {{asset}} ready to settle.",
       "history_title": "Payout history",
       "history_desc": "On-chain settlements from paid service calls.",
       "empty_title": "No payouts yet",

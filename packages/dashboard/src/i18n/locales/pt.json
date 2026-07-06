@@ -365,6 +365,8 @@
       "settle_success_other": "{{count}} repasses liquidados.",
       "settle_none": "Nada a liquidar ainda — os ganhos estão abaixo do mínimo.",
       "settle_error": "A liquidação falhou. Tente novamente em instantes.",
+      "nothing_pending": "Nenhum ganho pendente de liquidação no momento.",
+      "pending_hint": "{{amount}} {{asset}} prontos para liquidar.",
       "history_title": "Histórico de repasses",
       "history_desc": "Liquidações on-chain de chamadas pagas aos serviços.",
       "empty_title": "Ainda não há repasses",

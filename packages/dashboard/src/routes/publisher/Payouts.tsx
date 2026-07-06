@@ -187,7 +187,7 @@ export default function PublisherPayouts() {
             className="pub-btn pub-btn--primary"
             style={{ marginTop: 16 }}
             onClick={() => settleMut.mutate()}
-            disabled={settleMut.isPending || pendingAsset <= 0}
+            disabled={settleMut.isPending}
           >
             {settleMut.isPending ? (
               <>
@@ -197,7 +197,7 @@ export default function PublisherPayouts() {
               t("publisher.payouts.request_payout")
             )}
           </button>
-          {settleSummary && (
+          {settleSummary ? (
             <p
               className="pub-settle-msg"
               style={{
@@ -211,6 +211,17 @@ export default function PublisherPayouts() {
             >
               {settleSummary.text}
             </p>
+          ) : (
+            !settleMut.isPending && (
+              <p className="pub-settle-msg" style={{ color: "var(--color-fg-muted)" }}>
+                {pendingAsset > 0
+                  ? t("publisher.payouts.pending_hint", {
+                      amount: pendingAsset.toFixed(4),
+                      asset: data?.asset ?? chain.asset,
+                    })
+                  : t("publisher.payouts.nothing_pending")}
+              </p>
+            )
           )}
         </div>
       </section>
