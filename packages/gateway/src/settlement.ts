@@ -74,10 +74,21 @@ export async function getAccrued(service: string): Promise<number> {
   return row.total;
 }
 
-/** Servicios con acumulado pendiente (para liquidación por lotes). */
-async function servicesWithAccrued(): Promise<string[]> {
+/**
+ * Servicios elegibles para la liquidación AUTOMÁTICA por lotes (cron): tienen acumulado
+ * pendiente Y su owner activó el opt-in (`users.auto_settle = 1`). Los servicios de publishers
+ * sin opt-in solo se liquidan bajo demanda (POST /v1/publisher/settle) — nunca por el cron.
+ * Exportada para testear el gate sin cadena.
+ */
+export async function servicesToAutoSettle(): Promise<string[]> {
   const rows = (await db
-    .prepare('SELECT DISTINCT service FROM agent_earnings WHERE settlement_id IS NULL')
+    .prepare(
+      `SELECT DISTINCT e.service
+       FROM agent_earnings e
+       JOIN user_agents ua ON ua.service = e.service
+       JOIN users u ON u.id = ua.user_id
+       WHERE e.settlement_id IS NULL AND u.auto_settle = 1`,
+    )
     .all()) as Array<{ service: string }>;
   return rows.map((r) => r.service);
 }
@@ -249,13 +260,16 @@ async function settleAgentInner(service: string): Promise<SettleResult> {
 
 let settling = false;
 
-/** Liquida todos los agentes con acumulado >= mínimo. Guard de solapamiento (single-instance). */
+/**
+ * Liquida (cron) los agentes de publishers con opt-in a auto-liquidación y acumulado >= mínimo.
+ * Guard de solapamiento (single-instance).
+ */
 export async function settleAllDue(): Promise<SettleResult[]> {
   if (settling) return [];
   settling = true;
   try {
     const results: SettleResult[] = [];
-    for (const service of await servicesWithAccrued()) {
+    for (const service of await servicesToAutoSettle()) {
       results.push(await settleAgent(service));
     }
     return results;

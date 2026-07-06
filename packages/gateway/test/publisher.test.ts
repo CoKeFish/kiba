@@ -11,6 +11,7 @@ import {
   listUserSettlements,
   getDailySeries,
 } from '../src/publisher';
+import { servicesToAutoSettle } from '../src/settlement';
 import { db, initDb, pool } from '../src/db';
 import { lamportsToUsd } from '../src/billing';
 import { BASE_UNITS_PER_TOKEN } from '../src/chain';
@@ -43,6 +44,10 @@ async function seedAgent(userId: number, service: string): Promise<void> {
   await db
     .prepare('INSERT INTO user_agents (service, user_id, created_at) VALUES (?, ?, ?)')
     .run(service, userId, Math.floor(Date.now() / 1000));
+}
+
+async function setAutoSettleFlag(userId: number, on: boolean): Promise<void> {
+  await db.prepare('UPDATE users SET auto_settle = ? WHERE id = ?').run(on ? 1 : 0, userId);
 }
 
 async function seedEarning(
@@ -173,6 +178,25 @@ test('listUserSettlements: solo los servicios del user, orden DESC, limit, refs 
   const one = await listUserSettlements(userA, 1);
   assert.equal(one.length, 1);
   assert.equal(one[0].created_at, 2000);
+});
+
+// ─── servicesToAutoSettle (gate del cron por opt-in) ────────────────
+test('servicesToAutoSettle: solo servicios de owners con auto_settle=1 y acumulado pendiente', async () => {
+  const userOn = await createTestUser('on@kiba.test');
+  const userOff = await createTestUser('off@kiba.test');
+  await setAutoSettleFlag(userOn, true);
+  await setAutoSettleFlag(userOff, false);
+  await seedAgent(userOn, 'svc-on');
+  await seedAgent(userOff, 'svc-off');
+  // Pendiente en ambos, pero solo el opt-in debe salir.
+  await seedEarning('svc-on', 50000);
+  await seedEarning('svc-off', 50000);
+  // Servicio del opt-in pero ya liquidado (sin pendiente) → excluido.
+  await seedAgent(userOn, 'svc-on-settled');
+  await seedEarning('svc-on-settled', 50000, { settlementId: 1, settledAt: 1 });
+
+  const services = await servicesToAutoSettle();
+  assert.deepEqual(services.sort(), ['svc-on']);
 });
 
 // ─── getDailySeries ─────────────────────────────────────────────────

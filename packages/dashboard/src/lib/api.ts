@@ -133,6 +133,15 @@ export const api = {
     request<PublisherSettlements>(`/v1/publisher/settlements?limit=${limit}`),
   publisherAnalytics: (days = 30) =>
     request<PublisherAnalytics>(`/v1/publisher/analytics?days=${days}`),
+  // Liquidación bajo demanda: paga on-chain (vía TW) el acumulado de todos los agentes del caller.
+  publisherSettle: () =>
+    request<{ settlements: SettleResult[] }>("/v1/publisher/settle", { method: "POST" }),
+  // Opt-in/out del publisher a la liquidación automática por lotes (cron).
+  setAutoSettle: (enabled: boolean) =>
+    request<{ auto_settle: boolean }>("/v1/publisher/auto-settle", {
+      method: "POST",
+      body: JSON.stringify({ enabled }),
+    }),
 
   // Pagos fiat (Bre-B / Stripe / Wompi) → créditos. Varios métodos a la vez.
   paymentsConfig: () => request<PaymentsConfig>("/v1/payments/config"),
@@ -335,11 +344,20 @@ export type PayoutWallet = {
   usd: number;
 };
 
+export type SettleResult = {
+  service: string;
+  status: "settled" | "skipped" | "failed";
+  amountLamports: number;
+  escrowId?: string;
+  reason?: string;
+};
+
 export type PublisherOverview = {
   asset: "SOL" | "XLM";
   base_unit_name: "lamports" | "stroops";
   is_publisher: boolean;
   publisher_name: string | null;
+  auto_settle?: boolean;
   fee: { bps: number; pct: number };
   totals: {
     agents: number;

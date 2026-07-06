@@ -128,6 +128,7 @@ async function runInit(): Promise<void> {
       created_at BIGINT NOT NULL,
       is_publisher INTEGER NOT NULL DEFAULT 0,
       publisher_name TEXT,
+      auto_settle INTEGER NOT NULL DEFAULT 0,
       privy_wallet_id TEXT,
       stellar_address TEXT
     );
@@ -296,6 +297,9 @@ async function runInit(): Promise<void> {
     `ALTER TABLE users ADD COLUMN IF NOT EXISTS is_publisher INTEGER NOT NULL DEFAULT 0`,
   );
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS publisher_name TEXT`);
+  await pool.query(
+    `ALTER TABLE users ADD COLUMN IF NOT EXISTS auto_settle INTEGER NOT NULL DEFAULT 0`,
+  );
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS privy_wallet_id TEXT`);
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS stellar_address TEXT`);
   // Fund per-call: earning fondeada on-chain apunta al escrow del ciclo (NULL = legacy/acumulado).
@@ -321,6 +325,8 @@ export interface UserRow {
   created_at: number;
   is_publisher: number;
   publisher_name: string | null;
+  /** Opt-in del publisher a la liquidación automática por lotes (cron). 0 = solo bajo demanda. */
+  auto_settle: number;
   /** Privy: id de la server wallet (clave en el TEE de Privy). null = legacy/no migrado. */
   privy_wallet_id: string | null;
   /** Privy: dirección Stellar (G...) de la wallet. null = legacy/no migrado. */

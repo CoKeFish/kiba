@@ -945,6 +945,57 @@
   color: var(--color-danger, #ef4444);
 }
 
+.pub-auto-settle {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin-top: 14px;
+  cursor: pointer;
+}
+
+.pub-auto-settle input[type="checkbox"] {
+  margin-top: 3px;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+}
+
+.pub-auto-settle__title {
+  display: block;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-fg);
+}
+
+.pub-auto-settle__desc {
+  display: block;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--color-fg-muted);
+  margin-top: 2px;
+}
+
+.pub-settle-msg {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  margin-top: 10px;
+}
+
+.pub-spin {
+  display: inline-block;
+  vertical-align: middle;
+  animation: pub-spin 0.8s linear infinite;
+}
+
+@keyframes pub-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .pub-loading {
   font-family: var(--font-sans);
   font-size: 13px;

@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api, type SettlementRef } from "@/lib/api";
 import { formatUsd, shortSig } from "@/lib/format";
 import { chain } from "@/lib/chain";
 import { serviceToName } from "@/components/AgentManager";
-import { Check, Copy, ExternalLink, Info, Wallet } from "lucide-react";
+import { Check, Copy, ExternalLink, Info, Loader2, Wallet } from "lucide-react";
 import "./publisher.css";
 
 /** URL del explorer para una ref on-chain de settlement (tx / contract). null = sin link. */
@@ -17,6 +17,7 @@ function refUrl(r: SettlementRef): string | null {
 
 export default function PublisherPayouts() {
   const { t } = useTranslation();
+  const qc = useQueryClient();
   const { data, isLoading } = useQuery({
     queryKey: ["publisher-overview"],
     queryFn: api.publisherOverview,
@@ -31,6 +32,31 @@ export default function PublisherPayouts() {
 
   const feePct = data?.fee.pct ?? 5;
   const netPct = 100 - feePct;
+  const autoSettleOn = data?.auto_settle ?? false;
+
+  // Toggle opt-in a la liquidación automática por lotes (cron).
+  const autoSettleMut = useMutation({
+    mutationFn: (enabled: boolean) => api.setAutoSettle(enabled),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["publisher-overview"] }),
+  });
+
+  // Liquidación bajo demanda (on-chain vía TW; puede tardar ~1 min).
+  const settleMut = useMutation({
+    mutationFn: () => api.publisherSettle(),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["publisher-overview"] });
+      qc.invalidateQueries({ queryKey: ["publisher-settlements"] });
+    },
+  });
+
+  const settleSummary = (() => {
+    if (settleMut.isError) return { kind: "error" as const, text: t("publisher.payouts.settle_error") };
+    const s = settleMut.data?.settlements;
+    if (!s) return null;
+    const settled = s.filter((x) => x.status === "settled").length;
+    if (settled > 0) return { kind: "ok" as const, text: t("publisher.payouts.settle_success", { count: settled }) };
+    return { kind: "muted" as const, text: t("publisher.payouts.settle_none") };
+  })();
 
   // Wallets OWNER (donde caen los payouts); fallback a la custodial si aún no hay agentes.
   const wallets =
@@ -141,9 +167,51 @@ export default function PublisherPayouts() {
             </div>
           </div>
 
-          <button type="button" className="pub-btn pub-btn--primary" style={{ marginTop: 16 }} disabled>
-            {t("publisher.payouts.request_payout")}
+          <label className="pub-auto-settle">
+            <input
+              type="checkbox"
+              checked={autoSettleOn}
+              disabled={autoSettleMut.isPending || !data}
+              onChange={(e) => autoSettleMut.mutate(e.target.checked)}
+            />
+            <span>
+              <span className="pub-auto-settle__title">{t("publisher.payouts.auto_settle_title")}</span>
+              <span className="pub-auto-settle__desc">
+                {t("publisher.payouts.auto_settle_desc", { netPct })}
+              </span>
+            </span>
+          </label>
+
+          <button
+            type="button"
+            className="pub-btn pub-btn--primary"
+            style={{ marginTop: 16 }}
+            onClick={() => settleMut.mutate()}
+            disabled={settleMut.isPending || pendingAsset <= 0}
+          >
+            {settleMut.isPending ? (
+              <>
+                <Loader2 size={14} className="pub-spin" /> {t("publisher.payouts.settling")}
+              </>
+            ) : (
+              t("publisher.payouts.request_payout")
+            )}
           </button>
+          {settleSummary && (
+            <p
+              className="pub-settle-msg"
+              style={{
+                color:
+                  settleSummary.kind === "ok"
+                    ? "var(--color-success)"
+                    : settleSummary.kind === "error"
+                      ? "var(--color-danger, #ef4444)"
+                      : "var(--color-fg-muted)",
+              }}
+            >
+              {settleSummary.text}
+            </p>
+          )}
         </div>
       </section>
 

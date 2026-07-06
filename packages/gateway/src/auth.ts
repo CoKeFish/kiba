@@ -140,6 +140,12 @@ export async function setPublisher(userId: number, name?: string): Promise<UserR
   return getUser(userId);
 }
 
+/** Opt-in/out del publisher a la liquidación automática por lotes (cron). Idempotente. */
+export async function setAutoSettle(userId: number, enabled: boolean): Promise<UserRow | null> {
+  await db.prepare('UPDATE users SET auto_settle = ? WHERE id = ?').run(enabled ? 1 : 0, userId);
+  return getUser(userId);
+}
+
 export async function getUserByToken(token: string): Promise<UserRow | null> {
   const row = (await db
     .prepare('SELECT * FROM oauth_tokens WHERE token = ? AND revoked = 0')

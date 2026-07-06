@@ -17,6 +17,7 @@ import {
   createUser,
   getUser,
   getUserByToken,
+  setAutoSettle,
   setPublisher,
   signJwt,
   verifyJwt,
@@ -1032,6 +1033,7 @@ app.get('/v1/publisher/overview', requireAuth, async (req, res) => {
       base_unit_name: BASE_UNIT_NAME,
       is_publisher: !!user.is_publisher,
       publisher_name: user.publisher_name ?? null,
+      auto_settle: !!user.auto_settle,
       fee: { bps: PLATFORM_FEE_BPS, pct: PLATFORM_FEE_BPS / 100 },
       totals: {
         agents: agents.length,
@@ -1078,6 +1080,15 @@ app.post('/v1/publisher/settle', requireAuth, async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
   }
+});
+
+// Opt-in/out del publisher a la liquidación AUTOMÁTICA por lotes (cron). Sin opt-in, el caller
+// solo cobra bajo demanda (POST /v1/publisher/settle). No afecta pagos ya acumulados.
+app.post('/v1/publisher/auto-settle', requireAuth, async (req, res) => {
+  const enabled = req.body?.enabled === true || req.body?.enabled === 'true';
+  const user = await setAutoSettle(req.bearerUser!.id, enabled);
+  if (!user) return res.status(404).json({ error: 'user not found' });
+  res.json({ auto_settle: !!user.auto_settle });
 });
 
 /**
