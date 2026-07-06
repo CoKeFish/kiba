@@ -13,14 +13,17 @@ import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
 
 // ─── Config de la demo (editar aquí) ─────────────────────────────────────────
-// Solo el publisher dueño de DEMO_SERVICE ve el FAB. Los links del panel son
-// defaults provisionales: añadir/quitar líneas según lo que pida la demo.
+// Solo el publisher dueño de DEMO_SERVICE ve el FAB. Los links del panel se
+// editan aquí: `to` navega dentro del dashboard, `href` abre en pestaña nueva.
 const DEMO_SERVICE = "web-scraper";
-const DEMO_LINKS = [
+type DemoLink = { labelKey: string } & ({ to: string } | { href: string });
+const DEMO_LINKS: DemoLink[] = [
   { to: "/app/publisher", labelKey: "demo_fab.links.overview" },
   { to: "/app/publisher/payouts", labelKey: "demo_fab.links.payouts" },
   { to: "/app/publisher/analytics", labelKey: "demo_fab.links.analytics" },
   { to: "/app/transactions", labelKey: "demo_fab.links.transactions" },
+  { href: "https://www.npmjs.com/package/kiba-mcp", labelKey: "demo_fab.links.mcp" },
+  { href: "https://www.npmjs.com/package/kiba-sdk", labelKey: "demo_fab.links.sdk" },
 ];
 
 const FAB_SIZE = 52;
@@ -172,23 +175,41 @@ function DemoFabInner() {
           </div>
 
           <nav style={{ display: "flex", flexDirection: "column", gap: 2, marginBottom: 12 }}>
-            {DEMO_LINKS.map((l) => (
-              <Link
-                key={l.to}
-                to={l.to}
-                onClick={() => setOpen(false)}
-                style={{
-                  padding: "7px 10px",
-                  borderRadius: "var(--radius-sm)",
-                  fontSize: 13,
-                  color: "var(--color-fg)",
-                  textDecoration: "none",
-                }}
-                className="demo-fab-link"
-              >
-                {t(l.labelKey)}
-              </Link>
-            ))}
+            {DEMO_LINKS.map((l) => {
+              const linkStyle: CSSProperties = {
+                padding: "7px 10px",
+                borderRadius: "var(--radius-sm)",
+                fontSize: 13,
+                color: "var(--color-fg)",
+                textDecoration: "none",
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+              };
+              return "href" in l ? (
+                <a
+                  key={l.href}
+                  href={l.href}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={() => setOpen(false)}
+                  style={linkStyle}
+                  className="demo-fab-link"
+                >
+                  {t(l.labelKey)} <ExternalLink size={12} style={{ color: "var(--color-fg-subtle)" }} />
+                </a>
+              ) : (
+                <Link
+                  key={l.to}
+                  to={l.to}
+                  onClick={() => setOpen(false)}
+                  style={linkStyle}
+                  className="demo-fab-link"
+                >
+                  {t(l.labelKey)}
+                </Link>
+              );
+            })}
           </nav>
 
           <button

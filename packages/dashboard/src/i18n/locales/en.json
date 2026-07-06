@@ -506,7 +506,9 @@
       "overview": "Publisher overview",
       "payouts": "Payouts",
       "analytics": "Analytics",
-      "transactions": "Transactions"
+      "transactions": "Transactions",
+      "mcp": "MCP connector (npm)",
+      "sdk": "SDK (npm)"
     },
     "fund_button": "Fund escrow +1 USDC",
     "funding": "Funding escrow…",
