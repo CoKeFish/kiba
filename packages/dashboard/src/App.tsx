@@ -11,7 +11,6 @@ import Playground from "@/routes/Playground";
 import Usage from "@/routes/Usage";
 import Billing from "@/routes/Billing";
 import Settings from "@/routes/Settings";
-import Platform from "@/routes/Platform";
 import PublisherOverview from "@/routes/publisher/Overview";
 import PublisherAgents from "@/routes/publisher/Agents";
 import PublisherAnalytics from "@/routes/publisher/Analytics";
@@ -59,7 +58,9 @@ export default function App() {
         <Route path="playground" element={<Playground />} />
         <Route path="credentials" element={<Credentials />} />
         <Route path="billing" element={<Billing />} />
-        <Route path="platform" element={<Platform />} />
+        {/* /app/platform (Platform Revenue) retirada del dashboard de usuario final:
+            mostraba la tesorería/comisión de Kiba — info interna, no una herramienta
+            del usuario. Platform.tsx queda sin cablear por si vuelve como vista admin. */}
         <Route path="settings" element={<Settings />} />
 
         {/* Publisher area — same account, gated by "Become a publisher" onboarding */}

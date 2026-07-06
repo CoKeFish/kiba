@@ -36,7 +36,6 @@ const consumerNav = [
   { to: "/app/transactions", label: "nav.transactions", icon: Receipt },
   { to: "/app/credentials", label: "nav.credentials", icon: Key },
   { to: "/app/billing", label: "nav.billing", icon: CreditCard },
-  { to: "/app/platform", label: "nav.platform", icon: Coins },
   { to: "/app/settings", label: "nav.settings", icon: SettingsIcon },
 ];
 
