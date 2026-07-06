@@ -4,16 +4,27 @@
  * En modo crédito, `call_agent` acredita la ganancia del agente aquí (`recordEarning`)
  * por el precio COMPLETO de la llamada y, con fund per-call activo (escrows.ts), fondea
  * esa ganancia al escrow TW del ciclo del servicio (la fila queda con `escrow_id` y el
- * usuario ve la tx consultable). La liquidación (`settleAgent`) paga el acumulado al
- * agente vía el settle clásico self-release (deploy+fund+release; TW aplica el
- * platformFee → ~95% al agente) y CIERRA los escrows del ciclo (ver nota en fase 2:
- * la API dev de TW no permite liberar por balance).
+ * usuario ve la tx consultable).
+ *
+ * La liquidación (`settleAgent`) paga el acumulado al agente BARRIENDO los escrows del
+ * ciclo (vía SWEEP): `release` paga el monto declarado y deja el escrow "procesado";
+ * `withdraw_remaining_funds` (invocación directa al contrato — la API REST de TW no lo
+ * expone) reparte el balance restante al agente con el 95/5 aplicado por el contrato.
+ * Así el dinero fondeado per-call ES el dinero que cobra el agente (antes el settle
+ * pagaba OTRA VEZ desde la treasury y el balance del ciclo quedaba atrapado — ~195% de
+ * salida por dólar facturado). Las earnings que nunca se fondearon (cola llena, TW
+ * caído) se pagan por el settle clásico (deploy+fund+release) SOLO por el residual.
+ *
+ * Kill-switch: SETTLE_SWEEP=0 vuelve al settle clásico puro. OJO: no apagarlo tras un
+ * sweep parcial fallido — el settle clásico pagaría el total y duplicaría lo ya barrido.
  *
  * Concurrencia: cada fase que toca la DB es atómica vía `withTransaction` (transacción Postgres).
  * El claim marca las filas con `settlement_id` ANTES del pago on-chain: llamadas concurrentes no
  * se liquidan dos veces, y un pago que falla libera las filas (`settlement_id = NULL`) para
  * reintentar sin pérdida. Además, TODO el settleAgent corre como UNA tarea de la cola de la
  * treasury (escrows.ts): ningún fund per-call puede aterrizar entre el claim y el release.
+ * El sweep es re-entrante: `release` de TW es idempotente y el withdraw relee el balance
+ * on-chain, así que un retry tras fallo parcial no puede pagar dos veces.
  */
 import { db, withTransaction } from './db';
 import { BASE_UNITS_PER_TOKEN, chainClientFor } from './chain';
@@ -92,6 +103,8 @@ async function settleAgentInner(service: string): Promise<SettleResult> {
   let amount = 0;
   let payTo = '';
   let cycleEscrows: ServiceEscrowRow[] = [];
+  // Suma reclamada por escrow del ciclo ('' = earnings nunca fondeadas → vía clásica).
+  const coveredByEscrow = new Map<string, number>();
   const claimed = await withTransaction(async (tx): Promise<{ ok: boolean; total: number }> => {
     const rows = (await tx
       .prepare(
@@ -114,6 +127,14 @@ async function settleAgentInner(service: string): Promise<SettleResult> {
         'UPDATE agent_earnings SET settlement_id = ? WHERE service = ? AND settlement_id IS NULL',
       )
       .run(settlementId, service);
+    // Desglose por escrow: cuánto del total quedó fondeado en cada escrow del ciclo.
+    const cov = (await tx
+      .prepare(
+        `SELECT COALESCE(escrow_id, '') AS escrow_id, SUM(amount_lamports)::bigint AS amt
+         FROM agent_earnings WHERE settlement_id = ? GROUP BY 1`,
+      )
+      .all(settlementId)) as Array<{ escrow_id: string; amt: number }>;
+    for (const c of cov) coveredByEscrow.set(c.escrow_id, Number(c.amt));
     // Congela los escrows activos y retoma los 'releasing' de settlements fallidos previos.
     await tx
       .prepare("UPDATE service_escrows SET status = 'releasing' WHERE service = ? AND status = 'active'")
@@ -139,30 +160,58 @@ async function settleAgentInner(service: string): Promise<SettleResult> {
     const cc = chainClientFor(getMasterWallet(), 'treasury');
     if (!cc) throw new Error('treasury chain client no disponible');
 
-    // El payout al agente va por el settle clásico (deploy+fund+release del TOTAL
-    // reclamado). Los escrows del ciclo (funds per-call) NO se liberan: el release de
-    // TW paga el monto DECLARADO (no el balance) y la API dev no permite igualarlo
-    // (update-escrow rechaza cualquier cambio; el flujo de disputa exige un
-    // disputeResolver distinto de quien disputa) — verificado en vivo 2026-07-05.
-    // En testnet el balance del ciclo queda retenido en el contrato (USDC de faucet);
-    // antes de mainnet: usar updateEscrowAmount (SDK, ya implementado) cuando TW lo
-    // habilite, o separar el rol disputeResolver de la treasury y liquidar por disputa.
-    const escrowId = await cc.settlePayout({
-      receiver: payTo,
-      service,
-      engagementId: `settle-${settlementId}`,
-      amountBaseUnits: BigInt(amount),
-    });
-    for (const esc of cycleEscrows) {
-      if (esc.funded_lamports > 0) {
-        console.warn(
-          `[settlement] ${service}: escrow de ciclo ${esc.escrow_id} cerrado con ${esc.funded_lamports} retenidos en el contrato (limitación API dev de TW)`,
-        );
+    const onChainRefs: string[] = [];
+    let sweptCovered = 0; // unidades base del claim cubiertas por escrows barridos
+
+    // Vía principal — SWEEP de los escrows del ciclo: release (paga el declarado y
+    // deja el escrow "procesado") + withdraw_remaining_funds (reparte el balance
+    // restante al agente; el contrato aplica el 95/5). El dinero fondeado per-call ES
+    // el payout — nada queda atrapado y la treasury no paga dos veces.
+    // Re-entrante: release es idempotente y el withdraw relee el balance on-chain, así
+    // que un retry tras fallo parcial nunca duplica. Un escrow ya barrido en un intento
+    // fallido anterior queda con balance 0 pero su parte cuenta como cubierta (sus
+    // earnings ya se pagaron on-chain en ese intento).
+    const sweepEnabled =
+      process.env.SETTLE_SWEEP !== '0' && !!cc.escrowChainBalance && !!cc.withdrawEscrowRemaining;
+    if (sweepEnabled) {
+      for (const esc of cycleEscrows) {
+        const balance = await cc.escrowChainBalance!(esc.escrow_id);
+        if (balance > 0n) {
+          await cc.claimPayment({ escrowId: esc.escrow_id });
+          const remaining = await cc.escrowChainBalance!(esc.escrow_id);
+          if (remaining > 0n) {
+            const h = await cc.withdrawEscrowRemaining!({
+              escrowId: esc.escrow_id,
+              // pay_to del ESCROW (no del claim): si el owner rotó a mitad de ciclo,
+              // cada escrow paga a su dueño de entonces.
+              distributions: [{ address: esc.pay_to, amountBaseUnits: remaining }],
+            });
+            onChainRefs.push(h);
+            console.log(
+              `[settlement] ${service}: sweep de ${esc.escrow_id} → ${remaining} al agente (${h})`,
+            );
+          }
+        }
+        sweptCovered += coveredByEscrow.get(esc.escrow_id) ?? 0;
       }
     }
 
+    // Residual — earnings nunca fondeadas (escrow_id NULL: cola llena/TW caído) van por
+    // el settle clásico (deploy+fund+release de un escrow nuevo con el declarado
+    // correcto desde el día uno — sin excedente atrapado).
+    const legacyAmount = amount - sweptCovered;
+    if (legacyAmount > 0) {
+      const legacyEscrowId = await cc.settlePayout({
+        receiver: payTo,
+        service,
+        engagementId: `settle-${settlementId}`,
+        amountBaseUnits: BigInt(legacyAmount),
+      });
+      onChainRefs.push(legacyEscrowId);
+    }
+
     // ── Fase 3a: éxito ─────────────────────────────────────────────────────
-    const escrowIds = escrowId;
+    const escrowIds = onChainRefs.join(',') || `settle-${settlementId}`;
     const now = Math.floor(Date.now() / 1000);
     await withTransaction(async (tx) => {
       await tx

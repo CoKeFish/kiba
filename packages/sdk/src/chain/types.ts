@@ -202,6 +202,24 @@ export interface ChainClient {
    * Iguala el monto DECLARADO del escrow al dado. El release de Trustless Work paga el
    * declarado (no el balance): llamarlo antes de `claimPayment` en escrows fondeados
    * incrementalmente, o el excedente queda atrapado en el contrato. Opcional.
+   * OJO: el contrato de TW rechaza cambios de amount con fondos dentro (validador
+   * `has_funds`) — en la práctica solo sirve sobre escrows vacíos.
    */
   updateEscrowAmount?(args: { escrowId: string; amountBaseUnits: bigint }): Promise<void>;
+
+  /** Balance del activo retenido por el contrato del escrow on-chain, en unidades base. */
+  escrowChainBalance?(escrowId: string): Promise<bigint>;
+
+  /**
+   * Barre el balance RESTANTE de un escrow ya procesado (released/resolved/disputed)
+   * hacia las direcciones dadas — `withdraw_remaining_funds` del contrato single-release
+   * de TW. El contrato aplica las fees estándar sobre el total barrido (platformFee de
+   * vuelta a la plataforma + 30 bps a TW). Firma este signer, que debe ser el
+   * `disputeResolver` del escrow. Es la pieza que evita que el excedente de un escrow
+   * fondeado incrementalmente quede atrapado tras el release. Devuelve el tx hash.
+   */
+  withdrawEscrowRemaining?(args: {
+    escrowId: string;
+    distributions: Array<{ address: string; amountBaseUnits: bigint }>;
+  }): Promise<string>;
 }

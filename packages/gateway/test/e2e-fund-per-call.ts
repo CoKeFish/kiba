@@ -18,11 +18,27 @@
  *      escrow en ambas, tx consultable en Horizon, transactions.signature poblada,
  *      agent_earnings.escrow_id seteado, service_escrows activa con funded = suma.
  *   4. /v1/publisher/settle → settlement 'settled', escrow 'released', delta USDC del
- *      agente ≈ 94-95% de lo fondeado (valida que el release paga el BALANCE).
+ *      agente ≈ 94-95% de lo liquidado, Y (sweep):
+ *        - el escrow del ciclo queda VACÍO on-chain (release+withdraw_remaining_funds
+ *          drenan el balance — nada atrapado en el contrato);
+ *        - la treasury NO vuelve a pagar el total (el payout sale del escrow del ciclo,
+ *          no de dinero nuevo — antes salía ~195% por dólar facturado).
  *   5. /v1/call de nuevo → escrow NUEVO (ciclo 2).
  */
 import assert from 'node:assert/strict';
 import axios, { type AxiosInstance } from 'axios';
+import {
+  Account,
+  Asset,
+  BASE_FEE,
+  Contract,
+  Keypair,
+  Networks,
+  TransactionBuilder,
+  nativeToScVal,
+  rpc,
+  scValToNative,
+} from '@stellar/stellar-sdk';
 import { db } from '../src/db';
 
 const SERVICE = process.env.SERVICE || '';
@@ -68,6 +84,22 @@ async function usdcBalance(account: string): Promise<number> {
     (b) => b.asset_code === 'USDC' && b.asset_issuer === USDC_ISSUER,
   );
   return entry ? parseFloat(entry.balance) : 0;
+}
+
+/** Balance USDC (unidades base) retenido por un CONTRATO (escrow) — vía el SAC, simulado. */
+async function contractUsdcBalance(contractId: string): Promise<bigint> {
+  const server = new rpc.Server(process.env.STELLAR_RPC_URL || 'https://soroban-testnet.stellar.org');
+  const passphrase = process.env.STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET;
+  const sac = new Asset('USDC', USDC_ISSUER).contractId(passphrase);
+  const source = new Account(Keypair.random().publicKey(), '0'); // simulación: no requiere cuenta real
+  const tx = new TransactionBuilder(source, { fee: BASE_FEE, networkPassphrase: passphrase })
+    .addOperation(new Contract(sac).call('balance', nativeToScVal(contractId, { type: 'address' })))
+    .setTimeout(30)
+    .build();
+  const sim = await server.simulateTransaction(tx);
+  if (!rpc.Api.isSimulationSuccess(sim) || !sim.result) return 0n;
+  const bal = scValToNative(sim.result.retval);
+  return typeof bal === 'bigint' ? bal : BigInt(Math.floor(Number(bal ?? 0)));
 }
 
 interface CallResult {
@@ -192,9 +224,14 @@ async function main(): Promise<void> {
   );
   console.log(`   DB consistente ✓ (fondeado +${fundedSum} base units)`);
 
-  // ── 4. Settle → release del escrow ───────────────────────────────────────
-  step('4. /v1/publisher/settle (release del ciclo)');
+  // ── 4. Settle → sweep del escrow del ciclo ──────────────────────────────
+  step('4. /v1/publisher/settle (sweep del ciclo: release + withdraw_remaining_funds)');
   const balBefore = await usdcBalance(agentWallet);
+  const treasuryAddr = process.env.TRUSTLESS_WORK_PLATFORM_ADDRESS || '';
+  const treasuryBefore = treasuryAddr ? await usdcBalance(treasuryAddr) : 0;
+  const escrowBalBefore = await contractUsdcBalance(e1.escrowId);
+  assert.ok(escrowBalBefore > 0n, 'el escrow del ciclo debe tener balance on-chain antes del settle');
+  console.log(`   escrow del ciclo: ${escrowBalBefore} base units on-chain antes del settle`);
   const now = Math.floor(Date.now() / 1000);
   await db
     .prepare(
@@ -236,6 +273,35 @@ async function main(): Promise<void> {
     delta >= expected * 0.92 && delta <= expected * 0.97,
     `delta ${delta} fuera del rango esperado [92%, 97%] de ${expected}`,
   );
+
+  // SWEEP: el escrow del ciclo debe quedar VACÍO on-chain (release paga el declarado y
+  // withdraw_remaining_funds barre el resto). Con el flujo viejo aquí quedaba atrapado
+  // todo el balance menos el declarado.
+  const escrowBalAfter = await poll(
+    'drenaje del escrow del ciclo',
+    async () => {
+      const b = await contractUsdcBalance(e1.escrowId);
+      return b === 0n ? 0n : null;
+    },
+    { timeoutMs: 60_000 },
+  );
+  assert.equal(escrowBalAfter, 0n);
+  console.log('   escrow del ciclo drenado (balance on-chain = 0) ✓');
+
+  // SWEEP: la treasury no vuelve a pagar el total con dinero nuevo. Con el flujo viejo
+  // su delta era ≈ −95% del liquidado; con el sweep, el payout sale del escrow del
+  // ciclo y la treasury además RECIBE su 5% — solo el residual legacy (earnings nunca
+  // fondeadas, p.ej. de corridas previas) sale de su bolsillo.
+  if (treasuryAddr) {
+    const treasuryAfter = await usdcBalance(treasuryAddr);
+    const treasuryDelta = treasuryAfter - treasuryBefore;
+    const fundedExpected = fundedSum / 1e7;
+    console.log(`   treasury delta: ${treasuryDelta.toFixed(7)} USDC`);
+    assert.ok(
+      treasuryDelta > -(expected - fundedExpected * 0.9),
+      `la treasury pagó de más (${treasuryDelta}): ¿el sweep no corrió y salió todo por la vía clásica?`,
+    );
+  }
 
   // ── 5. Ciclo nuevo ───────────────────────────────────────────────────────
   step('5. /v1/call de nuevo → escrow del ciclo 2');

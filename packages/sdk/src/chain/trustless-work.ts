@@ -75,6 +75,13 @@ export interface TrustlessWorkConfig {
   platformFee: number;
   /** Trustline (token) que mueve el escrow. Testnet suele ser USDC. */
   trustline: { address: string; symbol: string };
+  /**
+   * Fee wallet de TW (G...): tercer arg de release_funds/withdraw_remaining_funds en el
+   * contrato (recibe los 30 bps de TW). La API REST lo inyecta server-side; las
+   * invocaciones DIRECTAS al contrato (withdraw_remaining_funds, sin endpoint REST)
+   * lo necesitan explícito.
+   */
+  feeAddress?: string;
   /** Network passphrase para firmar el XDR. */
   networkPassphrase: string;
   /** Unidades base por token (para convertir baseUnits ⇄ monto decimal de TW). */

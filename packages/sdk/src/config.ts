@@ -28,6 +28,13 @@ export interface NetworkPreset {
   /** Friendbot funds test accounts. Absent on mainnet — accounts must be pre-funded. */
   friendbotUrl?: string;
   trustlessWorkApiUrl: string;
+  /**
+   * Trustless Work fee wallet (G...) for this network. Third arg of the escrow
+   * contract's `release_funds`/`withdraw_remaining_funds` (receives TW's 30 bps).
+   * TW's REST API injects it server-side; direct contract invocations need it
+   * explicitly. Absent → direct sweeps require TRUSTLESS_WORK_FEE_ADDRESS.
+   */
+  trustlessWorkFeeAddress?: string;
   /** Circle USDC issuer (G...) for this network. */
   usdcIssuer: string;
   usdcSymbol: 'USDC';
@@ -45,6 +52,9 @@ export const NETWORK_PRESETS: Record<Network, NetworkPreset> = {
     horizonUrl: 'https://horizon-testnet.stellar.org',
     friendbotUrl: 'https://friendbot.stellar.org',
     trustlessWorkApiUrl: 'https://dev.api.trustlesswork.com',
+    // Fee wallet de TW en testnet — extraída de los args de release_funds de releases
+    // reales construidos por su API dev (verificado 2026-07-06, constante en todos).
+    trustlessWorkFeeAddress: 'GA6KH5VWPCHBOEF63X57SPX6T4H366YFFKKGCVDBTXT2N7JVL6PJCK7G',
     // Circle USDC on Stellar testnet.
     usdcIssuer: 'GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5',
     usdcSymbol: 'USDC',
@@ -73,6 +83,12 @@ export interface TrustlessWorkOptions {
   fee?: number;
   /** Trustline token moved by the escrow. Defaults to the network's USDC. */
   trustline?: { address: string; symbol: string };
+  /**
+   * TW fee wallet (G...) used as `trustless_work_address` in DIRECT contract
+   * invocations (e.g. withdraw_remaining_funds — TW's REST API has no endpoint).
+   * Defaults to the network preset (known for testnet).
+   */
+  feeAddress?: string;
 }
 
 /** Chain options shared by AgentClient and AgentProvider. */
@@ -103,6 +119,8 @@ export interface ResolvedTrustlessWork {
   platformAddress: string;
   platformFee: number;
   trustline: { address: string; symbol: string };
+  /** Fee wallet de TW para invocaciones directas al contrato (ver TrustlessWorkOptions). */
+  feeAddress?: string;
 }
 
 export interface ResolvedChainConfig {
@@ -171,6 +189,11 @@ export function resolveChainConfig(opts: ChainOptions = {}, env: Env = process.e
           address: assetIssuer ?? preset.usdcIssuer,
           symbol: pick(env.TRUSTLESS_WORK_TRUSTLINE_SYMBOL, preset.usdcSymbol)!,
         },
+      feeAddress: pick(
+        opts.trustlessWork?.feeAddress,
+        env.TRUSTLESS_WORK_FEE_ADDRESS,
+        preset.trustlessWorkFeeAddress,
+      ),
     };
   }
 

@@ -72,7 +72,7 @@ export interface StellarChainClientConfig {
    */
   tw?: Pick<
     TrustlessWorkConfig,
-    'apiUrl' | 'apiKey' | 'platformAddress' | 'platformFee' | 'trustline'
+    'apiUrl' | 'apiKey' | 'platformAddress' | 'platformFee' | 'trustline' | 'feeAddress'
   >;
 }
 
@@ -91,6 +91,8 @@ export class StellarChainClient implements ChainClient {
   private readonly assetIssuer?: string;
   /** Cliente de escrow de Trustless Work. null si no está configurado. */
   private readonly tw: TrustlessWorkEscrowClient | null;
+  /** Fee wallet de TW para invocaciones directas al contrato del escrow. */
+  private readonly twFeeAddress?: string;
 
   constructor(cfg: StellarChainClientConfig) {
     this.server = new rpc.Server(cfg.rpcUrl);
@@ -111,6 +113,7 @@ export class StellarChainClient implements ChainClient {
           label: `${this.label}:tw`,
         })
       : null;
+    this.twFeeAddress = cfg.tw?.feeAddress;
   }
 
   get ownerAddress(): string {
@@ -119,8 +122,14 @@ export class StellarChainClient implements ChainClient {
 
   // ─── helpers de invocación ─────────────────────────────────
 
-  /** Método que cambia estado: prepara (simula + footprint + auth), firma, envía y espera. */
-  private async invoke(method: string, args: xdr.ScVal[]): Promise<string> {
+  /** Método que cambia estado en el contrato Kiba (registro). */
+  private invoke(method: string, args: xdr.ScVal[]): Promise<string> {
+    return this.invokeOn(this.contract, method, args);
+  }
+
+  /** Invocación que cambia estado sobre un contrato arbitrario (registro Kiba o un
+   *  escrow TW): prepara (simula + footprint + auth), firma, envía y espera. */
+  private async invokeOn(contract: Contract, method: string, args: xdr.ScVal[]): Promise<string> {
     // Reintentos: en testnet, submit/confirm falla por races transitorios
     // (txBadSeq con sequence stale, fee de recurso bajo bajo carga, NOT_FOUND
     // por lag de confirmación). Re-leemos la cuenta (sequence fresco) en cada
@@ -136,7 +145,7 @@ export class StellarChainClient implements ChainClient {
           fee: BASE_FEE,
           networkPassphrase: this.networkPassphrase,
         })
-          .addOperation(this.contract.call(method, ...args))
+          .addOperation(contract.call(method, ...args))
           .setTimeout(30)
           .build();
 
@@ -502,7 +511,7 @@ export class StellarChainClient implements ChainClient {
   }
 
   /** Balance USDC del contrato escrow on-chain (vía el SAC del activo), en unidades base. */
-  private async escrowChainBalance(escrowId: string): Promise<bigint> {
+  async escrowChainBalance(escrowId: string): Promise<bigint> {
     if (this.asset === 'XLM' || !this.assetIssuer) return 0n;
     try {
       const sac = new Asset(this.asset, this.assetIssuer).contractId(this.networkPassphrase);
@@ -531,5 +540,43 @@ export class StellarChainClient implements ChainClient {
   async refundEscrow(args: RefundEscrowArgs): Promise<string> {
     // 'this' es el cliente/pagador: recupera fondos vía el flujo de disputa de TW.
     return this.requireTw().refund(args.escrowId);
+  }
+
+  /**
+   * Barre el balance RESTANTE de un escrow TW ya procesado (released/resolved/disputed)
+   * hacia `distributions`, invocando `withdraw_remaining_funds` DIRECTO en el contrato
+   * del escrow vía Soroban RPC — la API REST dev de TW no expone endpoint para esto
+   * (404 verificado 2026-07-06). Firma este signer, que debe ser el `disputeResolver`
+   * del escrow (la treasury en los escrows de ciclo). El contrato aplica las fees
+   * estándar sobre el total barrido (platformFee de vuelta a la plataforma + 30 bps a
+   * TW, que van a `feeAddress`). Devuelve el hash de la tx.
+   */
+  async withdrawEscrowRemaining(args: {
+    escrowId: string;
+    distributions: Array<{ address: string; amountBaseUnits: bigint }>;
+  }): Promise<string> {
+    if (args.distributions.length === 0) {
+      throw new Error(`[${this.label}] withdraw-remaining: distributions vacío`);
+    }
+    if (args.distributions.some((d) => d.amountBaseUnits <= 0n)) {
+      throw new Error(`[${this.label}] withdraw-remaining: los montos deben ser positivos`);
+    }
+    const feeAddress = this.twFeeAddress;
+    if (!feeAddress) {
+      throw new Error(
+        `[${this.label}] withdraw-remaining: falta el fee wallet de TW ` +
+          `(trustlessWork.feeAddress / TRUSTLESS_WORK_FEE_ADDRESS)`,
+      );
+    }
+    // Map<Address, i128> — Soroban exige las claves del map ordenadas (por bytes XDR).
+    const entries = args.distributions
+      .map((d) => ({ key: this.addr(d.address), val: this.i128(d.amountBaseUnits) }))
+      .sort((a, b) => Buffer.compare(a.key.toXDR(), b.key.toXDR()))
+      .map((e) => new xdr.ScMapEntry({ key: e.key, val: e.val }));
+    return this.invokeOn(new Contract(args.escrowId), 'withdraw_remaining_funds', [
+      this.addr(this.signer.publicKey()), // dispute_resolver (= este signer)
+      this.addr(feeAddress),
+      xdr.ScVal.scvMap(entries),
+    ]);
   }
 }
