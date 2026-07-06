@@ -50,8 +50,15 @@ import {
 } from './payments';
 import { callOnBehalf, listAgents, masterWalletPubkey, platformPublicKey } from './proxy';
 import { settleAgent, settleAllDue } from './settlement';
+import { listUserSettlements, getDailySeries } from './publisher';
 import { warmEscrows } from './escrows';
-import { getMasterWallet, getOnChainBalance, getUserBalances, userOnChainBalance } from './wallets';
+import {
+  addressOnChainBalance,
+  getMasterWallet,
+  getOnChainBalance,
+  getUserBalances,
+  userOnChainBalance,
+} from './wallets';
 import { ASSET, ASSET_USD_RATE, BASE_UNITS_PER_TOKEN, explorerTxUrl } from './chain';
 import { BASE_UNIT_NAME } from './wallets';
 import { PLATFORM_FEE_BPS, BPS_DENOMINATOR } from 'kiba-sdk';
@@ -998,9 +1005,28 @@ app.get('/v1/publisher/overview', requireAuth, async (req, res) => {
       listMyAgents(userId),
       userOnChainBalance(userId).catch(() => 0),
     ]);
+
+    // Balance real donde aterrizan los payouts: la(s) wallet(s) OWNER de los agentes (no la
+    // custodial del user). Un owner puede tener varios servicios → deduplicamos direcciones.
+    const owners = [...new Set(agents.map((a) => a.owner))];
+    const payoutWallets = await Promise.all(
+      owners.map(async (address) => {
+        const base = await addressOnChainBalance(address); // ya hace catch→0
+        return {
+          address,
+          base_units: base,
+          asset_amount: base / BASE_UNITS_PER_TOKEN,
+          usd: lamportsToUsd(base),
+        };
+      }),
+    );
+    const payoutTotalBase = payoutWallets.reduce((s, w) => s + w.base_units, 0);
+
+    // Sumar en unidades base y convertir UNA vez (evita drift de floats). Todo NETO.
     const totalCalls = agents.reduce((s, a) => s + (a.totalCalls || 0), 0);
-    // totalEarnedSol ya viene en unidades del activo (alias legacy, valor correcto).
-    const earnedAsset = agents.reduce((s, a) => s + (a.totalEarnedSol || 0), 0);
+    const earnedBase = agents.reduce((s, a) => s + (a.totalEarnedLamports || 0), 0);
+    const pendingBase = agents.reduce((s, a) => s + (a.pendingLamports || 0), 0);
+    const settledBase = agents.reduce((s, a) => s + (a.settledLamports || 0), 0);
     res.json({
       asset: ASSET,
       base_unit_name: BASE_UNIT_NAME,
@@ -1010,14 +1036,26 @@ app.get('/v1/publisher/overview', requireAuth, async (req, res) => {
       totals: {
         agents: agents.length,
         calls: totalCalls,
-        earned_asset: earnedAsset,
-        earned_usd: earnedAsset * ASSET_USD_RATE,
+        earned_asset: earnedBase / BASE_UNITS_PER_TOKEN,
+        earned_usd: lamportsToUsd(earnedBase),
+        pending_asset: pendingBase / BASE_UNITS_PER_TOKEN,
+        pending_usd: lamportsToUsd(pendingBase),
+        settled_asset: settledBase / BASE_UNITS_PER_TOKEN,
+        settled_usd: lamportsToUsd(settledBase),
       },
+      // Custodial del user (se mantiene por compat; NO es donde caen los payouts hoy).
       wallet: {
         pubkey: user.custodial_wallet_pubkey,
         base_units: walletBaseUnits,
         asset_amount: walletBaseUnits / BASE_UNITS_PER_TOKEN,
         usd: lamportsToUsd(walletBaseUnits),
+      },
+      // Wallets OWNER de los agentes: aquí aterriza el dinero liquidado.
+      payout: {
+        wallets: payoutWallets,
+        total_base_units: payoutTotalBase,
+        total_asset_amount: payoutTotalBase / BASE_UNITS_PER_TOKEN,
+        total_usd: lamportsToUsd(payoutTotalBase),
       },
       agents,
     });
@@ -1037,6 +1075,51 @@ app.post('/v1/publisher/settle', requireAuth, async (req, res) => {
       settlements.push(await settleAgent(a.service));
     }
     res.json({ settlements });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+/**
+ * Historial de liquidaciones del publisher (para Payouts): filas reales de `settlements` de
+ * los servicios del caller, con las refs on-chain tipadas (tx / contract / opaque) para armar
+ * los links a stellar.expert. Solo-DB → no requiere cadena.
+ */
+app.get('/v1/publisher/settlements', requireAuth, async (req, res) => {
+  try {
+    const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 200);
+    const settlements = await listUserSettlements(req.bearerUser!.id, limit);
+    res.json({
+      asset: ASSET,
+      base_unit_name: BASE_UNIT_NAME,
+      fee: { bps: PLATFORM_FEE_BPS, pct: PLATFORM_FEE_BPS / 100 },
+      settlements,
+    });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+/**
+ * Serie temporal por día (últimos `days` días UTC) de calls + ingreso neto del publisher,
+ * desde `agent_earnings`. Alimenta el chart "Calls over time" del dashboard. Solo-DB.
+ */
+app.get('/v1/publisher/analytics', requireAuth, async (req, res) => {
+  try {
+    const days = Math.min(Math.max(Number(req.query.days) || 30, 1), 90);
+    const series = await getDailySeries(req.bearerUser!.id, days);
+    res.json({
+      asset: ASSET,
+      base_unit_name: BASE_UNIT_NAME,
+      days,
+      series: series.map((p) => ({
+        day: p.day,
+        calls: p.calls,
+        earned_base_units: p.earnedBaseUnits,
+        earned_asset: p.earnedBaseUnits / BASE_UNITS_PER_TOKEN,
+        earned_usd: lamportsToUsd(p.earnedBaseUnits),
+      })),
+    });
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
   }

@@ -935,6 +935,16 @@
   color: var(--color-fg-muted);
 }
 
+.pub-badge[data-status="pending"] {
+  background: color-mix(in srgb, #f59e0b 14%, transparent);
+  color: #d97706;
+}
+
+.pub-badge[data-status="failed"] {
+  background: color-mix(in srgb, var(--color-danger, #ef4444) 14%, transparent);
+  color: var(--color-danger, #ef4444);
+}
+
 .pub-loading {
   font-family: var(--font-sans);
   font-size: 13px;

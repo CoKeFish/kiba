@@ -292,8 +292,12 @@ export class StellarChainClient implements ChainClient {
   }
 
   async getBalanceBaseUnits(): Promise<bigint> {
+    return this.getBalanceOfAddress(this.signer.publicKey());
+  }
+
+  async getBalanceOfAddress(address: string): Promise<bigint> {
     try {
-      const acct = await this.horizon.loadAccount(this.signer.publicKey());
+      const acct = await this.horizon.loadAccount(address);
       // Activo emitido (USDC) → balance del trustline; sin issuer → balance nativo (XLM).
       const entry =
         this.asset !== 'XLM' && this.assetIssuer

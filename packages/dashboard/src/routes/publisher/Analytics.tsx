@@ -15,6 +15,8 @@ const BAR_COLORS = [
   "#00D1C2",
 ];
 
+const ANALYTICS_DAYS = 30;
+
 export default function PublisherAnalytics() {
   const { t } = useTranslation();
   const { data, isLoading } = useQuery({
@@ -22,11 +24,20 @@ export default function PublisherAnalytics() {
     queryFn: api.publisherOverview,
     refetchInterval: 20_000,
   });
+  const { data: analytics } = useQuery({
+    queryKey: ["publisher-analytics"],
+    queryFn: () => api.publisherAnalytics(ANALYTICS_DAYS),
+    refetchInterval: 20_000,
+  });
 
   const agents = (data?.agents ?? []).slice().sort((a, b) => b.totalCalls - a.totalCalls);
-  const maxCalls = Math.max(1, ...agents.map((a) => a.totalCalls));
   const totalCalls = data?.totals.calls ?? 0;
   const feePct = data?.fee.pct ?? 5;
+
+  // Serie diaria (una sola serie temporal → un solo color, sin leyenda).
+  const series = analytics?.series ?? [];
+  const maxDayCalls = Math.max(1, ...series.map((p) => p.calls));
+  const hasSeriesData = series.some((p) => p.calls > 0);
 
   return (
     <div className="pub-page">
@@ -80,17 +91,14 @@ export default function PublisherAnalytics() {
           <div>
             <h2 className="pub-card__title">{t("publisher.analytics.calls_over_time")}</h2>
             <p className="pub-card__desc">
-              {t("publisher.analytics.calls_over_time_desc", {
-                count: totalCalls,
-                formatted: totalCalls.toLocaleString(),
-              })}
+              {t("publisher.analytics.calls_over_time_range", { days: ANALYTICS_DAYS })}
             </p>
           </div>
         </div>
         <div className="pub-card__body">
           {isLoading ? (
             <p className="pub-loading">{t("publisher.analytics.loading")}</p>
-          ) : agents.length === 0 ? (
+          ) : !hasSeriesData ? (
             <div className="pub-empty">
               <img src="/agents/circulo.png" alt="" aria-hidden className="pub-empty__mascot" />
               <p className="pub-empty__title">{t("publisher.analytics.empty_calls_title")}</p>
@@ -100,20 +108,19 @@ export default function PublisherAnalytics() {
             </div>
           ) : (
             <div className="pub-bars">
-              {agents.map((a, i) => {
-                const pct = (a.totalCalls / maxCalls) * 100;
-                const share = totalCalls > 0 ? (a.totalCalls / totalCalls) * 100 : 0;
+              {series.map((p) => {
+                const pct = (p.calls / maxDayCalls) * 100;
                 return (
-                  <div key={a.service}>
+                  <div key={p.day}>
                     <div className="pub-bar-row__head">
-                      <span className="pub-bar-row__name">{serviceToName(a.service)}</span>
+                      <span className="pub-bar-row__name">{p.day.slice(5)}</span>
                       <span className="pub-bar-row__meta">
-                        {t("publisher.analytics.bar_meta", {
-                          calls: a.totalCalls.toLocaleString(),
-                          share: share.toFixed(0),
+                        {t("publisher.analytics.day_meta", {
+                          count: p.calls,
+                          formatted: p.calls.toLocaleString(),
                         })}{" "}
                         <span style={{ color: "var(--color-success)" }}>
-                          {formatUsd(solToUsd(a.totalEarnedSol))}
+                          {formatUsd(p.earned_usd)}
                         </span>
                       </span>
                     </div>
@@ -121,8 +128,8 @@ export default function PublisherAnalytics() {
                       <div
                         className="pub-bar-fill"
                         style={{
-                          width: `${Math.max(2, pct)}%`,
-                          background: BAR_COLORS[i % BAR_COLORS.length],
+                          width: p.calls > 0 ? `${Math.max(2, pct)}%` : "0%",
+                          background: BAR_COLORS[0],
                         }}
                       />
                     </div>

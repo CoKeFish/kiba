@@ -18,6 +18,8 @@ export interface ChainConfig {
   explorerTx: (sig: string) => string;
   /** URL del explorer para una cuenta/dirección. */
   explorerAddr: (addr: string) => string;
+  /** URL del explorer para un contrato (escrow TW en refs de settlements legacy). */
+  explorerContract: (id: string) => string;
   /** Horizon REST de la red activa — para armar/enviar la tx desde el navegador. */
   horizonUrl: string;
   /** Passphrase de la red (Networks.TESTNET / Networks.PUBLIC). */
@@ -38,6 +40,7 @@ const CONFIGS: Record<string, ChainConfig> = {
     networkLabel: "Stellar testnet",
     explorerTx: (sig) => `https://stellar.expert/explorer/testnet/tx/${sig}`,
     explorerAddr: (addr) => `https://stellar.expert/explorer/testnet/account/${addr}`,
+    explorerContract: (id) => `https://stellar.expert/explorer/testnet/contract/${id}`,
     horizonUrl: import.meta.env.VITE_STELLAR_HORIZON_URL || "https://horizon-testnet.stellar.org",
     networkPassphrase:
       import.meta.env.VITE_STELLAR_NETWORK_PASSPHRASE || "Test SDF Network ; September 2015",

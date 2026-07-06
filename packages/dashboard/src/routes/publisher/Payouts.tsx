@@ -1,12 +1,19 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { api } from "@/lib/api";
-import { formatUsd } from "@/lib/format";
+import { api, type SettlementRef } from "@/lib/api";
+import { formatUsd, shortSig } from "@/lib/format";
 import { chain } from "@/lib/chain";
-import { serviceToName, solToUsd } from "@/components/AgentManager";
+import { serviceToName } from "@/components/AgentManager";
 import { Check, Copy, ExternalLink, Info, Wallet } from "lucide-react";
 import "./publisher.css";
+
+/** URL del explorer para una ref on-chain de settlement (tx / contract). null = sin link. */
+function refUrl(r: SettlementRef): string | null {
+  if (r.kind === "tx") return chain.explorerTx(r.ref);
+  if (r.kind === "contract") return chain.explorerContract(r.ref);
+  return null;
+}
 
 export default function PublisherPayouts() {
   const { t } = useTranslation();
@@ -15,16 +22,33 @@ export default function PublisherPayouts() {
     queryFn: api.publisherOverview,
     refetchInterval: 20_000,
   });
-  const [copied, setCopied] = useState(false);
+  const { data: settleData } = useQuery({
+    queryKey: ["publisher-settlements"],
+    queryFn: () => api.publisherSettlements(),
+    refetchInterval: 20_000,
+  });
+  const [copied, setCopied] = useState<string | null>(null);
 
-  const pubkey = data?.wallet.pubkey ?? "";
   const feePct = data?.fee.pct ?? 5;
   const netPct = 100 - feePct;
 
-  const copy = () => {
-    navigator.clipboard?.writeText(pubkey).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
+  // Wallets OWNER (donde caen los payouts); fallback a la custodial si aún no hay agentes.
+  const wallets =
+    data?.payout?.wallets && data.payout.wallets.length > 0
+      ? data.payout.wallets
+      : data?.wallet.pubkey
+        ? [{ address: data.wallet.pubkey, base_units: 0, asset_amount: 0, usd: 0 }]
+        : [];
+  const availableUsd = data?.payout?.total_usd ?? data?.wallet.usd ?? 0;
+  const availableAsset = data?.payout?.total_asset_amount ?? data?.wallet.asset_amount ?? 0;
+  const pendingAsset = data?.totals.pending_asset ?? 0;
+
+  const settlements = settleData?.settlements ?? [];
+
+  const copy = (address: string) => {
+    navigator.clipboard?.writeText(address).then(() => {
+      setCopied(address);
+      setTimeout(() => setCopied(null), 1500);
     });
   };
 
@@ -45,10 +69,19 @@ export default function PublisherPayouts() {
             <div>
               <p className="pub-kpi__label">{t("publisher.payouts.kpi_available")}</p>
               <p className="pub-kpi__value">
-                {isLoading ? "—" : formatUsd(data?.wallet.usd ?? 0)}
+                {isLoading ? "—" : formatUsd(availableUsd)}
               </p>
               <p className="pub-kpi__hint">
-                {data ? `${(data.wallet.asset_amount ?? 0).toFixed(4)} ${data.asset}` : ""}
+                {data ? `${availableAsset.toFixed(4)} ${data.asset}` : ""}
+                {pendingAsset > 0 && data ? (
+                  <>
+                    {" · "}
+                    {t("publisher.payouts.kpi_pending_hint", {
+                      amount: pendingAsset.toFixed(4),
+                      asset: data.asset,
+                    })}
+                  </>
+                ) : null}
               </p>
             </div>
             <div className="pub-kpi__icon" style={{ background: "color-mix(in srgb, var(--color-primary) 14%, transparent)", color: "var(--color-primary)" }}>
@@ -82,14 +115,14 @@ export default function PublisherPayouts() {
           </div>
         </div>
         <div className="pub-card__body">
-          <div className="pub-wallet-row">
-            <span>{pubkey || "—"}</span>
-            <button type="button" className="pub-icon-btn" onClick={copy} disabled={!pubkey} aria-label={t("publisher.payouts.copy_address")}>
-              {copied ? <Check size={14} /> : <Copy size={14} />}
-            </button>
-            {pubkey && (
+          {wallets.map((w) => (
+            <div className="pub-wallet-row" key={w.address}>
+              <span>{w.address}</span>
+              <button type="button" className="pub-icon-btn" onClick={() => copy(w.address)} aria-label={t("publisher.payouts.copy_address")}>
+                {copied === w.address ? <Check size={14} /> : <Copy size={14} />}
+              </button>
               <a
-                href={chain.explorerAddr(pubkey)}
+                href={chain.explorerAddr(w.address)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="pub-icon-btn"
@@ -97,8 +130,9 @@ export default function PublisherPayouts() {
               >
                 <ExternalLink size={14} />
               </a>
-            )}
-          </div>
+            </div>
+          ))}
+          {wallets.length === 0 && <div className="pub-wallet-row"><span>—</span></div>}
 
           <div className="pub-info" style={{ marginTop: 14, display: "flex", gap: 10, alignItems: "flex-start" }}>
             <Info size={18} style={{ flexShrink: 0, color: "var(--color-primary)", marginTop: 2 }} />
@@ -121,7 +155,7 @@ export default function PublisherPayouts() {
           </div>
         </div>
         <div className="pub-card__body">
-          {!data || data.totals.calls === 0 ? (
+          {settlements.length === 0 ? (
             <div className="pub-empty">
               <img src="/agents/corazon.png" alt="" aria-hidden className="pub-empty__mascot" />
               <p className="pub-empty__title">{t("publisher.payouts.empty_title")}</p>
@@ -134,25 +168,42 @@ export default function PublisherPayouts() {
               <table className="pub-table">
                 <thead>
                   <tr>
+                    <th>{t("publisher.payouts.th_date")}</th>
                     <th>{t("publisher.payouts.th_agent")}</th>
-                    <th className="is-right">{t("publisher.payouts.th_calls")}</th>
-                    <th className="is-right">{t("publisher.payouts.th_earned")}</th>
+                    <th className="is-right">{t("publisher.payouts.th_amount")}</th>
                     <th>{t("publisher.payouts.th_status")}</th>
+                    <th className="is-right">{t("publisher.payouts.th_link")}</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {data.agents.map((a) => (
-                    <tr key={a.service}>
-                      <td>{serviceToName(a.service)}</td>
-                      <td className="is-right">{a.totalCalls.toLocaleString()}</td>
-                      <td className="is-right pub-table__ok">
-                        {formatUsd(solToUsd(a.totalEarnedSol))}
-                      </td>
-                      <td>
-                        <span className="pub-badge">{t("publisher.payouts.badge_paid")}</span>
-                      </td>
-                    </tr>
-                  ))}
+                  {settlements.map((s) => {
+                    const link = s.refs.map((r) => ({ r, url: refUrl(r) })).find((x) => x.url);
+                    const badgeKey =
+                      s.status === "settled"
+                        ? "publisher.payouts.badge_paid"
+                        : s.status === "pending"
+                          ? "publisher.payouts.badge_pending"
+                          : "publisher.payouts.badge_failed";
+                    return (
+                      <tr key={s.id}>
+                        <td>{new Date(s.created_at * 1000).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}</td>
+                        <td>{serviceToName(s.service)}</td>
+                        <td className="is-right pub-table__ok">{formatUsd(s.net_usd)}</td>
+                        <td>
+                          <span className="pub-badge" data-status={s.status}>{t(badgeKey)}</span>
+                        </td>
+                        <td className="is-right">
+                          {link?.url ? (
+                            <a href={link.url} target="_blank" rel="noopener noreferrer" className="pub-link">
+                              {shortSig(link.r.ref)} <ExternalLink size={12} />
+                            </a>
+                          ) : (
+                            "—"
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

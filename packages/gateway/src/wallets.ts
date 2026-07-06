@@ -140,6 +140,23 @@ export async function userOnChainBalance(userId: number): Promise<number> {
   }
 }
 
+/**
+ * Saldo on-chain (unidades base) del activo de liquidación de una dirección arbitraria
+ * (p.ej. la wallet owner de un agente, donde aterrizan los payouts). 0 si no hay cadena o
+ * falla. Leer un balance no requiere firmar; se usa la master keypair solo para construir el
+ * cliente.
+ */
+export async function addressOnChainBalance(address: string): Promise<number> {
+  const cc = chainClientFor(getMasterWallet(), 'balance-of');
+  if (!cc?.getBalanceOfAddress) return 0;
+  try {
+    return Number(await cc.getBalanceOfAddress(address));
+  } catch (err) {
+    console.warn('[wallets] address balance query failed:', (err as Error).message);
+    return 0;
+  }
+}
+
 /** Saldo on-chain de una custodial, en unidades base del activo activo. */
 export async function getOnChainBalance(wallet: Keypair): Promise<number> {
   const cc = chainClientFor(wallet);

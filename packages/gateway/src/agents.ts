@@ -18,6 +18,7 @@
 import { ASSET, BASE_UNITS_PER_TOKEN, chainClientForSigner } from './chain';
 import { ensureFunded, loadUserSigner } from './wallets';
 import { db } from './db';
+import { getServiceLedgerStats, netBaseUnits } from './publisher';
 import type { ChainClient } from 'kiba-sdk';
 
 /** Fondeo on-demand antes de registrar (cubre fee + rent/TTL). Base units: 0.01 SOL / 1 XLM. */
@@ -186,9 +187,14 @@ export interface AgentSummary {
   pricePerCallSol: number;
   endpoint: string;
   description: string;
+  // Stats del ledger Postgres (NETO), no del contrato registro (cuyos contadores son 0).
   totalCalls: number;
-  totalEarnedLamports: number;
-  totalEarnedSol: number;
+  totalEarnedLamports: number; // neto lifetime
+  totalEarnedSol: number; // neto lifetime
+  pendingLamports: number; // neto aún no confirmado on-chain
+  pendingSol: number;
+  settledLamports: number; // neto ya confirmado on-chain
+  settledSol: number;
   createdAt: number;
 }
 
@@ -197,6 +203,10 @@ export async function listMyAgents(userId: number): Promise<AgentSummary[]> {
   const rows = (await db
     .prepare('SELECT service FROM user_agents WHERE user_id = ? ORDER BY created_at DESC')
     .all(userId)) as { service: string }[];
+
+  // Calls/earnings reales desde el ledger, en UNA query (no N+1). Los contadores del contrato
+  // registro (a.totalCalls/a.totalEarnedBaseUnits) nunca se incrementan → siempre 0.
+  const stats = await getServiceLedgerStats(rows.map((r) => r.service));
 
   const out: AgentSummary[] = [];
   for (const { service } of rows) {
@@ -207,7 +217,10 @@ export async function listMyAgents(userId: number): Promise<AgentSummary[]> {
       continue;
     }
     const price = Number(a.pricePerCallBaseUnits);
-    const earned = a.totalEarnedBaseUnits != null ? Number(a.totalEarnedBaseUnits) : 0;
+    const st = stats.get(service);
+    const earnedNet = netBaseUnits(st?.grossLifetime ?? 0);
+    const pendingNet = netBaseUnits(st?.grossPending ?? 0);
+    const settledNet = netBaseUnits(st?.grossSettled ?? 0);
     // Nombres *_lamports/*_sol conservados por compat con el dashboard (legacy alias),
     // con valores correctos para la cadena activa (stroops/XLM cuando CHAIN=stellar).
     out.push({
@@ -218,9 +231,13 @@ export async function listMyAgents(userId: number): Promise<AgentSummary[]> {
       pricePerCallSol: price / BASE_UNITS_PER_TOKEN,
       endpoint: a.endpoint,
       description: a.description,
-      totalCalls: a.totalCalls != null ? Number(a.totalCalls) : 0,
-      totalEarnedLamports: earned,
-      totalEarnedSol: earned / BASE_UNITS_PER_TOKEN,
+      totalCalls: st?.calls ?? 0,
+      totalEarnedLamports: earnedNet,
+      totalEarnedSol: earnedNet / BASE_UNITS_PER_TOKEN,
+      pendingLamports: pendingNet,
+      pendingSol: pendingNet / BASE_UNITS_PER_TOKEN,
+      settledLamports: settledNet,
+      settledSol: settledNet / BASE_UNITS_PER_TOKEN,
       createdAt: a.createdAt != null ? Number(a.createdAt) : 0,
     });
   }

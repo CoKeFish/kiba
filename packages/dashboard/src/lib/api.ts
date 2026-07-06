@@ -129,6 +129,10 @@ export const api = {
       body: JSON.stringify({ name }),
     }),
   publisherOverview: () => request<PublisherOverview>("/v1/publisher/overview"),
+  publisherSettlements: (limit = 50) =>
+    request<PublisherSettlements>(`/v1/publisher/settlements?limit=${limit}`),
+  publisherAnalytics: (days = 30) =>
+    request<PublisherAnalytics>(`/v1/publisher/analytics?days=${days}`),
 
   // Pagos fiat (Bre-B / Stripe / Wompi) → créditos. Varios métodos a la vez.
   paymentsConfig: () => request<PaymentsConfig>("/v1/payments/config"),
@@ -278,6 +282,11 @@ export type MyAgent = {
   totalCalls: number;
   totalEarnedLamports: number;
   totalEarnedSol: number;
+  // Netos del ledger (opcionales: toleran gateway viejo durante el deploy).
+  pendingLamports?: number;
+  pendingSol?: number;
+  settledLamports?: number;
+  settledSol?: number;
   createdAt: number;
 };
 
@@ -319,6 +328,13 @@ export type PaymentCharge = {
   paid_at: number | null;
 };
 
+export type PayoutWallet = {
+  address: string;
+  base_units: number;
+  asset_amount: number;
+  usd: number;
+};
+
 export type PublisherOverview = {
   asset: "SOL" | "XLM";
   base_unit_name: "lamports" | "stroops";
@@ -330,6 +346,11 @@ export type PublisherOverview = {
     calls: number;
     earned_asset: number;
     earned_usd: number;
+    // Desglose neto (opcionales: toleran gateway viejo durante el deploy).
+    pending_asset?: number;
+    pending_usd?: number;
+    settled_asset?: number;
+    settled_usd?: number;
   };
   wallet: {
     pubkey: string;
@@ -337,7 +358,51 @@ export type PublisherOverview = {
     asset_amount: number;
     usd: number;
   };
+  // Wallets OWNER de los agentes: donde aterriza el dinero liquidado.
+  payout?: {
+    wallets: PayoutWallet[];
+    total_base_units: number;
+    total_asset_amount: number;
+    total_usd: number;
+  };
   agents: MyAgent[];
+};
+
+export type SettlementRef = { ref: string; kind: "tx" | "contract" | "opaque" };
+
+export type PublisherSettlement = {
+  id: number;
+  service: string;
+  pay_to: string;
+  amount_base_units: number;
+  amount_asset: number;
+  net_base_units: number;
+  net_asset: number;
+  net_usd: number;
+  status: "pending" | "settled" | "failed";
+  created_at: number;
+  settled_at: number | null;
+  refs: SettlementRef[];
+};
+
+export type PublisherSettlements = {
+  asset: string;
+  base_unit_name: string;
+  fee: { bps: number; pct: number };
+  settlements: PublisherSettlement[];
+};
+
+export type PublisherAnalytics = {
+  asset: string;
+  base_unit_name: string;
+  days: number;
+  series: Array<{
+    day: string;
+    calls: number;
+    earned_base_units: number;
+    earned_asset: number;
+    earned_usd: number;
+  }>;
 };
 
 export type X402Step =

@@ -102,9 +102,11 @@ export default function PublisherOverview() {
           <div className="pub-kpi__row">
             <div>
               <p className="pub-kpi__label">{t("publisher.overview.kpi_wallet")}</p>
-              <p className="pub-kpi__value">{isLoading ? "—" : formatUsd(data?.wallet.usd ?? 0)}</p>
+              <p className="pub-kpi__value">
+                {isLoading ? "—" : formatUsd(data?.payout?.total_usd ?? data?.wallet.usd ?? 0)}
+              </p>
               <p className="pub-kpi__hint">
-                {data ? `${(data.wallet.asset_amount ?? 0).toFixed(4)} ${data.asset}` : t("publisher.overview.kpi_wallet_hint_empty")}
+                {data ? `${(data.payout?.total_asset_amount ?? data.wallet.asset_amount ?? 0).toFixed(4)} ${data.asset}` : t("publisher.overview.kpi_wallet_hint_empty")}
               </p>
             </div>
             <div className="pub-kpi__icon" style={{ background: "color-mix(in srgb, #f59e0b 14%, transparent)", color: "#d97706" }}>

@@ -282,6 +282,7 @@ async function runInit(): Promise<void> {
     CREATE UNIQUE INDEX IF NOT EXISTS idx_service_escrows_one_active
       ON service_escrows(service) WHERE status = 'active';
     CREATE INDEX IF NOT EXISTS idx_service_escrows_service ON service_escrows(service);
+    CREATE INDEX IF NOT EXISTS idx_settlements_service ON settlements(service);
   `);
 
   // Columnas evolutivas (idempotentes). En Postgres `ADD COLUMN IF NOT EXISTS` es nativo, así

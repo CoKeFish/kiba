@@ -141,6 +141,12 @@ export interface ChainClient {
   /** Saldo on-chain de la wallet de este cliente, en unidades base del activo. */
   getBalanceBaseUnits(): Promise<bigint>;
 
+  /**
+   * Saldo on-chain del activo de liquidación de una dirección arbitraria (cuenta G...),
+   * en unidades base. Opcional: implementaciones que no lo soporten lo omiten.
+   */
+  getBalanceOfAddress?(address: string): Promise<bigint>;
+
   /** Lee un agente del registro. null si no existe. */
   fetchAgent(service: string): Promise<ChainAgentInfo | null>;
 
