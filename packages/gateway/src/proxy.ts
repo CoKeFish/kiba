@@ -131,9 +131,11 @@ export async function callOnBehalf(args: {
   // 1. Pre-quote: precio REAL que el agente cobrará para ESTE payload
   //    (pricing dinámico via priceFn — translator cobra por chars, oracle por
   //    símbolos, etc.). La cascada decide con este monto, no con el floor.
+  const tQuote = Date.now();
   const { manifest, quote } = await client.getQuote(args.service, args.payload, {
     timeoutMs: 30_000,
   });
+  const quoteDurationMs = Math.max(1, Date.now() - tQuote);
   const lamports = Number(quote.amount);
   const virtualBalance = await getBalance(args.userId);
 
@@ -202,8 +204,11 @@ export async function callOnBehalf(args: {
       ]);
     }
 
-    // Trace: discover + (escrow_opened si el fund confirmó) + service_responded — step
-    // types que el dashboard ya conoce. En escrow_opened va el hash REAL del fondeo.
+    // Trace: discover + 402_received + (escrow_opened si el fund confirmó) +
+    // service_responded — step types que el dashboard ya conoce. El 402_received
+    // registra la pre-quote REAL (probe 402 de getQuote); sin él, el panel de flujo
+    // del dashboard dejaba "Cotización recibida" eternamente en espera en modo
+    // crédito. En escrow_opened va el hash REAL del fondeo.
     const elapsed = Math.max(1, Date.now() - t0);
     const trace: X402Trace = {
       service: manifest.service,
@@ -216,7 +221,19 @@ export async function callOnBehalf(args: {
           endpoint: manifest.endpoint,
           pricePerCall: manifest.pricePerCall,
           durationMs: 1,
-          timestamp: t0,
+          timestamp: tQuote,
+        },
+        {
+          type: '402_received',
+          quote: {
+            amount: String(quote.amount),
+            payTo: String(quote.payTo),
+            asset: String(quote.asset ?? 'USDC'),
+            nonce: String(quote.nonce),
+            expiresAt: Number(quote.expiresAt ?? 0),
+          },
+          durationMs: quoteDurationMs,
+          timestamp: tQuote,
         },
         ...(onchain.txHash
           ? [
