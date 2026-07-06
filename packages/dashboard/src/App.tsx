@@ -70,6 +70,9 @@ export default function App() {
         <Route path="publisher/pricing" element={<PublisherGate><PublisherPricing /></PublisherGate>} />
         <Route path="publisher/publish" element={<PublisherGate><PublisherPublish /></PublisherGate>} />
       </Route>
+      {/* Enlaces externos legacy (p.ej. el "View all agents" del landing apunta a
+          /agents): normalizamos el path plano a su equivalente bajo /app. */}
+      <Route path="/agents" element={<Navigate to="/app/agents" replace />} />
       <Route path="/" element={<Navigate to="/app" replace />} />
       <Route path="*" element={<Navigate to="/app" replace />} />
     </Routes>
