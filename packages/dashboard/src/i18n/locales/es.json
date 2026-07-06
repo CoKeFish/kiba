@@ -500,6 +500,21 @@
     "activating": "Activando…",
     "activate": "Conviértete en publicador"
   },
+  "demo_fab": {
+    "title": "Herramientas de demo",
+    "links": {
+      "overview": "Overview de publicador",
+      "payouts": "Pagos",
+      "analytics": "Analíticas",
+      "transactions": "Transacciones"
+    },
+    "fund_button": "Fondear escrow +1 USDC",
+    "funding": "Fondeando escrow…",
+    "funded": "1 USDC acreditado y escrow fondeado.",
+    "funded_offchain": "1 USDC acreditado (off-chain, sin tx de fondeo).",
+    "view_tx": "Ver tx",
+    "error": "El fondeo falló"
+  },
   "settings": {
     "copy_aria": "Copiar",
     "open_explorer_aria": "Abrir en el explorador",

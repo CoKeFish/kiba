@@ -25,6 +25,7 @@ import { api } from "@/lib/api";
 import { formatUsd, formatKibix, usdToKibix, KIBIX_LABEL } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { DemoFab } from "@/components/DemoFab";
 
 // `label` es una clave i18n; se resuelve con t() en el render.
 const consumerNav = [
@@ -277,6 +278,8 @@ export function AppLayout() {
           <Outlet />
         </main>
       </div>
+
+      <DemoFab />
 
       <style>{`
         .nav-item:hover {

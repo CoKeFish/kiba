@@ -175,6 +175,8 @@ services:
       # (una tx Stellar consultable por llamada). PER_CALL_FUND=0 lo apaga (kill-switch).
       - PER_CALL_FUND=${PER_CALL_FUND:-}
       - WARM_ESCROW_SERVICES=${WARM_ESCROW_SERVICES:-}
+      # Herramientas de demo (FAB del dashboard): habilita POST /v1/publisher/demo/fund.
+      - DEMO_TOOLS=${DEMO_TOOLS:-}
       # Privy server wallets (no-custodial) para las wallets de usuario. Sin estas, las
       # wallets caen al keypair custodial local (legacy).
       - PRIVY_APP_ID=${PRIVY_APP_ID:-}

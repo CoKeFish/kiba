@@ -142,6 +142,12 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ enabled }),
     }),
+  // SOLO DEMO (gateway con DEMO_TOOLS=1): acredita 1 USDC y fondea el escrow del ciclo.
+  demoFund: (service: string) =>
+    request<DemoFundResult>("/v1/publisher/demo/fund", {
+      method: "POST",
+      body: JSON.stringify({ service }),
+    }),
 
   // Pagos fiat (Bre-B / Stripe / Wompi) → créditos. Varios métodos a la vez.
   paymentsConfig: () => request<PaymentsConfig>("/v1/payments/config"),
@@ -297,6 +303,19 @@ export type MyAgent = {
   settledLamports?: number;
   settledSol?: number;
   createdAt: number;
+};
+
+/** Respuesta de POST /v1/publisher/demo/fund (solo demo, gateway con DEMO_TOOLS=1). */
+export type DemoFundResult = {
+  ok: boolean;
+  service: string;
+  amount_base_units: number;
+  earning_id: number;
+  /** true si el fondeo TW confirmó on-chain; false = earning acreditado off-chain (legacy). */
+  funded: boolean;
+  escrow_id: string | null;
+  tx_hash: string | null;
+  explorer_url: string | null;
 };
 
 export type PaymentMethod = {

@@ -500,6 +500,21 @@
     "activating": "Ativando…",
     "activate": "Torne-se um publicador"
   },
+  "demo_fab": {
+    "title": "Ferramentas de demo",
+    "links": {
+      "overview": "Visão geral do publicador",
+      "payouts": "Pagamentos",
+      "analytics": "Análises",
+      "transactions": "Transações"
+    },
+    "fund_button": "Financiar escrow +1 USDC",
+    "funding": "Financiando escrow…",
+    "funded": "1 USDC creditado e escrow financiado.",
+    "funded_offchain": "1 USDC creditado (off-chain, sem tx de financiamento).",
+    "view_tx": "Ver tx",
+    "error": "O financiamento falhou"
+  },
   "settings": {
     "copy_aria": "Copiar",
     "open_explorer_aria": "Abrir no explorador",

@@ -500,6 +500,21 @@
     "activating": "Activating…",
     "activate": "Become a publisher"
   },
+  "demo_fab": {
+    "title": "Demo tools",
+    "links": {
+      "overview": "Publisher overview",
+      "payouts": "Payouts",
+      "analytics": "Analytics",
+      "transactions": "Transactions"
+    },
+    "fund_button": "Fund escrow +1 USDC",
+    "funding": "Funding escrow…",
+    "funded": "1 USDC credited and escrow funded.",
+    "funded_offchain": "1 USDC credited (off-chain, no funding tx).",
+    "view_tx": "View tx",
+    "error": "Funding failed"
+  },
   "settings": {
     "copy_aria": "Copy",
     "open_explorer_aria": "Open in explorer",

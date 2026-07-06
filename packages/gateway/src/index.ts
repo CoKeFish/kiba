@@ -50,9 +50,9 @@ import {
   COP_USD_RATE,
 } from './payments';
 import { callOnBehalf, listAgents, masterWalletPubkey, platformPublicKey } from './proxy';
-import { settleAgent, settleAllDue, MIN_PAYOUT } from './settlement';
+import { settleAgent, settleAllDue, MIN_PAYOUT, recordEarning } from './settlement';
 import { listUserSettlements, getDailySeries } from './publisher';
-import { warmEscrows } from './escrows';
+import { warmEscrows, fundForCall } from './escrows';
 import {
   addressOnChainBalance,
   getMasterWallet,
@@ -1083,6 +1083,39 @@ app.post('/v1/publisher/settle', requireAuth, async (req, res) => {
       settlements.push(await settleAgent(a.service));
     }
     res.json({ settlements });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+// SOLO DEMO (DEMO_TOOLS=1; 404 si está apagado): acredita 1 USDC de earning al servicio del
+// caller y fondea el escrow TW del ciclo, igual que una llamada real (recordEarning +
+// fundForCall). Deja el pendiente listo para liquidar con /v1/publisher/settle.
+app.post('/v1/publisher/demo/fund', requireAuth, async (req, res) => {
+  if (process.env.DEMO_TOOLS !== '1') return res.status(404).json({ error: 'not found' });
+  try {
+    const service = typeof req.body?.service === 'string' ? req.body.service.trim() : '';
+    if (!service) return res.status(400).json({ error: 'service required' });
+
+    const agents = await listMyAgents(req.bearerUser!.id);
+    const agent = agents.find((a) => a.service === service);
+    if (!agent) return res.status(403).json({ error: 'service is not yours' });
+
+    // Monto FIJO server-side (1 USDC gross); se ignora cualquier monto del cliente.
+    const lamports = BASE_UNITS_PER_TOKEN;
+    const earningId = await recordEarning({ service, payTo: agent.owner, lamports });
+    const onchain = await fundForCall({ service, payTo: agent.owner, lamports, earningId });
+
+    res.json({
+      ok: true,
+      service,
+      amount_base_units: lamports,
+      earning_id: earningId,
+      funded: !!onchain.txHash,
+      escrow_id: onchain.escrowId ?? null,
+      tx_hash: onchain.txHash ?? null,
+      explorer_url: onchain.txHash ? explorerTxUrl(onchain.txHash) : null,
+    });
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
   }

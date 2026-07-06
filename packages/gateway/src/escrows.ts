@@ -184,7 +184,8 @@ export function fundForCall(args: {
   payTo: string;
   lamports: number;
   earningId: number;
-  transactionId: number;
+  /** Opcional: sin transacción de usuario (p.ej. fondeo demo) se omite el attach del hash. */
+  transactionId?: number;
 }): Promise<PerCallFundResult> {
   if (!perCallFundEnabled()) return Promise.resolve({});
   if (queuePending >= MAX_PENDING) {
@@ -227,7 +228,7 @@ export function fundForCall(args: {
       await db
         .prepare('UPDATE service_escrows SET funded_lamports = funded_lamports + ? WHERE id = ?')
         .run(args.lamports, row.id);
-      await attachSignature(args.transactionId, canonical);
+      if (args.transactionId != null) await attachSignature(args.transactionId, canonical);
       return { txHash: canonical, escrowId: row.escrow_id };
     } catch (err) {
       console.warn(`[escrows] fund per-call de ${args.service} falló: ${(err as Error).message}`);
