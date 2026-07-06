@@ -358,6 +358,7 @@ export type PublisherOverview = {
   is_publisher: boolean;
   publisher_name: string | null;
   auto_settle?: boolean;
+  min_payout?: { base_units: number; asset_amount: number; usd: number };
   fee: { bps: number; pct: number };
   totals: {
     agents: number;

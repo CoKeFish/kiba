@@ -50,7 +50,7 @@ import {
   COP_USD_RATE,
 } from './payments';
 import { callOnBehalf, listAgents, masterWalletPubkey, platformPublicKey } from './proxy';
-import { settleAgent, settleAllDue } from './settlement';
+import { settleAgent, settleAllDue, MIN_PAYOUT } from './settlement';
 import { listUserSettlements, getDailySeries } from './publisher';
 import { warmEscrows } from './escrows';
 import {
@@ -1035,6 +1035,12 @@ app.get('/v1/publisher/overview', requireAuth, async (req, res) => {
       publisher_name: user.publisher_name ?? null,
       auto_settle: !!user.auto_settle,
       fee: { bps: PLATFORM_FEE_BPS, pct: PLATFORM_FEE_BPS / 100 },
+      // Umbral mínimo de acumulado para poder liquidar (bajo demanda o por el cron).
+      min_payout: {
+        base_units: MIN_PAYOUT,
+        asset_amount: MIN_PAYOUT / BASE_UNITS_PER_TOKEN,
+        usd: lamportsToUsd(MIN_PAYOUT),
+      },
       totals: {
         agents: agents.length,
         calls: totalCalls,

@@ -5,7 +5,7 @@ import { api, type SettlementRef } from "@/lib/api";
 import { formatUsd, shortSig } from "@/lib/format";
 import { chain } from "@/lib/chain";
 import { serviceToName } from "@/components/AgentManager";
-import { Check, Copy, ExternalLink, Info, Loader2, Wallet } from "lucide-react";
+import { Check, Coins, Copy, ExternalLink, Info, Loader2, TrendingUp, Wallet } from "lucide-react";
 import "./publisher.css";
 
 /** URL del explorer para una ref on-chain de settlement (tx / contract). null = sin link. */
@@ -68,6 +68,10 @@ export default function PublisherPayouts() {
   const availableUsd = data?.payout?.total_usd ?? data?.wallet.usd ?? 0;
   const availableAsset = data?.payout?.total_asset_amount ?? data?.wallet.asset_amount ?? 0;
   const pendingAsset = data?.totals.pending_asset ?? 0;
+  const pendingUsd = data?.totals.pending_usd ?? 0;
+  const asset = data?.asset ?? chain.asset;
+  // Umbral mínimo para liquidar (viene del gateway; fallback 0.01).
+  const minAsset = data?.min_payout?.asset_amount ?? 0.01;
 
   const settlements = settleData?.settlements ?? [];
 
@@ -89,28 +93,31 @@ export default function PublisherPayouts() {
         </div>
       </header>
 
-      <div className="pub-kpis pub-kpis--2">
+      <div className="pub-kpis pub-kpis--3">
         <article className="pub-kpi">
           <div className="pub-kpi__row">
             <div>
-              <p className="pub-kpi__label">{t("publisher.payouts.kpi_available")}</p>
-              <p className="pub-kpi__value">
-                {isLoading ? "—" : formatUsd(availableUsd)}
-              </p>
+              <p className="pub-kpi__label">{t("publisher.payouts.kpi_to_settle")}</p>
+              <p className="pub-kpi__value">{isLoading ? "—" : formatUsd(pendingUsd)}</p>
               <p className="pub-kpi__hint">
-                {data ? `${availableAsset.toFixed(4)} ${data.asset}` : ""}
-                {pendingAsset > 0 && data ? (
-                  <>
-                    {" · "}
-                    {t("publisher.payouts.kpi_pending_hint", {
-                      amount: pendingAsset.toFixed(4),
-                      asset: data.asset,
-                    })}
-                  </>
-                ) : null}
+                {t("publisher.payouts.kpi_to_settle_hint", { min: minAsset.toFixed(2), asset })}
               </p>
             </div>
             <div className="pub-kpi__icon" style={{ background: "color-mix(in srgb, var(--color-primary) 14%, transparent)", color: "var(--color-primary)" }}>
+              <Coins size={20} />
+            </div>
+          </div>
+        </article>
+        <article className="pub-kpi">
+          <div className="pub-kpi__row">
+            <div>
+              <p className="pub-kpi__label">{t("publisher.payouts.kpi_in_wallet")}</p>
+              <p className="pub-kpi__value">{isLoading ? "—" : formatUsd(availableUsd)}</p>
+              <p className="pub-kpi__hint">
+                {data ? `${availableAsset.toFixed(4)} ${asset} · ${t("publisher.payouts.kpi_in_wallet_hint")}` : ""}
+              </p>
+            </div>
+            <div className="pub-kpi__icon" style={{ background: "color-mix(in srgb, #f59e0b 14%, transparent)", color: "#d97706" }}>
               <Wallet size={20} />
             </div>
           </div>
@@ -125,7 +132,7 @@ export default function PublisherPayouts() {
               <p className="pub-kpi__hint">{t("publisher.payouts.kpi_lifetime_hint", { feePct })}</p>
             </div>
             <div className="pub-kpi__icon" style={{ background: "color-mix(in srgb, var(--color-success) 14%, transparent)", color: "var(--color-success)" }}>
-              <Wallet size={20} />
+              <TrendingUp size={20} />
             </div>
           </div>
         </article>
@@ -163,7 +170,7 @@ export default function PublisherPayouts() {
           <div className="pub-info" style={{ marginTop: 14, display: "flex", gap: 10, alignItems: "flex-start" }}>
             <Info size={18} style={{ flexShrink: 0, color: "var(--color-primary)", marginTop: 2 }} />
             <div>
-              {t("publisher.payouts.info", { asset: data?.asset ?? chain.asset })}
+              {t("publisher.payouts.info", { asset, min: minAsset.toFixed(2) })}
             </div>
           </div>
 
@@ -214,12 +221,18 @@ export default function PublisherPayouts() {
           ) : (
             !settleMut.isPending && (
               <p className="pub-settle-msg" style={{ color: "var(--color-fg-muted)" }}>
-                {pendingAsset > 0
-                  ? t("publisher.payouts.pending_hint", {
-                      amount: pendingAsset.toFixed(4),
-                      asset: data?.asset ?? chain.asset,
-                    })
-                  : t("publisher.payouts.nothing_pending")}
+                {pendingAsset <= 0
+                  ? t("publisher.payouts.nothing_pending")
+                  : pendingAsset < minAsset
+                    ? t("publisher.payouts.below_min", {
+                        amount: pendingAsset.toFixed(4),
+                        min: minAsset.toFixed(2),
+                        asset,
+                      })
+                    : t("publisher.payouts.pending_hint", {
+                        amount: pendingAsset.toFixed(4),
+                        asset,
+                      })}
               </p>
             )
           )}

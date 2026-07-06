@@ -32,7 +32,7 @@ import { ensureTreasuryFunded, getMasterWallet } from './wallets';
 import { enqueueChainTask, warmServiceEscrow, type ServiceEscrowRow } from './escrows';
 
 /** Monto mínimo (unidades base) para liquidar. Default 1 USDC = 1e7 stroops. */
-const MIN_PAYOUT = Number(process.env.SETTLEMENT_MIN_PAYOUT) || BASE_UNITS_PER_TOKEN;
+export const MIN_PAYOUT = Number(process.env.SETTLEMENT_MIN_PAYOUT) || BASE_UNITS_PER_TOKEN;
 
 export interface SettleResult {
   service: string;
