@@ -5,4 +5,6 @@
 packages/contracts/scripts/kiba     text eol=lf
 packages/contracts/scripts/init.sh    text eol=lf
 Dockerfile        text eol=lf
+Dockerfile.*      text eol=lf
 *.dockerfile      text eol=lf
+*.Dockerfile      text eol=lf

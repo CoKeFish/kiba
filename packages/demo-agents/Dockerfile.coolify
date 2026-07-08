@@ -1,0 +1,27 @@
+# Imagen de PRODUCCIÓN para Coolify (VPS). Corre UN agente, elegido con AGENT_NAME.
+# Variante de Dockerfile.railway: añade el CLI de Doppler y arranca vía el shim
+# scripts/agent-entrypoint.sh dentro de `doppler run` — el shim mapea el secreto
+# namespaced AGENT_WALLET_SECRET_<KEY> -> AGENT_WALLET_SECRET del agente.
+FROM node:20-alpine
+
+# CLI de Doppler (capa explícita).
+RUN wget -q -t3 'https://packages.doppler.com/public/cli/rsa.8004D9FF50437357.key' -O /etc/apk/keys/cli@doppler-8004D9FF50437357.rsa.pub && \
+    echo 'https://packages.doppler.com/public/cli/alpine/any-version/main' >> /etc/apk/repositories && \
+    apk add --no-cache doppler
+
+WORKDIR /app
+
+COPY package.json package-lock.json tsconfig.base.json ./
+COPY packages/sdk/package.json ./packages/sdk/
+COPY packages/demo-agents/package.json ./packages/demo-agents/
+
+RUN npm install --workspace=@kiba/demo-agents --include-workspace-root --include=dev
+
+COPY packages/sdk ./packages/sdk
+COPY packages/demo-agents ./packages/demo-agents
+COPY scripts/agent-entrypoint.sh /agent-entrypoint.sh
+RUN chmod +x /agent-entrypoint.sh
+
+WORKDIR /app/packages/demo-agents
+
+CMD ["doppler", "run", "--", "sh", "/agent-entrypoint.sh"]

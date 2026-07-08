@@ -1,0 +1,238 @@
+# ============================================================================
+# Stack de PRODUCCIÓN de Kiba en Coolify (VPS). NO usar en local:
+# los demo-agents re-registran su endpoint on-chain al arrancar y PISAN prod.
+#
+# Secretos: Doppler, proyecto `kiba`, config `prd`. Coolify inyecta UNA sola
+# variable (${DOPPLER_TOKEN}); cada contenedor resuelve el resto en runtime
+# vía `doppler run` (ver Dockerfile.coolify de cada servicio).
+# Topología no-secreta (puertos, endpoints públicos, URLs internas) vive AQUÍ.
+# No duplicar claves entre compose y Doppler: doppler run pisa en colisión.
+#
+# Traefik (Coolify) enruta por la red interna; los dominios por servicio se
+# configuran en el panel de Coolify (gateway → kiba-api.rodion.com.co:8000, etc.).
+# ============================================================================
+services:
+  postgres:
+    build:
+      context: .
+      dockerfile: docker/postgres.Dockerfile
+    environment:
+      - DOPPLER_TOKEN=${DOPPLER_TOKEN}
+      - POSTGRES_USER=kiba
+      - POSTGRES_DB=kiba
+      # POSTGRES_PASSWORD llega vía doppler run
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kiba -d kiba"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: .
+      dockerfile: packages/backend/Dockerfile.coolify
+    environment:
+      - DOPPLER_TOKEN=${DOPPLER_TOKEN}
+      - NODE_ENV=production
+      - PORT=4000
+    volumes:
+      - backend-data:/app/packages/backend/data
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:4000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 300s # primer boot descarga los modelos transformers al volumen
+
+  gateway:
+    build:
+      context: .
+      dockerfile: packages/gateway/Dockerfile.coolify
+    environment:
+      - DOPPLER_TOKEN=${DOPPLER_TOKEN}
+      - NODE_ENV=production
+      - PORT=8000
+      - PUBLIC_URL=https://kiba-api.rodion.com.co
+      - BACKEND_URL=http://backend:4000
+      - CORS_ORIGINS=https://kiba-dashboard.vercel.app,https://kiba-landing.vercel.app
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:8000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      backend:
+        condition: service_started
+
+  # ── Demo agents ────────────────────────────────────────────────────────────
+  # PUBLIC_ENDPOINT apunta TODAVÍA a Railway a propósito: así el deploy inicial
+  # en Coolify no dispara el re-registro on-chain (sin drift). El flip a los
+  # dominios kiba-agent-*.rodion.com.co es un commit aparte en el cutover.
+  agent-translator:
+    build:
+      context: .
+      dockerfile: packages/demo-agents/Dockerfile.coolify
+    environment:
+      - DOPPLER_TOKEN=${DOPPLER_TOKEN}
+      - NODE_ENV=production
+      - AGENT_NAME=translator-pro
+      - PORT=5003
+      - PUBLIC_ENDPOINT=https://kiba-agent-translator-production.up.railway.app
+      - BACKEND_URL=http://backend:4000
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:5003/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+    depends_on:
+      - backend
+
+  agent-yield:
+    build:
+      context: .
+      dockerfile: packages/demo-agents/Dockerfile.coolify
+    environment:
+      - DOPPLER_TOKEN=${DOPPLER_TOKEN}
+      - NODE_ENV=production
+      - AGENT_NAME=yield-hunter
+      - PORT=5001
+      - PUBLIC_ENDPOINT=https://kiba-agent-yield-production.up.railway.app
+      - BACKEND_URL=http://backend:4000
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:5001/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+    depends_on:
+      - backend
+
+  agent-risk:
+    build:
+      context: .
+      dockerfile: packages/demo-agents/Dockerfile.coolify
+    environment:
+      - DOPPLER_TOKEN=${DOPPLER_TOKEN}
+      - NODE_ENV=production
+      - AGENT_NAME=risk-auditor
+      - PORT=5002
+      - PUBLIC_ENDPOINT=https://kiba-agent-risk-production.up.railway.app
+      - BACKEND_URL=http://backend:4000
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:5002/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+    depends_on:
+      - backend
+
+  agent-price:
+    build:
+      context: .
+      dockerfile: packages/demo-agents/Dockerfile.coolify
+    environment:
+      - DOPPLER_TOKEN=${DOPPLER_TOKEN}
+      - NODE_ENV=production
+      - AGENT_NAME=price-oracle
+      - PORT=5004
+      - PUBLIC_ENDPOINT=https://kiba-agent-price-production.up.railway.app
+      - BACKEND_URL=http://backend:4000
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:5004/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+    depends_on:
+      - backend
+
+  agent-code:
+    build:
+      context: .
+      dockerfile: packages/demo-agents/Dockerfile.coolify
+    environment:
+      - DOPPLER_TOKEN=${DOPPLER_TOKEN}
+      - NODE_ENV=production
+      - AGENT_NAME=code-reviewer
+      - PORT=5005
+      - PUBLIC_ENDPOINT=https://kiba-agent-code-production.up.railway.app
+      - BACKEND_URL=http://backend:4000
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:5005/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+    depends_on:
+      - backend
+
+  agent-firecrawl:
+    build:
+      context: .
+      dockerfile: packages/demo-agents/Dockerfile.coolify
+    environment:
+      - DOPPLER_TOKEN=${DOPPLER_TOKEN}
+      - NODE_ENV=production
+      - AGENT_NAME=firecrawl
+      - PORT=5006
+      - PUBLIC_ENDPOINT=https://kiba-agent-firecrawl-production.up.railway.app
+      - BACKEND_URL=http://backend:4000
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:5006/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+    depends_on:
+      - backend
+
+  agent-world:
+    build:
+      context: .
+      dockerfile: packages/demo-agents/Dockerfile.coolify
+    environment:
+      - DOPPLER_TOKEN=${DOPPLER_TOKEN}
+      - NODE_ENV=production
+      - AGENT_NAME=world-clock
+      - PORT=5007
+      - PUBLIC_ENDPOINT=https://kiba-agent-world-production.up.railway.app
+      - BACKEND_URL=http://backend:4000
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:5007/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+    depends_on:
+      - backend
+
+  agent-randomizer:
+    build:
+      context: .
+      dockerfile: packages/demo-agents/Dockerfile.coolify
+    environment:
+      - DOPPLER_TOKEN=${DOPPLER_TOKEN}
+      - NODE_ENV=production
+      - AGENT_NAME=randomizer
+      - PORT=5008
+      - PUBLIC_ENDPOINT=https://kiba-agent-randomizer-production.up.railway.app
+      - BACKEND_URL=http://backend:4000
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:5008/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+    depends_on:
+      - backend
+
+volumes:
+  postgres-data:
+  backend-data:

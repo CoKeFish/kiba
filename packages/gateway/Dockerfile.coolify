@@ -1,0 +1,31 @@
+# Imagen de PRODUCCIÓN para Coolify (VPS). Variante de Dockerfile.railway:
+# añade el CLI de Doppler y envuelve el arranque en `doppler run` — el contenedor
+# recibe UNA sola env (DOPPLER_TOKEN) y resuelve todos los secretos en runtime.
+# Stateless: la master wallet llega por MASTER_WALLET_SECRET (Doppler), no por volumen.
+FROM node:20-alpine
+
+RUN apk add --no-cache python3 make g++
+
+# CLI de Doppler (capa explícita; no se confía en el host).
+RUN wget -q -t3 'https://packages.doppler.com/public/cli/rsa.8004D9FF50437357.key' -O /etc/apk/keys/cli@doppler-8004D9FF50437357.rsa.pub && \
+    echo 'https://packages.doppler.com/public/cli/alpine/any-version/main' >> /etc/apk/repositories && \
+    apk add --no-cache doppler
+
+WORKDIR /app
+
+COPY package.json package-lock.json tsconfig.base.json ./
+COPY packages/sdk/package.json ./packages/sdk/
+COPY packages/gateway/package.json ./packages/gateway/
+
+# --include=dev garantiza `tsx` aunque el build fije NODE_ENV=production.
+RUN npm install --workspace=@kiba/gateway --include-workspace-root --include=dev
+
+COPY packages/sdk ./packages/sdk
+COPY packages/gateway ./packages/gateway
+
+WORKDIR /app/packages/gateway
+
+EXPOSE 8000
+
+# Sin secretos resueltos no arranca: falla rápido y visible (por diseño).
+CMD ["doppler", "run", "--", "npx", "tsx", "src/index.ts"]

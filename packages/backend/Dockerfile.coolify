@@ -1,0 +1,36 @@
+# Imagen de PRODUCCIÓN para Coolify (VPS). Variante de Dockerfile.railway:
+# añade el CLI de Doppler y envuelve el arranque en `doppler run` — el contenedor
+# recibe UNA sola env (DOPPLER_TOKEN) y resuelve todos los secretos en runtime.
+FROM node:20-slim
+
+# better-sqlite3 necesita build tools nativos; onnxruntime (transformers.js) glibc.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 make g++ ca-certificates curl gnupg \
+    && rm -rf /var/lib/apt/lists/*
+
+# CLI de Doppler (capa explícita).
+RUN curl -sLf --retry 3 --tlsv1.2 --proto "=https" 'https://packages.doppler.com/public/cli/gpg.DE2A7741A397C129.key' | gpg --dearmor -o /usr/share/keyrings/doppler-archive-keyring.gpg && \
+    echo "deb [signed-by=/usr/share/keyrings/doppler-archive-keyring.gpg] https://packages.doppler.com/public/cli/deb/debian any-version main" > /etc/apt/sources.list.d/doppler-cli.list && \
+    apt-get update && apt-get install -y --no-install-recommends doppler && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY package.json package-lock.json tsconfig.base.json ./
+COPY packages/sdk/package.json ./packages/sdk/
+COPY packages/backend/package.json ./packages/backend/
+
+RUN npm install --workspace=@kiba/backend --include-workspace-root --include=dev
+
+COPY packages/sdk ./packages/sdk
+COPY packages/backend ./packages/backend
+
+WORKDIR /app/packages/backend
+
+# SQLite + cache de modelos transformers.js viven en el volumen (backend-data).
+ENV BACKEND_DATA_DIR=/app/packages/backend/data
+ENV TRANSFORMERS_CACHE=/app/packages/backend/data/models
+RUN mkdir -p /app/packages/backend/data
+
+EXPOSE 4000
+
+CMD ["doppler", "run", "--", "npx", "tsx", "src/index.ts"]

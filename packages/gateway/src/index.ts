@@ -91,6 +91,9 @@ import {
 const PORT = Number(process.env.PORT) || 8000;
 
 const app = express();
+// Detrás de un reverse proxy con TLS terminado (Traefik en Coolify, proxy de Railway):
+// confiar en X-Forwarded-* del primer hop para que req.protocol/req.secure sean correctos.
+app.set('trust proxy', 1);
 // CORS con credentials habilitado para los frontends locales (dashboard SPA + landing).
 // Express acepta también un origin function que refleja el origin del request si está en allowlist.
 const ALLOWED_ORIGINS = (process.env.CORS_ORIGINS ?? 'http://localhost:3020,http://localhost:3010,http://localhost:5173,http://localhost:4321,http://localhost:8000')
