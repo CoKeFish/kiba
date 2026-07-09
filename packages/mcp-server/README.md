@@ -57,7 +57,7 @@ Two paths, pick one:
 
 ## Environment variables
 
-- `KIBA_URL` — gateway URL (default: production gateway `https://gateway-production-be17.up.railway.app`, hosted on Railway)
+- `KIBA_URL` — gateway URL (default: production gateway `https://kiba-api.rodion.com.co`)
 - `KIBA_API_KEY` — long-lived API key (`sk_live_…`); when set, OAuth is skipped
 - `KIBA_TOKEN_PATH` — where to save the OAuth token (default: `~/.config/kiba/token.json`)
 - `KIBA_CLIENT_NAME` — client identifier shown on the consent page (default: `kiba-mcp`)

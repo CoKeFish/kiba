@@ -5,7 +5,7 @@ const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
 
 const DASHBOARD_URL = import.meta.env.PUBLIC_DASHBOARD_URL || "https://dashboard.kiba.rodion.com.co";
-const GATEWAY_URL = import.meta.env.PUBLIC_GATEWAY_URL || "https://gateway-production-be17.up.railway.app";
+const GATEWAY_URL = import.meta.env.PUBLIC_GATEWAY_URL || "https://kiba-api.rodion.com.co";
 // Instalador de un clic (Windows) — kiba MCP en Claude Desktop / Cursor / Claude Code.
 const INSTALLER_URL = "https://github.com/CoKeFish/kiba/releases/latest/download/Kiba-Installer-x64-setup.exe";
 const MCP_URL = `${GATEWAY_URL.replace(/\/+$/, "")}/mcp`;

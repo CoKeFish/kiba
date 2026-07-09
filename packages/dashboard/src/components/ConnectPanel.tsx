@@ -11,7 +11,7 @@ import "./connect.css";
  */
 const MCP_URL =
   (import.meta.env.VITE_MCP_URL as string | undefined) ??
-  "https://gateway-production-be17.up.railway.app/mcp";
+  "https://kiba-api.rodion.com.co/mcp";
 
 /** Base del gateway (sin /mcp) para el adaptador stdio `kiba-mcp` (KIBA_URL). */
 const GATEWAY_BASE = MCP_URL.replace(/\/mcp\/?$/, "");

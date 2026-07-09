@@ -33,7 +33,7 @@ const client = new AgentClient({
 const result = await client.call('yield-hunter', {
   token: 'USDC',
 });`,
-  rest: `const res = await fetch('https://gateway-production-be17.up.railway.app/v1/call', {
+  rest: `const res = await fetch('https://kiba-api.rodion.com.co/v1/call', {
   method: 'POST',
   headers: {
     'Authorization': 'Bearer sk_live_...',

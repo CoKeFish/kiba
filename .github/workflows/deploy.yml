@@ -2,13 +2,15 @@ name: deploy
 
 # CI/CD de Kiba.
 #   Frontends (Astro landing, Vite dashboard) -> Vercel
-#   Backends  (backend indexer, gateway x402) -> Railway
+#   Backends  (stack docker-compose.prod.yml: gateway, backend, postgres,
+#              8 demo-agents)                 -> Coolify (VPS, webhook de deploy)
 # Cada push a main: corre tests + escaneo de secretos, y despliega SOLO los
 # paquetes que cambiaron. En pull_request corre tests + gitleaks (sin desplegar).
 #
 # Secrets requeridos en el repo (Settings -> Secrets and variables -> Actions):
-#   VERCEL_TOKEN    Token de Vercel  (https://vercel.com/account/tokens)
-#   RAILWAY_TOKEN   Project token del proyecto "kiba" en Railway
+#   VERCEL_TOKEN      Token de Vercel  (https://vercel.com/account/tokens)
+#   COOLIFY_TOKEN     API token de Coolify (panel -> Keys & Tokens)
+#   COOLIFY_APP_UUID  UUID de la aplicación compose "kiba" en Coolify
 # Los IDs de Vercel (org/project) NO son secretos y van inline abajo.
 
 on:
@@ -31,8 +33,7 @@ jobs:
     outputs:
       landing: ${{ steps.f.outputs.landing }}
       dashboard: ${{ steps.f.outputs.dashboard }}
-      backend: ${{ steps.f.outputs.backend }}
-      gateway: ${{ steps.f.outputs.gateway }}
+      stack: ${{ steps.f.outputs.stack }}
     steps:
       - uses: actions/checkout@v5
       - uses: dorny/paths-filter@v4
@@ -43,14 +44,15 @@ jobs:
               - 'packages/landing/**'
             dashboard:
               - 'packages/dashboard/**'
-            backend:
+            stack:
               - 'packages/backend/**'
-              - 'packages/sdk/**'
-              - 'package-lock.json'
-            gateway:
               - 'packages/gateway/**'
+              - 'packages/demo-agents/**'
               - 'packages/sdk/**'
               - 'package-lock.json'
+              - 'docker-compose.prod.yml'
+              - 'docker/**'
+              - 'scripts/agent-entrypoint.sh'
 
   # ---- Escaneo de secretos (gate de los deploys) ---------------------------
   gitleaks:
@@ -129,28 +131,15 @@ jobs:
       - run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
       - run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
 
-  # ---- Railway: backend ----------------------------------------------------
-  deploy-backend:
+  # ---- Coolify: stack de backends (compose en el VPS) ----------------------
+  # Un solo job: Coolify hace pull del repo y reconstruye los servicios del
+  # docker-compose.prod.yml (el build cache de Docker amortigua los no cambiados).
+  deploy-stack:
     needs: [changes, gitleaks, test]
-    if: needs.changes.outputs.backend == 'true' && github.event_name != 'pull_request'
+    if: needs.changes.outputs.stack == 'true' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      - run: npm i -g @railway/cli
-      - name: Deploy backend
-        run: railway up --service backend --ci
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-
-  # ---- Railway: gateway ----------------------------------------------------
-  deploy-gateway:
-    needs: [changes, gitleaks, test]
-    if: needs.changes.outputs.gateway == 'true' && github.event_name != 'pull_request'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      - run: npm i -g @railway/cli
-      - name: Deploy gateway
-        run: railway up --service gateway --ci
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      - name: Trigger Coolify deploy
+        run: |
+          curl -fsS -H "Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}" \
+            "https://coolify.rodion.com.co/api/v1/deploy?uuid=${{ secrets.COOLIFY_APP_UUID }}&force=false"
