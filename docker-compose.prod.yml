@@ -70,9 +70,8 @@ services:
         condition: service_started
 
   # ── Demo agents ────────────────────────────────────────────────────────────
-  # PUBLIC_ENDPOINT apunta TODAVÍA a Railway a propósito: así el deploy inicial
-  # en Coolify no dispara el re-registro on-chain (sin drift). El flip a los
-  # dominios kiba-agent-*.rodion.com.co es un commit aparte en el cutover.
+  # PUBLIC_ENDPOINT en dominios propios (cutover hecho): cada agente re-registra
+  # su endpoint on-chain en el bootstrap si detecta drift.
   agent-translator:
     build:
       context: .
@@ -82,7 +81,7 @@ services:
       - NODE_ENV=production
       - AGENT_NAME=translator-pro
       - PORT=5003
-      - PUBLIC_ENDPOINT=https://kiba-agent-translator-production.up.railway.app
+      - PUBLIC_ENDPOINT=https://kiba-agent-translator.rodion.com.co
       - BACKEND_URL=http://backend:4000
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:5003/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
@@ -102,7 +101,7 @@ services:
       - NODE_ENV=production
       - AGENT_NAME=yield-hunter
       - PORT=5001
-      - PUBLIC_ENDPOINT=https://kiba-agent-yield-production.up.railway.app
+      - PUBLIC_ENDPOINT=https://kiba-agent-yield.rodion.com.co
       - BACKEND_URL=http://backend:4000
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:5001/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
@@ -122,7 +121,7 @@ services:
       - NODE_ENV=production
       - AGENT_NAME=risk-auditor
       - PORT=5002
-      - PUBLIC_ENDPOINT=https://kiba-agent-risk-production.up.railway.app
+      - PUBLIC_ENDPOINT=https://kiba-agent-risk.rodion.com.co
       - BACKEND_URL=http://backend:4000
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:5002/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
@@ -142,7 +141,7 @@ services:
       - NODE_ENV=production
       - AGENT_NAME=price-oracle
       - PORT=5004
-      - PUBLIC_ENDPOINT=https://kiba-agent-price-production.up.railway.app
+      - PUBLIC_ENDPOINT=https://kiba-agent-price.rodion.com.co
       - BACKEND_URL=http://backend:4000
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:5004/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
@@ -162,7 +161,7 @@ services:
       - NODE_ENV=production
       - AGENT_NAME=code-reviewer
       - PORT=5005
-      - PUBLIC_ENDPOINT=https://kiba-agent-code-production.up.railway.app
+      - PUBLIC_ENDPOINT=https://kiba-agent-code.rodion.com.co
       - BACKEND_URL=http://backend:4000
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:5005/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
@@ -182,7 +181,7 @@ services:
       - NODE_ENV=production
       - AGENT_NAME=firecrawl
       - PORT=5006
-      - PUBLIC_ENDPOINT=https://kiba-agent-firecrawl-production.up.railway.app
+      - PUBLIC_ENDPOINT=https://kiba-agent-firecrawl.rodion.com.co
       - BACKEND_URL=http://backend:4000
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:5006/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
@@ -202,7 +201,7 @@ services:
       - NODE_ENV=production
       - AGENT_NAME=world-clock
       - PORT=5007
-      - PUBLIC_ENDPOINT=https://kiba-agent-world-production.up.railway.app
+      - PUBLIC_ENDPOINT=https://kiba-agent-world.rodion.com.co
       - BACKEND_URL=http://backend:4000
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:5007/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
@@ -222,7 +221,7 @@ services:
       - NODE_ENV=production
       - AGENT_NAME=randomizer
       - PORT=5008
-      - PUBLIC_ENDPOINT=https://kiba-agent-randomizer-production.up.railway.app
+      - PUBLIC_ENDPOINT=https://kiba-agent-randomizer.rodion.com.co
       - BACKEND_URL=http://backend:4000
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:5008/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
