@@ -11,10 +11,10 @@ variable que conoce Coolify es `DOPPLER_TOKEN`.
 |---|---|---|---|
 | `packages/landing` (Astro) | Vercel | `kiba-landing` | https://kiba-landing.vercel.app |
 | `packages/dashboard` (Vite) | Vercel | `kiba-dashboard` | https://kiba-dashboard.vercel.app |
-| `packages/gateway` (Express) | Coolify | stack `kiba` / `gateway` | https://kiba-api.rodion.com.co |
-| `packages/backend` (Express) | Coolify | stack `kiba` / `backend` | https://kiba-data.rodion.com.co |
+| `packages/gateway` (Express) | Coolify | stack `kiba` / `gateway` | https://kiba-api.suchima.com |
+| `packages/backend` (Express) | Coolify | stack `kiba` / `backend` | https://kiba-data.suchima.com |
 | Postgres 16 | Coolify | stack `kiba` / `postgres` | (solo red interna) |
-| `demo-agents` × 8 | Coolify | stack `kiba` / `agent-<x>` | https://kiba-agent-`<x>`.rodion.com.co |
+| `demo-agents` × 8 | Coolify | stack `kiba` / `agent-<x>` | https://kiba-agent-`<x>`.suchima.com |
 
 Agentes: `translator`, `yield`, `risk`, `price`, `code`, `firecrawl` (sirve el servicio
 on-chain **web-scraper**), `world`, `randomizer`. Todo el stack de backends es UN recurso
@@ -30,7 +30,7 @@ publican a npm con los tags `mcp-v*` / `sdk-v*`; el installer con `installer-v*`
 - Vercel project `kiba-dashboard`: `prj_rAW3qHsRmUw9UavD37nRaMZxG2qC`
 - Coolify (https://coolify.rodion.com.co): server `xsgscwskwkgoossw00oo04gs`,
   proyecto `kiba` `utx4h07woljtpce6lna02bzl`, app compose `vd3vty7v3zqe5qmbuuvljp6r`
-- VPS: `207.246.114.85` (DNS de `*.rodion.com.co` en Hostinger)
+- VPS: `207.246.114.85` (DNS de `*.suchima.com` en Hostinger)
 
 ## Cómo funciona el CI/CD
 
@@ -91,10 +91,10 @@ redesplegar solo el stack con:
 1. Generar keypair Stellar (fondearlo con friendbot) y guardarlo en Doppler `kiba/prd`
    como `AGENT_WALLET_SECRET_<NUEVO>`.
 2. Añadir el servicio al `docker-compose.prod.yml` (copiar un `agent-*`: `AGENT_NAME`,
-   `PORT` nuevo, `PUBLIC_ENDPOINT=https://kiba-agent-<x>.rodion.com.co`).
+   `PORT` nuevo, `PUBLIC_ENDPOINT=https://kiba-agent-<x>.suchima.com`).
 3. Añadir el mapeo al `unset` de `scripts/agent-entrypoint.sh` y el script `start:<x>`
    en `packages/demo-agents/package.json` si no existe.
-4. Registro A `kiba-agent-<x>.rodion.com.co → 207.246.114.85` en Hostinger.
+4. Registro A `kiba-agent-<x>.suchima.com → 207.246.114.85` en Hostinger.
 5. Dominio del servicio en el panel de Coolify (app kiba → servicio → Domains, con
    `:puerto`) y añadirlo a `STELLAR_SERVICES` en Doppler.
 6. Push a main (el CI dispara el deploy). `bootstrap()` registra el agente on-chain
@@ -110,8 +110,8 @@ redesplegar solo el stack con:
 - Cada proyecto despliega desde su carpeta (`packages/landing`, `packages/dashboard`)
   con su propio `vercel.json`.
 - **Dashboard**: SPA estática; rutas relativas reescritas por Vercel:
-  - `/api/*` → `https://kiba-api.rodion.com.co` (gateway)
-  - `/backend/*` → `https://kiba-data.rodion.com.co` (backend)
+  - `/api/*` → `https://kiba-api.suchima.com` (gateway)
+  - `/backend/*` → `https://kiba-data.suchima.com` (backend)
 - **Landing**: Astro hornea en build-time `PUBLIC_BACKEND_URL`, `PUBLIC_GATEWAY_URL`,
   `PUBLIC_DASHBOARD_URL` (env vars de producción en Vercel; los defaults del código ya
   apuntan a los dominios nuevos).
@@ -129,7 +129,7 @@ convivencia: reactivar los servicios en Railway y revertir los rewrites del dash
 
 - ⚠️ **WebSocket en el dashboard**: abre `wss://{location.host}/ws`. Vercel **no proxea
   WebSockets** por rewrites. Con el backend en dominio propio ya se puede apuntar el WS
-  directo a `wss://kiba-data.rodion.com.co/ws` (`packages/dashboard/src/routes/Agents.tsx`).
+  directo a `wss://kiba-data.suchima.com/ws` (`packages/dashboard/src/routes/Agents.tsx`).
 - **Comunicación interna**: gateway → backend y gateway → agentes van por la red interna
   de compose (`http://backend:4000`) o por el dominio público (agentes, hairpin vía
   Traefik) según el registro on-chain.

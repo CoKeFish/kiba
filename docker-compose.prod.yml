@@ -9,7 +9,7 @@
 # No duplicar claves entre compose y Doppler: doppler run pisa en colisión.
 #
 # Traefik (Coolify) enruta por la red interna; los dominios por servicio se
-# configuran en el panel de Coolify (gateway → kiba-api.rodion.com.co:8000, etc.).
+# configuran en el panel de Coolify (gateway → kiba-api.suchima.com:8000, etc.).
 # ============================================================================
 services:
   postgres:
@@ -54,7 +54,7 @@ services:
       - DOPPLER_TOKEN=${DOPPLER_TOKEN}
       - NODE_ENV=production
       - PORT=8000
-      - PUBLIC_URL=https://kiba-api.rodion.com.co
+      - PUBLIC_URL=https://kiba-api.suchima.com
       - BACKEND_URL=http://backend:4000
       - CORS_ORIGINS=https://kiba-dashboard.vercel.app,https://kiba-landing.vercel.app
     healthcheck:
@@ -81,7 +81,7 @@ services:
       - NODE_ENV=production
       - AGENT_NAME=translator-pro
       - PORT=5003
-      - PUBLIC_ENDPOINT=https://kiba-agent-translator.rodion.com.co
+      - PUBLIC_ENDPOINT=https://kiba-agent-translator.suchima.com
       - BACKEND_URL=http://backend:4000
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:5003/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
@@ -101,7 +101,7 @@ services:
       - NODE_ENV=production
       - AGENT_NAME=yield-hunter
       - PORT=5001
-      - PUBLIC_ENDPOINT=https://kiba-agent-yield.rodion.com.co
+      - PUBLIC_ENDPOINT=https://kiba-agent-yield.suchima.com
       - BACKEND_URL=http://backend:4000
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:5001/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
@@ -121,7 +121,7 @@ services:
       - NODE_ENV=production
       - AGENT_NAME=risk-auditor
       - PORT=5002
-      - PUBLIC_ENDPOINT=https://kiba-agent-risk.rodion.com.co
+      - PUBLIC_ENDPOINT=https://kiba-agent-risk.suchima.com
       - BACKEND_URL=http://backend:4000
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:5002/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
@@ -141,7 +141,7 @@ services:
       - NODE_ENV=production
       - AGENT_NAME=price-oracle
       - PORT=5004
-      - PUBLIC_ENDPOINT=https://kiba-agent-price.rodion.com.co
+      - PUBLIC_ENDPOINT=https://kiba-agent-price.suchima.com
       - BACKEND_URL=http://backend:4000
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:5004/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
@@ -161,7 +161,7 @@ services:
       - NODE_ENV=production
       - AGENT_NAME=code-reviewer
       - PORT=5005
-      - PUBLIC_ENDPOINT=https://kiba-agent-code.rodion.com.co
+      - PUBLIC_ENDPOINT=https://kiba-agent-code.suchima.com
       - BACKEND_URL=http://backend:4000
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:5005/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
@@ -181,7 +181,7 @@ services:
       - NODE_ENV=production
       - AGENT_NAME=firecrawl
       - PORT=5006
-      - PUBLIC_ENDPOINT=https://kiba-agent-firecrawl.rodion.com.co
+      - PUBLIC_ENDPOINT=https://kiba-agent-firecrawl.suchima.com
       - BACKEND_URL=http://backend:4000
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:5006/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
@@ -201,7 +201,7 @@ services:
       - NODE_ENV=production
       - AGENT_NAME=world-clock
       - PORT=5007
-      - PUBLIC_ENDPOINT=https://kiba-agent-world.rodion.com.co
+      - PUBLIC_ENDPOINT=https://kiba-agent-world.suchima.com
       - BACKEND_URL=http://backend:4000
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:5007/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
@@ -221,7 +221,7 @@ services:
       - NODE_ENV=production
       - AGENT_NAME=randomizer
       - PORT=5008
-      - PUBLIC_ENDPOINT=https://kiba-agent-randomizer.rodion.com.co
+      - PUBLIC_ENDPOINT=https://kiba-agent-randomizer.suchima.com
       - BACKEND_URL=http://backend:4000
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:5008/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]

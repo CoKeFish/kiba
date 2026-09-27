@@ -541,7 +541,7 @@ Sitio estático con 3 islas React; la lógica viva está en `AgentsCatalog.tsx` 
 | **frontend-landing-01** | astro build produce dist estático y sirve index.html | config | integration | **P0** | exit 0, 200 en / | Sí | Gap |
 | frontend-landing-02 | astro check pasa (tipos) | config | integration | P1 | 0 errores | Sí | Gap |
 | **frontend-landing-03** | Bundle sin secretos, solo PUBLIC_* | security | integration | **P0** | grep sk-ant/PRIVATE KEY = 0 | Sí | Gap |
-| frontend-landing-04 | PUBLIC_BACKEND_URL baked en window.__BACKEND_URL__ | config | integration | P1 | fallback rodion.com.co | Sí | Gap |
+| frontend-landing-04 | PUBLIC_BACKEND_URL baked en window.__BACKEND_URL__ | config | integration | P1 | fallback suchima.com | Sí | Gap |
 | frontend-landing-05 | PUBLIC_DASHBOARD_URL en cada CTA | config | integration | P1 | sin localhost en prod | Sí | Gap |
 | frontend-landing-06 | PUBLIC_* documentados en env+compose+Dockerfile | config | manual | P1 | solo NEXT_PUBLIC_ documentado | Sí | Gap |
 | frontend-landing-07 | PUBLIC_GATEWAY_URL declarado pero no usado | config | manual | P2 | dead config | No | Gap |

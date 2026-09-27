@@ -3,7 +3,7 @@ import { getLangFromUrl, useTranslations } from "../i18n/utils";
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
 
-const DASHBOARD_URL = import.meta.env.PUBLIC_DASHBOARD_URL || "https://dashboard.kiba.rodion.com.co";
+const DASHBOARD_URL = import.meta.env.PUBLIC_DASHBOARD_URL || "https://kiba-dashboard.vercel.app";
 
 const tiers = [
   {

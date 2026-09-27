@@ -4,8 +4,8 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "rewrites": [
-    { "source": "/api/:path*", "destination": "https://kiba-api.rodion.com.co/:path*" },
-    { "source": "/backend/:path*", "destination": "https://kiba-data.rodion.com.co/:path*" },
+    { "source": "/api/:path*", "destination": "https://kiba-api.suchima.com/:path*" },
+    { "source": "/backend/:path*", "destination": "https://kiba-data.suchima.com/:path*" },
     { "source": "/((?!assets|.*\\.).*)", "destination": "/index.html" }
   ]
 }
