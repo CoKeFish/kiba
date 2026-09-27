@@ -3,7 +3,7 @@
 # (los secretos de Doppler ya están en el entorno): mapea el secreto namespaced
 # AGENT_WALLET_SECRET_<KEY> -> AGENT_WALLET_SECRET según AGENT_NAME, y hace
 # unset del resto para que cada agente solo conserve SU keypair.
-# Mapeo (mismo criterio %%-* que el CMD de Railway): translator-pro -> TRANSLATOR,
+# Mapeo (criterio %%-*): translator-pro -> TRANSLATOR,
 # yield-hunter -> YIELD, risk-auditor -> RISK, price-oracle -> PRICE,
 # code-reviewer -> CODE, firecrawl -> FIRECRAWL, world-clock -> WORLD,
 # randomizer -> RANDOMIZER.

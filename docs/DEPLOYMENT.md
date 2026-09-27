@@ -116,20 +116,20 @@ redesplegar solo el stack con:
   `PUBLIC_DASHBOARD_URL` (env vars de producción en Vercel; los defaults del código ya
   apuntan a los dominios nuevos).
 
-## Railway (legado — en desmontaje)
+## Railway (desmontado)
 
-Los backends vivieron en Railway hasta 2026-07-08 (cutover a Coolify). Los servicios
-quedaron **pausados** (`railway down`) con sus volúmenes intactos como fallback durante
-el periodo de convivencia; el teardown definitivo (borrar servicios, volúmenes,
-`RAILWAY_TOKEN` y `scripts/deploy-railway-agent.sh` + `Dockerfile.railway`) procede tras
-≥7 días de E2E verde y la republicación de `kiba-mcp`/installer. Rollback durante la
-convivencia: reactivar los servicios en Railway y revertir los rewrites del dashboard.
+Los backends vivieron en Railway hasta 2026-07-08 (cutover a Coolify) y quedaron pausados
+como fallback durante la convivencia. El 2026-09-27 se completó el teardown: se eliminaron
+`Dockerfile.railway` (×3), `scripts/deploy-railway-agent.sh`, `.railwayignore` y el secret
+`RAILWAY_TOKEN` de GitHub, y se restauró `SETTLEMENT_INTERVAL_MS=3600000` en Doppler
+`kiba/prd` (se había vaciado para evitar doble liquidación mientras ambos stacks convivían).
+Lo único que queda por hacer es borrar el proyecto y sus volúmenes desde el panel de Railway.
 
 ## Pendientes conocidos
 
-- ⚠️ **WebSocket en el dashboard**: abre `wss://{location.host}/ws`. Vercel **no proxea
-  WebSockets** por rewrites. Con el backend en dominio propio ya se puede apuntar el WS
-  directo a `wss://kiba-data.suchima.com/ws` (`packages/dashboard/src/routes/Agents.tsx`).
+- **WebSocket en el dashboard**: Vercel **no proxea WebSockets** por rewrites, así que el
+  dashboard abre el WS directo al backend vía la env de producción `VITE_WS_URL` =
+  `wss://kiba-data.suchima.com/ws` (`packages/dashboard/src/routes/Agents.tsx`).
 - **Comunicación interna**: gateway → backend y gateway → agentes van por la red interna
   de compose (`http://backend:4000`) o por el dominio público (agentes, hairpin vía
   Traefik) según el registro on-chain.

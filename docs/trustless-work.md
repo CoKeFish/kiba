@@ -66,7 +66,7 @@ agentes sigue funcionando) y cualquier `openEscrow/claim/refund` lanza un error 
 ## Prerequisito: obtener la API key
 
 1. Entrar al **BackOffice dApp** de Trustless Work y generar una **API key de testnet**.
-2. Ponerla en `TRUSTLESS_WORK_API_KEY` (local: `.env`; prod: secrets de Railway).
+2. Ponerla en `TRUSTLESS_WORK_API_KEY` (local: `.env`; prod: Doppler `kiba/prd`).
 3. Fijar `TRUSTLESS_WORK_PLATFORM_ADDRESS` = dirección de la treasury y el trustline del token.
 
 ## Pendientes (Fase 2 — requieren la API key, confirmar contra la API viva)

@@ -1,5 +1,5 @@
 # Imagen de PRODUCCIÓN para Coolify (VPS). Corre UN agente, elegido con AGENT_NAME.
-# Variante de Dockerfile.railway: añade el CLI de Doppler y arranca vía el shim
+# Añade el CLI de Doppler y arranca vía el shim
 # scripts/agent-entrypoint.sh dentro de `doppler run` — el shim mapea el secreto
 # namespaced AGENT_WALLET_SECRET_<KEY> -> AGENT_WALLET_SECRET del agente.
 FROM node:20-alpine

@@ -1,4 +1,4 @@
-# Imagen de PRODUCCIÓN para Coolify (VPS). Variante de Dockerfile.railway:
+# Imagen de PRODUCCIÓN para Coolify (VPS):
 # añade el CLI de Doppler y envuelve el arranque en `doppler run` — el contenedor
 # recibe UNA sola env (DOPPLER_TOKEN) y resuelve todos los secretos en runtime.
 # Stateless: la master wallet llega por MASTER_WALLET_SECRET (Doppler), no por volumen.
