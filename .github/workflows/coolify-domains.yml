@@ -1,0 +1,49 @@
+# Lee/ajusta los dominios por servicio del stack `kiba` en Coolify
+# (campo `docker_compose_domains` de la app) con el token de CI.
+# No despliega: el redeploy lo dispara deploy.yml en el siguiente push a main.
+#
+# Uso:
+#   gh workflow run coolify-domains.yml                      # solo muestra los actuales
+#   gh workflow run coolify-domains.yml -f domains='[{"name":"gateway","domain":"https://api.kiba.tools:8000"}, ...]'
+# OJO: `name` = nombre del servicio en docker-compose.prod.yml (con guion, p.ej. agent-world).
+name: coolify-domains
+
+on:
+  workflow_dispatch:
+    inputs:
+      domains:
+        description: 'JSON array [{"name": "<servicio>", "domain": "https://host:puerto"}] (vacío = solo leer)'
+        required: false
+        default: ''
+
+jobs:
+  domains:
+    runs-on: ubuntu-latest
+    env:
+      COOLIFY_URL: https://coolify.rodion.com.co/api/v1
+      COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+      APP_UUID: ${{ secrets.COOLIFY_APP_UUID }}
+      DOMAINS: ${{ inputs.domains }}
+    steps:
+      - name: Dominios actuales
+        run: |
+          code=$(curl -s -o /tmp/app.json -w '%{http_code}' -H "Authorization: Bearer $COOLIFY_TOKEN" "$COOLIFY_URL/applications/$APP_UUID")
+          echo "GET -> HTTP $code"
+          [ "$code" = "200" ] || { cat /tmp/app.json; exit 1; }
+          jq -r '.docker_compose_domains' /tmp/app.json
+
+      - name: PATCH docker_compose_domains
+        if: env.DOMAINS != ''
+        run: |
+          body=$(jq -cn --argjson d "$DOMAINS" '{docker_compose_domains: $d}')
+          code=$(curl -s -o /tmp/patch.json -w '%{http_code}' -X PATCH \
+            -H "Authorization: Bearer $COOLIFY_TOKEN" -H 'Content-Type: application/json' \
+            -d "$body" "$COOLIFY_URL/applications/$APP_UUID")
+          echo "PATCH -> HTTP $code"
+          cat /tmp/patch.json; echo
+          [ "$code" = "200" ]
+
+      - name: Verificar
+        if: env.DOMAINS != ''
+        run: |
+          curl -sf -H "Authorization: Bearer $COOLIFY_TOKEN" "$COOLIFY_URL/applications/$APP_UUID" | jq -r '.docker_compose_domains' | jq .
