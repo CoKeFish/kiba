@@ -123,7 +123,7 @@ pub struct InstallResult {
 /// MCP server tiene este mismo default hardcoded (`packages/mcp-server/src/index.ts`),
 /// lo declaramos explícito acá para que el config sea autodescriptivo y para
 /// que el usuario pueda apuntar a un gateway propio editando solo este campo.
-const PROD_GATEWAY_URL: &str = "https://kiba-api.suchima.com";
+const PROD_GATEWAY_URL: &str = "https://api.kiba.tools";
 
 fn mcp_block() -> Value {
     // En Windows, `npx` no es un ejecutable directo (es `npx.cmd`). Los clientes

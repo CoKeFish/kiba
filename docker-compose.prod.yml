@@ -9,7 +9,7 @@
 # No duplicar claves entre compose y Doppler: doppler run pisa en colisión.
 #
 # Traefik (Coolify) enruta por la red interna; los dominios por servicio se
-# configuran en el panel de Coolify (gateway → kiba-api.suchima.com:8000, etc.).
+# configuran en el panel de Coolify (gateway → api.kiba.tools:8000, etc.).
 # ============================================================================
 services:
   postgres:
@@ -33,6 +33,23 @@ services:
     build:
       context: .
       dockerfile: packages/backend/Dockerfile.coolify
+    labels:
+      # Dominio viejo → nuevo (redirección; ver "Dominios" en docs/DEPLOYMENT.md)
+      - traefik.http.middlewares.legacy-backend.redirectregex.regex=^https?://kiba-data[.]suchima[.]com
+      - traefik.http.middlewares.legacy-backend.redirectregex.replacement=https://data.kiba.tools
+      - traefik.http.middlewares.legacy-backend.redirectregex.permanent=true
+      - traefik.http.routers.legacy-backend.rule=Host(`kiba-data.suchima.com`)
+      - traefik.http.routers.legacy-backend.entryPoints=https
+      - traefik.http.routers.legacy-backend.tls=true
+      - traefik.http.routers.legacy-backend.tls.certresolver=letsencrypt
+      - traefik.http.routers.legacy-backend.priority=1000
+      - traefik.http.routers.legacy-backend.middlewares=legacy-backend
+      - traefik.http.routers.legacy-backend.service=noop@internal
+      - traefik.http.routers.legacy-backend-http.rule=Host(`kiba-data.suchima.com`)
+      - traefik.http.routers.legacy-backend-http.entryPoints=http
+      - traefik.http.routers.legacy-backend-http.priority=1000
+      - traefik.http.routers.legacy-backend-http.middlewares=legacy-backend
+      - traefik.http.routers.legacy-backend-http.service=noop@internal
     environment:
       - DOPPLER_TOKEN=${DOPPLER_TOKEN}
       - NODE_ENV=production
@@ -50,13 +67,30 @@ services:
     build:
       context: .
       dockerfile: packages/gateway/Dockerfile.coolify
+    labels:
+      # Dominio viejo → nuevo (redirección; ver "Dominios" en docs/DEPLOYMENT.md)
+      - traefik.http.middlewares.legacy-gateway.redirectregex.regex=^https?://kiba-api[.]suchima[.]com
+      - traefik.http.middlewares.legacy-gateway.redirectregex.replacement=https://api.kiba.tools
+      - traefik.http.middlewares.legacy-gateway.redirectregex.permanent=true
+      - traefik.http.routers.legacy-gateway.rule=Host(`kiba-api.suchima.com`)
+      - traefik.http.routers.legacy-gateway.entryPoints=https
+      - traefik.http.routers.legacy-gateway.tls=true
+      - traefik.http.routers.legacy-gateway.tls.certresolver=letsencrypt
+      - traefik.http.routers.legacy-gateway.priority=1000
+      - traefik.http.routers.legacy-gateway.middlewares=legacy-gateway
+      - traefik.http.routers.legacy-gateway.service=noop@internal
+      - traefik.http.routers.legacy-gateway-http.rule=Host(`kiba-api.suchima.com`)
+      - traefik.http.routers.legacy-gateway-http.entryPoints=http
+      - traefik.http.routers.legacy-gateway-http.priority=1000
+      - traefik.http.routers.legacy-gateway-http.middlewares=legacy-gateway
+      - traefik.http.routers.legacy-gateway-http.service=noop@internal
     environment:
       - DOPPLER_TOKEN=${DOPPLER_TOKEN}
       - NODE_ENV=production
       - PORT=8000
-      - PUBLIC_URL=https://kiba-api.suchima.com
+      - PUBLIC_URL=https://api.kiba.tools
       - BACKEND_URL=http://backend:4000
-      - CORS_ORIGINS=https://kiba-dashboard.vercel.app,https://kiba-landing.vercel.app
+      - CORS_ORIGINS=https://app.kiba.tools,https://kiba.tools
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:8000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 30s
@@ -76,12 +110,29 @@ services:
     build:
       context: .
       dockerfile: packages/demo-agents/Dockerfile.coolify
+    labels:
+      # Dominio viejo → nuevo (redirección; ver "Dominios" en docs/DEPLOYMENT.md)
+      - traefik.http.middlewares.legacy-agent-translator.redirectregex.regex=^https?://kiba-agent-translator[.]suchima[.]com
+      - traefik.http.middlewares.legacy-agent-translator.redirectregex.replacement=https://agent-translator.kiba.tools
+      - traefik.http.middlewares.legacy-agent-translator.redirectregex.permanent=true
+      - traefik.http.routers.legacy-agent-translator.rule=Host(`kiba-agent-translator.suchima.com`)
+      - traefik.http.routers.legacy-agent-translator.entryPoints=https
+      - traefik.http.routers.legacy-agent-translator.tls=true
+      - traefik.http.routers.legacy-agent-translator.tls.certresolver=letsencrypt
+      - traefik.http.routers.legacy-agent-translator.priority=1000
+      - traefik.http.routers.legacy-agent-translator.middlewares=legacy-agent-translator
+      - traefik.http.routers.legacy-agent-translator.service=noop@internal
+      - traefik.http.routers.legacy-agent-translator-http.rule=Host(`kiba-agent-translator.suchima.com`)
+      - traefik.http.routers.legacy-agent-translator-http.entryPoints=http
+      - traefik.http.routers.legacy-agent-translator-http.priority=1000
+      - traefik.http.routers.legacy-agent-translator-http.middlewares=legacy-agent-translator
+      - traefik.http.routers.legacy-agent-translator-http.service=noop@internal
     environment:
       - DOPPLER_TOKEN=${DOPPLER_TOKEN}
       - NODE_ENV=production
       - AGENT_NAME=translator-pro
       - PORT=5003
-      - PUBLIC_ENDPOINT=https://kiba-agent-translator.suchima.com
+      - PUBLIC_ENDPOINT=https://agent-translator.kiba.tools
       - BACKEND_URL=http://backend:4000
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:5003/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
@@ -96,12 +147,29 @@ services:
     build:
       context: .
       dockerfile: packages/demo-agents/Dockerfile.coolify
+    labels:
+      # Dominio viejo → nuevo (redirección; ver "Dominios" en docs/DEPLOYMENT.md)
+      - traefik.http.middlewares.legacy-agent-yield.redirectregex.regex=^https?://kiba-agent-yield[.]suchima[.]com
+      - traefik.http.middlewares.legacy-agent-yield.redirectregex.replacement=https://agent-yield.kiba.tools
+      - traefik.http.middlewares.legacy-agent-yield.redirectregex.permanent=true
+      - traefik.http.routers.legacy-agent-yield.rule=Host(`kiba-agent-yield.suchima.com`)
+      - traefik.http.routers.legacy-agent-yield.entryPoints=https
+      - traefik.http.routers.legacy-agent-yield.tls=true
+      - traefik.http.routers.legacy-agent-yield.tls.certresolver=letsencrypt
+      - traefik.http.routers.legacy-agent-yield.priority=1000
+      - traefik.http.routers.legacy-agent-yield.middlewares=legacy-agent-yield
+      - traefik.http.routers.legacy-agent-yield.service=noop@internal
+      - traefik.http.routers.legacy-agent-yield-http.rule=Host(`kiba-agent-yield.suchima.com`)
+      - traefik.http.routers.legacy-agent-yield-http.entryPoints=http
+      - traefik.http.routers.legacy-agent-yield-http.priority=1000
+      - traefik.http.routers.legacy-agent-yield-http.middlewares=legacy-agent-yield
+      - traefik.http.routers.legacy-agent-yield-http.service=noop@internal
     environment:
       - DOPPLER_TOKEN=${DOPPLER_TOKEN}
       - NODE_ENV=production
       - AGENT_NAME=yield-hunter
       - PORT=5001
-      - PUBLIC_ENDPOINT=https://kiba-agent-yield.suchima.com
+      - PUBLIC_ENDPOINT=https://agent-yield.kiba.tools
       - BACKEND_URL=http://backend:4000
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:5001/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
@@ -116,12 +184,29 @@ services:
     build:
       context: .
       dockerfile: packages/demo-agents/Dockerfile.coolify
+    labels:
+      # Dominio viejo → nuevo (redirección; ver "Dominios" en docs/DEPLOYMENT.md)
+      - traefik.http.middlewares.legacy-agent-risk.redirectregex.regex=^https?://kiba-agent-risk[.]suchima[.]com
+      - traefik.http.middlewares.legacy-agent-risk.redirectregex.replacement=https://agent-risk.kiba.tools
+      - traefik.http.middlewares.legacy-agent-risk.redirectregex.permanent=true
+      - traefik.http.routers.legacy-agent-risk.rule=Host(`kiba-agent-risk.suchima.com`)
+      - traefik.http.routers.legacy-agent-risk.entryPoints=https
+      - traefik.http.routers.legacy-agent-risk.tls=true
+      - traefik.http.routers.legacy-agent-risk.tls.certresolver=letsencrypt
+      - traefik.http.routers.legacy-agent-risk.priority=1000
+      - traefik.http.routers.legacy-agent-risk.middlewares=legacy-agent-risk
+      - traefik.http.routers.legacy-agent-risk.service=noop@internal
+      - traefik.http.routers.legacy-agent-risk-http.rule=Host(`kiba-agent-risk.suchima.com`)
+      - traefik.http.routers.legacy-agent-risk-http.entryPoints=http
+      - traefik.http.routers.legacy-agent-risk-http.priority=1000
+      - traefik.http.routers.legacy-agent-risk-http.middlewares=legacy-agent-risk
+      - traefik.http.routers.legacy-agent-risk-http.service=noop@internal
     environment:
       - DOPPLER_TOKEN=${DOPPLER_TOKEN}
       - NODE_ENV=production
       - AGENT_NAME=risk-auditor
       - PORT=5002
-      - PUBLIC_ENDPOINT=https://kiba-agent-risk.suchima.com
+      - PUBLIC_ENDPOINT=https://agent-risk.kiba.tools
       - BACKEND_URL=http://backend:4000
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:5002/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
@@ -136,12 +221,29 @@ services:
     build:
       context: .
       dockerfile: packages/demo-agents/Dockerfile.coolify
+    labels:
+      # Dominio viejo → nuevo (redirección; ver "Dominios" en docs/DEPLOYMENT.md)
+      - traefik.http.middlewares.legacy-agent-price.redirectregex.regex=^https?://kiba-agent-price[.]suchima[.]com
+      - traefik.http.middlewares.legacy-agent-price.redirectregex.replacement=https://agent-price.kiba.tools
+      - traefik.http.middlewares.legacy-agent-price.redirectregex.permanent=true
+      - traefik.http.routers.legacy-agent-price.rule=Host(`kiba-agent-price.suchima.com`)
+      - traefik.http.routers.legacy-agent-price.entryPoints=https
+      - traefik.http.routers.legacy-agent-price.tls=true
+      - traefik.http.routers.legacy-agent-price.tls.certresolver=letsencrypt
+      - traefik.http.routers.legacy-agent-price.priority=1000
+      - traefik.http.routers.legacy-agent-price.middlewares=legacy-agent-price
+      - traefik.http.routers.legacy-agent-price.service=noop@internal
+      - traefik.http.routers.legacy-agent-price-http.rule=Host(`kiba-agent-price.suchima.com`)
+      - traefik.http.routers.legacy-agent-price-http.entryPoints=http
+      - traefik.http.routers.legacy-agent-price-http.priority=1000
+      - traefik.http.routers.legacy-agent-price-http.middlewares=legacy-agent-price
+      - traefik.http.routers.legacy-agent-price-http.service=noop@internal
     environment:
       - DOPPLER_TOKEN=${DOPPLER_TOKEN}
       - NODE_ENV=production
       - AGENT_NAME=price-oracle
       - PORT=5004
-      - PUBLIC_ENDPOINT=https://kiba-agent-price.suchima.com
+      - PUBLIC_ENDPOINT=https://agent-price.kiba.tools
       - BACKEND_URL=http://backend:4000
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:5004/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
@@ -156,12 +258,29 @@ services:
     build:
       context: .
       dockerfile: packages/demo-agents/Dockerfile.coolify
+    labels:
+      # Dominio viejo → nuevo (redirección; ver "Dominios" en docs/DEPLOYMENT.md)
+      - traefik.http.middlewares.legacy-agent-code.redirectregex.regex=^https?://kiba-agent-code[.]suchima[.]com
+      - traefik.http.middlewares.legacy-agent-code.redirectregex.replacement=https://agent-code.kiba.tools
+      - traefik.http.middlewares.legacy-agent-code.redirectregex.permanent=true
+      - traefik.http.routers.legacy-agent-code.rule=Host(`kiba-agent-code.suchima.com`)
+      - traefik.http.routers.legacy-agent-code.entryPoints=https
+      - traefik.http.routers.legacy-agent-code.tls=true
+      - traefik.http.routers.legacy-agent-code.tls.certresolver=letsencrypt
+      - traefik.http.routers.legacy-agent-code.priority=1000
+      - traefik.http.routers.legacy-agent-code.middlewares=legacy-agent-code
+      - traefik.http.routers.legacy-agent-code.service=noop@internal
+      - traefik.http.routers.legacy-agent-code-http.rule=Host(`kiba-agent-code.suchima.com`)
+      - traefik.http.routers.legacy-agent-code-http.entryPoints=http
+      - traefik.http.routers.legacy-agent-code-http.priority=1000
+      - traefik.http.routers.legacy-agent-code-http.middlewares=legacy-agent-code
+      - traefik.http.routers.legacy-agent-code-http.service=noop@internal
     environment:
       - DOPPLER_TOKEN=${DOPPLER_TOKEN}
       - NODE_ENV=production
       - AGENT_NAME=code-reviewer
       - PORT=5005
-      - PUBLIC_ENDPOINT=https://kiba-agent-code.suchima.com
+      - PUBLIC_ENDPOINT=https://agent-code.kiba.tools
       - BACKEND_URL=http://backend:4000
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:5005/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
@@ -176,12 +295,29 @@ services:
     build:
       context: .
       dockerfile: packages/demo-agents/Dockerfile.coolify
+    labels:
+      # Dominio viejo → nuevo (redirección; ver "Dominios" en docs/DEPLOYMENT.md)
+      - traefik.http.middlewares.legacy-agent-firecrawl.redirectregex.regex=^https?://kiba-agent-firecrawl[.]suchima[.]com
+      - traefik.http.middlewares.legacy-agent-firecrawl.redirectregex.replacement=https://agent-firecrawl.kiba.tools
+      - traefik.http.middlewares.legacy-agent-firecrawl.redirectregex.permanent=true
+      - traefik.http.routers.legacy-agent-firecrawl.rule=Host(`kiba-agent-firecrawl.suchima.com`)
+      - traefik.http.routers.legacy-agent-firecrawl.entryPoints=https
+      - traefik.http.routers.legacy-agent-firecrawl.tls=true
+      - traefik.http.routers.legacy-agent-firecrawl.tls.certresolver=letsencrypt
+      - traefik.http.routers.legacy-agent-firecrawl.priority=1000
+      - traefik.http.routers.legacy-agent-firecrawl.middlewares=legacy-agent-firecrawl
+      - traefik.http.routers.legacy-agent-firecrawl.service=noop@internal
+      - traefik.http.routers.legacy-agent-firecrawl-http.rule=Host(`kiba-agent-firecrawl.suchima.com`)
+      - traefik.http.routers.legacy-agent-firecrawl-http.entryPoints=http
+      - traefik.http.routers.legacy-agent-firecrawl-http.priority=1000
+      - traefik.http.routers.legacy-agent-firecrawl-http.middlewares=legacy-agent-firecrawl
+      - traefik.http.routers.legacy-agent-firecrawl-http.service=noop@internal
     environment:
       - DOPPLER_TOKEN=${DOPPLER_TOKEN}
       - NODE_ENV=production
       - AGENT_NAME=firecrawl
       - PORT=5006
-      - PUBLIC_ENDPOINT=https://kiba-agent-firecrawl.suchima.com
+      - PUBLIC_ENDPOINT=https://agent-firecrawl.kiba.tools
       - BACKEND_URL=http://backend:4000
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:5006/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
@@ -196,12 +332,29 @@ services:
     build:
       context: .
       dockerfile: packages/demo-agents/Dockerfile.coolify
+    labels:
+      # Dominio viejo → nuevo (redirección; ver "Dominios" en docs/DEPLOYMENT.md)
+      - traefik.http.middlewares.legacy-agent-world.redirectregex.regex=^https?://kiba-agent-world[.]suchima[.]com
+      - traefik.http.middlewares.legacy-agent-world.redirectregex.replacement=https://agent-world.kiba.tools
+      - traefik.http.middlewares.legacy-agent-world.redirectregex.permanent=true
+      - traefik.http.routers.legacy-agent-world.rule=Host(`kiba-agent-world.suchima.com`)
+      - traefik.http.routers.legacy-agent-world.entryPoints=https
+      - traefik.http.routers.legacy-agent-world.tls=true
+      - traefik.http.routers.legacy-agent-world.tls.certresolver=letsencrypt
+      - traefik.http.routers.legacy-agent-world.priority=1000
+      - traefik.http.routers.legacy-agent-world.middlewares=legacy-agent-world
+      - traefik.http.routers.legacy-agent-world.service=noop@internal
+      - traefik.http.routers.legacy-agent-world-http.rule=Host(`kiba-agent-world.suchima.com`)
+      - traefik.http.routers.legacy-agent-world-http.entryPoints=http
+      - traefik.http.routers.legacy-agent-world-http.priority=1000
+      - traefik.http.routers.legacy-agent-world-http.middlewares=legacy-agent-world
+      - traefik.http.routers.legacy-agent-world-http.service=noop@internal
     environment:
       - DOPPLER_TOKEN=${DOPPLER_TOKEN}
       - NODE_ENV=production
       - AGENT_NAME=world-clock
       - PORT=5007
-      - PUBLIC_ENDPOINT=https://kiba-agent-world.suchima.com
+      - PUBLIC_ENDPOINT=https://agent-world.kiba.tools
       - BACKEND_URL=http://backend:4000
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:5007/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
@@ -216,12 +369,29 @@ services:
     build:
       context: .
       dockerfile: packages/demo-agents/Dockerfile.coolify
+    labels:
+      # Dominio viejo → nuevo (redirección; ver "Dominios" en docs/DEPLOYMENT.md)
+      - traefik.http.middlewares.legacy-agent-randomizer.redirectregex.regex=^https?://kiba-agent-randomizer[.]suchima[.]com
+      - traefik.http.middlewares.legacy-agent-randomizer.redirectregex.replacement=https://agent-randomizer.kiba.tools
+      - traefik.http.middlewares.legacy-agent-randomizer.redirectregex.permanent=true
+      - traefik.http.routers.legacy-agent-randomizer.rule=Host(`kiba-agent-randomizer.suchima.com`)
+      - traefik.http.routers.legacy-agent-randomizer.entryPoints=https
+      - traefik.http.routers.legacy-agent-randomizer.tls=true
+      - traefik.http.routers.legacy-agent-randomizer.tls.certresolver=letsencrypt
+      - traefik.http.routers.legacy-agent-randomizer.priority=1000
+      - traefik.http.routers.legacy-agent-randomizer.middlewares=legacy-agent-randomizer
+      - traefik.http.routers.legacy-agent-randomizer.service=noop@internal
+      - traefik.http.routers.legacy-agent-randomizer-http.rule=Host(`kiba-agent-randomizer.suchima.com`)
+      - traefik.http.routers.legacy-agent-randomizer-http.entryPoints=http
+      - traefik.http.routers.legacy-agent-randomizer-http.priority=1000
+      - traefik.http.routers.legacy-agent-randomizer-http.middlewares=legacy-agent-randomizer
+      - traefik.http.routers.legacy-agent-randomizer-http.service=noop@internal
     environment:
       - DOPPLER_TOKEN=${DOPPLER_TOKEN}
       - NODE_ENV=production
       - AGENT_NAME=randomizer
       - PORT=5008
-      - PUBLIC_ENDPOINT=https://kiba-agent-randomizer.suchima.com
+      - PUBLIC_ENDPOINT=https://agent-randomizer.kiba.tools
       - BACKEND_URL=http://backend:4000
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:5008/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]

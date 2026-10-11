@@ -4,6 +4,7 @@ import react from '@astrojs/react';
 import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
+  site: 'https://kiba.tools',
   i18n: {
     locales: ["en", "es", "pt"],
     defaultLocale: "en",

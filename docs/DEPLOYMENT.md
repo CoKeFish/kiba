@@ -9,12 +9,12 @@ variable que conoce Coolify es `DOPPLER_TOKEN`.
 
 | Paquete | Plataforma | Recurso | URL de producción |
 |---|---|---|---|
-| `packages/landing` (Astro) | Vercel | `kiba-landing` | https://kiba-landing.vercel.app |
-| `packages/dashboard` (Vite) | Vercel | `kiba-dashboard` | https://kiba-dashboard.vercel.app |
-| `packages/gateway` (Express) | Coolify | stack `kiba` / `gateway` | https://kiba-api.suchima.com |
-| `packages/backend` (Express) | Coolify | stack `kiba` / `backend` | https://kiba-data.suchima.com |
+| `packages/landing` (Astro) | Vercel | `kiba-landing` | https://kiba.tools |
+| `packages/dashboard` (Vite) | Vercel | `kiba-dashboard` | https://app.kiba.tools |
+| `packages/gateway` (Express) | Coolify | stack `kiba` / `gateway` | https://api.kiba.tools |
+| `packages/backend` (Express) | Coolify | stack `kiba` / `backend` | https://data.kiba.tools |
 | Postgres 16 | Coolify | stack `kiba` / `postgres` | (solo red interna) |
-| `demo-agents` × 8 | Coolify | stack `kiba` / `agent-<x>` | https://kiba-agent-`<x>`.suchima.com |
+| `demo-agents` × 8 | Coolify | stack `kiba` / `agent-<x>` | https://agent-`<x>`.kiba.tools |
 
 Agentes: `translator`, `yield`, `risk`, `price`, `code`, `firecrawl` (sirve el servicio
 on-chain **web-scraper**), `world`, `randomizer`. Todo el stack de backends es UN recurso
@@ -30,7 +30,31 @@ publican a npm con los tags `mcp-v*` / `sdk-v*`; el installer con `installer-v*`
 - Vercel project `kiba-dashboard`: `prj_rAW3qHsRmUw9UavD37nRaMZxG2qC`
 - Coolify (https://coolify.rodion.com.co): server `xsgscwskwkgoossw00oo04gs`,
   proyecto `kiba` `utx4h07woljtpce6lna02bzl`, app compose `vd3vty7v3zqe5qmbuuvljp6r`
-- VPS: `207.246.114.85` (DNS de `*.suchima.com` en Hostinger)
+- VPS: `207.246.114.85` (DNS de `*.kiba.tools` en Cloudflare; los `*.suchima.com` viejos siguen apuntando aquí solo para redirigir)
+
+### Dominios
+
+Dominio de producto: **`kiba.tools`** (DNS en Cloudflare, registros *DNS only* — sin proxy,
+para que Let's Encrypt (Traefik) y Vercel validen directo). Mapa de servicios en la tabla de
+arriba. En Coolify el mapa vive en `docker_compose_domains` de la app compose; se lee o ajusta
+sin entrar al panel con el workflow `coolify-domains.yml`:
+
+```bash
+gh workflow run coolify-domains.yml                 # muestra los actuales
+gh workflow run coolify-domains.yml -f domains='[{"name":"gateway","domain":"https://api.kiba.tools:8000"},{"name":"backend","domain":"https://data.kiba.tools:4000"},{"name":"agent-translator","domain":"https://agent-translator.kiba.tools:5003"},{"name":"agent-yield","domain":"https://agent-yield.kiba.tools:5001"},{"name":"agent-risk","domain":"https://agent-risk.kiba.tools:5002"},{"name":"agent-price","domain":"https://agent-price.kiba.tools:5004"},{"name":"agent-code","domain":"https://agent-code.kiba.tools:5005"},{"name":"agent-firecrawl","domain":"https://agent-firecrawl.kiba.tools:5006"},{"name":"agent-world","domain":"https://agent-world.kiba.tools:5007"},{"name":"agent-randomizer","domain":"https://agent-randomizer.kiba.tools:5008"}]'
+```
+
+Los dominios anteriores **redirigen** al nuevo:
+
+- Backends `kiba-api.suchima.com`, `kiba-data.suchima.com`, `kiba-agent-<x>.suchima.com` →
+  labels Traefik `legacy-<servicio>` en `docker-compose.prod.yml` (router propio con prioridad
+  1000 + `redirectregex`, conserva path y query; GET responde 301 y el resto 308). Esos hosts
+  siguen apuntando al VPS en DNS y NO van en `docker_compose_domains`.
+- Frontends `kiba-landing.vercel.app` → `kiba.tools` y `kiba-dashboard.vercel.app` →
+  `app.kiba.tools` (redirect 308 de dominio en Vercel; `www.kiba.tools` → `kiba.tools`).
+- ⚠️ Un cliente API con `Authorization: Bearer` que siga usando `kiba-api.suchima.com` recibe
+  el 308 pero `fetch` elimina el header al cambiar de origen → hay que actualizar `KIBA_URL`
+  (`kiba-mcp` ≥ 0.1.6 e installer ≥ 0.1.6 ya traen `https://api.kiba.tools`).
 
 ## Cómo funciona el CI/CD
 
@@ -91,10 +115,10 @@ redesplegar solo el stack con:
 1. Generar keypair Stellar (fondearlo con friendbot) y guardarlo en Doppler `kiba/prd`
    como `AGENT_WALLET_SECRET_<NUEVO>`.
 2. Añadir el servicio al `docker-compose.prod.yml` (copiar un `agent-*`: `AGENT_NAME`,
-   `PORT` nuevo, `PUBLIC_ENDPOINT=https://kiba-agent-<x>.suchima.com`).
+   `PORT` nuevo, `PUBLIC_ENDPOINT=https://agent-<x>.kiba.tools`).
 3. Añadir el mapeo al `unset` de `scripts/agent-entrypoint.sh` y el script `start:<x>`
    en `packages/demo-agents/package.json` si no existe.
-4. Registro A `kiba-agent-<x>.suchima.com → 207.246.114.85` en Hostinger.
+4. Registro A `agent-<x>.kiba.tools → 207.246.114.85` en Cloudflare (DNS only, sin proxy).
 5. Dominio del servicio en el panel de Coolify (app kiba → servicio → Domains, con
    `:puerto`) y añadirlo a `STELLAR_SERVICES` en Doppler.
 6. Push a main (el CI dispara el deploy). `bootstrap()` registra el agente on-chain
@@ -110,8 +134,8 @@ redesplegar solo el stack con:
 - Cada proyecto despliega desde su carpeta (`packages/landing`, `packages/dashboard`)
   con su propio `vercel.json`.
 - **Dashboard**: SPA estática; rutas relativas reescritas por Vercel:
-  - `/api/*` → `https://kiba-api.suchima.com` (gateway)
-  - `/backend/*` → `https://kiba-data.suchima.com` (backend)
+  - `/api/*` → `https://api.kiba.tools` (gateway)
+  - `/backend/*` → `https://data.kiba.tools` (backend)
 - **Landing**: Astro hornea en build-time `PUBLIC_BACKEND_URL`, `PUBLIC_GATEWAY_URL`,
   `PUBLIC_DASHBOARD_URL` (env vars de producción en Vercel; los defaults del código ya
   apuntan a los dominios nuevos).
@@ -129,7 +153,7 @@ Lo único que queda por hacer es borrar el proyecto y sus volúmenes desde el pa
 
 - **WebSocket en el dashboard**: Vercel **no proxea WebSockets** por rewrites, así que el
   dashboard abre el WS directo al backend vía la env de producción `VITE_WS_URL` =
-  `wss://kiba-data.suchima.com/ws` (`packages/dashboard/src/routes/Agents.tsx`).
+  `wss://data.kiba.tools/ws` (`packages/dashboard/src/routes/Agents.tsx`).
 - **Comunicación interna**: gateway → backend y gateway → agentes van por la red interna
   de compose (`http://backend:4000`) o por el dominio público (agentes, hairpin vía
   Traefik) según el registro on-chain.
