@@ -183,6 +183,7 @@ packages/
   gateway/              Auth, wallets, credits, batched settlement (port 8000)
   dashboard/            React SPA (port 3020)
   landing/              Astro site (port 3010)
+  docs/                 Documentation site, Astro + Starlight (docs.kiba.tools)
   mcp-server/           MCP adapter, distributed on npm
   orchestrator-agent/   LLM intent planner (port 6001)
   demo-agents/          Example services (ports 5001-5008)

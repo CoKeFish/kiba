@@ -2,8 +2,8 @@ name: deploy
 
 # CI/CD de Kiba.
 #   Frontends (Astro landing, Vite dashboard) -> Vercel
-#   Backends  (stack docker-compose.prod.yml: gateway, backend, postgres,
-#              8 demo-agents)                 -> Coolify (VPS, webhook de deploy)
+#   Backends + docs (stack docker-compose.prod.yml: gateway, backend, postgres,
+#              8 demo-agents, docs)           -> Coolify (VPS, webhook de deploy)
 # Cada push a main: corre tests + escaneo de secretos, y despliega SOLO los
 # paquetes que cambiaron. En pull_request corre tests + gitleaks (sin desplegar).
 #
@@ -49,6 +49,7 @@ jobs:
               - 'packages/gateway/**'
               - 'packages/demo-agents/**'
               - 'packages/sdk/**'
+              - 'packages/docs/**'
               - 'package-lock.json'
               - 'docker-compose.prod.yml'
               - 'docker/**'

@@ -70,6 +70,20 @@ services:
       - gateway
       - backend
 
+  docs:
+    build:
+      context: .
+      dockerfile: packages/docs/Dockerfile
+    container_name: kiba-docs
+    volumes:
+      - ./packages/docs/src:/app/src
+      - ./packages/docs/public:/app/public
+      - ./packages/docs/astro.config.mjs:/app/astro.config.mjs
+    ports:
+      - "3030:4321"
+    environment:
+      - NODE_ENV=development
+
   demo-agents:
     build:
       context: .

@@ -24,6 +24,7 @@
     "build:backend": "npm run build --workspace=@kiba/backend",
     "build:landing": "npm run build --workspace=@kiba/landing",
     "build:dashboard": "npm run build --workspace=@kiba/dashboard",
+    "build:docs": "npm --prefix packages/docs run build",
     "build:agents": "npm run build --workspace=@kiba/demo-agents",
     "build:orchestrator": "npm run build --workspace=@kiba/orchestrator-agent",
     "build:all": "npm run build:sdk && npm run build:backend && npm run build:landing && npm run build:dashboard && npm run build:agents && npm run build:orchestrator"

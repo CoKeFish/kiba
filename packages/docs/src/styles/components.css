@@ -1,0 +1,215 @@
+/* Tema Kiba sobre Starlight: hero, botones, tarjetas y elementos del contenido. */
+
+/* ---------- Botones (hero y LinkButton) ---------- */
+.sl-link-button {
+  border-radius: 999px;
+  font-weight: 600;
+  padding: 0.7rem 1.35rem;
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+.sl-link-button.primary {
+  background: var(--sl-color-accent);
+  border-color: var(--sl-color-accent);
+  color: #fff;
+  box-shadow: var(--kb-glow-sm);
+}
+.sl-link-button.primary:hover {
+  background: var(--kb-accent-hover);
+  border-color: var(--kb-accent-hover);
+  transform: translateY(-1px);
+}
+.sl-link-button.secondary {
+  background: transparent;
+  border-color: var(--sl-color-gray-5);
+  color: var(--sl-color-white);
+}
+.sl-link-button.secondary:hover {
+  border-color: var(--sl-color-gray-3);
+}
+
+/* ---------- Hero de la portada ---------- */
+.hero {
+  position: relative;
+  isolation: isolate;
+  gap: 2rem;
+}
+.hero::before {
+  content: '';
+  position: absolute;
+  inset: -15% 0; /* sin desborde horizontal: evita scroll lateral en móvil */
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(55% 60% at 72% 45%, color-mix(in srgb, var(--sl-color-accent) 16%, transparent), transparent 70%);
+}
+.hero > .hero-html {
+  width: min(100%, 24rem);
+}
+.hero > .hero-html > img {
+  width: 100%;
+  height: auto;
+}
+.hero h1 {
+  font-family: var(--kb-font-display);
+  font-weight: 800;
+  font-size: clamp(2.4rem, 1rem + 4.2vw, 4rem);
+  line-height: 1.08;
+  letter-spacing: -0.03em;
+}
+/* inline-block: así la caja amarilla mide según line-height y no pisa la línea anterior */
+.hero h1 mark {
+  display: inline-block;
+  line-height: 1.05;
+  background: var(--kb-yellow);
+  color: var(--kb-ink);
+  padding: 0.02em 0.22em 0.06em;
+  border-radius: 0.3em;
+}
+.hero .tagline {
+  font-size: clamp(1rem, 0.6rem + 1vw, 1.2rem);
+  line-height: 1.55;
+  color: var(--sl-color-gray-2);
+}
+@media (min-width: 50rem) {
+  .hero {
+    grid-template-columns: 1.1fr 1fr;
+    gap: 2.5rem;
+    padding-block: clamp(2rem, 7vmin, 5rem);
+  }
+  .hero > .hero-html {
+    width: min(100%, 38rem);
+  }
+}
+
+/* ---------- Portada: rejillas de tarjetas y chips de enlaces ---------- */
+.kb-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 15.5rem), 1fr));
+  margin-top: 1rem;
+}
+.kb-grid--paths {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr));
+}
+.kb-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+.kb-links a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.45rem 0.9rem;
+  border: 1px solid var(--sl-color-gray-5);
+  border-radius: 999px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--sl-color-white);
+  text-decoration: none;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.kb-links a:hover {
+  border-color: var(--sl-color-accent);
+  background: var(--sl-color-accent-low);
+}
+
+/* ---------- Contenido ---------- */
+.sl-markdown-content code:not(:where(.expressive-code *)) {
+  border-radius: 0.4rem;
+  border: 1px solid var(--sl-color-hairline-light);
+  font-size: 0.88em;
+}
+.sl-markdown-content table {
+  font-size: 0.925rem;
+}
+.sl-markdown-content :is(th, td) {
+  padding: 0.55rem 0.8rem;
+  border-color: var(--sl-color-hairline-light);
+}
+.sl-markdown-content th {
+  background: var(--sl-color-gray-6);
+  font-family: var(--sl-font);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--sl-color-gray-3);
+}
+.starlight-aside {
+  border-radius: 0.75rem;
+  border-inline-start-width: 3px;
+}
+.sl-link-card {
+  border-radius: 1rem;
+  border-color: var(--sl-color-hairline-light);
+  background: var(--kb-card-bg);
+  box-shadow: none;
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+.sl-link-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--sl-color-accent);
+  box-shadow: var(--kb-glow);
+  background: var(--kb-card-bg);
+}
+.card {
+  border-radius: 1rem;
+  border-color: var(--sl-color-hairline-light);
+  background: var(--kb-card-bg);
+}
+.card .icon {
+  border-radius: 0.55rem;
+}
+
+/* Paginación anterior / siguiente */
+.pagination-links a {
+  border-radius: 1rem;
+  border-color: var(--sl-color-hairline-light);
+  background: var(--kb-card-bg);
+  box-shadow: none;
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+.pagination-links a:hover {
+  transform: translateY(-2px);
+  border-color: var(--sl-color-accent);
+  box-shadow: var(--kb-glow);
+}
+.pagination-links .link-title {
+  font-family: var(--kb-font-display);
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+/* ---------- Collage de mascotas del hero ---------- */
+/* Las mismas mascotas de la landing (PNG con fondo transparente), colocadas
+   como en friends.png pero sin el fondo blanco de ese archivo. */
+.kb-friends {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 715 / 516;
+}
+.kb-friends img {
+  position: absolute;
+  height: auto;
+  filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.18));
+}
+.kb-friends__blob { left: 0; top: 24%; width: 26%; transform: rotate(-6deg); }
+.kb-friends__heart { left: 30%; top: 0; width: 25%; transform: rotate(5deg); }
+.kb-friends__star { left: 58%; top: 4%; width: 40%; transform: rotate(8deg); }
+.kb-friends__circle { left: 28%; top: 50%; width: 27%; transform: rotate(-4deg); }
+.kb-friends__triangle { left: 60%; top: 48%; width: 37%; transform: rotate(6deg); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .kb-friends img {
+    animation: kb-float 6s ease-in-out infinite;
+  }
+  .kb-friends__heart { animation-delay: -1s; }
+  .kb-friends__star { animation-delay: -2s; }
+  .kb-friends__circle { animation-delay: -3s; }
+  .kb-friends__triangle { animation-delay: -4s; }
+  @keyframes kb-float {
+    0%, 100% { translate: 0 0; }
+    50% { translate: 0 -7px; }
+  }
+}

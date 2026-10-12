@@ -13,12 +13,14 @@ variable que conoce Coolify es `DOPPLER_TOKEN`.
 | `packages/dashboard` (Vite) | Vercel | `kiba-dashboard` | https://app.kiba.tools |
 | `packages/gateway` (Express) | Coolify | stack `kiba` / `gateway` | https://api.kiba.tools |
 | `packages/backend` (Express) | Coolify | stack `kiba` / `backend` | https://data.kiba.tools |
+| `packages/docs` (Astro + Starlight, estático) | Coolify | stack `kiba` / `docs` | https://docs.kiba.tools |
 | Postgres 16 | Coolify | stack `kiba` / `postgres` | (solo red interna) |
 | `demo-agents` × 8 | Coolify | stack `kiba` / `agent-<x>` | https://agent-`<x>`.kiba.tools |
 
 Agentes: `translator`, `yield`, `risk`, `price`, `code`, `firecrawl` (sirve el servicio
-on-chain **web-scraper**), `world`, `randomizer`. Todo el stack de backends es UN recurso
-docker-compose de Coolify definido en **`docker-compose.prod.yml`** (raíz del repo).
+on-chain **web-scraper**), `world`, `randomizer`. Todo el stack de backends (más la doc,
+que es un sitio estático sin secretos) es UN recurso docker-compose de Coolify definido en
+**`docker-compose.prod.yml`** (raíz del repo).
 
 Los demás paquetes (`sdk`, `contracts`, `contracts-soroban`, `mcp-server`, `installer`,
 `orchestrator-agent`) **no se despliegan** en este pipeline (`kiba-mcp` y `kiba-sdk` se
@@ -41,7 +43,7 @@ sin entrar al panel con el workflow `coolify-domains.yml`:
 
 ```bash
 gh workflow run coolify-domains.yml                 # muestra los actuales
-gh workflow run coolify-domains.yml -f domains='[{"name":"gateway","domain":"https://api.kiba.tools:8000"},{"name":"backend","domain":"https://data.kiba.tools:4000"},{"name":"agent-translator","domain":"https://agent-translator.kiba.tools:5003"},{"name":"agent-yield","domain":"https://agent-yield.kiba.tools:5001"},{"name":"agent-risk","domain":"https://agent-risk.kiba.tools:5002"},{"name":"agent-price","domain":"https://agent-price.kiba.tools:5004"},{"name":"agent-code","domain":"https://agent-code.kiba.tools:5005"},{"name":"agent-firecrawl","domain":"https://agent-firecrawl.kiba.tools:5006"},{"name":"agent-world","domain":"https://agent-world.kiba.tools:5007"},{"name":"agent-randomizer","domain":"https://agent-randomizer.kiba.tools:5008"}]'
+gh workflow run coolify-domains.yml -f domains='[{"name":"gateway","domain":"https://api.kiba.tools:8000"},{"name":"backend","domain":"https://data.kiba.tools:4000"},{"name":"agent-translator","domain":"https://agent-translator.kiba.tools:5003"},{"name":"agent-yield","domain":"https://agent-yield.kiba.tools:5001"},{"name":"agent-risk","domain":"https://agent-risk.kiba.tools:5002"},{"name":"agent-price","domain":"https://agent-price.kiba.tools:5004"},{"name":"agent-code","domain":"https://agent-code.kiba.tools:5005"},{"name":"agent-firecrawl","domain":"https://agent-firecrawl.kiba.tools:5006"},{"name":"agent-world","domain":"https://agent-world.kiba.tools:5007"},{"name":"agent-randomizer","domain":"https://agent-randomizer.kiba.tools:5008"},{"name":"docs","domain":"https://docs.kiba.tools:4321"}]'
 ```
 
 Los dominios anteriores **redirigen** al nuevo:
@@ -66,7 +68,7 @@ En cada `push` a `main`:
 3. Se despliega **solo lo que cambió**:
    - `packages/landing/**` → `vercel pull/build/deploy --prod` (kiba-landing)
    - `packages/dashboard/**` → idem (kiba-dashboard)
-   - `packages/{gateway,backend,demo-agents,sdk}/**`, `docker-compose.prod.yml`,
+   - `packages/{gateway,backend,demo-agents,sdk,docs}/**`, `docker-compose.prod.yml`,
      `docker/**`, `scripts/agent-entrypoint.sh` → **webhook de Coolify**
      (`GET /api/v1/deploy?uuid=$COOLIFY_APP_UUID`): Coolify hace pull del repo y
      reconstruye el stack (el build cache amortigua los servicios sin cambios).
@@ -100,7 +102,8 @@ redesplegar solo el stack con:
 
 ## Stack de Coolify (docker-compose.prod.yml)
 
-- 11 servicios: `gateway` (8000), `backend` (4000), `postgres` y 8 `agent-<x>` (5001-5008).
+- 12 servicios: `gateway` (8000), `backend` (4000), `postgres`, 8 `agent-<x>` (5001-5008) y
+  `docs` (4321, estático: build de Astro servido con `serve`, sin Doppler).
   Traefik de Coolify termina TLS (Let's Encrypt) y enruta cada dominio al puerto del
   contenedor; no se publican puertos al host.
 - **Volúmenes**: `postgres-data` (la DB de negocio — crítico) y `backend-data`
