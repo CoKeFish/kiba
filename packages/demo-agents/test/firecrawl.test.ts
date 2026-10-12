@@ -253,6 +253,7 @@ test('live: scrape real de example.com (free tier, se salta si no hay red)', asy
     return;
   }
   assert.equal(out.url, 'https://example.com');
-  assert.match(String(out.markdown), /Example Domain/i);
+  // IANA cambió el contenido de example.com (2026-10): ya no dice "Example Domain", solo el texto multilingüe y el link a iana.org
+  assert.match(String(out.markdown), /Example Domain|documentation examples|example-domains/i);
   assert.equal((out.metadata as { statusCode?: number }).statusCode, 200);
 });
