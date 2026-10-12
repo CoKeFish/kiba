@@ -84,6 +84,22 @@ services:
       - traefik.http.routers.legacy-gateway-http.priority=1000
       - traefik.http.routers.legacy-gateway-http.middlewares=legacy-gateway
       - traefik.http.routers.legacy-gateway-http.service=noop@internal
+      # kiba.suchima.com (resuelve por el wildcard *.suchima.com al VPS) → landing nuevo
+      - traefik.http.middlewares.legacy-landing.redirectregex.regex=^https?://kiba[.]suchima[.]com
+      - traefik.http.middlewares.legacy-landing.redirectregex.replacement=https://kiba.tools
+      - traefik.http.middlewares.legacy-landing.redirectregex.permanent=true
+      - traefik.http.routers.legacy-landing.rule=Host(`kiba.suchima.com`)
+      - traefik.http.routers.legacy-landing.entryPoints=https
+      - traefik.http.routers.legacy-landing.tls=true
+      - traefik.http.routers.legacy-landing.tls.certresolver=letsencrypt
+      - traefik.http.routers.legacy-landing.priority=1000
+      - traefik.http.routers.legacy-landing.middlewares=legacy-landing
+      - traefik.http.routers.legacy-landing.service=noop@internal
+      - traefik.http.routers.legacy-landing-http.rule=Host(`kiba.suchima.com`)
+      - traefik.http.routers.legacy-landing-http.entryPoints=http
+      - traefik.http.routers.legacy-landing-http.priority=1000
+      - traefik.http.routers.legacy-landing-http.middlewares=legacy-landing
+      - traefik.http.routers.legacy-landing-http.service=noop@internal
     environment:
       - DOPPLER_TOKEN=${DOPPLER_TOKEN}
       - NODE_ENV=production

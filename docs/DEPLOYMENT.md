@@ -50,6 +50,8 @@ Los dominios anteriores **redirigen** al nuevo:
   labels Traefik `legacy-<servicio>` en `docker-compose.prod.yml` (router propio con prioridad
   1000 + `redirectregex`, conserva path y query; GET responde 301 y el resto 308). Esos hosts
   siguen apuntando al VPS en DNS y NO van en `docker_compose_domains`.
+- `kiba.suchima.com` (resuelve por el wildcard `*.suchima.com` → VPS) → `kiba.tools` con las
+  labels `legacy-landing` en el servicio `gateway` del compose, igual que los backends.
 - Frontends `kiba-landing.vercel.app` → `kiba.tools` y `kiba-dashboard.vercel.app` →
   `app.kiba.tools` (redirect 308 de dominio en Vercel; `www.kiba.tools` → `kiba.tools`).
 - ⚠️ Un cliente API con `Authorization: Bearer` que siga usando `kiba-api.suchima.com` recibe
