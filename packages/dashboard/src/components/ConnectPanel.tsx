@@ -6,7 +6,7 @@ import "./connect.css";
 
 /**
  * URL pública del conector MCP remoto del gateway. Se sobreescribe en build con
- * VITE_MCP_URL (Vercel) cuando exista un dominio bonito; el fallback apunta al
+ * VITE_MCP_URL (build arg) cuando exista un dominio bonito; el fallback apunta al
  * gateway de producción vivo.
  */
 const MCP_URL =

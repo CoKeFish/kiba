@@ -9,8 +9,8 @@
 # No duplicar claves entre compose y Doppler: doppler run pisa en colisión.
 #
 # Traefik (Coolify) enruta por la red interna; los dominios por servicio se
-# configuran en Coolify (gateway → api.kiba.tools:8000, docs → docs.kiba.tools:4321,
-# etc.; workflow coolify-domains.yml).
+# configuran en Coolify (gateway → api.kiba.tools:8000, landing → kiba.tools:4321,
+# dashboard → app.kiba.tools:80, etc.; workflow coolify-domains.yml).
 # ============================================================================
 services:
   postgres:
@@ -85,22 +85,6 @@ services:
       - traefik.http.routers.legacy-gateway-http.priority=1000
       - traefik.http.routers.legacy-gateway-http.middlewares=legacy-gateway
       - traefik.http.routers.legacy-gateway-http.service=noop@internal
-      # kiba.suchima.com (resuelve por el wildcard *.suchima.com al VPS) → landing nuevo
-      - traefik.http.middlewares.legacy-landing.redirectregex.regex=^https?://kiba[.]suchima[.]com
-      - traefik.http.middlewares.legacy-landing.redirectregex.replacement=https://kiba.tools
-      - traefik.http.middlewares.legacy-landing.redirectregex.permanent=true
-      - traefik.http.routers.legacy-landing.rule=Host(`kiba.suchima.com`)
-      - traefik.http.routers.legacy-landing.entryPoints=https
-      - traefik.http.routers.legacy-landing.tls=true
-      - traefik.http.routers.legacy-landing.tls.certresolver=letsencrypt
-      - traefik.http.routers.legacy-landing.priority=1000
-      - traefik.http.routers.legacy-landing.middlewares=legacy-landing
-      - traefik.http.routers.legacy-landing.service=noop@internal
-      - traefik.http.routers.legacy-landing-http.rule=Host(`kiba.suchima.com`)
-      - traefik.http.routers.legacy-landing-http.entryPoints=http
-      - traefik.http.routers.legacy-landing-http.priority=1000
-      - traefik.http.routers.legacy-landing-http.middlewares=legacy-landing
-      - traefik.http.routers.legacy-landing-http.service=noop@internal
     environment:
       - DOPPLER_TOKEN=${DOPPLER_TOKEN}
       - NODE_ENV=production
@@ -435,6 +419,79 @@ services:
       timeout: 10s
       retries: 5
       start_period: 30s
+
+  # ── Frontends (kiba.tools, app.kiba.tools) ─────────────────────────────────
+  # Sitios estáticos sin secretos (no usan Doppler). Las URLs públicas se hornean
+  # en build time (build args). Dominios en Coolify: landing → https://kiba.tools:4321,
+  # dashboard → https://app.kiba.tools:80. Las URLs viejas *.vercel.app redirigen
+  # desde Vercel (ver docs/DEPLOYMENT.md § Vercel).
+  landing:
+    build:
+      context: .
+      dockerfile: packages/landing/Dockerfile
+      args:
+        PUBLIC_BACKEND_URL: https://data.kiba.tools
+        PUBLIC_GATEWAY_URL: https://api.kiba.tools
+        PUBLIC_DASHBOARD_URL: https://app.kiba.tools
+    labels:
+      # www.kiba.tools → kiba.tools (ver "Dominios" en docs/DEPLOYMENT.md)
+      - traefik.http.middlewares.www-landing.redirectregex.regex=^https?://www[.]kiba[.]tools
+      - traefik.http.middlewares.www-landing.redirectregex.replacement=https://kiba.tools
+      - traefik.http.middlewares.www-landing.redirectregex.permanent=true
+      - traefik.http.routers.www-landing.rule=Host(`www.kiba.tools`)
+      - traefik.http.routers.www-landing.entryPoints=https
+      - traefik.http.routers.www-landing.tls=true
+      - traefik.http.routers.www-landing.tls.certresolver=letsencrypt
+      - traefik.http.routers.www-landing.priority=1000
+      - traefik.http.routers.www-landing.middlewares=www-landing
+      - traefik.http.routers.www-landing.service=noop@internal
+      - traefik.http.routers.www-landing-http.rule=Host(`www.kiba.tools`)
+      - traefik.http.routers.www-landing-http.entryPoints=http
+      - traefik.http.routers.www-landing-http.priority=1000
+      - traefik.http.routers.www-landing-http.middlewares=www-landing
+      - traefik.http.routers.www-landing-http.service=noop@internal
+      # kiba.suchima.com (resuelve por el wildcard *.suchima.com al VPS) → landing nuevo
+      - traefik.http.middlewares.legacy-landing.redirectregex.regex=^https?://kiba[.]suchima[.]com
+      - traefik.http.middlewares.legacy-landing.redirectregex.replacement=https://kiba.tools
+      - traefik.http.middlewares.legacy-landing.redirectregex.permanent=true
+      - traefik.http.routers.legacy-landing.rule=Host(`kiba.suchima.com`)
+      - traefik.http.routers.legacy-landing.entryPoints=https
+      - traefik.http.routers.legacy-landing.tls=true
+      - traefik.http.routers.legacy-landing.tls.certresolver=letsencrypt
+      - traefik.http.routers.legacy-landing.priority=1000
+      - traefik.http.routers.legacy-landing.middlewares=legacy-landing
+      - traefik.http.routers.legacy-landing.service=noop@internal
+      - traefik.http.routers.legacy-landing-http.rule=Host(`kiba.suchima.com`)
+      - traefik.http.routers.legacy-landing-http.entryPoints=http
+      - traefik.http.routers.legacy-landing-http.priority=1000
+      - traefik.http.routers.legacy-landing-http.middlewares=legacy-landing
+      - traefik.http.routers.legacy-landing-http.service=noop@internal
+    environment:
+      - NODE_ENV=production
+      - PORT=4321
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:4321/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: packages/dashboard/Dockerfile.coolify
+      args:
+        # El WS va directo al backend (ver "Pendientes" en docs/DEPLOYMENT.md)
+        VITE_WS_URL: wss://data.kiba.tools/ws
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 15s
+    depends_on:
+      - gateway
+      - backend
 
 volumes:
   postgres-data:

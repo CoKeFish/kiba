@@ -1,7 +1,9 @@
 # Despliegue / CI-CD de Kiba
 
-Pipeline de despliegue del monorepo. **Frontends → Vercel**, **backends → Coolify**
-(auto-hospedado en el VPS), orquestado por **GitHub Actions** (`.github/workflows/deploy.yml`).
+Pipeline de despliegue del monorepo. **Todo corre en Coolify** (auto-hospedado en el VPS):
+frontends, backends y docs son UN stack docker-compose, orquestado por **GitHub Actions**
+(`.github/workflows/deploy.yml`). Vercel ya no sirve nada: solo redirige las URLs viejas
+`*.vercel.app` a `kiba.tools` (ver § Vercel).
 Los secretos de producción viven en **Doppler** (proyecto `kiba`, config `prd`); la única
 variable que conoce Coolify es `DOPPLER_TOKEN`.
 
@@ -9,8 +11,8 @@ variable que conoce Coolify es `DOPPLER_TOKEN`.
 
 | Paquete | Plataforma | Recurso | URL de producción |
 |---|---|---|---|
-| `packages/landing` (Astro) | Vercel | `kiba-landing` | https://kiba.tools |
-| `packages/dashboard` (Vite) | Vercel | `kiba-dashboard` | https://app.kiba.tools |
+| `packages/landing` (Astro, estático) | Coolify | stack `kiba` / `landing` | https://kiba.tools |
+| `packages/dashboard` (Vite, estático + nginx) | Coolify | stack `kiba` / `dashboard` | https://app.kiba.tools |
 | `packages/gateway` (Express) | Coolify | stack `kiba` / `gateway` | https://api.kiba.tools |
 | `packages/backend` (Express) | Coolify | stack `kiba` / `backend` | https://data.kiba.tools |
 | `packages/docs` (Astro + Starlight, estático) | Coolify | stack `kiba` / `docs` | https://docs.kiba.tools |
@@ -18,18 +20,18 @@ variable que conoce Coolify es `DOPPLER_TOKEN`.
 | `demo-agents` × 8 | Coolify | stack `kiba` / `agent-<x>` | https://agent-`<x>`.kiba.tools |
 
 Agentes: `translator`, `yield`, `risk`, `price`, `code`, `firecrawl` (sirve el servicio
-on-chain **web-scraper**), `world`, `randomizer`. Todo el stack de backends (más la doc,
-que es un sitio estático sin secretos) es UN recurso docker-compose de Coolify definido en
-**`docker-compose.prod.yml`** (raíz del repo).
+on-chain **web-scraper**), `world`, `randomizer`. Todo (backends, landing, dashboard y docs;
+los tres últimos son sitios estáticos sin secretos) es UN recurso docker-compose de Coolify
+definido en **`docker-compose.prod.yml`** (raíz del repo).
 
 Los demás paquetes (`sdk`, `contracts`, `contracts-soroban`, `mcp-server`, `installer`,
 `orchestrator-agent`) **no se despliegan** en este pipeline (`kiba-mcp` y `kiba-sdk` se
 publican a npm con los tags `mcp-v*` / `sdk-v*`; el installer con `installer-v*`).
 
 ### IDs de referencia
-- Vercel org (team): `team_9ih8tHa4Rdt6QMgOLYFGnBAx`
-- Vercel project `kiba-landing`: `prj_gLOztq0RbVqTKyIaf5skUBkIDtW3`
-- Vercel project `kiba-dashboard`: `prj_rAW3qHsRmUw9UavD37nRaMZxG2qC`
+- Vercel (solo redirects, ver § Vercel): org `team_9ih8tHa4Rdt6QMgOLYFGnBAx`, proyecto
+  `kiba-landing` `prj_gLOztq0RbVqTKyIaf5skUBkIDtW3`, proyecto `kiba-dashboard`
+  `prj_rAW3qHsRmUw9UavD37nRaMZxG2qC`
 - Coolify (https://coolify.rodion.com.co): server `xsgscwskwkgoossw00oo04gs`,
   proyecto `kiba` `utx4h07woljtpce6lna02bzl`, app compose `vd3vty7v3zqe5qmbuuvljp6r`
 - VPS: `207.246.114.85` (DNS de `*.kiba.tools` en Cloudflare; los `*.suchima.com` viejos siguen apuntando aquí solo para redirigir)
@@ -37,7 +39,7 @@ publican a npm con los tags `mcp-v*` / `sdk-v*`; el installer con `installer-v*`
 ### Dominios
 
 Dominio de producto: **`kiba.tools`** (DNS en Cloudflare, registros *DNS only* — sin proxy,
-para que Let's Encrypt (Traefik) y Vercel validen directo). Hay un token de API de Cloudflare
+para que Let's Encrypt (Traefik) valide directo). Hay un token de API de Cloudflare
 con permiso `Zone.DNS:Edit` solo sobre `kiba.tools` en Doppler `shared/prd` →
 `CLOUDFLARE_API_TOKEN` (las demás configs de `shared` lo heredan), para crear registros sin
 entrar al panel:
@@ -52,7 +54,7 @@ sin entrar al panel con el workflow `coolify-domains.yml`:
 
 ```bash
 gh workflow run coolify-domains.yml                 # muestra los actuales
-gh workflow run coolify-domains.yml -f domains='[{"name":"gateway","domain":"https://api.kiba.tools:8000"},{"name":"backend","domain":"https://data.kiba.tools:4000"},{"name":"agent-translator","domain":"https://agent-translator.kiba.tools:5003"},{"name":"agent-yield","domain":"https://agent-yield.kiba.tools:5001"},{"name":"agent-risk","domain":"https://agent-risk.kiba.tools:5002"},{"name":"agent-price","domain":"https://agent-price.kiba.tools:5004"},{"name":"agent-code","domain":"https://agent-code.kiba.tools:5005"},{"name":"agent-firecrawl","domain":"https://agent-firecrawl.kiba.tools:5006"},{"name":"agent-world","domain":"https://agent-world.kiba.tools:5007"},{"name":"agent-randomizer","domain":"https://agent-randomizer.kiba.tools:5008"},{"name":"docs","domain":"https://docs.kiba.tools:4321"}]'
+gh workflow run coolify-domains.yml -f domains='[{"name":"gateway","domain":"https://api.kiba.tools:8000"},{"name":"backend","domain":"https://data.kiba.tools:4000"},{"name":"agent-translator","domain":"https://agent-translator.kiba.tools:5003"},{"name":"agent-yield","domain":"https://agent-yield.kiba.tools:5001"},{"name":"agent-risk","domain":"https://agent-risk.kiba.tools:5002"},{"name":"agent-price","domain":"https://agent-price.kiba.tools:5004"},{"name":"agent-code","domain":"https://agent-code.kiba.tools:5005"},{"name":"agent-firecrawl","domain":"https://agent-firecrawl.kiba.tools:5006"},{"name":"agent-world","domain":"https://agent-world.kiba.tools:5007"},{"name":"agent-randomizer","domain":"https://agent-randomizer.kiba.tools:5008"},{"name":"docs","domain":"https://docs.kiba.tools:4321"},{"name":"landing","domain":"https://kiba.tools:4321"},{"name":"dashboard","domain":"https://app.kiba.tools:80"}]'
 ```
 
 Los dominios anteriores **redirigen** al nuevo:
@@ -62,9 +64,11 @@ Los dominios anteriores **redirigen** al nuevo:
   1000 + `redirectregex`, conserva path y query; GET responde 301 y el resto 308). Esos hosts
   siguen apuntando al VPS en DNS y NO van en `docker_compose_domains`.
 - `kiba.suchima.com` (resuelve por el wildcard `*.suchima.com` → VPS) → `kiba.tools` con las
-  labels `legacy-landing` en el servicio `gateway` del compose, igual que los backends.
-- Frontends `kiba-landing.vercel.app` → `kiba.tools` y `kiba-dashboard.vercel.app` →
-  `app.kiba.tools` (redirect 308 de dominio en Vercel; `www.kiba.tools` → `kiba.tools`).
+  labels `legacy-landing` en el servicio `landing` del compose, igual que los backends;
+  `www.kiba.tools` → `kiba.tools` con las labels `www-landing` del mismo servicio.
+- `kiba-landing.vercel.app` → `kiba.tools` y `kiba-dashboard.vercel.app` → `app.kiba.tools`:
+  los dos proyectos de Vercel ya no construyen nada, sirven solo un `vercel.json` con un
+  redirect 308 (`scripts/vercel-redirect/<landing|dashboard>/`, ver § Vercel).
 - ⚠️ Un cliente API con `Authorization: Bearer` que siga usando `kiba-api.suchima.com` recibe
   el 308 pero `fetch` elimina el header al cambiar de origen → hay que actualizar `KIBA_URL`
   (`kiba-mcp` ≥ 0.1.6 e installer ≥ 0.1.6 ya traen `https://api.kiba.tools`).
@@ -74,13 +78,10 @@ Los dominios anteriores **redirigen** al nuevo:
 En cada `push` a `main`:
 1. **`changes`** detecta qué cambió (`dorny/paths-filter`).
 2. **`gitleaks`** + **`test`** (npm workspaces + Postgres de test) — gates.
-3. Se despliega **solo lo que cambió**:
-   - `packages/landing/**` → `vercel pull/build/deploy --prod` (kiba-landing)
-   - `packages/dashboard/**` → idem (kiba-dashboard)
-   - `packages/{gateway,backend,demo-agents,sdk,docs}/**`, `docker-compose.prod.yml`,
-     `docker/**`, `scripts/agent-entrypoint.sh` → **webhook de Coolify**
-     (`GET /api/v1/deploy?uuid=$COOLIFY_APP_UUID`): Coolify hace pull del repo y
-     reconstruye el stack (el build cache amortigua los servicios sin cambios).
+3. Si cambió algo del stack (`packages/{gateway,backend,demo-agents,sdk,landing,dashboard,docs}/**`,
+   `package-lock.json`, `docker-compose.prod.yml`, `docker/**`, `scripts/agent-entrypoint.sh`)
+   → **webhook de Coolify** (`GET /api/v1/deploy?uuid=$COOLIFY_APP_UUID`): Coolify hace pull
+   del repo y reconstruye el stack (el build cache amortigua los servicios sin cambios).
 
 También se puede lanzar a mano desde la pestaña Actions (`workflow_dispatch`), o
 redesplegar solo el stack con:
@@ -90,9 +91,10 @@ redesplegar solo el stack con:
 
 | Secret | Cómo obtenerlo |
 |---|---|
-| `VERCEL_TOKEN` | https://vercel.com/account/tokens |
 | `COOLIFY_TOKEN` | Panel de Coolify → Keys & Tokens → API tokens |
 | `COOLIFY_APP_UUID` | UUID de la app compose `kiba` (ver IDs de referencia) |
+
+(`VERCEL_TOKEN` sigue guardado en el repo pero ya no lo usa ningún workflow.)
 
 ## Secretos de runtime (Doppler)
 
@@ -111,8 +113,11 @@ redesplegar solo el stack con:
 
 ## Stack de Coolify (docker-compose.prod.yml)
 
-- 12 servicios: `gateway` (8000), `backend` (4000), `postgres`, 8 `agent-<x>` (5001-5008) y
-  `docs` (4321, estático: build de Astro servido con `serve`, sin Doppler).
+- 14 servicios: `gateway` (8000), `backend` (4000), `postgres`, 8 `agent-<x>` (5001-5008),
+  `landing` (4321, build de Astro servido con `serve`; las `PUBLIC_*` van como build args en
+  el compose), `dashboard` (80, build de Vite servido por nginx: `packages/dashboard/nginx.conf`
+  reescribe `/api/*` → `gateway:8000` y `/backend/*` → `backend:4000` por la red interna) y
+  `docs` (4321, estático con `serve`). Los tres estáticos no usan Doppler.
   Traefik de Coolify termina TLS (Let's Encrypt) y enruta cada dominio al puerto del
   contenedor; no se publican puertos al host.
 - **Volúmenes**: `postgres-data` (la DB de negocio — crítico) y `backend-data`
@@ -146,16 +151,14 @@ redesplegar solo el stack con:
 > escrow. Si el master no existe on-chain, todo `call_agent` falla. En testnet:
 > `curl "https://friendbot.stellar.org/?addr=<MASTER_PUBKEY>"`.
 
-## Configuración de Vercel
+## Vercel (solo redirects)
 
-- Cada proyecto despliega desde su carpeta (`packages/landing`, `packages/dashboard`)
-  con su propio `vercel.json`.
-- **Dashboard**: SPA estática; rutas relativas reescritas por Vercel:
-  - `/api/*` → `https://api.kiba.tools` (gateway)
-  - `/backend/*` → `https://data.kiba.tools` (backend)
-- **Landing**: Astro hornea en build-time `PUBLIC_BACKEND_URL`, `PUBLIC_GATEWAY_URL`,
-  `PUBLIC_DASHBOARD_URL` (env vars de producción en Vercel; los defaults del código ya
-  apuntan a los dominios nuevos).
+Los proyectos `kiba-landing` y `kiba-dashboard` siguen existiendo únicamente para que las
+URLs viejas `kiba-landing.vercel.app` y `kiba-dashboard.vercel.app` redirijan (308,
+conservando la ruta) a `kiba.tools` / `app.kiba.tools`. No tienen dominios propios ni build:
+su último deploy es el contenido de `scripts/vercel-redirect/<landing|dashboard>/` (un
+`vercel.json` con el redirect). Cómo redesplegarlo: `scripts/vercel-redirect/README.md`.
+Si algún día se borran los proyectos, solo dejan de resolver esas dos URLs viejas.
 
 ## Railway (desmontado)
 
@@ -168,9 +171,9 @@ Lo único que queda por hacer es borrar el proyecto y sus volúmenes desde el pa
 
 ## Pendientes conocidos
 
-- **WebSocket en el dashboard**: Vercel **no proxea WebSockets** por rewrites, así que el
-  dashboard abre el WS directo al backend vía la env de producción `VITE_WS_URL` =
-  `wss://data.kiba.tools/ws` (`packages/dashboard/src/routes/Agents.tsx`).
+- **WebSocket en el dashboard**: el dashboard abre el WS directo al backend con
+  `VITE_WS_URL=wss://data.kiba.tools/ws` (build arg en el compose;
+  `packages/dashboard/src/routes/Agents.tsx`). Si hiciera falta, nginx podría proxearlo por `/ws`.
 - **Comunicación interna**: gateway → backend y gateway → agentes van por la red interna
   de compose (`http://backend:4000`) o por el dominio público (agentes, hairpin vía
   Traefik) según el registro on-chain.

@@ -1,4 +1,4 @@
-// Deploy: Vercel (proyecto kiba-landing) vía GitHub Actions. Ver docs/DEPLOYMENT.md.
+// Deploy: Coolify (servicio `landing` del stack, build estático). Ver docs/DEPLOYMENT.md.
 import { defineConfig } from 'astro/config';
 import react from '@astrojs/react';
 import tailwindcss from '@tailwindcss/vite';
