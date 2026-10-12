@@ -37,7 +37,16 @@ publican a npm con los tags `mcp-v*` / `sdk-v*`; el installer con `installer-v*`
 ### Dominios
 
 Dominio de producto: **`kiba.tools`** (DNS en Cloudflare, registros *DNS only* — sin proxy,
-para que Let's Encrypt (Traefik) y Vercel validen directo). Mapa de servicios en la tabla de
+para que Let's Encrypt (Traefik) y Vercel validen directo). Hay un token de API de Cloudflare
+con permiso `Zone.DNS:Edit` solo sobre `kiba.tools` en Doppler `shared/prd` →
+`CLOUDFLARE_API_TOKEN` (las demás configs de `shared` lo heredan), para crear registros sin
+entrar al panel:
+
+```bash
+CF=$(doppler secrets get CLOUDFLARE_API_TOKEN --plain --project shared --config prd)
+ZONE=$(curl -s -H "Authorization: Bearer $CF" 'https://api.cloudflare.com/client/v4/zones?name=kiba.tools' | jq -r '.result[0].id')
+curl -s -X POST -H "Authorization: Bearer $CF" -H 'Content-Type: application/json' \n  "https://api.cloudflare.com/client/v4/zones/$ZONE/dns_records" \n  -d '{"type":"A","name":"agent-nuevo","content":"207.246.114.85","ttl":1,"proxied":false}'
+``` Mapa de servicios en la tabla de
 arriba. En Coolify el mapa vive en `docker_compose_domains` de la app compose; se lee o ajusta
 sin entrar al panel con el workflow `coolify-domains.yml`:
 
@@ -123,9 +132,12 @@ redesplegar solo el stack con:
    `PORT` nuevo, `PUBLIC_ENDPOINT=https://agent-<x>.kiba.tools`).
 3. Añadir el mapeo al `unset` de `scripts/agent-entrypoint.sh` y el script `start:<x>`
    en `packages/demo-agents/package.json` si no existe.
-4. Registro A `agent-<x>.kiba.tools → 207.246.114.85` en Cloudflare (DNS only, sin proxy).
-5. Dominio del servicio en el panel de Coolify (app kiba → servicio → Domains, con
-   `:puerto`) y añadirlo a `STELLAR_SERVICES` en Doppler.
+4. Registro A `agent-<x>.kiba.tools → 207.246.114.85` en Cloudflare (DNS only, sin proxy; por
+   API con `CLOUDFLARE_API_TOKEN`, ver § Dominios).
+5. Dominio del servicio en Coolify (workflow `coolify-domains.yml` con la lista completa, o el
+   panel: app kiba → servicio → Domains, con `:puerto`) y añadirlo a `STELLAR_SERVICES` en
+   Doppler. ⚠️ Coolify solo acepta dominios de servicios que ya existen en el compose del
+   último deploy: primero push/deploy, luego el dominio, luego otro redeploy (webhook).
 6. Push a main (el CI dispara el deploy). `bootstrap()` registra el agente on-chain
    en el primer arranque.
 
