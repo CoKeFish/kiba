@@ -484,7 +484,8 @@ services:
         # El WS va directo al backend (ver "Pendientes" en docs/DEPLOYMENT.md)
         VITE_WS_URL: wss://data.kiba.tools/ws
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost/"]
+      # 127.0.0.1, no localhost: en alpine resuelve primero a ::1 y nginx escucha solo IPv4
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/"]
       interval: 30s
       timeout: 10s
       retries: 5
