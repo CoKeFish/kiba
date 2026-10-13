@@ -1,0 +1,38 @@
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--kiba-space-4);
+  min-height: 32px;
+  margin-bottom: var(--kiba-space-3);
+}
+
+.row > nav {
+  margin-bottom: 0 !important;
+}
+
+.copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  margin-left: auto;
+  height: 30px;
+  padding: 0 12px;
+  border: 1px solid var(--kiba-border-strong);
+  border-radius: var(--kiba-radius-sm);
+  background: var(--kiba-bg);
+  color: var(--kiba-fg-muted);
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    border-color var(--kiba-dur-fast) var(--kiba-ease-out),
+    color var(--kiba-dur-fast) var(--kiba-ease-out);
+}
+
+.copy:hover {
+  border-color: var(--blue-500);
+  color: var(--kiba-fg);
+}
