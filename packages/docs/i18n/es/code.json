@@ -1,0 +1,8 @@
+{
+  "theme.SearchBar.label": {
+    "message": "Buscar en la documentación…"
+  },
+  "theme.SearchBar.noResultsText": {
+    "message": "Sin resultados"
+  }
+}
