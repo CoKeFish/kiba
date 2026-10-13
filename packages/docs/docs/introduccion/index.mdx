@@ -1,0 +1,66 @@
+---
+slug: /
+title: "Qué es Kiba"
+sidebar_label: "Bienvenida"
+description: "Kiba permite que cualquier asistente de IA descubra servicios especializados y los pague por llamada, con liquidación en USDC sobre Stellar."
+---
+
+# 👋 Qué es Kiba
+
+Kiba es un marketplace donde los asistentes de IA (Claude, ChatGPT, Cursor, Claude Code) **descubren servicios especializados y los pagan por llamada**. Un único punto de entrada: sin claves de API y sin configuración por servicio.
+
+Un **servicio** puede ser un agente de IA, una API, un indexador o cualquier herramienta procedimental, publicado por una empresa, una organización, una institución o un desarrollador independiente. Kiba es, en una frase, *los amigos de tu agente*.
+
+El registro de servicios vive on-chain en un contrato Soroban (Stellar). El pago se liquida en **USDC** con el protocolo **x402**, con un reparto **95 % publisher / 5 % plataforma**. <TW /> Hoy ese reparto lo aplica Trustless Work.
+
+:::info[Demostración técnica en testnet]
+Kiba corre en **Stellar testnet** y no mueve fondos reales. Todo lo descrito en estas docs funciona de punta a punta en testnet. Detalle en [Estado del proyecto](/introduccion/estado-del-proyecto).
+:::
+
+## Empieza aquí
+
+<Cards>
+  <Card topic="Tema" title="Usar Kiba desde Claude o ChatGPT" to="/conecta-tu-asistente" linkLabel="Conecta tu asistente" />
+  <Card topic="Tema" title="Cobrar por tu servicio" to="/publica-un-servicio/quickstart" linkLabel="Quickstart de publisher" />
+  <Card topic="Tema" title="Integrar por código" to="/sdk" linkLabel="SDK (kiba-sdk)" />
+  <Card topic="Tema" title="Endpoints, auth y errores" to="/api" linkLabel="API REST del gateway" />
+  <Card topic="Tema" title="Cómo se paga cada llamada" to="/conceptos/pagos-y-liquidacion" linkLabel="Pagos y liquidación" />
+  <Card topic="Tema" title="Testnet, USDC y el contrato" to="/stellar" linkLabel="Stellar y on-chain" />
+</Cards>
+
+## El problema
+
+Un asistente de uso general se apoya en fuentes abiertas y, muchas veces, devuelve información desactualizada o superficial sin que el usuario lo note ni sepa cómo mejorarla. Las fuentes especializadas que sí resolverían la tarea están detrás de fricción técnica: registrarse, integrar, una API key o una suscripción solo para usarlas una vez.
+
+Según el perfil, cada usuario choca con un obstáculo distinto: no puede mejorar la calidad de las respuestas, no quiere asumir el tiempo de integración, o ni siquiera sabe que existe un servicio especializado para su tarea.
+
+Del otro lado, quien construye ese servicio no tiene dónde ofrecerlo ni cómo cobrarlo, y menos cuando quien consume es un agente de IA y no una persona.
+
+## La solución
+
+Un protocolo con dos lados:
+
+- **Para quien usa un asistente:** las capacidades especializadas se alcanzan desde la conversación de siempre. El asistente localiza el servicio, recibe un precio, paga en una sola ida y vuelta y devuelve la respuesta. Sin registros por servicio, sin claves, sin manejo de wallets.
+- **Para quien publica un servicio:** el marketplace aporta registro, descubrimiento, pago y reparto de ingresos. El publisher expone su servicio una vez y cobra por llamada, incluso cuando quien llama es un agente.
+
+## Cómo encajan las piezas
+
+| Pieza | Qué hace |
+|---|---|
+| **Conector MCP** | Expone cuatro herramientas al asistente: buscar en el catálogo, llamar a un servicio, ver el saldo y listar transacciones. Se alcanza por URL (remoto) o con el paquete `kiba-mcp` y el instalador de Windows (local). |
+| **Gateway** | Inicio de sesión (OAuth 2.0), créditos, wallets, llamadas en nombre del usuario y liquidación por lotes de las ganancias de los publishers. |
+| **Descubrimiento** | Espeja el registro on-chain y ejecuta búsqueda híbrida (palabra clave + semántica) en cualquier idioma. |
+| **Contrato de registro** | Contrato Soroban en Stellar donde se registra cada servicio: dueño, precio, endpoint, descripción. |
+| **Liquidación** | Escrow en USDC con reparto 95/5. <TW /> Hoy vía Trustless Work. |
+| **SDK (`kiba-sdk`)** | Librería TypeScript para publicar un servicio o consumir servicios directamente, de forma auto-custodial. |
+| **Dashboard** | App web para usuarios y publishers ([app.kiba.tools](https://app.kiba.tools)). |
+
+## Para quién es
+
+Kiba tiene tres públicos y ninguno necesita saber de blockchain.
+
+**Personas que usan un asistente de IA.** Conectan Claude, ChatGPT o su IDE una vez; el asistente encuentra el servicio adecuado y paga solo la llamada que necesita. Empieza en [Conecta tu asistente](/conecta-tu-asistente).
+
+**Personas que construyen un servicio.** Un modelo, una API, un dataset, un scraper, un indexador, una herramienta de dominio. Quieren cobrar, incluso cuando quien llama es un agente, sin construir facturación, descubrimiento ni autenticación. Empieza en [Publica un servicio](/publica-un-servicio).
+
+**Equipos que integran directamente.** Quien construye su propio agente o producto y quiere consumir servicios por código usa el [SDK](/sdk) o la [API REST del gateway](/api).
