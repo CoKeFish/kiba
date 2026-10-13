@@ -1,0 +1,104 @@
+---
+title: "IDEs y clientes locales"
+description: "Instala kiba-mcp en Claude Code, Cursor, Claude Desktop o Codex, con el instalador de Windows o a mano."
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+# IDEs y clientes locales
+
+Para clientes que corren servidores MCP en local, Kiba incluye `kiba-mcp`, un adaptador pequeño que habla con el gateway en tu nombre. La primera vez inicia sesión por el navegador y guarda un token local.
+
+## Opción A — Instalador de Windows
+
+Descarga el instalador de un clic desde el [último release](https://github.com/CoKeFish/kiba/releases/latest) (`Kiba-Installer-x64-setup.exe`). Instala el servidor MCP `kiba` en **Claude Desktop, Cursor y Claude Code** automáticamente. Reinicia el cliente al terminar.
+
+- Detecta qué clientes MCP tienes, respalda tu configuración (`*.json.bak`) antes de tocar nada e inserta solo el bloque `mcpServers.kiba`, preservando el resto.
+- Si no hay Node.js, lo detecta y ofrece abrir [nodejs.org](https://nodejs.org) (`npx -y kiba-mcp` no corre sin él).
+- Construido con Tauri 2 (binario de ~3-5 MB).
+
+:::warning[Windows SmartScreen]
+Puede advertir porque el instalador aún no está firmado: **More info → Run anyway**. Se construye y publica desde el repositorio público.
+:::
+
+## Opción B — Configuración manual
+
+Funciona en macOS, Linux y Windows. Agrega este bloque a la configuración MCP de tu cliente:
+
+```json
+{
+  "mcpServers": {
+    "kiba": {
+      "command": "npx",
+      "args": ["-y", "kiba-mcp"]
+    }
+  }
+}
+```
+
+<Tabs groupId="cliente-mcp">
+<TabItem value="claude-code" label="Claude Code" default>
+
+En `~/.claude.json`, o con un comando:
+
+```bash
+claude mcp add kiba -- npx -y kiba-mcp
+```
+
+</TabItem>
+<TabItem value="cursor" label="Cursor">
+
+En `~/.cursor/mcp.json` (global) o `.cursor/mcp.json` en el proyecto, con el bloque de arriba.
+
+</TabItem>
+<TabItem value="claude-desktop" label="Claude Desktop">
+
+En `claude_desktop_config.json`, dentro de la carpeta de configuración de la app, con el bloque de arriba.
+
+</TabItem>
+<TabItem value="codex" label="Codex CLI">
+
+En `~/.codex/config.toml`:
+
+```toml
+[mcp_servers.kiba]
+command = "npx"
+args = ["-y", "kiba-mcp"]
+```
+
+</TabItem>
+</Tabs>
+
+Reinicia el cliente. En la primera llamada:
+
+1. El adaptador detecta que no hay sesión y abre el navegador en el gateway.
+2. Inicias sesión (o creas cuenta) y pulsas **Authorize**.
+3. La página dice que puedes cerrar la pestaña. El token queda en `~/.config/kiba/token.json` (permisos 600).
+
+## Uso sin navegador
+
+Para CI, servidores o automatización, define una API key; el adaptador omite OAuth. Créala en el dashboard (**Credentials**) o con [`POST /v1/api-keys`](/api/autenticacion#api-keys).
+
+```json
+{
+  "mcpServers": {
+    "kiba": {
+      "command": "npx",
+      "args": ["-y", "kiba-mcp"],
+      "env": { "KIBA_API_KEY": "sk_live_…" }
+    }
+  }
+}
+```
+
+## Variables de entorno
+
+| Variable | Por defecto | Para qué |
+|---|---|---|
+| `KIBA_URL` | `https://api.kiba.tools` | Gateway al que hablar (gateways propios) |
+| `KIBA_API_KEY` | sin definir | Clave de larga duración; si está, se omite OAuth |
+| `KIBA_TOKEN_PATH` | `~/.config/kiba/token.json` | Dónde se guarda el token OAuth |
+| `KIBA_CLIENT_NAME` | `kiba-mcp` | Nombre que aparece en la pantalla de consentimiento |
+
+Para usar un gateway auto-hospedado, apunta `KIBA_URL` a él. Ver [Self-hosting y desarrollo](/recursos/self-hosting).
