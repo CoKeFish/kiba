@@ -1,0 +1,50 @@
+{
+  "version.label": {
+    "message": "Next",
+    "description": "The label for version current"
+  },
+  "sidebar.docs.category.Introducción": {
+    "message": "Introduction",
+    "description": "The label for category 'Introducción' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Conceptos": {
+    "message": "Concepts",
+    "description": "The label for category 'Conceptos' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Guías": {
+    "message": "Guides",
+    "description": "The label for category 'Guías' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Conecta tu asistente": {
+    "message": "Connect your assistant",
+    "description": "The label for category 'Conecta tu asistente' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Publica un servicio": {
+    "message": "Publish a service",
+    "description": "The label for category 'Publica un servicio' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Referencia": {
+    "message": "Reference",
+    "description": "The label for category 'Referencia' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.SDK (kiba-sdk)": {
+    "message": "SDK (kiba-sdk)",
+    "description": "The label for category 'SDK (kiba-sdk)' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.API REST del gateway": {
+    "message": "Gateway REST API",
+    "description": "The label for category 'API REST del gateway' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Stellar y on-chain": {
+    "message": "Stellar and on-chain",
+    "description": "The label for category 'Stellar y on-chain' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Recursos": {
+    "message": "Resources",
+    "description": "The label for category 'Recursos' in sidebar 'docs'"
+  },
+  "sidebar.docs.doc.Bienvenida": {
+    "message": "Welcome",
+    "description": "The label for the doc item 'Bienvenida' in sidebar 'docs', linking to the doc introduccion/index"
+  }
+}

@@ -1,0 +1,74 @@
+{
+  "link.title.Documentación": {
+    "message": "Documentation",
+    "description": "The title of the footer links column with title=Documentación in the footer"
+  },
+  "link.title.Construir": {
+    "message": "Build",
+    "description": "The title of the footer links column with title=Construir in the footer"
+  },
+  "link.title.Proyecto": {
+    "message": "Project",
+    "description": "The title of the footer links column with title=Proyecto in the footer"
+  },
+  "link.item.label.Qué es Kiba": {
+    "message": "What is Kiba",
+    "description": "The label of footer link with label=Qué es Kiba linking to /"
+  },
+  "link.item.label.Conecta tu asistente": {
+    "message": "Connect your assistant",
+    "description": "The label of footer link with label=Conecta tu asistente linking to /conecta-tu-asistente"
+  },
+  "link.item.label.Arquitectura": {
+    "message": "Architecture",
+    "description": "The label of footer link with label=Arquitectura linking to /conceptos/arquitectura"
+  },
+  "link.item.label.FAQ": {
+    "message": "FAQ",
+    "description": "The label of footer link with label=FAQ linking to /recursos/faq"
+  },
+  "link.item.label.Publica un servicio": {
+    "message": "Publish a service",
+    "description": "The label of footer link with label=Publica un servicio linking to /publica-un-servicio/quickstart"
+  },
+  "link.item.label.SDK (kiba-sdk)": {
+    "message": "SDK (kiba-sdk)",
+    "description": "The label of footer link with label=SDK (kiba-sdk) linking to /sdk"
+  },
+  "link.item.label.API REST del gateway": {
+    "message": "Gateway REST API",
+    "description": "The label of footer link with label=API REST del gateway linking to /api"
+  },
+  "link.item.label.Stellar y on-chain": {
+    "message": "Stellar and on-chain",
+    "description": "The label of footer link with label=Stellar y on-chain linking to /stellar"
+  },
+  "link.item.label.kiba.tools": {
+    "message": "kiba.tools",
+    "description": "The label of footer link with label=kiba.tools linking to https://kiba.tools"
+  },
+  "link.item.label.Dashboard": {
+    "message": "Dashboard",
+    "description": "The label of footer link with label=Dashboard linking to https://app.kiba.tools"
+  },
+  "link.item.label.GitHub": {
+    "message": "GitHub",
+    "description": "The label of footer link with label=GitHub linking to https://github.com/CoKeFish/kiba"
+  },
+  "link.item.label.kiba-sdk en npm": {
+    "message": "kiba-sdk on npm",
+    "description": "The label of footer link with label=kiba-sdk en npm linking to https://www.npmjs.com/package/kiba-sdk"
+  },
+  "link.item.label.kiba-mcp en npm": {
+    "message": "kiba-mcp on npm",
+    "description": "The label of footer link with label=kiba-mcp en npm linking to https://www.npmjs.com/package/kiba-mcp"
+  },
+  "copyright": {
+    "message": "© 2026 Kiba · MIT License",
+    "description": "The footer copyright"
+  },
+  "link.item.label.Soporte": {
+    "message": "Support",
+    "description": "The label of footer link with label=Soporte linking to /recursos/soporte"
+  }
+}
