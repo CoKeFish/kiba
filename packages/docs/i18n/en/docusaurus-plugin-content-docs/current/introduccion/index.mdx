@@ -1,0 +1,66 @@
+---
+slug: /
+title: "What is Kiba"
+sidebar_label: "Welcome"
+description: "Kiba lets any AI assistant discover specialized services and pay them per call, settled in USDC on Stellar."
+---
+
+# 👋 What is Kiba
+
+Kiba is a marketplace where AI assistants (Claude, ChatGPT, Cursor, Claude Code) **discover specialized services and pay them per call**. A single entry point: no API keys and no per-service setup.
+
+A **service** can be an AI agent, an API, an indexer or any procedural tool, published by a company, an organization, an institution or an independent developer. In one sentence, Kiba is *your agent's friends*.
+
+The service registry lives on-chain in a Soroban contract (Stellar). Payment settles in **USDC** using the **x402** protocol, with a **95 % publisher / 5 % platform** split. <TW /> Today that split is applied by Trustless Work.
+
+:::info[Technical demo on testnet]
+Kiba runs on **Stellar testnet** and moves no real funds. Everything described in these docs works end to end on testnet. Details in [Project status](/introduccion/estado-del-proyecto).
+:::
+
+## Start here
+
+<Cards>
+  <Card topic="Topic" title="Use Kiba from Claude or ChatGPT" to="/conecta-tu-asistente" linkLabel="Connect your assistant" />
+  <Card topic="Topic" title="Charge for your service" to="/publica-un-servicio/quickstart" linkLabel="Publisher quickstart" />
+  <Card topic="Topic" title="Integrate with code" to="/sdk" linkLabel="SDK (kiba-sdk)" />
+  <Card topic="Topic" title="Endpoints, auth and errors" to="/api" linkLabel="Gateway REST API" />
+  <Card topic="Topic" title="How each call is paid" to="/conceptos/pagos-y-liquidacion" linkLabel="Payments and settlement" />
+  <Card topic="Topic" title="Testnet, USDC and the contract" to="/stellar" linkLabel="Stellar and on-chain" />
+</Cards>
+
+## The problem
+
+A general-purpose assistant relies on open sources and often returns outdated or shallow information without the user noticing or knowing how to improve it. The specialized sources that would actually solve the task sit behind technical friction: signing up, integrating, an API key or a subscription just to use them once.
+
+Depending on their profile, each user hits a different obstacle: they can't improve the quality of the answers, they don't want to spend the integration time, or they don't even know a specialized service exists for their task.
+
+On the other side, whoever builds that service has nowhere to offer it and no way to charge for it, especially when the consumer is an AI agent and not a person.
+
+## The solution
+
+A two-sided protocol:
+
+- **For people using an assistant:** specialized capabilities are reachable from the usual conversation. The assistant finds the service, gets a price, pays in a single round trip and returns the answer. No per-service sign-ups, no keys, no wallet management.
+- **For people publishing a service:** the marketplace provides registry, discovery, payment and revenue split. The publisher exposes the service once and charges per call, even when the caller is an agent.
+
+## How the pieces fit
+
+| Piece | What it does |
+|---|---|
+| **MCP connector** | Exposes four tools to the assistant: search the catalog, call a service, check the balance and list transactions. Reachable by URL (remote) or with the `kiba-mcp` package and the Windows installer (local). |
+| **Gateway** | Sign-in (OAuth 2.0), credits, wallets, calls on the user's behalf and batch settlement of publisher earnings. |
+| **Discovery** | Mirrors the on-chain registry and runs hybrid search (keyword + semantic) in any language. |
+| **Registry contract** | Soroban contract on Stellar where every service is registered: owner, price, endpoint, description. |
+| **Settlement** | USDC escrow with a 95/5 split. <TW /> Today via Trustless Work. |
+| **SDK (`kiba-sdk`)** | TypeScript library to publish a service or consume services directly, self-custodially. |
+| **Dashboard** | Web app for users and publishers ([app.kiba.tools](https://app.kiba.tools)). |
+
+## Who it's for
+
+Kiba has three audiences, and none of them needs to know anything about blockchain.
+
+**People who use an AI assistant.** They connect Claude, ChatGPT or their IDE once; the assistant finds the right service and pays only for the call it needs. Start at [Connect your assistant](/conecta-tu-asistente).
+
+**People who build a service.** A model, an API, a dataset, a scraper, an indexer, a domain tool. They want to get paid, even when the caller is an agent, without building billing, discovery or authentication. Start at [Publish a service](/publica-un-servicio).
+
+**Teams that integrate directly.** Anyone building their own agent or product who wants to consume services from code uses the [SDK](/sdk) or the [gateway REST API](/api).
