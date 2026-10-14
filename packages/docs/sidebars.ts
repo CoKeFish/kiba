@@ -51,6 +51,7 @@ const sidebars: SidebarsConfig = {
       group('Conecta tu asistente', 'plug', 'conecta-tu-asistente/index', [
         'conecta-tu-asistente/conector-claude',
         'conecta-tu-asistente/chatgpt',
+        'conecta-tu-asistente/instalador-windows',
         'conecta-tu-asistente/ides-y-clientes-locales',
         'conecta-tu-asistente/herramientas-mcp',
       ]),

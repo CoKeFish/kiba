@@ -75,6 +75,7 @@ const config: Config = {
           'conecta-tu-asistente/index.md',
           'conecta-tu-asistente/conector-claude.md',
           'conecta-tu-asistente/chatgpt.md',
+          'conecta-tu-asistente/instalador-windows.mdx',
           'conecta-tu-asistente/*',
           'publica-un-servicio/index.md',
           'publica-un-servicio/quickstart.mdx',
