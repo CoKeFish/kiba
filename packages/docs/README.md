@@ -32,9 +32,10 @@ docs/
   api/                   §6  Autenticación, endpoints, errores
   stellar/               §7  Por qué Stellar, testnet, USDC, contrato, Trustless Work
   recursos/              §8–§14  Seguridad, casos de uso, hoja de ruta, self-hosting, equipo, FAQ, glosario
-sidebars.ts              Secciones de primer nivel + categorías con íconos (clases icon-*)
+sidebars.ts              9 secciones planas y siempre abiertas; cada página con ícono (icon-*)
 src/css/custom.css       Tokens de Kiba → variables Infima (claro/oscuro) + layout
-src/components/Cards     Tarjetas "Empieza aquí"
+src/pages/index.tsx      Portada tipo landing (hero con mascotas, caminos y accesos)
+src/components/Cards     Tarjetas reutilizables
 src/components/TW        Etiqueta ⚠️ TW (ver abajo)
 src/theme/DocBreadcrumbs Swizzle (wrap): breadcrumbs + botón "Copiar"
 src/theme/MDXComponents  Registra <TW />, <Cards> y <Card> en todas las páginas
