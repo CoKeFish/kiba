@@ -11,7 +11,7 @@ There are three paths to the same marketplace. **None of them requires API keys 
 | Path | For whom | Requirements | Guide |
 |---|---|---|---|
 | **Remote connector (URL)** | Claude web/desktop/mobile and ChatGPT | A plan with custom connectors | [Claude](/conecta-tu-asistente/claude) · [ChatGPT](/conecta-tu-asistente/chatgpt) |
-| **Windows installer** | Anyone who doesn't want to open a terminal | Windows; Node.js installed | [IDEs and local clients](/conecta-tu-asistente/ides-y-clientes-locales#opción-a--instalador-de-windows) |
+| **Windows installer** | Anyone who doesn't want to open a terminal | Windows; Node.js installed | [Windows installer](/conecta-tu-asistente/instalador-windows) |
 | **`kiba-mcp` (npx)** | Claude Code, Cursor, Claude Desktop, Codex, any MCP client | Node.js 18 or later | [IDEs and local clients](/conecta-tu-asistente/ides-y-clientes-locales#opción-b--configuración-manual) |
 
 Any of the three gives the assistant the same [four MCP tools](/conecta-tu-asistente/herramientas-mcp).
