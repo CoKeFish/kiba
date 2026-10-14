@@ -25,12 +25,20 @@ https://api.kiba.tools/mcp
 Custom connectors are available on Claude's **Pro, Max, Team and Enterprise** plans. Once added to your account, it works on the web, Claude Desktop and the mobile apps.
 :::
 
-New accounts come with 5 USD in credit (testnet). Top up at [app.kiba.tools](https://app.kiba.tools).
+## What you get
+
+Four tools: search the catalog, call a service, check your balance and list your transactions. See [MCP tools](/conecta-tu-asistente/herramientas-mcp).
+
+New accounts come with 5 USD in credit (testnet). Top up at [app.kiba.tools](https://app.kiba.tools) when you need more.
 
 ## Try it
 
 > *"Find a service on Kiba that tells me the time in Tokyo and Bogotá, and the best slot for a meeting between both cities."*
 
 Claude searches the catalog, shows the price, calls the service and reports the cost and the remaining balance.
+
+## Claude Code and Claude Desktop with a local adapter
+
+If you prefer a local MCP server, or your plan doesn't include custom connectors, use the `kiba-mcp` package or the [Windows installer](/conecta-tu-asistente/instalador-windows). See [IDEs and local clients](/conecta-tu-asistente/ides-y-clientes-locales).
 
 Something not working? See [Connection troubleshooting](/recursos/faq#conexión).
