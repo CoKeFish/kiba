@@ -20,7 +20,12 @@ const LLMS_DESCRIPTION: Record<string, string> = {
 const config: Config = {
   title: 'Kiba Docs',
   tagline: 'Pay any service from any AI assistant',
-  favicon: 'img/logomark.png',
+  // La "K" del logo de Kiba, cuadrada para que se lea en la pestaña (16/32/48 px).
+  favicon: 'favicon.ico',
+  headTags: [
+    {tagName: 'link', attributes: {rel: 'apple-touch-icon', href: '/img/apple-touch-icon.png'}},
+    {tagName: 'link', attributes: {rel: 'icon', type: 'image/png', sizes: '512x512', href: '/img/kiba-icon-512.png'}},
+  ],
 
   future: {
     v4: true,
