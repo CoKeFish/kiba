@@ -4,5 +4,8 @@
   },
   "theme.SearchBar.noResultsText": {
     "message": "Sin resultados"
+  },
+  "kiba.tw.title": {
+    "message": "Hoy vía Trustless Work; se reemplazará por escrows propios de Kiba"
   }
 }

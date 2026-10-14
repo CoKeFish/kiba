@@ -45,7 +45,7 @@ i18n/es/code.json        Textos de UI en español (buscador)
 
 ### Etiqueta ⚠️ TW
 
-Cada lugar que depende de Trustless Work lleva `<TW />`, que enlaza a `/stellar/trustless-work`. Cuando se decida el reemplazo, busca `<TW` y `⚠️ TW` en `docs/` para encontrar todo lo que hay que reescribir.
+Cada lugar que depende de Trustless Work lleva `<TW />`, que enlaza a `/stellar/trustless-work`. El equipo decidió reemplazarlo por escrows propios de Kiba: al migrar, busca `<TW` y `⚠️ TW` en `docs/` e `i18n/` para encontrar todo lo que hay que reescribir.
 
 ## Idiomas
 

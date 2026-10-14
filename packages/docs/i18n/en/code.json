@@ -15,7 +15,7 @@
     "message": "Link"
   },
   "kiba.tw.title": {
-    "message": "Depends on Trustless Work: implemented today, pending replacement"
+    "message": "Trustless Work today; it will be replaced by Kiba's own escrows"
   },
   "theme.ErrorPageContent.title": {
     "message": "This page crashed.",
