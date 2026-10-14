@@ -13,7 +13,7 @@ description: "The two paths you get paid through, the fee and where the money la
 The platform fee (**5 %**) is applied at settlement. You receive the rest in **USDC**, to the Stellar account your service was registered with.
 
 :::warning[Trustless Work]
-<TW /> The fee and the release are applied by Trustless Work. On mainnet TW also charges its own fee (0.3 % according to the September integrations note), which would add to Kiba's.
+<TW /> Today the fee and the release are applied by Trustless Work. The team decided to replace it with Kiba's own escrows; the 95/5 split stays.
 :::
 
 Track your earnings in the [publisher panel](/publica-un-servicio/panel-de-publisher). Batch settlement details are in [Payments and settlement](/conceptos/pagos-y-liquidacion#liquidación-por-lotes-gateway).

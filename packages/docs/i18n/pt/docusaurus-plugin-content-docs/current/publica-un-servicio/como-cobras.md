@@ -13,7 +13,7 @@ description: "As duas rotas pelas quais você recebe, a comissão e onde o dinhe
 A comissão da plataforma (**5 %**) é aplicada na liquidação. Você recebe o restante em **USDC**, na conta Stellar com que seu serviço foi registrado.
 
 :::warning[Trustless Work]
-<TW /> A comissão e a liberação são aplicadas pela Trustless Work. Na mainnet a TW cobra também a própria comissão (0,3 % segundo a nota de integrações de setembro), que se somaria à da Kiba.
+<TW /> Hoje a comissão e a liberação são aplicadas pela Trustless Work. A equipe decidiu substituí-la por escrows próprios da Kiba; a divisão 95/5 se mantém.
 :::
 
 Acompanhe seus ganhos no [painel do publisher](/publica-un-servicio/panel-de-publisher). Os detalhes da liquidação em lote estão em [Pagamentos e liquidação](/conceptos/pagos-y-liquidacion#liquidación-por-lotes-gateway).
