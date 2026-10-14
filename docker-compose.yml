@@ -75,10 +75,8 @@ services:
       context: .
       dockerfile: packages/docs/Dockerfile
     container_name: kiba-docs
-    volumes:
-      - ./packages/docs/src:/app/src
-      - ./packages/docs/public:/app/public
-      - ./packages/docs/astro.config.mjs:/app/astro.config.mjs
+    # Sitio estático de Docusaurus: se construye en la imagen. Para editar con
+    # recarga en caliente usa `npm --prefix packages/docs start`.
     ports:
       - "3030:4321"
     environment:
