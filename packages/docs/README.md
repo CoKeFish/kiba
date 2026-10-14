@@ -1,6 +1,8 @@
 # Kiba Docs
 
-Sitio de documentación de [Kiba](https://github.com/CoKeFish/kiba), construido con [Docusaurus 3](https://docusaurus.io/) en modo solo docs (los docs viven en `/`).
+Sitio de documentación pública de Kiba ([docs.kiba.tools](https://docs.kiba.tools)), construido con [Docusaurus 3](https://docusaurus.io/) en español, inglés y portugués. Es un paquete **independiente** (no está en los `workspaces` del monorepo).
+
+Viene del repo [andreMD287/Kiba-Docs](https://github.com/andreMD287/Kiba-Docs), cuyo historial se trajo con `git subtree`. Para volver a separarlo en el futuro: `git subtree split --prefix=packages/docs`.
 
 ## Desarrollo
 
@@ -50,10 +52,11 @@ Cada lugar que depende de Trustless Work lleva `<TW />`, que enlaza a `/stellar/
 
 ## Despliegue
 
-`docs.kiba.tools` se construye con el `Dockerfile` de este repo (Node 22: `npm ci`, `npm run build` y `serve build` en el puerto **4321**), en el servidor Coolify del equipo.
+`docs.kiba.tools` es el servicio `docs` de `docker-compose.prod.yml`: Coolify construye `packages/docs/Dockerfile` (contexto en la raíz del monorepo; Node 22: `npm ci`, `npm run build` y `serve build` en el puerto **4321**).
 
-- **GitHub Actions** (`.github/workflows/deploy.yml`): en cada push a `main` compila el sitio y, si pasa, le pide a Coolify que redespliegue. Necesita los secrets `COOLIFY_TOKEN` y `COOLIFY_APP_UUID`; sin ellos solo corre el build.
-- **Probar como en producción:** `npm run build && npx serve build -l 4321`.
+- Cada push a `main` que toque `packages/docs/**` dispara el `deploy.yml` del monorepo, que le pide a Coolify redesplegar el stack.
+- **En local con Docker:** `docker compose up docs` → http://localhost:3030.
+- **Probar como en producción sin Docker:** `npm run build && npx serve build -l 4321`.
 
 ## Idiomas
 
