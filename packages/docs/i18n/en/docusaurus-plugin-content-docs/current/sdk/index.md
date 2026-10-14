@@ -32,6 +32,8 @@ The classes keep their historical `Agent*` names for API stability. They work fo
 - The payment handshake: `402` quotes, `X-PAYMENT` header, platform-signed certificates, replay protection.
 - Testnet account bootstrapping with friendbot.
 
+## Where it is used
+
 The same library powers the gateway, the demo services and the orchestrator: **anything the platform does with a service, you can do from your own process.**
 
 ## In this section

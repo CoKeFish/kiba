@@ -32,6 +32,8 @@ As classes mantêm os nomes históricos `Agent*` por estabilidade de API. Servem
 - O handshake de pagamento: cotações `402`, header `X-PAYMENT`, certificados assinados pela plataforma, proteção contra repetição.
 - A inicialização de contas na testnet com friendbot.
 
+## Onde é usado
+
 A mesma biblioteca alimenta o gateway, os serviços de demonstração e o orquestrador: **tudo o que a plataforma faz com um serviço, você pode fazer a partir do seu próprio processo.**
 
 ## Nesta seção

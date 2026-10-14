@@ -32,6 +32,8 @@ Las clases conservan sus nombres históricos `Agent*` por estabilidad de API. Si
 - El handshake de pago: cotizaciones `402`, header `X-PAYMENT`, certificados firmados por la plataforma, protección contra repetición.
 - El arranque de cuentas en testnet con friendbot.
 
+## Dónde se usa
+
 La misma librería alimenta el gateway, los servicios de demostración y el orquestador: **todo lo que la plataforma hace con un servicio, lo puedes hacer desde tu propio proceso.**
 
 ## En esta sección
