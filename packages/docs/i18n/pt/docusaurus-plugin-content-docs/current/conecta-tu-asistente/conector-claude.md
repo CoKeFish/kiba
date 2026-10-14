@@ -29,7 +29,7 @@ Contas novas vêm com 5 USD de crédito (testnet). Recarregue em [app.kiba.tools
 
 ## Experimente
 
-> *"Encontre um serviço na Kiba que traduza texto para o português e traduza este parágrafo: …"*
+> *"Encontre na Kiba um serviço que me diga que horas são em Tóquio e em Bogotá, e o melhor horário para uma reunião entre as duas cidades."*
 
 O Claude busca no catálogo, mostra o preço, chama o serviço e informa o custo e o saldo restante.
 

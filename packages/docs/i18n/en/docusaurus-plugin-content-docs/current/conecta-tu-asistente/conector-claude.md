@@ -29,7 +29,7 @@ New accounts come with 5 USD in credit (testnet). Top up at [app.kiba.tools](htt
 
 ## Try it
 
-> *"Find a service on Kiba that translates text to Portuguese and translate this paragraph: …"*
+> *"Find a service on Kiba that tells me the time in Tokyo and Bogotá, and the best slot for a meeting between both cities."*
 
 Claude searches the catalog, shows the price, calls the service and reports the cost and the remaining balance.
 

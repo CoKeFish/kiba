@@ -19,8 +19,8 @@ const client = new AgentClient({
 });
 
 await client.bootstrap();
-const result = await client.call('translate-en-es', { text: 'hello' });
-// → { translation: 'hola', _payment: { … } }
+const result = await client.call('world-clock', { zones: ['Tokyo', 'Bogotá'] });
+// → { now: [{ query: 'Tokyo', zone: 'Asia/Tokyo', time: '…' }, …], unresolved: [], _payment: { … } }
 ```
 
 `client.call()` descobre o serviço no registro on-chain (com fallback no backend de descoberta), financia um escrow da Trustless Work <TW /> que nomeia o serviço como recebedor e chama de novo com prova de pagamento. O resultado traz um campo `_payment` com os detalhes do escrow.
