@@ -22,7 +22,8 @@ docker compose up --build -d
 | Dashboard | http://localhost:3020 |
 | Backend (API de descubrimiento) | http://localhost:4000/agents |
 | Gateway (REST + auth) | http://localhost:8000 |
-| Docs (`docker compose up docs`) | http://localhost:3030 |
+
+Esta documentación vive en su propio repositorio, [Kiba-Docs](https://github.com/andreMD287/Kiba-Docs). Para levantarla: `npm install && npm start`.
 
 El contrato Soroban ya está desplegado en testnet, así que el stack habla con él de entrada y las wallets se fondean bajo demanda con friendbot. `.env.example` trae `CHAIN=stellar` y el `STELLAR_CONTRACT_ID` vivo.
 
@@ -48,7 +49,6 @@ packages/
   gateway/              Auth, wallets, créditos, liquidación por lotes (puerto 8000)
   dashboard/            SPA React (puerto 3020)
   landing/              Sitio Astro (puerto 3010)
-  docs/                 Sitio de documentación, Astro + Starlight (docs.kiba.tools)
   mcp-server/           Adaptador MCP (kiba-mcp), en npm
   orchestrator-agent/   Planificador de intención con LLM (puerto 6001)
   demo-agents/          Servicios de ejemplo (puertos 5001-5008)
@@ -68,7 +68,7 @@ submission-screenshots/ Recursos visuales de la entrega
 | Gateway | Express, cookies JWT, OAuth 2.0 PKCE, wallets no custodiales (Privy), Postgres |
 | Dashboard | Vite 6, React 19, Tailwind 4, TanStack Query |
 | Landing | Astro 5, Tailwind 4 (en/es/pt) |
-| Docs | Astro 7 + Starlight (Node ≥ 22.12, paquete independiente fuera de los workspaces) |
+| Docs | Docusaurus 3 (es/en/pt), en su propio repositorio: [Kiba-Docs](https://github.com/andreMD287/Kiba-Docs) |
 | Adaptador MCP | `@modelcontextprotocol/sdk` |
 | Orquestador | Anthropic SDK |
 | Instalador | Tauri 2 (Windows) |
@@ -85,4 +85,4 @@ submission-screenshots/ Recursos visuales de la entrega
 
 ## Contribuir
 
-El proyecto es de código abierto (licencia MIT). Reporta errores en [GitHub Issues](https://github.com/CoKeFish/kiba/issues).
+El proyecto es de código abierto (licencia MIT). Reporta errores en [GitHub Issues](https://github.com/CoKeFish/kiba/issues). Para mejorar esta documentación, abre un PR en [Kiba-Docs](https://github.com/andreMD287/Kiba-Docs).
