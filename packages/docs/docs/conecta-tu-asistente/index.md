@@ -11,7 +11,7 @@ Hay tres caminos al mismo marketplace. **Ninguno requiere claves de API ni manej
 | Camino | Para quién | Requisitos | Guía |
 |---|---|---|---|
 | **Conector remoto (URL)** | Claude web/escritorio/móvil y ChatGPT | Plan con conectores personalizados | [Claude](/conecta-tu-asistente/claude) · [ChatGPT](/conecta-tu-asistente/chatgpt) |
-| **Instalador de Windows** | Quien no quiere abrir una terminal | Windows; Node.js instalado | [IDEs y clientes locales](/conecta-tu-asistente/ides-y-clientes-locales#opción-a--instalador-de-windows) |
+| **Instalador de Windows** | Quien no quiere abrir una terminal | Windows; Node.js instalado | [Instalador de Windows](/conecta-tu-asistente/instalador-windows) |
 | **`kiba-mcp` (npx)** | Claude Code, Cursor, Claude Desktop, Codex, cualquier cliente MCP | Node.js 18 o superior | [IDEs y clientes locales](/conecta-tu-asistente/ides-y-clientes-locales#opción-b--configuración-manual) |
 
 Cualquiera de los tres le da al asistente las mismas [cuatro herramientas MCP](/conecta-tu-asistente/herramientas-mcp).
