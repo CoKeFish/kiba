@@ -22,4 +22,4 @@ A Kiba precisa cobrar frações de centavo por chamada, em dólares, sem interro
 - [Testnet](/stellar/testnet): valores de rede, fundos de teste e explorador.
 - [USDC e trustlines](/stellar/usdc-y-trustlines): por que toda conta precisa de uma trustline.
 - [Contrato de registro](/stellar/contrato-de-registro): funções, armazenamento, eventos e testes.
-- [Trustless Work](/stellar/trustless-work): escrow e divisão de cada pagamento (implementado hoje, aguardando substituição).
+- [Trustless Work](/stellar/trustless-work): escrow e divisão de cada pagamento (implementado hoje; será substituído por escrows próprios da Kiba).

@@ -5,8 +5,8 @@ description: "Escrow and 95/5 split for every payment via Trustless Work: how it
 
 # Trustless Work (escrow and split)
 
-:::warning[Status: implemented in main, pending replacement]
-The team dropped Trustless Work in October 2026 and what replaces it is still to be decided. This page describes what the code does **today**. Every place in these docs that depends on Trustless Work carries the <TW /> tag.
+:::warning[Status: implemented today, to be replaced by Kiba's own escrows]
+In October 2026 the team decided to move off Trustless Work and use **Kiba's own escrows**. While those are being built, the code still uses Trustless Work, and this page describes what it does **today**. Every place in these docs that depends on Trustless Work carries the <TW /> tag.
 :::
 
 [Trustless Work](https://www.trustlesswork.com) is a non-custodial escrow service on Stellar/Soroban (escrow-as-a-service). Kiba uses it for the escrow and revenue split of every payment, in USDC, instead of its own payments contract.
@@ -62,7 +62,3 @@ Without `TRUSTLESS_WORK_API_KEY` the SDK starts with escrow disabled: registry a
 :::
 
 **Getting an API key:** Trustless Work BackOffice dApp → create a profile → generate the key for the target network. The [Trustless Work documentation](https://docs.trustlesswork.com) covers the dApp and the API in detail.
-
-## Mainnet cost
-
-According to the September integrations note, Trustless Work charges **0.3 %** on mainnet, on top of Kiba's 5 %; the mainnet API key is enabled after an integrator audit.
