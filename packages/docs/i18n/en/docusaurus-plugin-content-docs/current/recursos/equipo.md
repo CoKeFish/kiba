@@ -15,7 +15,6 @@ Built from Bogotá, Colombia.
 | **Rodion Tabares** | Engineering | Gateway, wallets, hybrid discovery, MCP integration |
 | **André Landinez** | Engineering | On-chain contract, dynamic pricing, x402 trace, dashboard |
 | **Lizeth Rico** | Design | Visual identity, product UX, dashboard interaction |
-| **Angie Alpízar Porras** | Design and frontend | UI redesign of dashboard, landing, OAuth and installer; brand and mascots |
 
 ## History
 

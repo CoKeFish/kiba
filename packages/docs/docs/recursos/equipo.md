@@ -15,7 +15,6 @@ Construido desde Bogotá, Colombia.
 | **Rodion Tabares** | Ingeniería | Gateway, wallets, descubrimiento híbrido, integración MCP |
 | **André Landinez** | Ingeniería | Contrato on-chain, precio dinámico, traza x402, dashboard |
 | **Lizeth Rico** | Diseño | Identidad visual, UX de producto, interacción del dashboard |
-| **Angie Alpízar Porras** | Diseño y frontend | Rediseño de UI en dashboard, landing, OAuth e instalador; marca y mascotas |
 
 ## Historia
 
