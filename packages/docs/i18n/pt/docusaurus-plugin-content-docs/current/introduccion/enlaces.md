@@ -13,7 +13,7 @@ description: "Landing, dashboard, APIs, conector MCP, pacotes npm, código-fonte
 | Descoberta (API pública do catálogo) | [data.kiba.tools/agents](https://data.kiba.tools/agents) |
 | URL do conector MCP | `https://api.kiba.tools/mcp` |
 | Documentação | [docs.kiba.tools](https://docs.kiba.tools) |
-| Instalador do Windows | [Último release no GitHub](https://github.com/CoKeFish/kiba/releases/latest) |
+| Instalador do Windows | [Baixar .exe](https://github.com/CoKeFish/kiba/releases/latest/download/Kiba-Installer-x64-setup.exe) · [Guia](/conecta-tu-asistente/instalador-windows) |
 | `kiba-mcp` no npm | [npmjs.com/package/kiba-mcp](https://www.npmjs.com/package/kiba-mcp) |
 | `kiba-sdk` no npm | [npmjs.com/package/kiba-sdk](https://www.npmjs.com/package/kiba-sdk) |
 | Código-fonte (MIT) | [github.com/CoKeFish/kiba](https://github.com/CoKeFish/kiba) |
