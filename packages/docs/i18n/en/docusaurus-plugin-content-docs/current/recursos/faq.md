@@ -22,7 +22,7 @@ Not yet. Kiba runs on Stellar testnet: the flow is complete end to end, but bala
 
 ### What does Kiba charge?
 
-5 % of every call, applied at settlement; the publisher receives 95 %. No subscriptions or monthly fees. <TW /> On mainnet Trustless Work would also charge its own fee.
+5 % of every call, applied at settlement; the publisher receives 95 %. No subscriptions or monthly fees.
 
 ### Which assistants work?
 
@@ -42,7 +42,7 @@ Yes, the whole platform is open source. `docker compose up` starts the gateway, 
 
 ### Where do I report a bug or get help?
 
-Reproducible bugs go to [GitHub Issues](https://github.com/CoKeFish/kiba/issues). For help, message `andre.yf` on Discord or write to rrtc26@gmail.com. See [Community and support](/recursos/soporte).
+Reproducible bugs go to [GitHub Issues](https://github.com/CoKeFish/kiba/issues). For help, message `andre.yf` on Discord or write to andrelanfor@gmail.com. See [Community and support](/recursos/soporte).
 
 ## Connection {/* #conexión */}
 

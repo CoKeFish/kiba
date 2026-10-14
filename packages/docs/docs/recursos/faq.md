@@ -22,7 +22,7 @@ Todavía no. Kiba corre en Stellar testnet: el flujo está completo de punta a p
 
 ### ¿Qué cobra Kiba?
 
-5 % de cada llamada, aplicado en la liquidación; el publisher recibe 95 %. Sin suscripciones ni cuotas mensuales. <TW /> En mainnet Trustless Work cobraría además su propia comisión.
+5 % de cada llamada, aplicado en la liquidación; el publisher recibe 95 %. Sin suscripciones ni cuotas mensuales.
 
 ### ¿Qué asistentes funcionan?
 
@@ -42,7 +42,7 @@ Sí, toda la plataforma es de código abierto. `docker compose up` levanta gatew
 
 ### ¿Dónde reporto un error o pido ayuda?
 
-Errores reproducibles en [GitHub Issues](https://github.com/CoKeFish/kiba/issues). Para ayuda, escribe a `andre.yf` en Discord o a rrtc26@gmail.com. Ver [Comunidad y soporte](/recursos/soporte).
+Errores reproducibles en [GitHub Issues](https://github.com/CoKeFish/kiba/issues). Para ayuda, escribe a `andre.yf` en Discord o a andrelanfor@gmail.com. Ver [Comunidad y soporte](/recursos/soporte).
 
 ## Conexión
 

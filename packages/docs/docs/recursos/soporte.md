@@ -9,7 +9,7 @@ description: "Cómo contactar al equipo de Kiba: Discord, correo y GitHub."
 | Canal | Para qué | Contacto |
 |---|---|---|
 | **Discord** | Preguntas rápidas, ayuda para integrar o publicar un servicio | Escribe a **`andre.yf`** |
-| **Correo** | Consultas más largas, alianzas y reportes de seguridad | [rrtc26@gmail.com](mailto:rrtc26@gmail.com) |
+| **Correo** | Consultas más largas, alianzas y reportes de seguridad | [andrelanfor@gmail.com](mailto:andrelanfor@gmail.com) |
 | **GitHub Issues** | Errores reproducibles y propuestas de mejora | [github.com/CoKeFish/kiba/issues](https://github.com/CoKeFish/kiba/issues) |
 
 :::tip[Discord]
@@ -37,7 +37,7 @@ No envíes API keys (`sk_live_…`), secretos de wallet (`S…`) ni tokens OAuth
 
 ## Reportes de seguridad
 
-Si encuentras una vulnerabilidad, escribe al [correo](mailto:rrtc26@gmail.com) en lugar de abrir un issue público, para poder corregirla antes de que se conozca. Ver también [Seguridad y límites conocidos](/recursos/seguridad).
+Si encuentras una vulnerabilidad, escribe al [correo](mailto:andrelanfor@gmail.com) en lugar de abrir un issue público, para poder corregirla antes de que se conozca. Ver también [Seguridad y límites conocidos](/recursos/seguridad).
 
 ## Valores de plataforma para publishers
 
