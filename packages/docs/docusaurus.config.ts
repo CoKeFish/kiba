@@ -160,7 +160,8 @@ const config: Config = {
   ],
 
   themeConfig: {
-    image: 'img/logomark.png',
+    // Vista previa al compartir el enlace (1200×630), una por idioma.
+    image: `img/social-card-${CURRENT_LOCALE}.png`,
     colorMode: {
       defaultMode: 'light',
       respectPrefersColorScheme: true,
