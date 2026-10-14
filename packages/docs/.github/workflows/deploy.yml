@@ -1,0 +1,47 @@
+# Cada push a main: compila el sitio (falla si hay enlaces o anclas rotas) y,
+# si el build pasa, le pide a Coolify que redespliegue docs.kiba.tools.
+#
+# Secrets del repo (Settings → Secrets and variables → Actions):
+#   COOLIFY_TOKEN     token de API de Coolify
+#   COOLIFY_APP_UUID  UUID de la app de docs en Coolify
+# Mientras no existan, el job de despliegue se salta y solo corre el build.
+name: Build y despliegue
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+
+  deploy:
+    needs: build
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Avisar a Coolify
+        env:
+          COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+          COOLIFY_APP_UUID: ${{ secrets.COOLIFY_APP_UUID }}
+        run: |
+          if [ -z "$COOLIFY_TOKEN" ] || [ -z "$COOLIFY_APP_UUID" ]; then
+            echo "Sin secrets de Coolify todavía: se omite el despliegue."
+            exit 0
+          fi
+          curl -fsS -H "Authorization: Bearer $COOLIFY_TOKEN" \
+            "https://coolify.rodion.com.co/api/v1/deploy?uuid=$COOLIFY_APP_UUID&force=false"
