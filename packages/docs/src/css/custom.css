@@ -600,6 +600,37 @@ h4 {
   text-decoration-color: currentColor;
 }
 
+/* Botones de descarga (instalador de Windows) */
+.kiba-download {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--kiba-space-3);
+  margin: var(--kiba-space-6) 0 var(--kiba-space-2);
+}
+
+.kiba-download .button {
+  border-radius: var(--kiba-radius-pill);
+  font-family: var(--font-sans);
+  font-weight: 600;
+}
+
+.kiba-download .button--primary {
+  border-color: var(--blue-500);
+  background: var(--blue-500);
+  color: #ffffff;
+  box-shadow: var(--kiba-glow-sm);
+}
+
+.kiba-download .button--primary:hover {
+  border-color: var(--blue-400);
+  background: var(--blue-400);
+  box-shadow: var(--kiba-glow-md);
+}
+
+.markdown .kiba-download a {
+  text-decoration: none;
+}
+
 /* Breadcrumbs en mayúsculas pequeñas */
 .theme-doc-breadcrumbs {
   margin-bottom: var(--kiba-space-3) !important;
