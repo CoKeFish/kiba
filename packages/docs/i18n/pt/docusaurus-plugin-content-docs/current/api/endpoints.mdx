@@ -24,7 +24,7 @@ Todo endpoint exige [credencial](/api/autenticacion), salvo indicação em contr
 | Endpoint | Descrição |
 |---|---|
 | `GET /v1/agents` | Lista serviços. Com `?q=<texto>` executa a busca híbrida ordenada por relevância. Cada item: `service`, `pricePerCall`, `description`, `endpoint`, `ownerWallet`, `acceptedToken`, `totalCalls`, `totalEarned`, `createdAt`, `source`. |
-| `POST /v1/call` | Chama um serviço e paga com o saldo da conta. Corpo `{ "service": "translator-pro", "payload": { "text": "hello" } }`. **Só** `service` e `payload` são aceitos; qualquer outro campo é rejeitado com `400` antes de cobrar. |
+| `POST /v1/call` | Chama um serviço e paga com o saldo da conta. Corpo `{ "service": "world-clock", "payload": { "zones": ["Tokyo", "Bogotá"] } }`. **Só** `service` e `payload` são aceitos; qualquer outro campo é rejeitado com `400` antes de cobrar. |
 | `GET /v1/transactions` | Histórico, do mais recente ao mais antigo. `?limit=` até 500 (50 por padrão). Cada item: `type` (`topup`, `call`), `amount_lamports`, `service`, `tx_signature`, `explorer_url`, `status`, `created_at`. |
 
 ### Chamar um serviço
@@ -36,7 +36,7 @@ Todo endpoint exige [credencial](/api/autenticacion), salvo indicação em contr
 curl -X POST https://api.kiba.tools/v1/call \
   -H "Authorization: Bearer sk_live_…" \
   -H "Content-Type: application/json" \
-  -d '{"service": "translator-pro", "payload": {"text": "hello"}}'
+  -d '{"service": "world-clock", "payload": {"zones": ["Tokyo", "Bogotá"]}}'
 ```
 
 </TabItem>
@@ -49,7 +49,7 @@ const res = await fetch('https://api.kiba.tools/v1/call', {
     Authorization: `Bearer ${process.env.KIBA_API_KEY}`,
     'Content-Type': 'application/json',
   },
-  body: JSON.stringify({ service: 'translator-pro', payload: { text: 'hello' } }),
+  body: JSON.stringify({ service: 'world-clock', payload: { zones: ['Tokyo', 'Bogotá'] } }),
 });
 const { result, cost, newBalance } = await res.json();
 ```
@@ -63,7 +63,7 @@ import os, requests
 r = requests.post(
     "https://api.kiba.tools/v1/call",
     headers={"Authorization": f"Bearer {os.environ['KIBA_API_KEY']}"},
-    json={"service": "translator-pro", "payload": {"text": "hello"}},
+    json={"service": "world-clock", "payload": {"zones": ["Tokyo", "Bogotá"]}},
 )
 data = r.json()
 ```
@@ -75,11 +75,17 @@ Resposta:
 
 ```json
 {
-  "result": { "translation": "hola" },
-  "cost": { "lamports": 100000, "usd": 0.01 },
+  "result": {
+    "now": [
+      { "query": "Tokyo", "zone": "Asia/Tokyo", "time": "08:15", "date": "…", "utcOffset": "+09:00", "partOfDay": "morning" },
+      { "query": "Bogotá", "zone": "America/Bogota", "time": "18:15", "date": "…", "utcOffset": "-05:00", "partOfDay": "evening" }
+    ],
+    "unresolved": []
+  },
+  "cost": { "lamports": 10000, "usd": 0.001 },
   "paidWith": "credit",
   "mode": "virtual",
-  "newBalance": { "lamports": 47900000, "usd": 4.79 },
+  "newBalance": { "lamports": 49990000, "usd": 4.999 },
   "explorerUrl": "https://stellar.expert/explorer/testnet/tx/…",
   "trace": { "steps": [] }
 }
