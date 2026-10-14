@@ -48,6 +48,13 @@ i18n/es/code.json        Textos de UI en español (buscador)
 
 Cada lugar que depende de Trustless Work lleva `<TW />`, que enlaza a `/stellar/trustless-work`. El equipo decidió reemplazarlo por escrows propios de Kiba: al migrar, busca `<TW` y `⚠️ TW` en `docs/` e `i18n/` para encontrar todo lo que hay que reescribir.
 
+## Despliegue
+
+`docs.kiba.tools` se construye con el `Dockerfile` de este repo (Node 22: `npm ci`, `npm run build` y `serve build` en el puerto **4321**), en el servidor Coolify del equipo.
+
+- **GitHub Actions** (`.github/workflows/deploy.yml`): en cada push a `main` compila el sitio y, si pasa, le pide a Coolify que redespliegue. Necesita los secrets `COOLIFY_TOKEN` y `COOLIFY_APP_UUID`; sin ellos solo corre el build.
+- **Probar como en producción:** `npm run build && npx serve build -l 4321`.
+
 ## Idiomas
 
 Español en la raíz (`/`), inglés en `/en` y portugués en `/pt`, igual que [kiba.tools](https://kiba.tools). El selector **EN | ES | PT** del navbar (`src/components/LangPicker`) lleva a la misma página en el otro idioma y conserva el ancla.
