@@ -381,6 +381,24 @@ h4 {
   box-shadow: var(--kiba-glow-md);
 }
 
+/* Ícono de GitHub */
+.navbar-github {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin-left: var(--kiba-space-2);
+  border-radius: var(--kiba-radius-pill);
+  color: var(--kiba-fg);
+  transition: background var(--kiba-dur-fast) var(--kiba-ease-out), color var(--kiba-dur-fast) var(--kiba-ease-out);
+}
+
+.navbar-github:hover {
+  color: var(--blue-500);
+  background: var(--kiba-accent-soft);
+}
+
 /* Sin icono de enlace externo en las píldoras */
 .navbar-pill svg[class*='iconExternalLink'] {
   display: none;
