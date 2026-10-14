@@ -1,14 +1,14 @@
-# Sitio de documentación de Kiba (docs.kiba.tools).
-# Construye el sitio estático de Docusaurus (es/en/pt) y lo sirve con `serve`,
-# igual que hacía la docs anterior en el repo oficial: mismo puerto (4321).
+# Sitio de documentación de Kiba (docs.kiba.tools), Docusaurus 3 (es/en/pt).
+# El contexto de build es la raíz del monorepo (ver docker-compose*.yml), por eso
+# las rutas apuntan a packages/docs. Sirve el estático con `serve` en el 4321.
 FROM node:22-alpine
 
 WORKDIR /app
 
-COPY package.json package-lock.json ./
+COPY packages/docs/package.json packages/docs/package-lock.json ./
 RUN npm ci
 
-COPY . .
+COPY packages/docs/ ./
 
 RUN npm run build
 
