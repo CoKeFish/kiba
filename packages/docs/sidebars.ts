@@ -1,8 +1,8 @@
 import type {SidebarsConfig} from '@docusaurus/plugin-content-docs';
 
-// Estructura de kiba-documentacion-oficial.md (Parte A, §1–§14).
-// Las categorías de primer nivel se pintan como encabezados de sección
-// (clase `sidebar-section`); los ítems llevan un ícono vía `icon-*`.
+// 9 secciones planas y siempre abiertas (como docs.kiba.tools): cada página se
+// ve sin desplegar nada. Las secciones se pintan como encabezados (clase
+// `sidebar-section`) y cada ítem lleva un ícono vía `icon-*`.
 type Items = SidebarsConfig[string];
 
 const section = (label: string, items: Items) => ({
@@ -18,16 +18,6 @@ const doc = (id: string, icon: string, label?: string) => ({
   id,
   className: `icon-${icon}`,
   ...(label ? {label} : {}),
-});
-
-// Categoría desplegable con página índice propia.
-const group = (label: string, icon: string, index: string, items: string[]) => ({
-  type: 'category' as const,
-  label,
-  className: `icon-${icon}`,
-  collapsed: true,
-  link: {type: 'doc' as const, id: index},
-  items,
 });
 
 const sidebars: SidebarsConfig = {
@@ -47,52 +37,55 @@ const sidebars: SidebarsConfig = {
       doc('conceptos/arquitectura', 'layers'),
       doc('conceptos/modelo-de-confianza', 'shield'),
     ]),
-    section('Guías', [
-      group('Conecta tu asistente', 'plug', 'conecta-tu-asistente/index', [
-        'conecta-tu-asistente/conector-claude',
-        'conecta-tu-asistente/chatgpt',
-        'conecta-tu-asistente/instalador-windows',
-        'conecta-tu-asistente/ides-y-clientes-locales',
-        'conecta-tu-asistente/herramientas-mcp',
-      ]),
-      group('Publica un servicio', 'upload', 'publica-un-servicio/index', [
-        'publica-un-servicio/quickstart',
-        'publica-un-servicio/handler-y-precios',
-        'publica-un-servicio/despliegue',
-        'publica-un-servicio/descubrimiento-y-llamadas',
-        'publica-un-servicio/como-cobras',
-        'publica-un-servicio/nombres-y-confianza',
-        'publica-un-servicio/panel-de-publisher',
-        'publica-un-servicio/mainnet',
-        'publica-un-servicio/problemas-frecuentes',
-      ]),
+    section('Conecta tu asistente', [
+      doc('conecta-tu-asistente/index', 'plug'),
+      doc('conecta-tu-asistente/conector-claude', 'chat'),
+      doc('conecta-tu-asistente/chatgpt', 'chat'),
+      doc('conecta-tu-asistente/instalador-windows', 'download'),
+      doc('conecta-tu-asistente/ides-y-clientes-locales', 'terminal'),
+      doc('conecta-tu-asistente/herramientas-mcp', 'tool'),
     ]),
-    section('Referencia', [
-      group('SDK (kiba-sdk)', 'code', 'sdk/index', [
-        'sdk/agent-provider',
-        'sdk/agent-client',
-        'sdk/operar-tu-plataforma',
-        'sdk/configuracion',
-        'sdk/errores',
-      ]),
-      group('API REST del gateway', 'api', 'api/index', [
-        'api/autenticacion',
-        'api/endpoints',
-        'api/errores',
-      ]),
-      group('Stellar y on-chain', 'globe', 'stellar/index', [
-        'stellar/testnet',
-        'stellar/usdc-y-trustlines',
-        'stellar/contrato-de-registro',
-        'stellar/trustless-work',
-      ]),
+    section('Publica un servicio', [
+      doc('publica-un-servicio/index', 'upload'),
+      doc('publica-un-servicio/quickstart', 'rocket'),
+      doc('publica-un-servicio/handler-y-precios', 'coin'),
+      doc('publica-un-servicio/despliegue', 'cloud'),
+      doc('publica-un-servicio/descubrimiento-y-llamadas', 'search'),
+      doc('publica-un-servicio/como-cobras', 'wallet'),
+      doc('publica-un-servicio/nombres-y-confianza', 'shield'),
+      doc('publica-un-servicio/panel-de-publisher', 'activity'),
+      doc('publica-un-servicio/mainnet', 'globe'),
+      doc('publica-un-servicio/problemas-frecuentes', 'help'),
     ]),
-    section('Recursos', [
-      doc('recursos/seguridad', 'key'),
+    section('SDK', [
+      doc('sdk/index', 'code'),
+      doc('sdk/agent-provider', 'upload'),
+      doc('sdk/agent-client', 'download'),
+      doc('sdk/operar-tu-plataforma', 'key'),
+      doc('sdk/configuracion', 'sliders'),
+      doc('sdk/errores', 'help'),
+    ]),
+    section('API REST del gateway', [
+      doc('api/index', 'api'),
+      doc('api/autenticacion', 'key'),
+      doc('api/endpoints', 'link'),
+      doc('api/errores', 'help'),
+    ]),
+    section('Stellar y on-chain', [
+      doc('stellar/index', 'globe'),
+      doc('stellar/testnet', 'cloud'),
+      doc('stellar/usdc-y-trustlines', 'coin'),
+      doc('stellar/contrato-de-registro', 'cube'),
+      doc('stellar/trustless-work', 'shield'),
+    ]),
+    section('Proyecto', [
       doc('recursos/casos-de-uso', 'rocket'),
       doc('recursos/hoja-de-ruta', 'map'),
+      doc('recursos/seguridad', 'shield'),
       doc('recursos/self-hosting', 'terminal'),
       doc('recursos/equipo', 'heart'),
+    ]),
+    section('Soporte', [
       doc('recursos/soporte', 'chat'),
       doc('recursos/faq', 'help'),
       doc('recursos/glosario', 'book'),
