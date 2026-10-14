@@ -15,7 +15,7 @@ variable que conoce Coolify es `DOPPLER_TOKEN`.
 | `packages/dashboard` (Vite, estático + nginx) | Coolify | stack `kiba` / `dashboard` | https://app.kiba.tools |
 | `packages/gateway` (Express) | Coolify | stack `kiba` / `gateway` | https://api.kiba.tools |
 | `packages/backend` (Express) | Coolify | stack `kiba` / `backend` | https://data.kiba.tools |
-| `packages/docs` (Astro + Starlight, estático) | Coolify | stack `kiba` / `docs` | https://docs.kiba.tools |
+| `packages/docs` (Docusaurus 3, estático, es/en/pt) | Coolify | stack `kiba` / `docs` | https://docs.kiba.tools |
 | Postgres 16 | Coolify | stack `kiba` / `postgres` | (solo red interna) |
 | `demo-agents` × 8 | Coolify | stack `kiba` / `agent-<x>` | https://agent-`<x>`.kiba.tools |
 
