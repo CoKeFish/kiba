@@ -1,0 +1,8 @@
+node_modules
+build
+.docusaurus
+.cache-loader
+.git
+.github
+kiba-documentacion-oficial.md
+npm-debug.log*
