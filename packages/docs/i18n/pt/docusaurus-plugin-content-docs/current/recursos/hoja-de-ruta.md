@@ -16,6 +16,7 @@ Status de cada linha. **O que está marcado como "avaliado" não está implement
 
 | Linha | Detalhe |
 |---|---|
+| **Escrows próprios da Kiba** | Substituem a <TW /> Trustless Work no escrow x402 e na divisão 95/5. Decisão tomada em outubro de 2026; desenho e implementação em andamento. Veja [Trustless Work](/stellar/trustless-work). |
 | **Mainnet** | Deploy na mainnet com **auditoria prévia do contrato Soroban**. Reposição automática da tesouraria e pool de contas-canal (concorrência) como pendências técnicas. |
 | **Rampa fiat na Colômbia** | Recarga COP → USDC por PSE e saque USDC → COP para chave Bre-B. Candidato principal: **VANK** (anchor SEP-10/24/6/12/38; sandbox `dev-stable-anchor.thisisvank.com`; a produção exige certificação com 3 casos, acordo de integração e `stellar.toml` com `SIGNING_KEY`). Alternativa: **Koywe** (PSE na entrada, Bre-B/ACH na saída). Também foram considerados PayU, Cobre, Mono e a API do Nequi. Desafio: risco cambial custodial e exposição regulatória. |
 | **Desenvolvimento do ecossistema** | Onboarding de publishers, expansão do catálogo por verticais e primeiros usuários pagantes. |
@@ -30,7 +31,6 @@ Status de cada linha. **O que está marcado como "avaliado" não está implement
 
 | Projeto | Condição |
 |---|---|
-| <TW /> Trustless Work | Só para tarefas longas com marcos e disputas. Veja [Trustless Work](/stellar/trustless-work). |
 | Bazaars x402 (Rail402, AgentSmith, Rumble Fish, Vellar) | Esperar a mainnet. Catálogo automático de serviços pagáveis; eles são listados ao liquidar pelo facilitator deles. A Vellar é testnet e sem auditoria. |
 
 ## Descartado por enquanto

@@ -16,6 +16,7 @@ Status of each line. **Anything marked "evaluated" isn't implemented.**
 
 | Line | Details |
 |---|---|
+| **Kiba's own escrows** | Replace <TW /> Trustless Work for the x402 escrow and the 95/5 split. Decided in October 2026; design and implementation in progress. See [Trustless Work](/stellar/trustless-work). |
 | **Mainnet** | Mainnet deployment with a **prior audit of the Soroban contract**. Automatic treasury refunding and a channel-account pool (concurrency) as pending technical items. |
 | **Colombia fiat ramp** | COP → USDC top-up via PSE and USDC → COP withdrawal to a Bre-B key. Main candidate: **VANK** (SEP-10/24/6/12/38 anchor; sandbox `dev-stable-anchor.thisisvank.com`; production requires certification with 3 cases, an integration agreement and a `stellar.toml` with `SIGNING_KEY`). Backup: **Koywe** (PSE in, Bre-B/ACH out). PayU, Cobre, Mono and the Nequi API had also been considered. Challenge: custodial FX risk and regulatory exposure. |
 | **Ecosystem development** | Publisher onboarding, catalog expansion by vertical and first paying users. |
@@ -30,7 +31,6 @@ Status of each line. **Anything marked "evaluated" isn't implemented.**
 
 | Project | Condition |
 |---|---|
-| <TW /> Trustless Work | Only for long tasks with milestones and disputes. See [Trustless Work](/stellar/trustless-work). |
 | x402 bazaars (Rail402, AgentSmith, Rumble Fish, Vellar) | Wait for mainnet. Automatic catalog of payable services; services are listed when settling through their facilitator. Vellar is testnet and unaudited. |
 
 ## Ruled out for now
