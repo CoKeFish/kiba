@@ -13,7 +13,7 @@
   },
   "link.item.label.Qué es Kiba": {
     "message": "What is Kiba",
-    "description": "The label of footer link with label=Qué es Kiba linking to /"
+    "description": "The label of footer link with label=Qué es Kiba linking to /introduccion"
   },
   "link.item.label.Conecta tu asistente": {
     "message": "Connect your assistant",

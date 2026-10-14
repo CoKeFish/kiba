@@ -378,5 +378,161 @@
   "theme.tags.tagsPageTitle": {
     "message": "Etiquetas",
     "description": "The title of the tag list page"
+  },
+  "kiba.home.hero.titleStart": {
+    "message": "Pague qualquer serviço de qualquer"
+  },
+  "kiba.home.hero.titleHighlight": {
+    "message": "assistente de IA"
+  },
+  "kiba.home.hero.subtitle": {
+    "message": "A Kiba é o trilho que permite que o Claude, o ChatGPT, o Cursor e seus próprios agentes descubram serviços especializados e paguem por chamada em USDC na Stellar. Sem API keys nem configuração por serviço."
+  },
+  "kiba.home.hero.ctaConnect": {
+    "message": "Conecte seu assistente"
+  },
+  "kiba.home.hero.ctaPublish": {
+    "message": "Publique um serviço"
+  },
+  "kiba.home.paths.use.title": {
+    "message": "Use serviços no seu assistente"
+  },
+  "kiba.home.paths.use.body": {
+    "message": "Conecte o Claude, o ChatGPT ou sua IDE uma vez e deixe que ele encontre e pague o serviço certo para cada tarefa."
+  },
+  "kiba.home.paths.use.link": {
+    "message": "Conectar o Claude"
+  },
+  "kiba.home.paths.publish.title": {
+    "message": "Publique um serviço e receba"
+  },
+  "kiba.home.paths.publish.body": {
+    "message": "Envolva um modelo, uma API ou um dataset com o kiba-sdk, defina um preço por chamada e liquide em USDC."
+  },
+  "kiba.home.paths.publish.link": {
+    "message": "Quickstart do publisher"
+  },
+  "kiba.home.paths.build.title": {
+    "message": "Construa com o SDK e a API"
+  },
+  "kiba.home.paths.build.body": {
+    "message": "Chame serviços a partir dos seus próprios agentes, consulte saldos e histórico ou automatize a publicação pelo CI."
+  },
+  "kiba.home.paths.build.link": {
+    "message": "Visão geral do SDK"
+  },
+  "kiba.home.paths.heading": {
+    "message": "Escolha seu caminho"
+  },
+  "kiba.home.start.what.title": {
+    "message": "O que é a Kiba"
+  },
+  "kiba.home.start.what.body": {
+    "message": "O problema, os dois lados do trilho e as peças que fazem tudo funcionar."
+  },
+  "kiba.home.start.what.link": {
+    "message": "Introdução"
+  },
+  "kiba.home.start.concepts.title": {
+    "message": "Conceitos"
+  },
+  "kiba.home.start.concepts.body": {
+    "message": "Serviços e registro, créditos e wallet, papéis e a arquitetura geral."
+  },
+  "kiba.home.start.concepts.link": {
+    "message": "Conceitos"
+  },
+  "kiba.home.start.payments.title": {
+    "message": "Pagamentos e liquidação"
+  },
+  "kiba.home.start.payments.body": {
+    "message": "Chamadas assinadas pela plataforma, liquidação em lote com escrow e a divisão 95/5."
+  },
+  "kiba.home.start.payments.link": {
+    "message": "Como os pagamentos funcionam"
+  },
+  "kiba.home.start.chatgpt.title": {
+    "message": "Conectar o ChatGPT"
+  },
+  "kiba.home.start.chatgpt.body": {
+    "message": "A mesma URL de conector do Claude, adicionada pelo Developer mode."
+  },
+  "kiba.home.start.chatgpt.link": {
+    "message": "ChatGPT"
+  },
+  "kiba.home.start.ide.title": {
+    "message": "IDEs e clientes locais"
+  },
+  "kiba.home.start.ide.body": {
+    "message": "Claude Code, Cursor, Claude Desktop e Codex: kiba-mcp ou o instalador do Windows."
+  },
+  "kiba.home.start.ide.link": {
+    "message": "Configuração local"
+  },
+  "kiba.home.start.api.title": {
+    "message": "API REST do gateway"
+  },
+  "kiba.home.start.api.body": {
+    "message": "Autenticação, endpoints e erros de tudo o que o dashboard e os conectores fazem."
+  },
+  "kiba.home.start.api.link": {
+    "message": "Referência da API"
+  },
+  "kiba.home.start.stellar.title": {
+    "message": "Stellar e on-chain"
+  },
+  "kiba.home.start.stellar.body": {
+    "message": "Valores da testnet, trustlines de USDC, o contrato de registro e o escrow."
+  },
+  "kiba.home.start.stellar.link": {
+    "message": "Stellar"
+  },
+  "kiba.home.start.dashboard.title": {
+    "message": "Painel do publisher"
+  },
+  "kiba.home.start.dashboard.body": {
+    "message": "Ganhos, liquidações, analytics e os serviços que você gerencia em app.kiba.tools."
+  },
+  "kiba.home.start.dashboard.link": {
+    "message": "Painel"
+  },
+  "kiba.home.start.faq.title": {
+    "message": "FAQ e solução de problemas"
+  },
+  "kiba.home.start.faq.body": {
+    "message": "Perguntas frequentes e soluções para conectores, pagamentos e publicação."
+  },
+  "kiba.home.start.faq.link": {
+    "message": "Suporte"
+  },
+  "kiba.home.start.heading": {
+    "message": "Comece aqui"
+  },
+  "kiba.home.can.heading": {
+    "message": "O que você pode fazer"
+  },
+  "kiba.home.can.ask": {
+    "message": "Peça ao seu assistente a hora em outra cidade, um preço de mercado, uma revisão de código ou uma página extraída, e deixe que ele pague o especialista que faz isso bem."
+  },
+  "kiba.home.can.publish": {
+    "message": "Publique um modelo, uma API ou um dataset uma vez e cobre por chamada, mesmo quando quem chama é um agente de IA e não uma pessoa."
+  },
+  "kiba.home.can.build": {
+    "message": "Construa seu próprio agente com o SDK e pague outros serviços sem confiança a partir da própria wallet dele."
+  },
+  "kiba.home.links.sdk": {
+    "message": "kiba-sdk no npm"
+  },
+  "kiba.home.links.mcp": {
+    "message": "kiba-mcp no npm"
+  },
+  "kiba.home.links.heading": {
+    "message": "Links"
+  },
+  "kiba.home.meta.title": {
+    "message": "Pague qualquer serviço de qualquer assistente de IA"
+  },
+  "kiba.home.meta.description": {
+    "message": "A Kiba permite que qualquer assistente de IA descubra serviços especializados e pague por chamada, com liquidação em USDC na Stellar."
   }
 }
