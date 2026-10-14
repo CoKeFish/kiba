@@ -22,8 +22,9 @@ docker compose up --build -d
 | Dashboard | http://localhost:3020 |
 | Backend (discovery API) | http://localhost:4000/agents |
 | Gateway (REST + auth) | http://localhost:8000 |
+| Docs (`docker compose up docs`) | http://localhost:3030 |
 
-This documentation lives in its own repository, [Kiba-Docs](https://github.com/andreMD287/Kiba-Docs). To run it: `npm install && npm start`.
+To edit this documentation with hot reload: `npm --prefix packages/docs install` and `npm --prefix packages/docs start`.
 
 The Soroban contract is already deployed on testnet, so the stack talks to it out of the box and wallets are funded on demand with friendbot. `.env.example` ships with `CHAIN=stellar` and the live `STELLAR_CONTRACT_ID`.
 
@@ -50,6 +51,7 @@ packages/
   dashboard/            React SPA (port 3020)
   landing/              Astro site (port 3010)
   mcp-server/           MCP adapter (kiba-mcp), on npm
+  docs/                 Documentation site, Docusaurus 3 (docs.kiba.tools)
   orchestrator-agent/   LLM intent planner (port 6001)
   demo-agents/          Example services (ports 5001-5008)
   installer/            Tauri 2 installer for Windows
@@ -68,7 +70,7 @@ submission-screenshots/ Visual assets for the submission
 | Gateway | Express, JWT cookies, OAuth 2.0 PKCE, non-custodial wallets (Privy), Postgres |
 | Dashboard | Vite 6, React 19, Tailwind 4, TanStack Query |
 | Landing | Astro 5, Tailwind 4 (en/es/pt) |
-| Docs | Docusaurus 3 (es/en/pt), in its own repository: [Kiba-Docs](https://github.com/andreMD287/Kiba-Docs) |
+| Docs | Docusaurus 3 (es/en/pt), in `packages/docs` (standalone package outside the workspaces) |
 | MCP adapter | `@modelcontextprotocol/sdk` |
 | Orchestrator | Anthropic SDK |
 | Installer | Tauri 2 (Windows) |
@@ -85,4 +87,4 @@ submission-screenshots/ Visual assets for the submission
 
 ## Contributing
 
-The project is open source (MIT license). Report bugs on [GitHub Issues](https://github.com/CoKeFish/kiba/issues). To improve this documentation, open a PR on [Kiba-Docs](https://github.com/andreMD287/Kiba-Docs).
+The project is open source (MIT license). Report bugs on [GitHub Issues](https://github.com/CoKeFish/kiba/issues). To improve this documentation, edit `packages/docs` and open a PR.
