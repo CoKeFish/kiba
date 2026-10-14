@@ -54,7 +54,7 @@ provider.serve(async (req: { text: string }) => {
 
 (async () => {
   await provider.bootstrap();                  // fondea + registra on-chain
-  await provider.listen(Number(process.env.PORT) ?? 5010);
+  await provider.listen(Number(process.env.PORT ?? 5010));
 })();
 
 function analyze(text: string): number {
