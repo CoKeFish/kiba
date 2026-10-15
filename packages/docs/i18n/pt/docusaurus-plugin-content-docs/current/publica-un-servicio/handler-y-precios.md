@@ -53,7 +53,3 @@ new AgentProvider({
 - `priceFn` **precisa ser determinística** em relação ao payload: a mesma entrada deve dar o mesmo preço, para que a cotação e a verificação depois do pagamento coincidam.
 - `pricingNote` é mostrada a quem chama junto com o preço.
 - A divisão 95/5 escala com o valor cotado.
-
-:::note[Não confundir com o preço dinâmico de mercado]
-O que está acima (preço pelo tamanho ou conteúdo da requisição) está implementado. Um preço que variaria com o uso do serviço (1 chamada vs. 10) e com a oferta e a demanda do marketplace é só uma proposta e **não está implementado**. Veja o [roadmap](/recursos/hoja-de-ruta).
-:::

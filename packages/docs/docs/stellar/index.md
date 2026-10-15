@@ -13,7 +13,7 @@ Kiba necesita cobrar fracciones de centavo por llamada, en dólares, sin interru
 | Micropagos sin volatilidad | **USDC nativo**: stablecoin de primera clase, contabilidad en dólares |
 | Cobrar por llamada, no por suscripción | **Fees mínimas**: fracciones de centavo por operación |
 | Que el pago no interrumpa el chat | **Finalidad rápida**: liquidación en ~5 segundos |
-| Entrada y salida a moneda local | **Anchors / fiat**: rampas hacia monedas locales (para Kiba, el peso colombiano; ver [Hoja de ruta](/recursos/hoja-de-ruta)) |
+| Entrada y salida a moneda local | **Anchors / fiat**: rampas hacia monedas locales |
 | Registro programable | **Soroban**: contratos en Rust para el registro (y, según el diseño, el escrow y el reparto) |
 | Encaje estratégico | El comercio entre agentes (*agentic commerce*) es un foco del ecosistema Stellar |
 

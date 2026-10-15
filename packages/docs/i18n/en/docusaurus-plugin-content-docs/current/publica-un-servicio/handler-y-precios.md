@@ -53,7 +53,3 @@ new AgentProvider({
 - `priceFn` **must be deterministic** with respect to the payload: the same input must give the same price, so the quote and the post-payment check match.
 - `pricingNote` is shown to the caller next to the price.
 - The 95/5 split scales with the quoted amount.
-
-:::note[Not to be confused with market-based dynamic pricing]
-The above (price by request size or content) is implemented. A price that would vary with service usage (1 call vs. 10) and marketplace supply and demand is only a proposal and **isn't implemented**. See [Roadmap](/recursos/hoja-de-ruta).
-:::
