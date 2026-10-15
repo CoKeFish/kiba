@@ -48,10 +48,6 @@ Elas ficam em armazenamento persistente com um TTL de ~30 dias que o SDK renova 
 
 Toolchain: imagem `kiba/stellar-cli` (`docker/stellar-cli`); stellar-cli 26 compila para o target `wasm32v1-none`.
 
-:::warning[Sem auditoria formal]
-O contrato ainda não tem auditoria formal (prevista antes da mainnet).
-:::
-
 ## O que não está no contrato
 
 - O escrow x402 e a divisão 95/5 ficam a cargo da Trustless Work <TW /> (veja [Trustless Work](/stellar/trustless-work)).
