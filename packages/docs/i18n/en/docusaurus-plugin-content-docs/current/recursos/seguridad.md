@@ -1,12 +1,12 @@
 ---
-title: "Security and known limits"
-sidebar_label: "Security and limits"
-description: "What Kiba protects today and what it doesn't."
+title: "Security"
+sidebar_label: "Security"
+description: "How Kiba protects accounts, payments and services."
 ---
 
-# Security and known limits
+# Security
 
-Kiba is a technical demo on testnet. This page says what it protects today and what it doesn't.
+How Kiba protects accounts, payments and services. Kiba runs on testnet today: balances have no real value.
 
 ## What's in place
 
@@ -21,18 +21,5 @@ Kiba is a technical demo on testnet. This page says what it protects today and w
 | Names | `verifyEndpoint` cross-checks the endpoint's `/manifest` against the on-chain registration. |
 | Settlement | Rows are claimed with `settlement_id` before paying; a failed payout frees them; the sweep is reentrant. A failed call is refunded. |
 | Repository | Secret scanning (gitleaks) and tests as deployment gates. Production secrets live outside the repo. |
-
-## Known limits
-
-:::warning[Before using Kiba with anything that matters]
-- **Testnet only.** Balances have no real value.
-- **No formal audit** of the Soroban contract (planned before mainnet).
-- **No regulatory work** (KYC/AML) for custodial operation. Credits are a gateway balance, meaning the platform holds that balance.
-:::
-
-- **Names without brand protection:** taking a free name before its owner is possible. See [Names and trust](/publica-un-servicio/nombres-y-confianza).
-- **Informational contract counters:** the source of truth for earnings is the gateway ledger.
-- **Treasury with a single hot key** in the gateway; automatic refunding and a channel-account pool for high concurrency are pending.
-- No SLA or availability guarantees.
 
 Found a security issue? Write to the [team's email](/recursos/soporte#reportes-de-seguridad) instead of opening a public issue.

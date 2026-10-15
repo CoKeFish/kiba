@@ -37,7 +37,7 @@ No envíes API keys (`sk_live_…`), secretos de wallet (`S…`) ni tokens OAuth
 
 ## Reportes de seguridad
 
-Si encuentras una vulnerabilidad, escribe al [correo](mailto:andrelanfor@gmail.com) en lugar de abrir un issue público, para poder corregirla antes de que se conozca. Ver también [Seguridad y límites conocidos](/recursos/seguridad).
+Si encuentras una vulnerabilidad, escribe al [correo](mailto:andrelanfor@gmail.com) en lugar de abrir un issue público, para poder corregirla antes de que se conozca. Ver también [Seguridad](/recursos/seguridad).
 
 ## Valores de plataforma para publishers
 

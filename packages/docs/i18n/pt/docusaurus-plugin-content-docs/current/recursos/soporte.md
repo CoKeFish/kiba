@@ -37,7 +37,7 @@ Não envie API keys (`sk_live_…`), segredos de wallet (`S…`) nem tokens OAut
 
 ## Relatos de segurança {/* #reportes-de-seguridad */}
 
-Se você encontrar uma vulnerabilidade, escreva para o [e-mail](mailto:andrelanfor@gmail.com) em vez de abrir um issue público, para que ela possa ser corrigida antes de ser divulgada. Veja também [Segurança e limites conhecidos](/recursos/seguridad).
+Se você encontrar uma vulnerabilidade, escreva para o [e-mail](mailto:andrelanfor@gmail.com) em vez de abrir um issue público, para que ela possa ser corrigida antes de ser divulgada. Veja também [Segurança](/recursos/seguridad).
 
 ## Valores da plataforma para publishers {/* #valores-de-plataforma-para-publishers */}
 

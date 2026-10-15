@@ -1,12 +1,12 @@
 ---
-title: "Segurança e limites conhecidos"
-sidebar_label: "Segurança e limites"
-description: "O que a Kiba protege hoje e o que não protege."
+title: "Segurança"
+sidebar_label: "Segurança"
+description: "Como a Kiba protege contas, pagamentos e serviços."
 ---
 
-# Segurança e limites conhecidos
+# Segurança
 
-A Kiba é uma demonstração técnica na testnet. Esta página diz o que ela protege hoje e o que não protege.
+Como a Kiba protege contas, pagamentos e serviços. A Kiba roda hoje na testnet: os saldos não têm valor real.
 
 ## O que existe
 
@@ -21,18 +21,5 @@ A Kiba é uma demonstração técnica na testnet. Esta página diz o que ela pro
 | Nomes | `verifyEndpoint` confere o `/manifest` do endpoint com o registro on-chain. |
 | Liquidação | As linhas são reivindicadas com `settlement_id` antes de pagar; um pagamento que falha as libera; a transferência é reentrante. Uma chamada que falha é reembolsada. |
 | Repositório | Varredura de segredos (gitleaks) e testes como portões do deploy. Segredos de produção ficam fora do repositório. |
-
-## Limites conhecidos
-
-:::warning[Antes de usar a Kiba com algo que importa]
-- **Só testnet.** Os saldos não têm valor real.
-- **Sem auditoria formal** do contrato Soroban (prevista antes da mainnet).
-- **Sem trabalho regulatório** (KYC/AML) para operação custodial. Os créditos são um saldo do gateway, ou seja, a plataforma custodia esse saldo.
-:::
-
-- **Nomes sem proteção de marca:** pegar um nome livre antes do dono é possível. Veja [Nomes e confiança](/publica-un-servicio/nombres-y-confianza).
-- **Contadores do contrato informativos:** a fonte da verdade dos ganhos é o livro do gateway.
-- **Tesouraria com uma única chave quente** no gateway; reposição automática de fundos e pool de contas-canal para alta concorrência estão pendentes.
-- Sem SLA nem garantias de disponibilidade.
 
 Encontrou um problema de segurança? Escreva para o [e-mail da equipe](/recursos/soporte#reportes-de-seguridad) em vez de abrir um issue público.
