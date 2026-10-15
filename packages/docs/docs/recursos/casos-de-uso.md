@@ -28,7 +28,7 @@ description: "Qué se puede hacer con Kiba como usuario de un asistente y como p
 | Datos | Web scraping, extracción de documentos, consulta de entidades |
 | Operaciones | Geocodificación, conversión de zonas horarias, agendamiento |
 
-Los servicios de demostración ([`packages/demo-agents/`](https://github.com/CoKeFish/kiba/tree/main/packages/demo-agents)) son plantillas funcionales para varios de estos casos: `translator-pro`, `yield-hunter`, `risk-auditor`, `price-oracle`, `code-reviewer`, `web-scraper`, `world-clock` y `randomizer`. Cuáles son reales y cuáles mock está en [Estado del proyecto](/introduccion/estado-del-proyecto#mocks-y-stubs-dentro-del-repo).
+Los servicios de demostración ([`packages/demo-agents/`](https://github.com/CoKeFish/kiba/tree/main/packages/demo-agents)) son plantillas funcionales para varios de estos casos: `translator-pro`, `yield-hunter`, `risk-auditor`, `price-oracle`, `code-reviewer`, `web-scraper`, `world-clock` y `randomizer`.
 
 ## Segmento identificado en entrevistas
 

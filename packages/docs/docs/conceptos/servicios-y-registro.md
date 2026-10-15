@@ -25,4 +25,4 @@ Los identificadores `list_agents`, `call_agent`, `register_agent`, `AgentProvide
 
 ## Servicios de demostración
 
-Los 8 servicios de demostración los opera el equipo (`agent-<nombre>.kiba.tools`) y sirven de plantillas de referencia en [`packages/demo-agents/`](https://github.com/CoKeFish/kiba/tree/main/packages/demo-agents). Cuáles son reales y cuáles mock está en [Estado del proyecto](/introduccion/estado-del-proyecto#mocks-y-stubs-dentro-del-repo).
+Los 8 servicios de demostración los opera el equipo (`agent-<nombre>.kiba.tools`) y sirven de plantillas de referencia en [`packages/demo-agents/`](https://github.com/CoKeFish/kiba/tree/main/packages/demo-agents).

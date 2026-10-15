@@ -28,7 +28,7 @@ description: "What you can do with Kiba as an assistant user and as a publisher.
 | Data | Web scraping, document extraction, entity lookup |
 | Operations | Geocoding, time zone conversion, scheduling |
 
-The demo services ([`packages/demo-agents/`](https://github.com/CoKeFish/kiba/tree/main/packages/demo-agents)) are working templates for several of these cases: `translator-pro`, `yield-hunter`, `risk-auditor`, `price-oracle`, `code-reviewer`, `web-scraper`, `world-clock` and `randomizer`. Which ones are real and which are mocks is in [Project status](/introduccion/estado-del-proyecto#mocks-y-stubs-dentro-del-repo).
+The demo services ([`packages/demo-agents/`](https://github.com/CoKeFish/kiba/tree/main/packages/demo-agents)) are working templates for several of these cases: `translator-pro`, `yield-hunter`, `risk-auditor`, `price-oracle`, `code-reviewer`, `web-scraper`, `world-clock` and `randomizer`.
 
 ## Segment identified in interviews
 

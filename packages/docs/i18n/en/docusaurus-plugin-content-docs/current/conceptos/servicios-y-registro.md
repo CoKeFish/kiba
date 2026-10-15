@@ -25,4 +25,4 @@ The identifiers `list_agents`, `call_agent`, `register_agent`, `AgentProvider` a
 
 ## Demo services
 
-The 8 demo services are operated by the team (`agent-<name>.kiba.tools`) and serve as reference templates in [`packages/demo-agents/`](https://github.com/CoKeFish/kiba/tree/main/packages/demo-agents). Which ones are real and which are mocks is in [Project status](/introduccion/estado-del-proyecto#mocks-y-stubs-dentro-del-repo).
+The 8 demo services are operated by the team (`agent-<name>.kiba.tools`) and serve as reference templates in [`packages/demo-agents/`](https://github.com/CoKeFish/kiba/tree/main/packages/demo-agents).
