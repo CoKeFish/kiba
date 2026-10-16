@@ -80,12 +80,12 @@ En cada `push` a `main`:
 2. **`gitleaks`** + **`test`** (npm workspaces + Postgres de test) — gates.
 3. Si cambió algo del stack (`packages/{gateway,backend,demo-agents,sdk,landing,dashboard,docs}/**`,
    `package-lock.json`, `docker-compose.prod.yml`, `docker/**`, `scripts/agent-entrypoint.sh`)
-   → **webhook de Coolify** (`GET /api/v1/deploy?uuid=$COOLIFY_APP_UUID`): Coolify hace pull
+   → **webhook de Coolify** (`POST /api/v1/deploy?uuid=$COOLIFY_APP_UUID`; desde Coolify 4.4 solo POST, GET devuelve 405): Coolify hace pull
    del repo y reconstruye el stack (el build cache amortigua los servicios sin cambios).
 
 También se puede lanzar a mano desde la pestaña Actions (`workflow_dispatch`), o
 redesplegar solo el stack con:
-`curl -H "Authorization: Bearer $COOLIFY_TOKEN" "https://coolify.rodion.com.co/api/v1/deploy?uuid=<APP_UUID>"`.
+`curl -X POST -H "Authorization: Bearer $COOLIFY_TOKEN" "https://coolify.rodion.com.co/api/v1/deploy?uuid=<APP_UUID>"`.
 
 ## Secrets de GitHub requeridos
 

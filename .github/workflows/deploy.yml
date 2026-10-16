@@ -101,6 +101,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Trigger Coolify deploy
+        # Desde Coolify 4.4.x el endpoint /deploy solo acepta POST (GET -> 405).
         run: |
-          curl -fsS -H "Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}" \
+          curl -fsS -X POST -H "Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}" \
             "https://coolify.rodion.com.co/api/v1/deploy?uuid=${{ secrets.COOLIFY_APP_UUID }}&force=false"
