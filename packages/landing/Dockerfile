@@ -1,15 +1,22 @@
+# Landing (kiba.tools): sitio estático de Astro servido con `serve`.
+# Instala desde el package-lock.json de la raíz (workspace @kiba/landing), como
+# el gateway y los demo-agents, para que el build sea reproducible: con
+# `npm install` sin lockfile cada build resolvía versiones nuevas y el
+# 2026-10-16 rompió con un bug de npm 10 ("Cannot read properties of null
+# (reading 'edgesOut')") sin que cambiara nada en la landing.
 FROM node:20-alpine
 
 WORKDIR /app
 
-COPY packages/landing/package.json ./
-RUN npm install
+COPY package.json package-lock.json ./
+COPY packages/landing/package.json ./packages/landing/
+RUN npm install --workspace=@kiba/landing
 
-COPY packages/landing/ ./
+COPY packages/landing ./packages/landing
+WORKDIR /app/packages/landing
 
 # Las URLs públicas se hornean en el build estático (Astro lee
-# import.meta.env.PUBLIC_* en build time). Railway expone las variables de
-# servicio como build args — hay que declararlas con ARG para consumirlas.
+# import.meta.env.PUBLIC_* en build time); llegan como build args del compose.
 ARG PUBLIC_DASHBOARD_URL
 ARG PUBLIC_BACKEND_URL
 ARG PUBLIC_GATEWAY_URL
