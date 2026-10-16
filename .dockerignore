@@ -1,0 +1,9 @@
+# Contexto de build de los Dockerfiles del monorepo (context: .).
+# Coolify clona limpio, así que esto solo afecta a los builds locales: evita
+# que node_modules/dist del host (Linux o Windows) entren en la imagen y
+# pisen lo que instala/compila el propio Dockerfile.
+.git
+**/node_modules
+**/dist
+**/.astro
+**/.docusaurus
