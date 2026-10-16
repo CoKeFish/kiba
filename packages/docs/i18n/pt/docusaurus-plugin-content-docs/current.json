@@ -1,0 +1,46 @@
+{
+  "version.label": {
+    "message": "Próxima",
+    "description": "The label for version current"
+  },
+  "sidebar.docs.category.Introducción": {
+    "message": "Introdução",
+    "description": "The label for category 'Introducción' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Conceptos": {
+    "message": "Conceitos",
+    "description": "The label for category 'Conceptos' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Conecta tu asistente": {
+    "message": "Conecte seu assistente",
+    "description": "The label for category 'Conecta tu asistente' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Publica un servicio": {
+    "message": "Publique um serviço",
+    "description": "The label for category 'Publica un servicio' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.API REST del gateway": {
+    "message": "API REST do gateway",
+    "description": "The label for category 'API REST del gateway' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Stellar y on-chain": {
+    "message": "Stellar e on-chain",
+    "description": "The label for category 'Stellar y on-chain' in sidebar 'docs'"
+  },
+  "sidebar.docs.doc.Bienvenida": {
+    "message": "Boas-vindas",
+    "description": "The label for the doc item 'Bienvenida' in sidebar 'docs', linking to the doc introduccion/index"
+  },
+  "sidebar.docs.category.SDK": {
+    "message": "SDK",
+    "description": "The label for category 'SDK' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Proyecto": {
+    "message": "Projeto",
+    "description": "The label for category 'Proyecto' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Soporte": {
+    "message": "Suporte",
+    "description": "The label for category 'Soporte' in sidebar 'docs'"
+  }
+}

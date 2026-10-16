@@ -1,0 +1,87 @@
+---
+title: "Instalador de Windows"
+description: "Instala Kiba en Claude Desktop, Cursor y Claude Code con un clic, sin abrir una terminal."
+---
+
+# 🪟 Instalador de Windows
+
+Un `.exe` de doble clic que instala el servidor MCP de Kiba en **Claude Desktop, Cursor y Claude Code** sin abrir una terminal ni editar archivos JSON.
+
+<div className="kiba-download">
+  <a className="button button--primary button--lg" href="https://github.com/CoKeFish/kiba/releases/latest/download/Kiba-Installer-x64-setup.exe">Descargar para Windows (.exe)</a>
+  <a className="button button--secondary button--lg" href="https://github.com/CoKeFish/kiba/releases/latest/download/Kiba-Installer-x64.msi">Descargar .msi</a>
+</div>
+
+Windows x64 · ~4 MB · versión más reciente en [GitHub Releases](https://github.com/CoKeFish/kiba/releases/latest).
+
+## Requisitos
+
+- **Windows 10 u 11** de 64 bits.
+- **[Node.js](https://nodejs.org) 18 o superior.** El instalador lo verifica al abrir; si no lo encuentra, te ofrece abrir nodejs.org para instalarlo.
+- Al menos uno de estos clientes instalado: Claude Desktop, Cursor o Claude Code.
+
+## Pasos
+
+1. Descarga y abre `Kiba-Installer-x64-setup.exe`.
+2. El instalador detecta qué clientes MCP tienes. Los que ya tienen Kiba aparecen como *Already installed* y no se pueden marcar.
+3. Elige en qué clientes instalarlo y confirma.
+4. Al terminar, pulsa **Open Dashboard** para crear tu cuenta en [app.kiba.tools](https://app.kiba.tools). Las cuentas nuevas traen 5 USD de crédito (testnet).
+5. **Reinicia** los clientes donde lo instalaste.
+
+La primera vez que el asistente use una herramienta de Kiba se abrirá el navegador para iniciar sesión y pulsar **Authorize**. Después ya puedes pedirle cosas como:
+
+> *"Busca en Kiba un servicio que me diga la hora en Tokio y en Bogotá."*
+
+:::warning[Windows SmartScreen]
+Windows puede advertir que el archivo no es común porque el instalador aún no está firmado. Pulsa **Más información → Ejecutar de todas formas**. Se construye y publica desde el [repositorio público](https://github.com/CoKeFish/kiba/tree/main/packages/installer).
+:::
+
+## Qué cambia en tu equipo
+
+El instalador no instala programas adicionales ni toca nada fuera de la configuración MCP:
+
+- Hace una copia de respaldo de cada archivo de configuración que va a modificar (`*.json.bak`).
+- Inserta solo el bloque `mcpServers.kiba` y conserva el resto de tu configuración:
+
+```json
+{
+  "mcpServers": {
+    "kiba": {
+      "command": "npx",
+      "args": ["-y", "kiba-mcp"]
+    }
+  }
+}
+```
+
+Es exactamente lo mismo que harías a mano en la [configuración manual](/conecta-tu-asistente/ides-y-clientes-locales#opción-b--configuración-manual). Para quitarlo, borra ese bloque o restaura el `.json.bak`.
+
+## `.exe` o `.msi`
+
+Los dos instalan lo mismo y se abren con doble clic. Usa el **`.exe`** si lo instalas tú; el **`.msi`** es útil si tu equipo de TI distribuye software con herramientas de despliegue de Windows.
+
+## ¿No usas Windows?
+
+En macOS y Linux, o en clientes que el instalador no detecta (por ejemplo Codex CLI), sigue la [configuración manual](/conecta-tu-asistente/ides-y-clientes-locales#opción-b--configuración-manual). Para Claude.ai o ChatGPT no hace falta instalar nada: usa el [conector remoto](/conecta-tu-asistente).
+
+## Compilar desde el código
+
+El instalador está hecho con **Tauri 2** (Rust + WebView2). Para generarlo tú mismo necesitas Rust estable, las MSVC Build Tools y Node.js 18+:
+
+```bash
+cd packages/installer
+npm install
+npx tauri icon app-icon.png   # genera los íconos
+npm run build                 # produce el .exe (NSIS) y el .msi
+```
+
+Los archivos quedan en `src-tauri/target/release/bundle/nsis/` y `src-tauri/target/release/bundle/msi/`.
+
+## Problemas frecuentes
+
+| Problema | Solución |
+|---|---|
+| **El instalador pide Node.js** | Instala Node.js 18 o superior desde [nodejs.org](https://nodejs.org) y vuelve a abrir el instalador. |
+| **No aparece mi cliente** | El instalador busca los archivos de configuración en sus rutas estándar. Abre el cliente al menos una vez o usa la [configuración manual](/conecta-tu-asistente/ides-y-clientes-locales#opción-b--configuración-manual). |
+| **Las herramientas de Kiba no aparecen** | Reinicia el cliente por completo (ciérralo también de la bandeja del sistema). |
+| **El navegador no se abre al usarlo** | Ver [Solución de problemas de conexión](/recursos/faq#conexión). |

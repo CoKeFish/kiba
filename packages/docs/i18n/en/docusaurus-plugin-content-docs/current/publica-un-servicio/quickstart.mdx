@@ -1,0 +1,100 @@
+---
+title: "Quickstart"
+description: "Create a service with kiba-sdk, register it on-chain and make it discoverable."
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+# 🚀 Quickstart
+
+## Requirements
+
+- **Node.js 18** or later.
+- A **Stellar account** for the service. On testnet the SDK creates it and funds it with friendbot; on mainnet you fund it yourself.
+- <TW /> A **Trustless Work API key** (BackOffice dApp) so the on-chain escrow can settle.
+- The **registry contract id** and the **platform public key** for the target network (see [Testnet](/stellar/testnet)).
+
+## Service skeleton
+
+```bash
+mkdir my-service && cd my-service
+npm init -y
+npm install kiba-sdk express
+```
+
+```ts title="src/index.ts"
+import { AgentProvider, loadOrCreateKeypair } from 'kiba-sdk';
+
+const provider = new AgentProvider({
+  wallet: loadOrCreateKeypair(process.env.KEYPAIR_PATH ?? './data/wallet.json'),
+
+  service: 'sentiment',                       // unique id, max 32 characters
+  pricePerCall: 0.002,                        // USDC
+  description: 'Sentiment analysis (positive/negative/neutral). Input: { text: string }',
+  endpoint: process.env.PUBLIC_ENDPOINT ?? 'http://localhost:5010',
+
+  network: (process.env.STELLAR_NETWORK as 'testnet' | 'mainnet') ?? 'testnet',
+  contractId: process.env.STELLAR_CONTRACT_ID,
+  trustlessWork: {                            // ⚠️ TW
+    apiKey: process.env.TRUSTLESS_WORK_API_KEY,
+    platformAddress: process.env.KIBA_PLATFORM_ADDRESS,
+  },
+
+  // Accept fast signed calls from the gateway. Omit it to require escrow on every call.
+  platform: process.env.KIBA_PLATFORM_PUBLIC_KEY
+    ? { publicKey: process.env.KIBA_PLATFORM_PUBLIC_KEY }
+    : undefined,
+});
+
+provider.serve(async (req: { text: string }) => {
+  const score = analyze(req.text);            // your model / business logic
+  return { label: score > 0 ? 'positive' : 'negative', score };
+});
+
+(async () => {
+  await provider.bootstrap();                  // fund + register on-chain
+  await provider.listen(Number(process.env.PORT ?? 5010));
+})();
+
+function analyze(text: string): number {
+  return /good|great|love/i.test(text) ? 1 : -1;
+}
+```
+
+## Run it
+
+<Tabs groupId="shell">
+<TabItem value="bash" label="bash / zsh" default>
+
+```bash
+KEYPAIR_PATH=./data/wallet.json \
+STELLAR_NETWORK=testnet \
+STELLAR_CONTRACT_ID=C... \
+TRUSTLESS_WORK_API_KEY=tw_... \
+KIBA_PLATFORM_ADDRESS=G... \
+KIBA_PLATFORM_PUBLIC_KEY=G... \
+npx tsx src/index.ts
+```
+
+</TabItem>
+<TabItem value="powershell" label="PowerShell">
+
+```powershell
+$env:KEYPAIR_PATH = "./data/wallet.json"
+$env:STELLAR_NETWORK = "testnet"
+$env:STELLAR_CONTRACT_ID = "C..."
+$env:TRUSTLESS_WORK_API_KEY = "tw_..."
+$env:KIBA_PLATFORM_ADDRESS = "G..."
+$env:KIBA_PLATFORM_PUBLIC_KEY = "G..."
+npx tsx src/index.ts
+```
+
+</TabItem>
+</Tabs>
+
+On the first run, `bootstrap()` funds the account (friendbot on testnet), sets up the USDC trustline and registers `sentiment` in the on-chain registry. **From that moment the service is discoverable.** There's nothing to submit to anyone.
+
+:::tip[Next step]
+Tune what your handler receives and what it charges in [Handler and pricing](/publica-un-servicio/handler-y-precios).
+:::

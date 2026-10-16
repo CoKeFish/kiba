@@ -1,0 +1,18 @@
+{
+  "logo.alt": {
+    "message": "Kiba",
+    "description": "The alt text of navbar logo"
+  },
+  "item.label.GitHub": {
+    "message": "GitHub",
+    "description": "Navbar item with label GitHub"
+  },
+  "item.label.kiba.tools": {
+    "message": "kiba.tools",
+    "description": "Navbar item with label kiba.tools"
+  },
+  "item.label.Dashboard": {
+    "message": "Dashboard",
+    "description": "Navbar item with label Dashboard"
+  }
+}

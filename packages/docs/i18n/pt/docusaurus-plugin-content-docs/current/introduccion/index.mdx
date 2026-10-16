@@ -1,0 +1,54 @@
+---
+title: "O que é a Kiba"
+sidebar_label: "Boas-vindas"
+description: "A Kiba permite que qualquer assistente de IA descubra serviços especializados e pague por chamada, com liquidação em USDC na Stellar."
+---
+
+# 👋 O que é a Kiba
+
+A Kiba é um marketplace onde assistentes de IA (Claude, ChatGPT, Cursor, Claude Code) **descobrem serviços especializados e pagam por chamada**. Um único ponto de entrada: sem chaves de API e sem configuração por serviço.
+
+Um **serviço** pode ser um agente de IA, uma API, um indexador ou qualquer ferramenta procedural, publicado por uma empresa, uma organização, uma instituição ou um desenvolvedor independente. Em uma frase, a Kiba é *os amigos do seu agente*.
+
+O registro de serviços fica on-chain em um contrato Soroban (Stellar). O pagamento é liquidado em **USDC** com o protocolo **x402**, com divisão de **95 % para o publisher / 5 % para a plataforma**. <TW /> Hoje essa divisão é aplicada pela Trustless Work.
+
+:::info[Demonstração técnica na testnet]
+A Kiba roda na **testnet da Stellar** e não movimenta fundos reais. Tudo o que está descrito nesta documentação funciona de ponta a ponta na testnet. Detalhes em [Status do projeto](/introduccion/estado-del-proyecto).
+:::
+
+## O problema
+
+Um assistente de uso geral se apoia em fontes abertas e, muitas vezes, devolve informações desatualizadas ou superficiais sem que o usuário perceba ou saiba como melhorá-las. As fontes especializadas que resolveriam a tarefa ficam atrás de atrito técnico: cadastro, integração, uma chave de API ou uma assinatura só para usá-las uma vez.
+
+Dependendo do perfil, cada usuário esbarra em um obstáculo diferente: não consegue melhorar a qualidade das respostas, não quer gastar tempo integrando ou nem sabe que existe um serviço especializado para a sua tarefa.
+
+Do outro lado, quem constrói esse serviço não tem onde oferecê-lo nem como cobrar por ele, menos ainda quando quem consome é um agente de IA e não uma pessoa.
+
+## A solução
+
+Um protocolo de dois lados:
+
+- **Para quem usa um assistente:** as capacidades especializadas ficam ao alcance da conversa de sempre. O assistente encontra o serviço, recebe um preço, paga em uma única ida e volta e devolve a resposta. Sem cadastro por serviço, sem chaves, sem gerenciar wallets.
+- **Para quem publica um serviço:** o marketplace oferece registro, descoberta, pagamento e divisão de receita. O publisher expõe o serviço uma vez e cobra por chamada, mesmo quando quem chama é um agente.
+
+## Como as peças se encaixam
+
+| Peça | O que faz |
+|---|---|
+| **Conector MCP** | Expõe quatro ferramentas ao assistente: buscar no catálogo, chamar um serviço, ver o saldo e listar transações. Acessível por URL (remoto) ou com o pacote `kiba-mcp` e o instalador do Windows (local). |
+| **Gateway** | Login (OAuth 2.0), créditos, wallets, chamadas em nome do usuário e liquidação em lote dos ganhos dos publishers. |
+| **Descoberta** | Espelha o registro on-chain e executa busca híbrida (palavra-chave + semântica) em qualquer idioma. |
+| **Contrato de registro** | Contrato Soroban na Stellar onde cada serviço é registrado: dono, preço, endpoint, descrição. |
+| **Liquidação** | Escrow em USDC com divisão 95/5. <TW /> Hoje via Trustless Work. |
+| **SDK (`kiba-sdk`)** | Biblioteca TypeScript para publicar um serviço ou consumir serviços diretamente, de forma autocustodial. |
+| **Dashboard** | App web para usuários e publishers ([app.kiba.tools](https://app.kiba.tools)). |
+
+## Para quem é
+
+A Kiba tem três públicos, e nenhum precisa entender de blockchain.
+
+**Pessoas que usam um assistente de IA.** Conectam o Claude, o ChatGPT ou sua IDE uma vez; o assistente encontra o serviço certo e paga só a chamada de que precisa. Comece em [Conecte seu assistente](/conecta-tu-asistente).
+
+**Pessoas que constroem um serviço.** Um modelo, uma API, um dataset, um scraper, um indexador, uma ferramenta de domínio. Querem cobrar, mesmo quando quem chama é um agente, sem construir cobrança, descoberta nem autenticação. Comece em [Publique um serviço](/publica-un-servicio).
+
+**Equipes que integram diretamente.** Quem constrói seu próprio agente ou produto e quer consumir serviços por código usa o [SDK](/sdk) ou a [API REST do gateway](/api).

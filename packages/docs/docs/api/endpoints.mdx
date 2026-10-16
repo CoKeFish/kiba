@@ -1,0 +1,143 @@
+---
+title: "Endpoints"
+description: "Endpoints de cuenta, catálogo y llamadas, credenciales, publisher, plataforma y pagos fiat."
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+# Endpoints
+
+Todo endpoint requiere [credencial](/api/autenticacion) salvo que se indique.
+
+## Cuenta
+
+| Endpoint | Descripción |
+|---|---|
+| `GET /v1/me` | Cuenta: `id`, `email`, `custodial_wallet` (dirección Stellar), `is_publisher`, `publisher_name`, `created_at` y los campos de saldo. |
+| `GET /v1/balance` | `balance_*` = créditos, `wallet_*` = wallet on-chain, `total_*` = suma. Incluye `asset: "USDC"`, `base_unit_name: "stroops"`. |
+| `GET /v1/wallet` | Estado on-chain de la wallet: `pubkey`, `asset`, `base_units`, `asset_amount` y la `master_wallet` de la plataforma. |
+| `POST /v1/topup` | Cuerpo `{ "amount": 10 }` en USD, entre 0 y 1.000 por petición. Los créditos agregados tienen tope de 10.000 USD. Devuelve el saldo nuevo. |
+
+## Catálogo y llamadas
+
+| Endpoint | Descripción |
+|---|---|
+| `GET /v1/agents` | Lista servicios. Con `?q=<texto>` corre búsqueda híbrida ordenada por relevancia. Cada ítem: `service`, `pricePerCall`, `description`, `endpoint`, `ownerWallet`, `acceptedToken`, `totalCalls`, `totalEarned`, `createdAt`, `source`. |
+| `POST /v1/call` | Llama a un servicio y paga del saldo de la cuenta. Cuerpo `{ "service": "world-clock", "payload": { "zones": ["Tokyo", "Bogotá"] } }`. **Solo** se aceptan `service` y `payload`; cualquier otro campo se rechaza con `400` antes de cobrar. |
+| `GET /v1/transactions` | Historial, el más reciente primero. `?limit=` hasta 500 (50 por defecto). Cada ítem: `type` (`topup`, `call`), `amount_lamports`, `service`, `tx_signature`, `explorer_url`, `status`, `created_at`. |
+
+### Llamar a un servicio
+
+<Tabs groupId="lenguaje">
+<TabItem value="curl" label="curl" default>
+
+```bash
+curl -X POST https://api.kiba.tools/v1/call \
+  -H "Authorization: Bearer sk_live_…" \
+  -H "Content-Type: application/json" \
+  -d '{"service": "world-clock", "payload": {"zones": ["Tokyo", "Bogotá"]}}'
+```
+
+</TabItem>
+<TabItem value="ts" label="TypeScript">
+
+```ts
+const res = await fetch('https://api.kiba.tools/v1/call', {
+  method: 'POST',
+  headers: {
+    Authorization: `Bearer ${process.env.KIBA_API_KEY}`,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({ service: 'world-clock', payload: { zones: ['Tokyo', 'Bogotá'] } }),
+});
+const { result, cost, newBalance } = await res.json();
+```
+
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+import os, requests
+
+r = requests.post(
+    "https://api.kiba.tools/v1/call",
+    headers={"Authorization": f"Bearer {os.environ['KIBA_API_KEY']}"},
+    json={"service": "world-clock", "payload": {"zones": ["Tokyo", "Bogotá"]}},
+)
+data = r.json()
+```
+
+</TabItem>
+</Tabs>
+
+Respuesta:
+
+```json
+{
+  "result": {
+    "now": [
+      { "query": "Tokyo", "zone": "Asia/Tokyo", "time": "08:15", "date": "…", "utcOffset": "+09:00", "partOfDay": "morning" },
+      { "query": "Bogotá", "zone": "America/Bogota", "time": "18:15", "date": "…", "utcOffset": "-05:00", "partOfDay": "evening" }
+    ],
+    "unresolved": []
+  },
+  "cost": { "lamports": 10000, "usd": 0.001 },
+  "paidWith": "credit",
+  "mode": "virtual",
+  "newBalance": { "lamports": 49990000, "usd": 4.999 },
+  "explorerUrl": "https://stellar.expert/explorer/testnet/tx/…",
+  "trace": { "steps": [] }
+}
+```
+
+| Campo | Significado |
+|---|---|
+| `paidWith` | `credit` o `wallet`. Ver [Créditos y wallet](/conceptos/creditos-y-wallet#cuál-paga-una-llamada). |
+| `explorerUrl` | Enlaza la transacción on-chain de la llamada cuando hubo una. |
+| `trace` | Línea de tiempo paso a paso del pago. |
+
+## Credenciales
+
+| Endpoint | Descripción |
+|---|---|
+| `GET /v1/api-keys` | Lista tus API keys. |
+| `POST /v1/api-keys` | Crea una con `{ "name": "…" }`. |
+| `DELETE /v1/api-keys/:id` | Revoca una API key. |
+| `GET /v1/oauth/connections` | Apps autorizadas por OAuth. |
+| `DELETE /v1/oauth/connections/:id` | Desconecta una app. |
+
+## Publisher
+
+| Endpoint | Descripción |
+|---|---|
+| `POST /v1/publisher/activate` | Cuerpo `{ "name": "Acme" }`. Convierte la cuenta en publisher. |
+| `GET /v1/publisher/overview` | Totales ganados, número de llamadas, servicios de la cuenta con sus estadísticas y saldo de la wallet on-chain. |
+| `GET /v1/publisher/settlements` | Lotes liquidados al publisher, con la comisión aplicada (`fee.pct`) y la transacción on-chain de cada uno. `?limit=` hasta 200. |
+| `GET /v1/publisher/analytics` | Serie diaria de llamadas y ganancias netas. `?days=` de 1 a 90 (30 por defecto). |
+| `POST /v1/publisher/settle` | Liquida bajo demanda las ganancias acumuladas del publisher. |
+| `POST /v1/publisher/auto-settle` | Cuerpo `{ "enabled": true }`. Activa o desactiva el opt-in de liquidación automática por lotes. |
+| `GET /v1/agents/mine` | Servicios registrados por esta cuenta desde el dashboard. |
+| `POST /v1/agents` | Registra un servicio firmado con la wallet de la cuenta: `service`, `pricePerCallLamports` (unidades base), `endpoint`, `description`. |
+| `PUT /v1/agents/:service` | Actualiza un servicio de la cuenta. |
+| `DELETE /v1/agents/:service` | Borra un servicio de la cuenta. |
+
+:::note
+Los servicios publicados con el SDK pertenecen a su propio keypair y se gestionan desde el SDK, no con `/v1/agents`.
+:::
+
+## Plataforma
+
+| Endpoint | Descripción |
+|---|---|
+| `GET /v1/platform/stats` | Estadísticas agregadas del marketplace e ingresos de la plataforma. |
+| `GET /health` | **Sin credencial.** Devuelve `{ "ok": true, "service": "kiba-gateway" }`. |
+
+## Pagos fiat (sandbox)
+
+| Endpoint | Descripción |
+|---|---|
+| `GET /v1/payments/config` | Proveedores de recarga configurados. |
+| `GET /v1/payments/charge/:id` | Estado de un cobro. |
+| `POST /v1/payments/breb/charge` | Crea un cobro Bre-B. |
+| `POST /v1/payments/breb/simulate` | Simula la confirmación de un cobro Bre-B (sandbox). |

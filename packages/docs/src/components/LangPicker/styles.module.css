@@ -1,0 +1,52 @@
+.picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: 40px;
+  margin-left: var(--kiba-space-3);
+  padding: 3px;
+  border: 1px solid var(--kiba-border-strong);
+  border-radius: var(--kiba-radius-pill);
+  background: var(--kiba-bg);
+}
+
+.option {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  height: 100%;
+  padding: 0 10px;
+  border-radius: var(--kiba-radius-pill);
+  color: var(--kiba-fg-muted);
+  font-family: var(--font-display);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  transition:
+    background var(--kiba-dur-fast) var(--kiba-ease-out),
+    color var(--kiba-dur-fast) var(--kiba-ease-out);
+}
+
+.option:hover {
+  color: var(--kiba-fg);
+  text-decoration: none;
+  background: var(--kiba-accent-soft);
+}
+
+.active,
+.active:hover {
+  background: var(--blue-500);
+  color: #ffffff;
+}
+
+/* Menú lateral en móvil: ocupa el ancho disponible. */
+.mobile {
+  display: flex;
+  width: calc(100% - 2 * var(--kiba-space-3));
+  margin: var(--kiba-space-3);
+}
+
+.mobile .option {
+  flex: 1;
+}
