@@ -4,14 +4,20 @@
 #
 # slim (glibc), no alpine (musl): la dep nativa transitiva `usb` (stellar-wallets-kit →
 # trezor) trae prebuilds solo para glibc; en musl exige toolchain completa para compilar.
+#
+# Instala desde el package-lock.json de la raíz (workspace @kiba/dashboard), como el
+# gateway y la landing, para que el build sea reproducible: con `npm install` sin
+# lockfile cada build resolvía versiones nuevas (así se rompió la landing el 2026-10-16).
 FROM node:20-slim AS build
 
 WORKDIR /app
 
-COPY packages/dashboard/package.json ./
-RUN npm install
+COPY package.json package-lock.json ./
+COPY packages/dashboard/package.json ./packages/dashboard/
+RUN npm install --workspace=@kiba/dashboard
 
-COPY packages/dashboard/ ./
+COPY packages/dashboard ./packages/dashboard
+WORKDIR /app/packages/dashboard
 
 # Vite hornea VITE_* en build time: llegan como build args desde el compose.
 ARG VITE_WS_URL
@@ -22,6 +28,6 @@ RUN npm run build
 FROM nginx:1.28-alpine
 
 COPY packages/dashboard/nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=build /app/dist /usr/share/nginx/html
+COPY --from=build /app/packages/dashboard/dist /usr/share/nginx/html
 
 EXPOSE 80
