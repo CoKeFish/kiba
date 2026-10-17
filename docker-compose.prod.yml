@@ -410,6 +410,9 @@ services:
     build:
       context: .
       dockerfile: packages/docs/Dockerfile
+      args:
+        # Id del sitio "docs.kiba.tools" en Umami (métricas internas); sin él no hay tracker.
+        UMAMI_WEBSITE_ID: c9090a87-d09c-4bc1-9891-504d6454b390
     environment:
       - NODE_ENV=production
       - PORT=4321
@@ -419,6 +422,52 @@ services:
       timeout: 10s
       retries: 5
       start_period: 30s
+
+  # ── Métricas internas (metrics.kiba.tools) ─────────────────────────────────
+  # Umami (analítica web sin cookies) SOLO para uso interno: visitas/visitantes de
+  # la landing, el dashboard y la docs. Cada frontend carga el tracker con el id de
+  # su sitio (build args *_UMAMI_WEBSITE_ID más abajo; en Umami el sitio se crea con
+  # ese mismo uuid). Dominio en Coolify: umami → https://metrics.kiba.tools:3000.
+  # Postgres propio (volumen umami-db-data). Ver docs/DEPLOYMENT.md § Métricas.
+  umami-db:
+    build:
+      context: .
+      dockerfile: docker/umami-db.Dockerfile
+    environment:
+      - DOPPLER_TOKEN=${DOPPLER_TOKEN}
+      - POSTGRES_USER=umami
+      - POSTGRES_DB=umami
+      # POSTGRES_PASSWORD llega vía doppler run (UMAMI_DB_PASSWORD)
+    volumes:
+      - umami-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U umami -d umami"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  umami:
+    build:
+      context: .
+      dockerfile: docker/umami.Dockerfile
+    init: true
+    environment:
+      - DOPPLER_TOKEN=${DOPPLER_TOKEN}
+      - PORT=3000
+      - DISABLE_TELEMETRY=1
+      # Nombres propios del script y del endpoint de recolección: los de serie
+      # (script.js y /api/send) los cortan los bloqueadores de anuncios.
+      - TRACKER_SCRIPT_NAME=kb.js
+      - COLLECT_API_ENDPOINT=/api/kb
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:3000/api/heartbeat"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    depends_on:
+      umami-db:
+        condition: service_healthy
 
   # ── Frontends (kiba.tools, app.kiba.tools) ─────────────────────────────────
   # Sitios estáticos sin secretos (no usan Doppler). Las URLs públicas se hornean
@@ -433,6 +482,8 @@ services:
         PUBLIC_BACKEND_URL: https://data.kiba.tools
         PUBLIC_GATEWAY_URL: https://api.kiba.tools
         PUBLIC_DASHBOARD_URL: https://app.kiba.tools
+        # Id del sitio "kiba.tools" en Umami (métricas internas); sin él no hay tracker.
+        PUBLIC_UMAMI_WEBSITE_ID: c68090c6-533f-4ed5-8e75-bb0ec6cbb45a
     labels:
       # www.kiba.tools → kiba.tools (ver "Dominios" en docs/DEPLOYMENT.md)
       - traefik.http.middlewares.www-landing.redirectregex.regex=^https?://www[.]kiba[.]tools
@@ -483,6 +534,8 @@ services:
       args:
         # El WS va directo al backend (ver "Pendientes" en docs/DEPLOYMENT.md)
         VITE_WS_URL: wss://data.kiba.tools/ws
+        # Id del sitio "app.kiba.tools" en Umami (métricas internas); sin él no hay tracker.
+        VITE_UMAMI_WEBSITE_ID: 68c60caf-8a7c-455f-9569-ee54313a44a4
     healthcheck:
       # 127.0.0.1, no localhost: en alpine resuelve primero a ::1 y nginx escucha solo IPv4
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1/"]
@@ -497,3 +550,4 @@ services:
 volumes:
   postgres-data:
   backend-data:
+  umami-db-data:

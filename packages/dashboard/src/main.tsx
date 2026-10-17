@@ -8,6 +8,17 @@ import { ModeProvider } from "@/lib/mode";
 import "./i18n";
 import "./styles/globals.css";
 
+// Métricas internas (Umami): el tracker solo se inyecta si el build trae el id del sitio (prod).
+// Sigue solo los cambios de ruta del SPA (pushState); no usa cookies ni identifica usuarios.
+const umamiWebsiteId = import.meta.env.VITE_UMAMI_WEBSITE_ID;
+if (umamiWebsiteId) {
+  const script = document.createElement("script");
+  script.defer = true;
+  script.src = "https://metrics.kiba.tools/kb.js";
+  script.dataset.websiteId = umamiWebsiteId;
+  document.head.appendChild(script);
+}
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {

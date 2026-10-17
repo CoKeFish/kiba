@@ -21,7 +21,9 @@ WORKDIR /app/packages/dashboard
 
 # Vite hornea VITE_* en build time: llegan como build args desde el compose.
 ARG VITE_WS_URL
-ENV VITE_WS_URL=$VITE_WS_URL
+ARG VITE_UMAMI_WEBSITE_ID
+ENV VITE_WS_URL=$VITE_WS_URL \
+    VITE_UMAMI_WEBSITE_ID=$VITE_UMAMI_WEBSITE_ID
 
 RUN npm run build
 

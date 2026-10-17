@@ -17,6 +17,9 @@ const LLMS_DESCRIPTION: Record<string, string> = {
   pt: 'A Kiba permite que qualquer assistente de IA descubra serviços especializados e pague por chamada, com liquidação em USDC na Stellar.',
 };
 
+// Métricas internas (Umami): el tracker solo se inyecta si el build trae el id del sitio (prod).
+const UMAMI_WEBSITE_ID = process.env.UMAMI_WEBSITE_ID;
+
 const config: Config = {
   title: 'Kiba Docs',
   tagline: 'Pay any service from any AI assistant',
@@ -26,6 +29,9 @@ const config: Config = {
     {tagName: 'link', attributes: {rel: 'apple-touch-icon', href: '/img/apple-touch-icon.png'}},
     {tagName: 'link', attributes: {rel: 'icon', type: 'image/png', sizes: '512x512', href: '/img/kiba-icon-512.png'}},
   ],
+  scripts: UMAMI_WEBSITE_ID
+    ? [{src: 'https://metrics.kiba.tools/kb.js', defer: true, 'data-website-id': UMAMI_WEBSITE_ID}]
+    : [],
 
   future: {
     v4: true,

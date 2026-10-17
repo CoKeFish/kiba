@@ -10,6 +10,10 @@ RUN npm ci
 
 COPY packages/docs/ ./
 
+# Id del sitio en Umami (métricas internas); vacío = sin tracker. Build arg del compose.
+ARG UMAMI_WEBSITE_ID
+ENV UMAMI_WEBSITE_ID=$UMAMI_WEBSITE_ID
+
 RUN npm run build
 
 ENV PORT=4321

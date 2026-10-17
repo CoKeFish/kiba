@@ -41,6 +41,9 @@ const navLinks = [
   { label: t("nav.pricing"), href: `${home}#pricing` },
   { label: t("nav.docs"), href: "https://docs.kiba.tools" },
 ];
+
+// Métricas internas (Umami): el tracker solo se inyecta si el build trae el id del sitio (prod).
+const umamiWebsiteId = import.meta.env.PUBLIC_UMAMI_WEBSITE_ID;
 ---
 
 <!doctype html>
@@ -65,6 +68,9 @@ const navLinks = [
       rel="stylesheet"
     />
     <title>{title}</title>
+    {umamiWebsiteId && (
+      <script is:inline defer src="https://metrics.kiba.tools/kb.js" data-website-id={umamiWebsiteId}></script>
+    )}
   </head>
   <body>
     <!-- Fixed header -->

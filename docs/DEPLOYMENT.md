@@ -18,6 +18,7 @@ variable que conoce Coolify es `DOPPLER_TOKEN`.
 | `packages/docs` (Docusaurus 3, estático, es/en/pt) | Coolify | stack `kiba` / `docs` | https://docs.kiba.tools |
 | Postgres 16 | Coolify | stack `kiba` / `postgres` | (solo red interna) |
 | `demo-agents` × 8 | Coolify | stack `kiba` / `agent-<x>` | https://agent-`<x>`.kiba.tools |
+| Umami 3 (métricas internas) + Postgres propio | Coolify | stack `kiba` / `umami`, `umami-db` | https://metrics.kiba.tools (login) |
 
 Agentes: `translator`, `yield`, `risk`, `price`, `code`, `firecrawl` (sirve el servicio
 on-chain **web-scraper**), `world`, `randomizer`. Todo (backends, landing, dashboard y docs;
@@ -54,7 +55,7 @@ sin entrar al panel con el workflow `coolify-domains.yml`:
 
 ```bash
 gh workflow run coolify-domains.yml                 # muestra los actuales
-gh workflow run coolify-domains.yml -f domains='[{"name":"gateway","domain":"https://api.kiba.tools:8000"},{"name":"backend","domain":"https://data.kiba.tools:4000"},{"name":"agent-translator","domain":"https://agent-translator.kiba.tools:5003"},{"name":"agent-yield","domain":"https://agent-yield.kiba.tools:5001"},{"name":"agent-risk","domain":"https://agent-risk.kiba.tools:5002"},{"name":"agent-price","domain":"https://agent-price.kiba.tools:5004"},{"name":"agent-code","domain":"https://agent-code.kiba.tools:5005"},{"name":"agent-firecrawl","domain":"https://agent-firecrawl.kiba.tools:5006"},{"name":"agent-world","domain":"https://agent-world.kiba.tools:5007"},{"name":"agent-randomizer","domain":"https://agent-randomizer.kiba.tools:5008"},{"name":"docs","domain":"https://docs.kiba.tools:4321"},{"name":"landing","domain":"https://kiba.tools:4321"},{"name":"dashboard","domain":"https://app.kiba.tools:80"}]'
+gh workflow run coolify-domains.yml -f domains='[{"name":"gateway","domain":"https://api.kiba.tools:8000"},{"name":"backend","domain":"https://data.kiba.tools:4000"},{"name":"agent-translator","domain":"https://agent-translator.kiba.tools:5003"},{"name":"agent-yield","domain":"https://agent-yield.kiba.tools:5001"},{"name":"agent-risk","domain":"https://agent-risk.kiba.tools:5002"},{"name":"agent-price","domain":"https://agent-price.kiba.tools:5004"},{"name":"agent-code","domain":"https://agent-code.kiba.tools:5005"},{"name":"agent-firecrawl","domain":"https://agent-firecrawl.kiba.tools:5006"},{"name":"agent-world","domain":"https://agent-world.kiba.tools:5007"},{"name":"agent-randomizer","domain":"https://agent-randomizer.kiba.tools:5008"},{"name":"docs","domain":"https://docs.kiba.tools:4321"},{"name":"landing","domain":"https://kiba.tools:4321"},{"name":"dashboard","domain":"https://app.kiba.tools:80"},{"name":"umami","domain":"https://metrics.kiba.tools:3000"}]'
 ```
 
 Los dominios anteriores **redirigen** al nuevo:
@@ -113,15 +114,17 @@ redesplegar solo el stack con:
 
 ## Stack de Coolify (docker-compose.prod.yml)
 
-- 14 servicios: `gateway` (8000), `backend` (4000), `postgres`, 8 `agent-<x>` (5001-5008),
+- 16 servicios: `gateway` (8000), `backend` (4000), `postgres`, 8 `agent-<x>` (5001-5008),
+  `umami` (3000) + `umami-db` (métricas internas, ver § Métricas internas),
   `landing` (4321, build de Astro servido con `serve`; las `PUBLIC_*` van como build args en
   el compose), `dashboard` (80, build de Vite servido por nginx: `packages/dashboard/nginx.conf`
   reescribe `/api/*` → `gateway:8000` y `/backend/*` → `backend:4000` por la red interna) y
   `docs` (4321, estático con `serve`). Los tres estáticos no usan Doppler.
   Traefik de Coolify termina TLS (Let's Encrypt) y enruta cada dominio al puerto del
   contenedor; no se publican puertos al host.
-- **Volúmenes**: `postgres-data` (la DB de negocio — crítico) y `backend-data`
-  (SQLite del indexer + cache de modelos transformers.js — reconstruible).
+- **Volúmenes**: `postgres-data` (la DB de negocio — crítico), `backend-data`
+  (SQLite del indexer + cache de modelos transformers.js — reconstruible) y `umami-db-data`
+  (histórico de visitas de Umami — si se pierde, se pierde el histórico, nada más).
 - Healthchecks por servicio (`/health`); el backend tarda en el primer boot
   (descarga modelos, `start_period: 300s`).
 - El catálogo del backend se siembra con `STELLAR_SERVICES` (Doppler) — el volumen nuevo
@@ -150,6 +153,35 @@ redesplegar solo el stack con:
 > gateway refilla la custodial del usuario desde el master (`ensureFunded`) para abrir el
 > escrow. Si el master no existe on-chain, todo `call_agent` falla. En testnet:
 > `curl "https://friendbot.stellar.org/?addr=<MASTER_PUBKEY>"`.
+
+## Métricas internas (Umami)
+
+Analítica web (visitas, visitantes, páginas, referidos, países, dispositivos) de `kiba.tools`,
+`app.kiba.tools` y `docs.kiba.tools`, **solo para uso interno**: https://metrics.kiba.tools
+(login de Umami: usuario `admin`, contraseña en Doppler `shared/prd` → `UMAMI_ADMIN_PASSWORD`).
+Es [Umami](https://umami.is) 3 auto-hospedado (sin cookies, no identifica personas): servicios
+`umami` (`docker/umami.Dockerfile`: imagen oficial fijada + CLI de Doppler) y `umami-db`
+(`docker/umami-db.Dockerfile`: Postgres propio, volumen `umami-db-data`) del stack. Secretos en
+Doppler `kiba/prd`: `UMAMI_DB_PASSWORD`, `UMAMI_DATABASE_URL` (referencia a la anterior),
+`UMAMI_APP_SECRET`, `UMAMI_TWO_FACTOR_KEY`; cada contenedor los pide con `--only-secrets`
+(no recibe el resto de secretos del stack) y los remapea a los nombres que espera Umami.
+
+Cómo se mide: cada frontend inyecta el tracker (`https://metrics.kiba.tools/kb.js`) **solo si
+el build trae el id de su sitio** (build args del compose: `PUBLIC_UMAMI_WEBSITE_ID` landing,
+`VITE_UMAMI_WEBSITE_ID` dashboard, `UMAMI_WEBSITE_ID` docs). Los ids son uuids fijos y el sitio
+se crea en Umami con ese mismo valor (`POST /api/websites` acepta `id`), así los frontends no
+dependen de lo que genere Umami:
+
+| Sitio | uuid en Umami |
+|---|---|
+| kiba.tools (landing) | `c68090c6-533f-4ed5-8e75-bb0ec6cbb45a` |
+| app.kiba.tools (dashboard) | `68c60caf-8a7c-455f-9569-ee54313a44a4` |
+| docs.kiba.tools (docs) | `c9090a87-d09c-4bc1-9891-504d6454b390` |
+
+El script y el endpoint de recolección llevan nombres propios (`TRACKER_SCRIPT_NAME=kb.js`,
+`COLLECT_API_ENDPOINT=/api/kb` en el compose) porque los de serie (`script.js`, `/api/send`)
+los cortan los bloqueadores de anuncios. Apagar la medición de un sitio = quitar su build arg
+del compose (sin id no se inyecta nada). En local no hay Umami ni tracker.
 
 ## Vercel (solo redirects)
 
