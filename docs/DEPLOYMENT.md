@@ -58,6 +58,12 @@ gh workflow run coolify-domains.yml                 # muestra los actuales
 gh workflow run coolify-domains.yml -f domains='[{"name":"gateway","domain":"https://api.kiba.tools:8000"},{"name":"backend","domain":"https://data.kiba.tools:4000"},{"name":"agent-translator","domain":"https://agent-translator.kiba.tools:5003"},{"name":"agent-yield","domain":"https://agent-yield.kiba.tools:5001"},{"name":"agent-risk","domain":"https://agent-risk.kiba.tools:5002"},{"name":"agent-price","domain":"https://agent-price.kiba.tools:5004"},{"name":"agent-code","domain":"https://agent-code.kiba.tools:5005"},{"name":"agent-firecrawl","domain":"https://agent-firecrawl.kiba.tools:5006"},{"name":"agent-world","domain":"https://agent-world.kiba.tools:5007"},{"name":"agent-randomizer","domain":"https://agent-randomizer.kiba.tools:5008"},{"name":"docs","domain":"https://docs.kiba.tools:4321"},{"name":"landing","domain":"https://kiba.tools:4321"},{"name":"dashboard","domain":"https://app.kiba.tools:80"},{"name":"umami","domain":"https://metrics.kiba.tools:3000"}]'
 ```
 
+> Desde Coolify 4.4.6 el `:puerto` de cada dominio se guarda aparte, en el campo
+> `domain_port_overrides` (host → puerto), que la API **no devuelve**: `docker_compose_domains`
+> sale sin puertos y es normal. El PATCH sigue aceptando `https://host:puerto` y rellena ambos.
+> Para verlo: `select domain_port_overrides from applications where uuid='<APP_UUID>'` en la
+> DB de Coolify (por SSH, `docker exec coolify-db psql -U coolify -d coolify`).
+
 Los dominios anteriores **redirigen** al nuevo:
 
 - Backends `kiba-api.suchima.com`, `kiba-data.suchima.com`, `kiba-agent-<x>.suchima.com` →
