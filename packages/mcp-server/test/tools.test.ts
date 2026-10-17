@@ -74,13 +74,20 @@ async function callHandler(method: string, params: unknown): Promise<unknown> {
 
 // ─── tools/list ────────────────────────────────────────────────
 
-test('tools/list devuelve los 4 tools del marketplace', async () => {
+test('tools/list devuelve los 6 tools del marketplace', async () => {
   const result = (await callHandler('tools/list', {})) as {
     tools: Array<{ name: string; description: string; inputSchema: unknown }>;
   };
-  assert.equal(result.tools.length, 4);
+  assert.equal(result.tools.length, 6);
   const names = result.tools.map((t) => t.name).sort();
-  assert.deepEqual(names, ['call_agent', 'get_balance', 'get_transactions', 'list_agents']);
+  assert.deepEqual(names, [
+    'call_agent',
+    'get_balance',
+    'get_result',
+    'get_transactions',
+    'list_agents',
+    'list_results',
+  ]);
 });
 
 test('tools/list: call_agent declara service como required', async () => {
@@ -163,6 +170,7 @@ test('call_agent envía POST /v1/call con service+payload', async () => {
   assert.deepEqual(calls[0].body, {
     service: 'translator',
     payload: { text: 'hello' },
+    waitMs: 40_000,
   });
   const parsed = JSON.parse(result.content[0].text) as {
     result: { translated: string };
@@ -188,7 +196,33 @@ test('call_agent con payload omitido → defaults a {}', async () => {
     name: 'call_agent',
     arguments: { service: 'no-payload' },
   });
-  assert.deepEqual(calls[0].body, { service: 'no-payload', payload: {} });
+  assert.deepEqual(calls[0].body, { service: 'no-payload', payload: {}, waitMs: 40_000 });
+});
+
+// ─── tools/call: get_result / list_results → GET /v1/results ───
+
+test('get_result llama GET /v1/results/:id con long-poll', async () => {
+  getQueue.push(async () => ({ data: { resultId: 'res_abc', status: 'done', result: { ok: 1 } } }));
+  const result = (await callHandler('tools/call', {
+    name: 'get_result',
+    arguments: { resultId: 'res_abc' },
+  })) as { content: Array<{ text: string }> };
+  assert.match(calls[0].url, /\/v1\/results\/res_abc\?waitMs=25000$/);
+  assert.equal(JSON.parse(result.content[0].text).status, 'done');
+});
+
+test('get_result sin resultId: isError true', async () => {
+  const result = (await callHandler('tools/call', {
+    name: 'get_result',
+    arguments: {},
+  })) as { isError?: boolean };
+  assert.equal(result.isError, true);
+});
+
+test('list_results llama GET /v1/results con limit', async () => {
+  getQueue.push(async () => ({ data: [] }));
+  await callHandler('tools/call', { name: 'list_results', arguments: { limit: 5 } });
+  assert.match(calls[0].url, /\/v1\/results\?limit=5$/);
 });
 
 test('call de tool desconocida → isError true con mensaje "unknown tool"', async () => {
