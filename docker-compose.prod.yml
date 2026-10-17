@@ -90,6 +90,7 @@ services:
       - NODE_ENV=production
       - PORT=8000
       - PUBLIC_URL=https://api.kiba.tools
+      - PUBLIC_DASHBOARD_URL=https://app.kiba.tools
       - BACKEND_URL=http://backend:4000
       - CORS_ORIGINS=https://app.kiba.tools,https://kiba.tools
     healthcheck:
