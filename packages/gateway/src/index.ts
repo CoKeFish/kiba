@@ -13,6 +13,14 @@ import cookieParser from 'cookie-parser';
 import path from 'node:path';
 import { initDb } from './db';
 import {
+  callAndStore,
+  failOrphanedResults,
+  getResult,
+  listResults,
+  relatedResults,
+  resultDto,
+} from './results';
+import {
   authenticate,
   createUser,
   getUser,
@@ -49,7 +57,7 @@ import {
   verifyCharge as verifyChargeRouted,
   COP_USD_RATE,
 } from './payments';
-import { callOnBehalf, listAgents, masterWalletPubkey, platformPublicKey } from './proxy';
+import { listAgents, masterWalletPubkey, platformPublicKey } from './proxy';
 import { settleAgent, settleAllDue, MIN_PAYOUT, recordEarning } from './settlement';
 import { listUserSettlements, getDailySeries } from './publisher';
 import { warmEscrows, fundForCall } from './escrows';
@@ -1262,7 +1270,9 @@ app.post('/v1/call', requireAuth, async (req, res) => {
   if (!service) return res.status(400).json({ error: 'service required' });
   // Validación de schema: rechaza campos desconocidos (p.ej. `input` en vez de `payload`) ANTES
   // de cobrar. Sin esto, un campo mal escrito pasaba con payload vacío y cobraba igual.
-  const unknownFields = Object.keys(req.body ?? {}).filter((k) => k !== 'service' && k !== 'payload');
+  const unknownFields = Object.keys(req.body ?? {}).filter(
+    (k) => k !== 'service' && k !== 'payload' && k !== 'waitMs',
+  );
   if (unknownFields.length > 0) {
     return res.status(400).json({
       error: `campo(s) no reconocido(s): ${unknownFields.join(', ')}. Los datos del servicio van en 'payload'.`,
@@ -1270,10 +1280,14 @@ app.post('/v1/call', requireAuth, async (req, res) => {
   }
 
   try {
-    const result = await callOnBehalf({
+    // REST espera la llamada completa salvo que el cliente pida `waitMs` (p.ej. el adaptador
+    // stdio, sujeto al timeout del cliente MCP). Con o sin espera, el resultado queda guardado.
+    const waitMs = Number(req.body?.waitMs);
+    const result = await callAndStore({
       userId: req.bearerUser!.id,
       service,
       payload: payload ?? {},
+      waitMs: waitMs > 0 ? waitMs : 600_000,
     });
     res.json(result);
   } catch (err) {
@@ -1298,6 +1312,21 @@ app.get('/v1/transactions', requireAuth, async (req, res) => {
       created_at: t.created_at,
     })),
   );
+});
+
+// ─── Resultados guardados de call_agent (results.ts) ──
+
+app.get('/v1/results', requireAuth, async (req, res) => {
+  const rows = await listResults(req.bearerUser!.id, Number(req.query.limit) || 50);
+  res.json(rows.map((r) => resultDto(r, false)));
+});
+
+app.get('/v1/results/:id', requireAuth, async (req, res) => {
+  const row = await getResult(req.bearerUser!.id, req.params.id, Number(req.query.waitMs) || 0);
+  if (!row) return res.status(404).json({ error: 'result not found' });
+  // `related`: las otras llamadas del mismo pedido (p.ej. las consultas de estado de un modelo 3D).
+  const related = await relatedResults(row);
+  res.json({ ...resultDto(row), related: related.map((r) => resultDto(r)) });
 });
 
 // ─── API Keys (long-lived bearer tokens for direct REST access) ──
@@ -1367,6 +1396,7 @@ try {
 // Arranque: crea/asegura el schema Postgres ANTES de escuchar. Si initDb falla
 // (DATABASE_URL ausente/incorrecto, Postgres inalcanzable), no arrancamos.
 void initDb()
+  .then(failOrphanedResults)
   .then(() => {
     // Pre-calienta los escrows del ciclo (WARM_ESCROW_SERVICES) para que la primera
     // llamada de cada servicio pague solo el fund, no el deploy. Best-effort.

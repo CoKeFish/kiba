@@ -194,7 +194,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: 'call_agent',
         description:
-          'Llama un servicio especializado en el marketplace. El gateway maneja el pago automáticamente descontando del saldo del usuario. Devuelve el resultado del servicio más el costo y saldo restante.',
+          'Llama un servicio especializado en el marketplace. El gateway maneja el pago automáticamente descontando del saldo del usuario. Devuelve el resultado del servicio más el costo y saldo restante. Todo resultado queda guardado en la cuenta (resultId + resultUrl). Si el servicio tarda, responde `status: "pending"` con un `resultId`: NO vuelvas a llamar (se cobraría otra vez); consulta get_result(resultId) en unos segundos o comparte resultUrl con el usuario.',
         inputSchema: {
           type: 'object',
           properties: {
@@ -208,6 +208,29 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
           },
           required: ['service'],
+        },
+      },
+      {
+        name: 'get_result',
+        description:
+          'Recupera un resultado guardado de call_agent por su `resultId` (status pending | done | error). Si sigue pending, espera hasta ~25 s antes de responder; vuelve a consultar si aún no termina. Incluye resultUrl para verlo en la web de Kiba.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            resultId: { type: 'string', description: 'El resultId devuelto por call_agent (res_...).' },
+          },
+          required: ['resultId'],
+        },
+      },
+      {
+        name: 'list_results',
+        description:
+          'Lista los resultados guardados más recientes de la cuenta (sin el contenido; usa get_result para verlo). Útil si una llamada se cortó y no tienes su resultId.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            limit: { type: 'number', description: 'Máximo de resultados (default 20, max 200).' },
+          },
         },
       },
       {
@@ -241,7 +264,19 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
       case 'call_agent': {
         const { service, payload } = (args ?? {}) as { service: string; payload?: unknown };
         if (!service) throw new Error('service required');
-        const data = await gatewayPost('/v1/call', { service, payload: payload ?? {} });
+        // waitMs: el gateway devuelve `pending` + resultId antes de que el cliente MCP corte.
+        const data = await gatewayPost('/v1/call', { service, payload: payload ?? {}, waitMs: 40_000 });
+        return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
+      }
+      case 'get_result': {
+        const { resultId } = (args ?? {}) as { resultId?: string };
+        if (!resultId) throw new Error('resultId required');
+        const data = await gatewayGet(`/v1/results/${encodeURIComponent(resultId)}?waitMs=25000`);
+        return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
+      }
+      case 'list_results': {
+        const { limit } = (args ?? {}) as { limit?: number };
+        const data = await gatewayGet(`/v1/results?limit=${Math.min(limit ?? 20, 200)}`);
         return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
       }
       case 'get_balance': {

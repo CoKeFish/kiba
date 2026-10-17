@@ -53,6 +53,10 @@ export const api = {
   // Transactions
   transactions: (limit = 50) => request<Transaction[]>(`/v1/transactions?limit=${limit}`),
 
+  // Resultados guardados de call_agent (almacén por cuenta)
+  results: (limit = 50) => request<CallResult[]>(`/v1/results?limit=${limit}`),
+  result: (id: string) => request<CallResult>(`/v1/results/${encodeURIComponent(id)}`),
+
   // Agents (via backend, not gateway — public discovery)
   agents: () => request<Agent[]>("/agents", {}, BACKEND),
   searchAgents: (q: string, mode: "keyword" | "semantic" | "hybrid" = "hybrid", limit = 20) =>
@@ -250,6 +254,23 @@ export type Transaction = {
   tx_signature?: string;
   status: "success" | "failed" | "pending";
   created_at: number;
+};
+
+export type CallResult = {
+  resultId: string;
+  service: string;
+  status: "pending" | "done" | "error";
+  resultUrl: string;
+  /** Solo en el detalle (/v1/results/:id). */
+  payload?: unknown;
+  result?: unknown;
+  error?: string;
+  costBaseUnits?: number;
+  explorerUrl?: string;
+  createdAt: number;
+  completedAt?: number;
+  /** Solo en el detalle: las demás llamadas del mismo pedido (mismo taskId), en orden. */
+  related?: CallResult[];
 };
 
 export type Agent = {

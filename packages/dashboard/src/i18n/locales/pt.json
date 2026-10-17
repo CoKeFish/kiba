@@ -21,7 +21,8 @@
     "publish": "Publicar",
     "consumer": "Consumidor",
     "publisher": "Publicador",
-    "logout": "Sair"
+    "logout": "Sair",
+    "results": "Resultados"
   },
   "topbar": {
     "balance": "Saldo:",
@@ -667,6 +668,41 @@
       "success": "Sucesso",
       "failed": "Falhou",
       "pending": "Pendente"
+    }
+  },
+  "results": {
+    "title": "Resultados",
+    "subtitle": "Tudo o que sua IA pediu pelo Kiba fica salvo aqui, mesmo quando o chat parou de esperar.",
+    "card_title": "Resultados salvos",
+    "entries": "{{count}} resultados",
+    "loading": "Carregando…",
+    "empty": "Ainda não há resultados. As chamadas do seu assistente de IA aparecerão aqui.",
+    "col": {
+      "time": "Hora",
+      "service": "Serviço",
+      "status": "Status",
+      "cost": "Custo"
+    },
+    "status": {
+      "pending": "Em andamento",
+      "done": "Pronto",
+      "error": "Falhou"
+    },
+    "open": "Abrir",
+    "back": "Todos os resultados",
+    "not_found": "Este resultado não existe ou pertence a outra conta.",
+    "onchain": "On-chain",
+    "pending_hint": "O serviço ainda está trabalhando. Esta página se atualiza sozinha; você também pode pedir ao seu assistente que consulte o resultado.",
+    "content": "Conteúdo",
+    "links_expire": "Os arquivos são hospedados pelo serviço e podem expirar (normalmente entre 24 horas e alguns dias). Baixe o que quiser guardar.",
+    "output": "Resposta",
+    "input": "Solicitação",
+    "history": "Histórico do pedido",
+    "no_preview": "Este resultado ainda não tem pré-visualização; veja a resposta completa abaixo.",
+    "task": {
+      "running": "O serviço ainda está gerando…",
+      "ended": "Tarefa encerrada: {{status}}",
+      "hint": "Peça ao seu assistente para consultar o resultado de novo e atualizar o progresso."
     }
   }
 }

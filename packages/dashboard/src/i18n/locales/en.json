@@ -21,7 +21,8 @@
     "publish": "Publish",
     "consumer": "Consumer",
     "publisher": "Publisher",
-    "logout": "Log out"
+    "logout": "Log out",
+    "results": "Results"
   },
   "topbar": {
     "balance": "Balance:",
@@ -667,6 +668,41 @@
       "success": "Success",
       "failed": "Failed",
       "pending": "Pending"
+    }
+  },
+  "results": {
+    "title": "Results",
+    "subtitle": "Everything your AI requested through Kiba is saved here — even when the chat stopped waiting.",
+    "card_title": "Saved results",
+    "entries": "{{count}} results",
+    "loading": "Loading…",
+    "empty": "No results yet. Calls made from your AI assistant will appear here.",
+    "col": {
+      "time": "Time",
+      "service": "Service",
+      "status": "Status",
+      "cost": "Cost"
+    },
+    "status": {
+      "pending": "In progress",
+      "done": "Ready",
+      "error": "Failed"
+    },
+    "open": "Open",
+    "back": "All results",
+    "not_found": "This result doesn't exist or belongs to another account.",
+    "onchain": "On-chain",
+    "pending_hint": "The service is still working. This page refreshes on its own; you can also ask your assistant to check the result.",
+    "content": "Content",
+    "links_expire": "Files are hosted by the service and may expire (usually within 24 hours to a few days). Download what you want to keep.",
+    "output": "Output",
+    "input": "Request",
+    "history": "Request history",
+    "no_preview": "This result has no preview yet — see the full response below.",
+    "task": {
+      "running": "The service is still generating…",
+      "ended": "Task ended: {{status}}",
+      "hint": "Ask your assistant to check the result again to update its progress."
     }
   }
 }

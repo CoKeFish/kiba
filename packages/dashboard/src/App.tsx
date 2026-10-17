@@ -1,10 +1,12 @@
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import Login from "@/routes/Login";
 import Signup from "@/routes/Signup";
 import Overview from "@/routes/Overview";
 import Connect from "@/routes/Connect";
 import Transactions from "@/routes/Transactions";
+import Results from "@/routes/Results";
+import ResultDetail from "@/routes/ResultDetail";
 import Credentials from "@/routes/Credentials";
 import Agents from "@/routes/Agents";
 import Playground from "@/routes/Playground";
@@ -22,8 +24,10 @@ import { useAuth } from "@/lib/auth";
 
 function Protected({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
+  const location = useLocation();
   if (loading) return <div className="p-10 text-sm text-[var(--color-fg-muted)]">Loading…</div>;
-  if (!user) return <Navigate to="/login" replace />;
+  // `from`: tras el login vuelve a la página pedida (p.ej. el link de un resultado guardado).
+  if (!user) return <Navigate to="/login" replace state={{ from: location.pathname }} />;
   return <>{children}</>;
 }
 
@@ -54,6 +58,8 @@ export default function App() {
         <Route path="connect" element={<Connect />} />
         <Route path="usage" element={<Usage />} />
         <Route path="transactions" element={<Transactions />} />
+        <Route path="results" element={<Results />} />
+        <Route path="results/:id" element={<ResultDetail />} />
         <Route path="agents" element={<Agents />} />
         <Route path="playground" element={<Playground />} />
         <Route path="credentials" element={<Credentials />} />

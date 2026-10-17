@@ -1,7 +1,7 @@
 /**
  * Endpoint MCP remoto (Streamable HTTP) embebido en el gateway.
  *
- * Expone las mismas 4 tools que el adaptador stdio (packages/mcp-server) pero
+ * Expone las mismas tools que el adaptador stdio (packages/mcp-server) pero
  * sobre HTTP, para que Claude (custom connectors web/desktop) y ChatGPT (Apps
  * SDK) se conecten por URL sin instalar nada. Cada request se autentica por
  * Bearer (requireBearerAuth en index.ts) y opera a nombre del `userId` del token.
@@ -18,7 +18,8 @@ import type { Request, Response } from 'express';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
-import { callOnBehalf, listAgents } from './proxy';
+import { listAgents } from './proxy';
+import { callAndStore, getResult, listResults, resultDto } from './results';
 import { getUserBalances } from './wallets';
 import { getTransactions } from './billing';
 import { explorerTxUrl } from './chain';
@@ -56,7 +57,7 @@ const TOOLS = [
       openWorldHint: true,
     },
     description:
-      'Llama un servicio especializado en el marketplace. El gateway maneja el pago automáticamente descontando del saldo del usuario. Devuelve el resultado del servicio más el costo y saldo restante.',
+      'Llama un servicio especializado en el marketplace. El gateway maneja el pago automáticamente descontando del saldo del usuario. Devuelve el resultado del servicio más el costo y saldo restante. Todo resultado queda guardado en la cuenta (resultId + resultUrl). Si el servicio tarda, responde `status: "pending"` con un `resultId`: NO vuelvas a llamar (se cobraría otra vez); consulta get_result(resultId) en unos segundos o comparte resultUrl con el usuario.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -71,6 +72,31 @@ const TOOLS = [
       },
       required: ['service'],
       additionalProperties: false,
+    },
+  },
+  {
+    name: 'get_result',
+    annotations: { title: 'Get result', readOnlyHint: true, openWorldHint: false },
+    description:
+      'Recupera un resultado guardado de call_agent por su `resultId` (status pending | done | error). Si sigue pending, espera hasta ~25 s antes de responder; vuelve a consultar si aún no termina. Incluye resultUrl para verlo en la web de Kiba.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        resultId: { type: 'string', description: 'El resultId devuelto por call_agent (res_...).' },
+      },
+      required: ['resultId'],
+    },
+  },
+  {
+    name: 'list_results',
+    annotations: { title: 'List results', readOnlyHint: true, openWorldHint: false },
+    description:
+      'Lista los resultados guardados más recientes de la cuenta (sin el contenido; usa get_result para verlo). Útil si una llamada se cortó y no tienes su resultId.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        limit: { type: 'number', description: 'Máximo de resultados (default 20, max 200).' },
+      },
     },
   },
   {
@@ -130,7 +156,7 @@ export function buildMcpServer(userId: number): Server {
           }
           const { service, payload } = a as { service?: string; payload?: unknown };
           if (!service) throw new Error('service required');
-          const out = (await callOnBehalf({ userId, service, payload: payload ?? {} })) as unknown as {
+          const out = (await callAndStore({ userId, service, payload: payload ?? {} })) as unknown as {
             cost?: { lamports: number; usd: number };
             newBalance?: { lamports: number; usd: number };
             [k: string]: unknown;
@@ -143,6 +169,18 @@ export function buildMcpServer(userId: number): Server {
             clean.newBalance = { baseUnits: out.newBalance.lamports, usd: out.newBalance.usd };
           }
           return jsonResult(clean);
+        }
+        case 'get_result': {
+          const { resultId } = (args ?? {}) as { resultId?: string };
+          if (!resultId) throw new Error('resultId required');
+          const row = await getResult(userId, resultId, 25_000);
+          if (!row) throw new Error(`result not found: ${resultId}`);
+          return jsonResult(resultDto(row));
+        }
+        case 'list_results': {
+          const { limit } = (args ?? {}) as { limit?: number };
+          const rows = await listResults(userId, limit ?? 20);
+          return jsonResult(rows.map((r) => resultDto(r, false)));
         }
         case 'get_balance': {
           const b = await getUserBalances(userId);

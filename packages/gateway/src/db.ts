@@ -269,7 +269,28 @@ async function runInit(): Promise<void> {
       FOREIGN KEY (user_id) REFERENCES users(id)
     );
 
+    -- Almacén de resultados por cuenta (results.ts): cada call_agent queda guardado aunque el
+    -- cliente MCP corte por timeout. payload/result = JSON en TEXT.
+    CREATE TABLE IF NOT EXISTS call_results (
+      id TEXT PRIMARY KEY,
+      user_id BIGINT NOT NULL,
+      service TEXT NOT NULL,
+      payload TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending',
+      result TEXT,
+      error TEXT,
+      cost_lamports BIGINT,
+      explorer_url TEXT,
+      -- '<service>:<taskId>' en servicios de varios pasos (crear → consultar): agrupa el pedido.
+      task_key TEXT,
+      created_at BIGINT NOT NULL,
+      completed_at BIGINT,
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    );
+
     CREATE INDEX IF NOT EXISTS idx_tokens_user ON oauth_tokens(user_id);
+    CREATE INDEX IF NOT EXISTS idx_results_user ON call_results(user_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_results_task ON call_results(user_id, task_key);
     CREATE INDEX IF NOT EXISTS idx_tx_user ON transactions(user_id);
     CREATE INDEX IF NOT EXISTS idx_apikeys_user ON api_keys(user_id);
     CREATE INDEX IF NOT EXISTS idx_apikeys_hash ON api_keys(key_hash);

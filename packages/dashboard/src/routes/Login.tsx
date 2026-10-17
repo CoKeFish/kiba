@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Eye, EyeOff, Lock, Mail } from "lucide-react";
 import { useAuth } from "@/lib/auth";
@@ -8,6 +8,8 @@ import { TitleSparks } from "@/components/auth/TitleSparks";
 
 export default function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const from = (location.state as { from?: string } | null)?.from;
   const { t } = useTranslation();
   const { login } = useAuth();
   const [email, setEmail] = useState("");
@@ -22,7 +24,7 @@ export default function Login() {
     setError(null);
     try {
       await login(email, password);
-      navigate("/app");
+      navigate(from?.startsWith("/app") ? from : "/app");
     } catch (err: any) {
       setError(err.message || t("auth.login.failed"));
     } finally {
