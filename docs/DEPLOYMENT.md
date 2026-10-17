@@ -17,13 +17,15 @@ variable que conoce Coolify es `DOPPLER_TOKEN`.
 | `packages/backend` (Express) | Coolify | stack `kiba` / `backend` | https://data.kiba.tools |
 | `packages/docs` (Docusaurus 3, estático, es/en/pt) | Coolify | stack `kiba` / `docs` | https://docs.kiba.tools |
 | Postgres 16 | Coolify | stack `kiba` / `postgres` | (solo red interna) |
-| `demo-agents` × 9 | Coolify | stack `kiba` / `agent-<x>` | https://agent-`<x>`.kiba.tools |
+| `demo-agents` × 10 | Coolify | stack `kiba` / `agent-<x>` | https://agent-`<x>`.kiba.tools |
 | Umami 3 (métricas internas) + Postgres propio | Coolify | stack `kiba` / `umami`, `umami-db` | https://metrics.kiba.tools (login) |
 
 Agentes: `translator`, `yield`, `risk`, `price`, `code`, `firecrawl` (sirve el servicio
 on-chain **web-scraper**), `world`, `randomizer`, `meshy` (sirve el servicio on-chain
-**3d-generator**: modelos 3D con la API de Meshy, `MESHY_API_KEY` en Doppler `kiba/prd`).
-Todo (backends, landing, dashboard y docs;
+**3d-generator**: modelos 3D con la API de Meshy, `MESHY_API_KEY` en Doppler `kiba/prd`), `lyria`
+(sirve el servicio on-chain **music-generator**: música con Google Lyria vía la Gemini API,
+`GEMINI_API_KEY` en Doppler `kiba/prd`; los MP3 se sirven desde `agent-lyria.kiba.tools/audio/…`
+y caducan a las 24 h). Todo (backends, landing, dashboard y docs;
 los tres últimos son sitios estáticos sin secretos) es UN recurso docker-compose de Coolify
 definido en **`docker-compose.prod.yml`** (raíz del repo).
 
@@ -57,7 +59,7 @@ sin entrar al panel con el workflow `coolify-domains.yml`:
 
 ```bash
 gh workflow run coolify-domains.yml                 # muestra los actuales
-gh workflow run coolify-domains.yml -f domains='[{"name":"gateway","domain":"https://api.kiba.tools:8000"},{"name":"backend","domain":"https://data.kiba.tools:4000"},{"name":"agent-translator","domain":"https://agent-translator.kiba.tools:5003"},{"name":"agent-yield","domain":"https://agent-yield.kiba.tools:5001"},{"name":"agent-risk","domain":"https://agent-risk.kiba.tools:5002"},{"name":"agent-price","domain":"https://agent-price.kiba.tools:5004"},{"name":"agent-code","domain":"https://agent-code.kiba.tools:5005"},{"name":"agent-firecrawl","domain":"https://agent-firecrawl.kiba.tools:5006"},{"name":"agent-world","domain":"https://agent-world.kiba.tools:5007"},{"name":"agent-randomizer","domain":"https://agent-randomizer.kiba.tools:5008"},{"name":"agent-meshy","domain":"https://agent-meshy.kiba.tools:5009"},{"name":"docs","domain":"https://docs.kiba.tools:4321"},{"name":"landing","domain":"https://kiba.tools:4321"},{"name":"dashboard","domain":"https://app.kiba.tools:80"},{"name":"umami","domain":"https://metrics.kiba.tools:3000"}]'
+gh workflow run coolify-domains.yml -f domains='[{"name":"gateway","domain":"https://api.kiba.tools:8000"},{"name":"backend","domain":"https://data.kiba.tools:4000"},{"name":"agent-translator","domain":"https://agent-translator.kiba.tools:5003"},{"name":"agent-yield","domain":"https://agent-yield.kiba.tools:5001"},{"name":"agent-risk","domain":"https://agent-risk.kiba.tools:5002"},{"name":"agent-price","domain":"https://agent-price.kiba.tools:5004"},{"name":"agent-code","domain":"https://agent-code.kiba.tools:5005"},{"name":"agent-firecrawl","domain":"https://agent-firecrawl.kiba.tools:5006"},{"name":"agent-world","domain":"https://agent-world.kiba.tools:5007"},{"name":"agent-randomizer","domain":"https://agent-randomizer.kiba.tools:5008"},{"name":"agent-meshy","domain":"https://agent-meshy.kiba.tools:5009"},{"name":"agent-lyria","domain":"https://agent-lyria.kiba.tools:5010"},{"name":"docs","domain":"https://docs.kiba.tools:4321"},{"name":"landing","domain":"https://kiba.tools:4321"},{"name":"dashboard","domain":"https://app.kiba.tools:80"},{"name":"umami","domain":"https://metrics.kiba.tools:3000"}]'
 ```
 
 > Desde Coolify 4.4.6 el `:puerto` de cada dominio se guarda aparte, en el campo
@@ -122,7 +124,7 @@ redesplegar solo el stack con:
 
 ## Stack de Coolify (docker-compose.prod.yml)
 
-- 17 servicios: `gateway` (8000), `backend` (4000), `postgres`, 9 `agent-<x>` (5001-5009),
+- 18 servicios: `gateway` (8000), `backend` (4000), `postgres`, 10 `agent-<x>` (5001-5010),
   `umami` (3000) + `umami-db` (métricas internas, ver § Métricas internas),
   `landing` (4321, build de Astro servido con `serve`; las `PUBLIC_*` van como build args en
   el compose), `dashboard` (80, build de Vite servido por nginx: `packages/dashboard/nginx.conf`

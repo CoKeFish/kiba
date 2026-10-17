@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "concurrently \"npm:dev:yield\" \"npm:dev:risk\" \"npm:dev:translator\" \"npm:dev:price\" \"npm:dev:code\" \"npm:dev:firecrawl\" \"npm:dev:world\" \"npm:dev:randomizer\" \"npm:dev:meshy\"",
+    "dev": "concurrently \"npm:dev:yield\" \"npm:dev:risk\" \"npm:dev:translator\" \"npm:dev:price\" \"npm:dev:code\" \"npm:dev:firecrawl\" \"npm:dev:world\" \"npm:dev:randomizer\" \"npm:dev:meshy\" \"npm:dev:lyria\"",
     "dev:yield": "tsx watch src/yield-hunter.ts",
     "dev:risk": "tsx watch src/risk-auditor.ts",
     "dev:translator": "tsx watch src/translator.ts",
@@ -13,6 +13,7 @@
     "dev:world": "tsx watch src/world-clock.ts",
     "dev:randomizer": "tsx watch src/randomizer.ts",
     "dev:meshy": "tsx watch src/meshy.ts",
+    "dev:lyria": "tsx watch src/lyria.ts",
     "start:yield": "tsx src/yield-hunter.ts",
     "start:risk": "tsx src/risk-auditor.ts",
     "start:translator": "tsx src/translator.ts",
@@ -22,8 +23,9 @@
     "start:world": "tsx src/world-clock.ts",
     "start:randomizer": "tsx src/randomizer.ts",
     "start:meshy": "tsx src/meshy.ts",
+    "start:lyria": "tsx src/lyria.ts",
     "build": "tsc",
-    "test": "node --import tsx --test --test-reporter=spec test/firecrawl.test.ts test/meshy.test.ts"
+    "test": "node --import tsx --test --test-reporter=spec test/firecrawl.test.ts test/meshy.test.ts test/lyria.test.ts"
   },
   "dependencies": {
     "kiba-sdk": "*",

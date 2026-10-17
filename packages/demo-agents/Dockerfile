@@ -18,8 +18,8 @@ COPY packages/demo-agents ./packages/demo-agents
 
 WORKDIR /app/packages/demo-agents
 
-EXPOSE 5001 5002 5003 5004 5005 5006 5007 5008 5009
+EXPOSE 5001 5002 5003 5004 5005 5006 5007 5008 5009 5010
 
-# AGENT_NAME selecciona qué agente correr: yield-hunter|risk-auditor|translator-pro|price-oracle|code-reviewer|firecrawl|world-clock|randomizer|meshy
+# AGENT_NAME selecciona qué agente correr: yield-hunter|risk-auditor|translator-pro|price-oracle|code-reviewer|firecrawl|world-clock|randomizer|meshy|lyria
 # Si no se pasa, corre todos con concurrently (modo local docker-compose).
 CMD ["sh", "-c", "if [ -n \"$AGENT_NAME\" ]; then npm run dev:${AGENT_NAME%%-*}; else npm run dev; fi"]

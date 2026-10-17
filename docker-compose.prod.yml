@@ -425,6 +425,29 @@ services:
     depends_on:
       - backend
 
+  # Lyria (música con Google) → se publica on-chain como `music-generator`. GEMINI_API_KEY vía
+  # Doppler. Los MP3 generados viven en /tmp del contenedor (caducan a las 24 h y se pierden
+  # al redesplegar) y se sirven desde su endpoint público (/audio/<id>.mp3).
+  agent-lyria:
+    build:
+      context: .
+      dockerfile: packages/demo-agents/Dockerfile.coolify
+    environment:
+      - DOPPLER_TOKEN=${DOPPLER_TOKEN}
+      - NODE_ENV=production
+      - AGENT_NAME=lyria
+      - PORT=5010
+      - PUBLIC_ENDPOINT=https://agent-lyria.kiba.tools
+      - BACKEND_URL=http://backend:4000
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:5010/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+    depends_on:
+      - backend
+
   # ── Documentación (docs.kiba.tools) ────────────────────────────────────────
   # Sitio estático (Astro + Starlight) servido con `serve`; no usa Doppler ni
   # secretos. Dominio en Coolify: docs → https://docs.kiba.tools:4321.
