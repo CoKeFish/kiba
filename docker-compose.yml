@@ -100,6 +100,7 @@ services:
       - "5006:5006"  # firecrawl
       - "5007:5007"  # world-clock
       - "5008:5008"  # randomizer
+      - "5009:5009"  # meshy (3d-generator)
     environment:
       - NODE_ENV=development
       - BACKEND_URL=http://backend:4000

@@ -6,7 +6,7 @@
 # Mapeo (criterio %%-*): translator-pro -> TRANSLATOR,
 # yield-hunter -> YIELD, risk-auditor -> RISK, price-oracle -> PRICE,
 # code-reviewer -> CODE, firecrawl -> FIRECRAWL, world-clock -> WORLD,
-# randomizer -> RANDOMIZER.
+# randomizer -> RANDOMIZER, meshy -> MESHY (sirve el servicio on-chain 3d-generator).
 set -eu
 
 [ -n "${AGENT_NAME:-}" ] || { echo "FATAL: AGENT_NAME no definido" >&2; exit 1; }
@@ -22,6 +22,7 @@ unset secret
 unset AGENT_WALLET_SECRET_TRANSLATOR AGENT_WALLET_SECRET_YIELD \
       AGENT_WALLET_SECRET_RISK AGENT_WALLET_SECRET_PRICE \
       AGENT_WALLET_SECRET_CODE AGENT_WALLET_SECRET_FIRECRAWL \
-      AGENT_WALLET_SECRET_WORLD AGENT_WALLET_SECRET_RANDOMIZER 2>/dev/null || true
+      AGENT_WALLET_SECRET_WORLD AGENT_WALLET_SECRET_RANDOMIZER \
+      AGENT_WALLET_SECRET_MESHY 2>/dev/null || true
 
 exec npm run "start:${short}"

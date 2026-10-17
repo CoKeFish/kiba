@@ -403,6 +403,28 @@ services:
     depends_on:
       - backend
 
+  # Meshy (generación 3D) → se publica on-chain como `3d-generator`. Sin dominio viejo
+  # (nació tras el cutover), por eso no lleva labels legacy. MESHY_API_KEY vía Doppler.
+  agent-meshy:
+    build:
+      context: .
+      dockerfile: packages/demo-agents/Dockerfile.coolify
+    environment:
+      - DOPPLER_TOKEN=${DOPPLER_TOKEN}
+      - NODE_ENV=production
+      - AGENT_NAME=meshy
+      - PORT=5009
+      - PUBLIC_ENDPOINT=https://agent-meshy.kiba.tools
+      - BACKEND_URL=http://backend:4000
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:5009/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+    depends_on:
+      - backend
+
   # ── Documentación (docs.kiba.tools) ────────────────────────────────────────
   # Sitio estático (Astro + Starlight) servido con `serve`; no usa Doppler ni
   # secretos. Dominio en Coolify: docs → https://docs.kiba.tools:4321.
