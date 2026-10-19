@@ -78,9 +78,11 @@ function WithPrivy({ st, email }: { st: SpendStatus; email: string }) {
     },
   });
   // Las funciones de firma son asíncronas y sobreviven a varios renders (el login ocurre en medio):
-  // leen el estado actual de Privy por ref, no el capturado al crearse.
-  const live = useRef({ ready, authenticated, user });
-  live.current = { ready, authenticated, user };
+  // leen el estado actual de Privy por ref, no el capturado al crearse. Incluye las funciones de
+  // Privy: `signRawHash` queda atada al `user` del render en que se creó, y la de antes del login
+  // lanza "User must be authenticated before signing" aunque la sesión ya exista.
+  const live = useRef({ ready, authenticated, user, signRawHash, createWallet });
+  live.current = { ready, authenticated, user, signRawHash, createWallet };
 
   const ensureSession = useCallback(async () => {
     if (!live.current.ready) throw new Error(t("paywallet.err_not_ready"));
@@ -108,24 +110,16 @@ function WithPrivy({ st, email }: { st: SpendStatus; email: string }) {
       await ensureSession();
       const existing = stellarWallet();
       if (existing) return existing;
-      const { wallet } = await createWallet({ chainType: "stellar" });
+      const { wallet } = await live.current.createWallet({ chainType: "stellar" });
       return wallet.address;
     },
     async sign(tx: PreparedTx, address: string): Promise<SubmitBody> {
       await ensureSession();
-      const mine = stellarWallet();
-      if (mine !== address) throw new Error(t("paywallet.err_other_privy"));
-      // Justo después del login (o de crear la wallet) Privy tarda un momento en dejar firmar:
-      // responde "User must be authenticated" aunque la sesión ya exista. Reintentamos unos segundos.
-      for (let i = 0; ; i++) {
-        try {
-          const { signature } = await signRawHash({ address, chainType: "stellar", hash: `0x${tx.hash}` });
-          return { hash: tx.hash, signature };
-        } catch (e) {
-          if (i >= 9 || !/must be authenticated/i.test(String((e as Error)?.message ?? e))) throw e;
-          await new Promise((r) => setTimeout(r, 1000));
-        }
-      }
+      // Recién creada, la wallet tarda un render en aparecer en el usuario de Privy.
+      for (let i = 0; i < 50 && stellarWallet() !== address; i++) await new Promise((r) => setTimeout(r, 100));
+      if (stellarWallet() !== address) throw new Error(t("paywallet.err_other_privy"));
+      const { signature } = await live.current.signRawHash({ address, chainType: "stellar", hash: `0x${tx.hash}` });
+      return { hash: tx.hash, signature };
     },
   };
 
