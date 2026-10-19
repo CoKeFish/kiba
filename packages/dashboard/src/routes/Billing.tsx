@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
@@ -25,6 +25,10 @@ import {
 } from "lucide-react";
 import { BrebTopup } from "@/components/BrebTopup";
 import { RechargeWalletKit } from "@/components/RechargeWalletKit";
+import { useAuth } from "@/lib/auth";
+
+// La wallet de pagos trae el SDK de Privy (pesado): se carga solo al abrir Facturación.
+const PayWallet = lazy(() => import("@/components/paywallet/PayWallet"));
 import "./billing.css";
 
 const QUICK_AMOUNTS = [5, 10, 25, 50, 100];
@@ -40,6 +44,8 @@ export default function Billing() {
   const qc = useQueryClient();
   const { data: balance } = useQuery({ queryKey: ["balance"], queryFn: api.balance });
   const { data: wallet } = useQuery({ queryKey: ["wallet"], queryFn: api.wallet });
+  const { data: spend } = useQuery({ queryKey: ["spend"], queryFn: api.spend });
+  const { user } = useAuth();
   const { data: txs = [] } = useQuery({
     queryKey: ["transactions", "billing"],
     queryFn: () => api.transactions(200),
@@ -126,14 +132,18 @@ export default function Billing() {
 
         {wallet && (
           <RechargeWalletKit
-            walletAddress={wallet.pubkey}
+            // Con wallet de pagos, recargar es llevar USDC ahí; sin ella, a la wallet anterior.
+            walletAddress={spend?.address ?? wallet.pubkey}
             onFunded={() => {
               qc.invalidateQueries({ queryKey: ["balance"] });
               qc.invalidateQueries({ queryKey: ["wallet"] });
+              qc.invalidateQueries({ queryKey: ["spend"] });
             }}
           />
         )}
       </div>
+
+      <Suspense fallback={null}>{user && <PayWallet email={user.email} />}</Suspense>
 
       <section className="billing-card billing-topup">
         <img src={MASCOTS.triangulo} alt="" aria-hidden className="billing-topup__mascot" />

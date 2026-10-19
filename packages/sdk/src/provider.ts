@@ -26,9 +26,11 @@ import { BASE_UNITS_PER_TOKEN, DEFAULT_ASSET } from './config';
 import { ConfigError } from './errors';
 import {
   verifyPlatformCall,
+  verifyPlatformQuote,
   ReplayGuard,
   PLATFORM_CERT_HEADER,
   PLATFORM_SIGNATURE_HEADER,
+  PLATFORM_QUOTE_CERT_HEADER,
 } from './platform-auth';
 
 /** Result of the framework-agnostic verify+serve entry point. */
@@ -61,6 +63,7 @@ export class AgentProvider {
   private readonly platformPublicKey?: string;
   private readonly platformMaxSkewSec?: number;
   private readonly platformReplay = new ReplayGuard();
+  private readonly platformQuoteReplay = new ReplayGuard();
 
   /** nonce → quoted amount, so the post-payment check reuses the quote (priceFn runs once). */
   private readonly quoteCache = new Map<string, { amount: bigint; exp: number }>();
@@ -368,7 +371,7 @@ export class AgentProvider {
 
   private async quote402(input: ServeInput): Promise<ServeResult> {
     const perMin = this.config.rateLimitPerMinute ?? 60;
-    if (perMin > 0 && this.rateLimited(input.ip ?? 'unknown', perMin)) {
+    if (perMin > 0 && !this.isPlatformQuote(input) && this.rateLimited(input.ip ?? 'unknown', perMin)) {
       return { status: 429, body: { error: 'rate limit exceeded' } };
     }
     const nonce = generateNonce().toString();
@@ -430,6 +433,23 @@ export class AgentProvider {
       }
     }
     return BigInt(Math.floor(priceToken * this.baseUnitsPerToken));
+  }
+
+  /**
+   * The platform reaches the agent from one IP on behalf of all its users, so its price
+   * probes (signed with the platform key) skip the per-IP quote limit. An invalid or
+   * missing quote certificate just falls back to the normal limit.
+   */
+  private isPlatformQuote(input: ServeInput): boolean {
+    if (!this.platformPublicKey || !headerPresent(input.headers, PLATFORM_QUOTE_CERT_HEADER)) return false;
+    return verifyPlatformQuote({
+      publicKey: this.platformPublicKey,
+      headers: input.headers,
+      body: input.rawBody ?? (input.body as object),
+      expectedService: this.config.service,
+      replayGuard: this.platformQuoteReplay,
+      maxClockSkewSec: this.platformMaxSkewSec,
+    }).ok;
   }
 
   private rateLimited(ip: string, perMin: number): boolean {

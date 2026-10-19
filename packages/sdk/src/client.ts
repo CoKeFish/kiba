@@ -4,7 +4,7 @@ import type { CallOptions, ClientConfig, ServiceManifest, X402Quote } from './ty
 import { createChainClient, walletToSigner, type ChainClient } from './chain';
 import { BASE_UNITS_PER_TOKEN } from './config';
 import { AgentCallError, EndpointVerificationError, EscrowError, ServiceNotFoundError } from './errors';
-import { buildPlatformCallHeaders, type PlatformCallSigner } from './platform-auth';
+import { buildPlatformCallHeaders, buildPlatformQuoteHeaders, type PlatformCallSigner } from './platform-auth';
 
 /**
  * Trace of each step of the x402 handshake. Useful for inspection/UI: the dashboard
@@ -114,12 +114,17 @@ export class AgentClient {
   async getQuote(
     service: string,
     payload: unknown,
-    options: { timeoutMs?: number } = {},
+    /** `signer`: the platform signs the probe so the agent exempts it from its per-IP quote limit. */
+    options: { timeoutMs?: number; signer?: PlatformCallSigner } = {},
   ): Promise<{ manifest: ServiceManifest; quote: X402Quote }> {
     const manifest = await this.discover(service);
     let quote: X402Quote;
+    const signed = options.signer
+      ? await buildPlatformQuoteHeaders({ signer: options.signer, service, payload })
+      : null;
     try {
-      const probe = await axios.post(`${manifest.endpoint}/service`, payload, {
+      const probe = await axios.post(`${manifest.endpoint}/service`, signed ? signed.body : payload, {
+        headers: signed ? { ...signed.headers, 'Content-Type': 'application/json' } : undefined,
         timeout: options.timeoutMs ?? 30_000,
         validateStatus: () => true,
       });

@@ -76,6 +76,16 @@ export async function sendUsdc({ source, destination, amount }: SendUsdcArgs): P
   }
 }
 
+/** Firma con la wallet conectada una transacción armada por el gateway (p.ej. el permiso de gasto). */
+export async function signXdr(xdr: string, address: string): Promise<string> {
+  ensureKit();
+  const { signedTxXdr } = await StellarWalletsKit.signTransaction(xdr, {
+    networkPassphrase: chain.networkPassphrase,
+    address,
+  });
+  return signedTxXdr;
+}
+
 /** Traduce errores de Horizon/SDK a mensajes claros para el usuario. */
 function friendlyError(e: unknown, fallback: string): string {
   const err = e as {

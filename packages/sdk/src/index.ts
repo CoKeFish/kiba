@@ -46,11 +46,15 @@ export type {
 export {
   LocalPlatformSigner,
   buildPlatformCallHeaders,
+  buildPlatformQuoteHeaders,
   verifyPlatformCall,
+  verifyPlatformQuote,
   hashBody,
   ReplayGuard,
   PLATFORM_CERT_HEADER,
   PLATFORM_SIGNATURE_HEADER,
+  PLATFORM_QUOTE_CERT_HEADER,
+  PLATFORM_QUOTE_SIGNATURE_HEADER,
   DEFAULT_CERT_TTL_SEC,
   DEFAULT_MAX_CLOCK_SKEW_SEC,
 } from './platform-auth';

@@ -2,7 +2,7 @@ import { test, after, before } from 'node:test';
 import assert from 'node:assert/strict';
 import { Keypair } from '@stellar/stellar-sdk';
 import { AgentProvider } from '../src/provider';
-import { LocalPlatformSigner, buildPlatformCallHeaders } from '../src/platform-auth';
+import { LocalPlatformSigner, buildPlatformCallHeaders, buildPlatformQuoteHeaders } from '../src/platform-auth';
 import type { ChainClient, ChainEscrowInfo } from '../src/chain';
 import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
@@ -156,6 +156,74 @@ test('platform-signed call replayed → 401', async () => {
   const second = await p.verifyAndServe({ body: JSON.parse(body), headers, rawBody: body });
   assert.equal(second.status, 401);
   assert.equal((second.body as { reason?: string }).reason, 'replayed');
+});
+
+// ─── platform-signed quotes (rate-limit exemption) ─────────────
+
+function limitedProvider(platformPubkey: string): AgentProvider {
+  const p = new AgentProvider({
+    secret: Keypair.random().secret(),
+    service: 'echo',
+    pricePerCall: 0.01,
+    platform: { publicKey: platformPubkey },
+    rateLimitPerMinute: 2,
+  });
+  p.serve(async (req: unknown) => ({ echoed: req }));
+  return p;
+}
+
+test('unsigned quotes are rate-limited per IP', async () => {
+  const p = limitedProvider(new LocalPlatformSigner(Keypair.random()).publicKey());
+  const q = () => p.verifyAndServe({ body: { a: 1 }, headers: {}, ip: '1.2.3.4' });
+  assert.equal((await q()).status, 402);
+  assert.equal((await q()).status, 402);
+  assert.equal((await q()).status, 429);
+});
+
+test('platform-signed quotes skip the rate limit and never run the handler', async () => {
+  const platform = new LocalPlatformSigner(Keypair.random());
+  const p = limitedProvider(platform.publicKey());
+  for (let i = 0; i < 5; i++) {
+    const { headers, body } = await buildPlatformQuoteHeaders({ signer: platform, service: 'echo', payload: { a: i } });
+    const res = await p.verifyAndServe({ body: JSON.parse(body), headers, rawBody: body, ip: '1.2.3.4' });
+    assert.equal(res.status, 402, `quote ${i}`);
+    assert.ok((res.body as { amount?: string }).amount);
+  }
+});
+
+test('quote signed by another key is still rate-limited', async () => {
+  const p = limitedProvider(new LocalPlatformSigner(Keypair.random()).publicKey());
+  const attacker = new LocalPlatformSigner(Keypair.random());
+  const statuses: number[] = [];
+  for (let i = 0; i < 3; i++) {
+    const { headers, body } = await buildPlatformQuoteHeaders({ signer: attacker, service: 'echo', payload: { a: i } });
+    statuses.push((await p.verifyAndServe({ body: JSON.parse(body), headers, rawBody: body, ip: '5.6.7.8' })).status);
+  }
+  assert.deepEqual(statuses, [402, 402, 429]);
+});
+
+test('a quote certificate cannot authorize a call (and vice versa)', async () => {
+  const platform = new LocalPlatformSigner(Keypair.random());
+  const quote = await buildPlatformQuoteHeaders({ signer: platform, service: 'echo', payload: { a: 1 } });
+  // Quote cert moved into the call headers → rejected, handler not run.
+  const asCall = {
+    'X-Platform-Cert': quote.headers['X-Platform-Quote-Cert'],
+    'X-Platform-Signature': quote.headers['X-Platform-Quote-Signature'],
+  };
+  const res = await trustedProvider(platform.publicKey()).verifyAndServe({ body: { a: 1 }, headers: asCall, rawBody: quote.body });
+  assert.equal(res.status, 401);
+  // Call cert moved into the quote headers → not exempt.
+  const p = limitedProvider(platform.publicKey());
+  const statuses: number[] = [];
+  for (let i = 0; i < 3; i++) {
+    const call = await buildPlatformCallHeaders({ signer: platform, service: 'echo', payload: { a: i } });
+    const asQuote = {
+      'X-Platform-Quote-Cert': call.headers['X-Platform-Cert'],
+      'X-Platform-Quote-Signature': call.headers['X-Platform-Signature'],
+    };
+    statuses.push((await p.verifyAndServe({ body: { a: i }, headers: asQuote, rawBody: call.body, ip: '9.9.9.9' })).status);
+  }
+  assert.deepEqual(statuses, [402, 402, 429]);
 });
 
 test('platform cert presented but platform-auth not configured → 401', async () => {

@@ -128,16 +128,27 @@ export async function loadUserSigner(userId: number): Promise<StellarSigner> {
   return new LocalKeypairSigner(StellarKeypair.fromRawEd25519Seed(Buffer.from(kp.secretKey.slice(0, 32))));
 }
 
-/** Saldo on-chain (unidades base) de la wallet del usuario, vía su firmante. */
+/**
+ * Dirección Stellar de la wallet anterior del usuario SIN provisionar nada (a diferencia de
+ * loadUserSigner, que crea una wallet de Privy controlada por Kiba si no hay). null si no tiene.
+ */
+async function existingUserAddress(userId: number): Promise<string | null> {
+  const row = (await db
+    .prepare('SELECT custodial_wallet_secret, privy_wallet_id, stellar_address FROM users WHERE id = ?')
+    .get(userId)) as
+    | { custodial_wallet_secret: string | null; privy_wallet_id: string | null; stellar_address: string | null }
+    | undefined;
+  if (!row) return null;
+  if (row.privy_wallet_id && row.stellar_address) return row.stellar_address;
+  if (!row.custodial_wallet_secret || row.custodial_wallet_secret === '[]') return null;
+  const kp = await loadUserWallet(userId);
+  return StellarKeypair.fromRawEd25519Seed(Buffer.from(kp.secretKey.slice(0, 32))).publicKey();
+}
+
+/** Saldo on-chain (unidades base) de la wallet del usuario. Leer no crea wallets. */
 export async function userOnChainBalance(userId: number): Promise<number> {
-  const cc = chainClientForSigner(await loadUserSigner(userId), `user:${userId}`);
-  if (!cc) return 0;
-  try {
-    return Number(await cc.getBalanceBaseUnits());
-  } catch (err) {
-    console.warn('[wallets] user balance query failed:', (err as Error).message);
-    return 0;
-  }
+  const address = await existingUserAddress(userId);
+  return address ? addressOnChainBalance(address) : 0;
 }
 
 /**

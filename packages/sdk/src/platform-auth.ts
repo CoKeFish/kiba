@@ -30,6 +30,14 @@ import { PlatformAuthError } from './errors';
 
 export const PLATFORM_CERT_HEADER = 'X-Platform-Cert';
 export const PLATFORM_SIGNATURE_HEADER = 'X-Platform-Signature';
+/**
+ * Quote certificates: the platform signs its unpaid price probes so agents can exempt it
+ * from the per-IP quote rate limit (every user's call reaches the agent from the
+ * platform's IP). Separate headers + `scope: 'quote'` so a quote cert can never run the
+ * handler, and agents on an older SDK simply ignore them.
+ */
+export const PLATFORM_QUOTE_CERT_HEADER = 'X-Platform-Quote-Cert';
+export const PLATFORM_QUOTE_SIGNATURE_HEADER = 'X-Platform-Quote-Signature';
 
 /** Default lifetime of a call certificate, in seconds. */
 export const DEFAULT_CERT_TTL_SEC = 60;
@@ -51,7 +59,15 @@ export interface PlatformCallCert {
   exp: number;
   /** Issuer public key (Stellar G... strkey). The agent rejects a mismatch with its configured key. */
   iss: string;
+  /** Absent on call certificates; `'quote'` on quote certificates (price probes only). */
+  scope?: 'quote';
 }
+
+type CertScope = 'call' | 'quote';
+const HEADERS: Record<CertScope, { cert: string; sig: string }> = {
+  call: { cert: PLATFORM_CERT_HEADER, sig: PLATFORM_SIGNATURE_HEADER },
+  quote: { cert: PLATFORM_QUOTE_CERT_HEADER, sig: PLATFORM_QUOTE_SIGNATURE_HEADER },
+};
 
 /**
  * Signs call certificates. The private key never leaves this object. `sign` may be
@@ -111,6 +127,24 @@ export async function buildPlatformCallHeaders(args: {
   /** Override issued-at (unix seconds); for testing. */
   now?: number;
 }): Promise<{ headers: Record<string, string>; body: string; cert: PlatformCallCert }> {
+  return buildHeaders(args, 'call');
+}
+
+/**
+ * Mint the headers for a platform-signed QUOTE request (unpaid price probe). Same
+ * contract as {@link buildPlatformCallHeaders}; the agent only uses it to skip its
+ * quote rate limit — it never authorizes running the service.
+ */
+export async function buildPlatformQuoteHeaders(
+  args: Parameters<typeof buildPlatformCallHeaders>[0],
+): Promise<{ headers: Record<string, string>; body: string; cert: PlatformCallCert }> {
+  return buildHeaders(args, 'quote');
+}
+
+async function buildHeaders(
+  args: Parameters<typeof buildPlatformCallHeaders>[0],
+  scope: CertScope,
+): Promise<{ headers: Record<string, string>; body: string; cert: PlatformCallCert }> {
   const body = JSON.stringify(args.payload ?? null);
   const ts = args.now ?? Math.floor(Date.now() / 1000);
   const cert: PlatformCallCert = {
@@ -121,13 +155,14 @@ export async function buildPlatformCallHeaders(args: {
     nonce: args.nonce ?? randomNonce(),
     exp: ts + (args.ttlSec ?? DEFAULT_CERT_TTL_SEC),
     iss: args.signer.publicKey(),
+    ...(scope === 'quote' ? { scope: 'quote' as const } : {}),
   };
   const certBytes = Buffer.from(JSON.stringify(cert), 'utf8');
   const sig = await args.signer.sign(certBytes);
   return {
     headers: {
-      [PLATFORM_CERT_HEADER]: certBytes.toString('base64'),
-      [PLATFORM_SIGNATURE_HEADER]: Buffer.from(sig).toString('base64'),
+      [HEADERS[scope].cert]: certBytes.toString('base64'),
+      [HEADERS[scope].sig]: Buffer.from(sig).toString('base64'),
     },
     body,
     cert,
@@ -193,8 +228,21 @@ export type VerifyResult =
  * first failed check. Does not throw.
  */
 export function verifyPlatformCall(opts: VerifyPlatformCallOptions): VerifyResult {
-  const certB64 = headerValue(opts.headers, PLATFORM_CERT_HEADER);
-  const sigB64 = headerValue(opts.headers, PLATFORM_SIGNATURE_HEADER);
+  return verify(opts, 'call');
+}
+
+/**
+ * Verify a platform-signed QUOTE request (headers from {@link buildPlatformQuoteHeaders}).
+ * Same checks as {@link verifyPlatformCall}; a call certificate is not accepted here and
+ * vice versa. Use a separate {@link ReplayGuard} from the one for calls.
+ */
+export function verifyPlatformQuote(opts: VerifyPlatformCallOptions): VerifyResult {
+  return verify(opts, 'quote');
+}
+
+function verify(opts: VerifyPlatformCallOptions, scope: CertScope): VerifyResult {
+  const certB64 = headerValue(opts.headers, HEADERS[scope].cert);
+  const sigB64 = headerValue(opts.headers, HEADERS[scope].sig);
   if (!certB64 || !sigB64) {
     return fail('missing platform-auth headers', 'missing');
   }
@@ -209,6 +257,10 @@ export function verifyPlatformCall(opts: VerifyPlatformCallOptions): VerifyResul
   }
   if (cert?.v !== 1 || typeof cert.nonce !== 'string' || typeof cert.payloadHash !== 'string') {
     return fail('unsupported or malformed platform certificate', 'malformed');
+  }
+  // A quote certificate must never authorize a call (and the other way round).
+  if ((cert.scope ?? 'call') !== scope) {
+    return fail(`certificate scope '${cert.scope ?? 'call'}' is not valid for a ${scope}`, 'malformed');
   }
 
   // Issuer must match the configured key (also guards against verifying with the

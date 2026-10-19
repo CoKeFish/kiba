@@ -62,6 +62,17 @@ import { settleAgent, settleAllDue, MIN_PAYOUT, recordEarning } from './settleme
 import { listUserSettlements, getDailySeries } from './publisher';
 import { warmEscrows, fundForCall } from './escrows';
 import {
+  getSpendStatus,
+  legacyWallet,
+  migrateLegacyWallet,
+  prepareActivation,
+  prepareApprove,
+  prepareWithdraw,
+  reconcilePendingSpend,
+  settleAllSpend,
+  submitPrepared,
+} from './spend';
+import {
   addressOnChainBalance,
   getMasterWallet,
   getOnChainBalance,
@@ -1314,6 +1325,95 @@ app.get('/v1/transactions', requireAuth, async (req, res) => {
   );
 });
 
+// ─── Permiso de gasto: wallet propia del usuario (spend.ts) ──
+
+app.get('/v1/spend', requireAuth, async (req, res) => {
+  try {
+    const [status, legacy] = await Promise.all([
+      getSpendStatus(req.bearerUser!.id),
+      legacyWallet(req.bearerUser!.id).catch(() => null),
+    ]);
+    // privyAppId es público (lo usa el SDK de Privy en el navegador): así no se hornea en el build.
+    res.json({ ...status, legacy, privyAppId: process.env.PRIVY_APP_ID || null });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+/** Monto en USDC del body → unidades base; undefined si no viene. */
+function usdcBody(v: unknown): number | undefined {
+  if (v === undefined || v === null || v === '') return undefined;
+  const n = Math.round(Number(v) * BASE_UNITS_PER_TOKEN);
+  if (!Number.isFinite(n) || n < 0) throw new Error('monto inválido');
+  return n;
+}
+
+/** Paso 1: crea la cuenta (si no existe) y devuelve la trustline de USDC a firmar, o `ready`. */
+app.post('/v1/spend/activate', requireAuth, async (req, res) => {
+  const { address } = req.body ?? {};
+  if (typeof address !== 'string') return res.status(400).json({ error: 'address requerido' });
+  try {
+    const p = await prepareActivation(req.bearerUser!.id, address);
+    res.json(p ? { ready: false, tx: p } : { ready: true });
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+/** Paso 2: el permiso de gasto. Sin `amount` = sin tope; `amount: 0` = revocar. */
+app.post('/v1/spend/prepare', requireAuth, async (req, res) => {
+  const { address, amount, days, kind } = req.body ?? {};
+  if (typeof address !== 'string') return res.status(400).json({ error: 'address requerido' });
+  try {
+    res.json(
+      await prepareApprove(req.bearerUser!.id, {
+        address,
+        amount: usdcBody(amount),
+        days: Number(days) || 180,
+        kind: kind === 'privy' ? 'privy' : 'external',
+      }),
+    );
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+/** Retiro desde la wallet de pagos (cobra antes lo pendiente). Sin `amount` = todo. */
+app.post('/v1/spend/withdraw', requireAuth, async (req, res) => {
+  const { to, amount } = req.body ?? {};
+  if (typeof to !== 'string') return res.status(400).json({ error: 'to requerido' });
+  try {
+    res.json(await prepareWithdraw(req.bearerUser!.id, { to, amount: usdcBody(amount) }));
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+/** Envía una transacción preparada: `{ hash, signature }` (Privy) o `{ xdr }` firmado (wallet externa). */
+app.post('/v1/spend/submit', requireAuth, async (req, res) => {
+  const { hash, signature, xdr } = req.body ?? {};
+  try {
+    const r = await submitPrepared(req.bearerUser!.id, {
+      hash: typeof hash === 'string' ? hash : undefined,
+      signature: typeof signature === 'string' ? signature : undefined,
+      signedXdr: typeof xdr === 'string' ? xdr : undefined,
+    });
+    res.json({ ...r, explorerUrl: explorerTxUrl(r.hash) });
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+/** Pasa el USDC de la wallet anterior (controlada por Kiba) a la wallet de pagos del usuario. */
+app.post('/v1/spend/migrate', requireAuth, async (req, res) => {
+  try {
+    const r = await migrateLegacyWallet(req.bearerUser!.id);
+    res.json({ ...r, explorerUrl: explorerTxUrl(r.hash) });
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
 // ─── Resultados guardados de call_agent (results.ts) ──
 
 app.get('/v1/results', requireAuth, async (req, res) => {
@@ -1398,6 +1498,10 @@ try {
 void initDb()
   .then(failOrphanedResults)
   .then(() => {
+    // Cobros del permiso de gasto que quedaron en vuelo al reiniciar: se resuelven por su hash.
+    void reconcilePendingSpend().catch((err) => console.warn('[spend] reconcile:', (err as Error).message));
+  })
+  .then(() => {
     // Pre-calienta los escrows del ciclo (WARM_ESCROW_SERVICES) para que la primera
     // llamada de cada servicio pague solo el fund, no el deploy. Best-effort.
     warmEscrows();
@@ -1433,3 +1537,9 @@ if (SETTLEMENT_INTERVAL_MS > 0) {
   }, SETTLEMENT_INTERVAL_MS);
   console.log(`[settlement] job programado cada ${SETTLEMENT_INTERVAL_MS}ms`);
 }
+
+// Cobro periódico de las deudas del permiso de gasto (además del cobro al llegar a medio tope).
+const SPEND_SETTLE_INTERVAL_MS = Number(process.env.SPEND_SETTLE_INTERVAL_MS) || 5 * 60_000;
+setInterval(() => {
+  void settleAllSpend().catch((err) => console.error('[spend] job falló:', (err as Error).message));
+}, SPEND_SETTLE_INTERVAL_MS);

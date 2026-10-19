@@ -7,8 +7,8 @@ import { createHmac, randomBytes } from 'node:crypto';
 import { db, type UserRow } from './db';
 import { usdToLamports } from './billing';
 
-/** Bono de bienvenida en USD, convertido a unidades base de la cadena activa. */
-const SIGNUP_BONUS_USD = 5;
+/** Bono de bienvenida en USD, convertido a unidades base de la cadena activa. 0 = sin bono. */
+const SIGNUP_BONUS_USD = Number(process.env.SIGNUP_BONUS_USD ?? 5);
 
 const DEFAULT_JWT_SECRET = 'dev-secret-change-in-prod';
 // Seguridad independiente de NODE_ENV: NUNCA firmar con el default público ni con un
@@ -98,13 +98,15 @@ export async function createUser(
 
   const userId = result.lastInsertRowid as number;
 
-  // Registrar bono
-  await db
-    .prepare(
-      `INSERT INTO transactions (user_id, type, amount_lamports, service, created_at)
-     VALUES (?, 'topup', ?, 'signup-bonus', ?)`,
-    )
-    .run(userId, bonusLamports, Math.floor(Date.now() / 1000));
+  // Registrar bono (si lo hay)
+  if (bonusLamports > 0) {
+    await db
+      .prepare(
+        `INSERT INTO transactions (user_id, type, amount_lamports, service, created_at)
+       VALUES (?, 'topup', ?, 'signup-bonus', ?)`,
+      )
+      .run(userId, bonusLamports, Math.floor(Date.now() / 1000));
+  }
 
   return (await db.prepare('SELECT * FROM users WHERE id = ?').get(userId)) as UserRow;
 }

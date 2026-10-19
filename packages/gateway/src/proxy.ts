@@ -19,6 +19,7 @@ import { AgentClient, type X402Trace } from 'kiba-sdk';
 import { debit, getBalance, lamportsToUsd } from './billing';
 import { db, withTransaction } from './db';
 import {
+  getMasterWallet,
   getPlatformSigner,
   loadUserSigner,
   masterWalletPubkey,
@@ -28,6 +29,7 @@ import {
 import { BASE_UNITS_PER_TOKEN, explorerTxUrl } from './chain';
 import { recordEarning } from './settlement';
 import { fundForCall, perCallFundEnabled, type PerCallFundResult } from './escrows';
+import { hasSpendWallet, releaseSpend, reserveSpend } from './spend';
 
 /** Máximo que la respuesta espera al fund per-call; la tarea sigue en background si excede. */
 const FUND_WAIT_TIMEOUT_MS = Number(process.env.PER_CALL_FUND_TIMEOUT_MS) || 90_000;
@@ -107,6 +109,91 @@ async function recordWalletDirectCall(args: {
     );
 }
 
+async function recordSpendCall(args: {
+  userId: number;
+  lamports: number;
+  service: string;
+  floorPricePerCall: number;
+}): Promise<void> {
+  await db
+    .prepare(
+      `INSERT INTO transactions (user_id, type, amount_lamports, service, metadata, created_at)
+     VALUES (?, 'call', ?, ?, ?, ?)`,
+    )
+    .run(
+      args.userId,
+      -args.lamports,
+      args.service,
+      JSON.stringify({
+        mode: 'spend-permit',
+        settlement: 'deferred',
+        floorPricePerCall: args.floorPricePerCall,
+        dynamicAmountLamports: args.lamports,
+      }),
+      Math.floor(Date.now() / 1000),
+    );
+}
+
+/**
+ * Trace de una llamada por la vía de confianza (crédito o permiso de gasto): discover +
+ * 402_received + (escrow_opened si el fund per-call confirmó) + service_responded — step types
+ * que el dashboard ya conoce. El 402_received registra la pre-quote REAL (probe 402 de getQuote);
+ * sin él, el panel de flujo del dashboard dejaba "Cotización recibida" eternamente en espera.
+ * En escrow_opened va el hash REAL del fondeo.
+ */
+function platformTrace(a: {
+  manifest: { service: string; endpoint: string; pricePerCall: number };
+  quote: { amount: unknown; payTo: unknown; asset?: unknown; nonce: unknown; expiresAt?: unknown };
+  tQuote: number;
+  quoteDurationMs: number;
+  t0: number;
+  lamports: number;
+  fund?: { txHash: string; escrowId?: string; t1: number };
+}): X402Trace {
+  const elapsed = Math.max(1, Date.now() - a.t0);
+  return {
+    service: a.manifest.service,
+    endpoint: a.manifest.endpoint,
+    totalDurationMs: elapsed,
+    steps: [
+      {
+        type: 'discover',
+        service: a.manifest.service,
+        endpoint: a.manifest.endpoint,
+        pricePerCall: a.manifest.pricePerCall,
+        durationMs: 1,
+        timestamp: a.tQuote,
+      },
+      {
+        type: '402_received',
+        quote: {
+          amount: String(a.quote.amount),
+          payTo: String(a.quote.payTo),
+          asset: String(a.quote.asset ?? 'USDC'),
+          nonce: String(a.quote.nonce),
+          expiresAt: Number(a.quote.expiresAt ?? 0),
+        },
+        durationMs: a.quoteDurationMs,
+        timestamp: a.tQuote,
+      },
+      ...(a.fund
+        ? [
+            {
+              type: 'escrow_opened' as const,
+              signature: a.fund.txHash,
+              escrowId: a.fund.escrowId,
+              amount: String(a.lamports),
+              nonce: a.fund.escrowId ?? '',
+              durationMs: Math.max(1, Date.now() - a.fund.t1),
+              timestamp: a.fund.t1,
+            },
+          ]
+        : []),
+      { type: 'service_responded', status: 200, durationMs: elapsed, timestamp: Date.now() },
+    ],
+  };
+}
+
 export async function callOnBehalf(args: {
   userId: number;
   service: string;
@@ -114,7 +201,7 @@ export async function callOnBehalf(args: {
 }): Promise<{
   result: unknown;
   cost: { lamports: number; usd: number };
-  mode: 'virtual' | 'wallet-direct';
+  mode: 'virtual' | 'spend-permit' | 'wallet-direct';
   paidWith: 'credit' | 'wallet';
   newBalance: { lamports: number; usd: number };
   trace: X402Trace;
@@ -122,18 +209,21 @@ export async function callOnBehalf(args: {
    *  x402 en wallet-direct, o el fondeo per-call del escrow del ciclo en modo crédito. */
   explorerUrl?: string;
 }> {
-  const userSigner = await loadUserSigner(args.userId);
-
-  // Cliente para la QUOTE (lectura). El cliente que LIQUIDA (firma open_escrow) se
-  // elige según el bucket: treasury para crédito, custodial del user para wallet.
-  const client = new AgentClient({ signer: userSigner });
+  // Cliente para la QUOTE (lectura, no firma). El firmante del usuario se carga SOLO en modo
+  // wallet-direct: cargarlo provisiona una wallet de Privy controlada por Kiba si no tiene una,
+  // y con crédito o wallet de pagos no hace falta.
+  const client = new AgentClient({ wallet: getMasterWallet() });
 
   // 1. Pre-quote: precio REAL que el agente cobrará para ESTE payload
   //    (pricing dinámico via priceFn — translator cobra por chars, oracle por
   //    símbolos, etc.). La cascada decide con este monto, no con el floor.
   const tQuote = Date.now();
+  // La cotización va firmada con la clave de plataforma: todas las llamadas de todos los
+  // usuarios llegan al agente desde la IP del gateway, y sin firma el límite por IP del agente
+  // (60/min) se convierte en un límite de toda la plataforma.
   const { manifest, quote } = await client.getQuote(args.service, args.payload, {
     timeoutMs: 30_000,
+    signer: getPlatformSigner(),
   });
   const quoteDurationMs = Math.max(1, Date.now() - tQuote);
   const lamports = Number(quote.amount);
@@ -204,53 +294,15 @@ export async function callOnBehalf(args: {
       ]);
     }
 
-    // Trace: discover + 402_received + (escrow_opened si el fund confirmó) +
-    // service_responded — step types que el dashboard ya conoce. El 402_received
-    // registra la pre-quote REAL (probe 402 de getQuote); sin él, el panel de flujo
-    // del dashboard dejaba "Cotización recibida" eternamente en espera en modo
-    // crédito. En escrow_opened va el hash REAL del fondeo.
-    const elapsed = Math.max(1, Date.now() - t0);
-    const trace: X402Trace = {
-      service: manifest.service,
-      endpoint: manifest.endpoint,
-      totalDurationMs: elapsed,
-      steps: [
-        {
-          type: 'discover',
-          service: manifest.service,
-          endpoint: manifest.endpoint,
-          pricePerCall: manifest.pricePerCall,
-          durationMs: 1,
-          timestamp: tQuote,
-        },
-        {
-          type: '402_received',
-          quote: {
-            amount: String(quote.amount),
-            payTo: String(quote.payTo),
-            asset: String(quote.asset ?? 'USDC'),
-            nonce: String(quote.nonce),
-            expiresAt: Number(quote.expiresAt ?? 0),
-          },
-          durationMs: quoteDurationMs,
-          timestamp: tQuote,
-        },
-        ...(onchain.txHash
-          ? [
-              {
-                type: 'escrow_opened' as const,
-                signature: onchain.txHash,
-                escrowId: onchain.escrowId,
-                amount: String(lamports),
-                nonce: onchain.escrowId ?? '',
-                durationMs: Math.max(1, Date.now() - t1),
-                timestamp: t1,
-              },
-            ]
-          : []),
-        { type: 'service_responded', status: 200, durationMs: elapsed, timestamp: Date.now() },
-      ],
-    };
+    const trace = platformTrace({
+      manifest,
+      quote,
+      tQuote,
+      quoteDurationMs,
+      t0,
+      lamports,
+      fund: onchain.txHash ? { txHash: onchain.txHash, escrowId: onchain.escrowId, t1 } : undefined,
+    });
 
     return {
       result,
@@ -260,6 +312,47 @@ export async function callOnBehalf(args: {
       newBalance: { lamports: debited.newBalance, usd: lamportsToUsd(debited.newBalance) },
       trace,
       explorerUrl: onchain.txHash ? explorerTxUrl(onchain.txHash) : undefined,
+    };
+  }
+
+  // ── MODO PERMISO DE GASTO (wallet propia del usuario, spend.ts) ──────────
+  // Sin crédito → si el usuario vinculó su wallet con un permiso de gasto, la llamada se anota
+  // como deuda al instante (acotada por saldo, permiso y tope de deuda) y se cobra por lotes con
+  // transfer_from. El agente se llama por la vía de confianza, igual que en modo crédito.
+  if (await hasSpendWallet(args.userId)) {
+    const reserved = await reserveSpend(args.userId, lamports);
+    if (!reserved.ok) throw new Error(`permiso de gasto: ${reserved.reason}`);
+
+    const t0 = Date.now();
+    let result: unknown;
+    try {
+      result = await client.callSigned(manifest.endpoint, args.payload, {
+        signer: getPlatformSigner(),
+        service: args.service,
+        timeoutMs: 120_000,
+      });
+    } catch (err) {
+      await releaseSpend(args.userId, lamports);
+      throw err;
+    }
+    await recordEarning({ service: args.service, payTo: quote.payTo, lamports });
+    await recordSpendCall({
+      userId: args.userId,
+      lamports,
+      service: args.service,
+      floorPricePerCall: manifest.pricePerCall,
+    });
+
+    // Saldo restante según la lectura de la reserva: releer la cadena aquí añadía hasta ~13 s
+    // a la llamada cuando el RPC tenía un pico.
+    const left = reserved.left;
+    return {
+      result,
+      cost: { lamports, usd: lamportsToUsd(lamports) },
+      mode: 'spend-permit',
+      paidWith: 'wallet',
+      newBalance: { lamports: left, usd: lamportsToUsd(left) },
+      trace: platformTrace({ manifest, quote, tQuote, quoteDurationMs, t0, lamports }),
     };
   }
 
@@ -274,7 +367,9 @@ export async function callOnBehalf(args: {
     );
   }
 
-  const traced = await client.callWithTrace(args.service, args.payload, {
+  // Este modo SÍ firma con la wallet del usuario (escrow x402 per-call).
+  const walletClient = new AgentClient({ signer: await loadUserSigner(args.userId) });
+  const traced = await walletClient.callWithTrace(args.service, args.payload, {
     // maxPrice circuit breaker — 2x del cotizado por seguridad (en unidades del token)
     maxPrice: (lamports / BASE_UNITS_PER_TOKEN) * 2,
     timeoutMs: 120_000,

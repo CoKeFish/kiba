@@ -50,6 +50,37 @@ export const api = {
       body: JSON.stringify({ amount_usd }),
     }),
 
+  // Permiso de gasto: pagar desde la wallet propia del usuario
+  spend: () => request<SpendStatus>("/v1/spend"),
+  /** Crea la cuenta si hace falta y devuelve la trustline a firmar (o `ready`). */
+  spendActivate: (address: string) =>
+    request<{ ready: boolean; tx?: PreparedTx }>("/v1/spend/activate", {
+      method: "POST",
+      body: JSON.stringify({ address }),
+    }),
+  /** Permiso de gasto. Sin `amount` = sin tope; `amount: 0` = revocar. */
+  spendPrepare: (args: { address: string; amount?: number; days?: number; kind: "privy" | "external" }) =>
+    request<PreparedTx & { expirationLedger: number }>("/v1/spend/prepare", {
+      method: "POST",
+      body: JSON.stringify(args),
+    }),
+  /** Retiro desde la wallet de pagos. Sin `amount` = todo. */
+  spendWithdraw: (to: string, amount?: number) =>
+    request<PreparedTx & { amountBaseUnits: number }>("/v1/spend/withdraw", {
+      method: "POST",
+      body: JSON.stringify({ to, amount }),
+    }),
+  /** `{ hash, signature }` (Privy) o `{ xdr }` firmado (wallet externa). */
+  spendSubmit: (body: { hash: string; signature: string } | { xdr: string }) =>
+    request<{ kind: string; hash: string; explorerUrl: string }>("/v1/spend/submit", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  spendMigrate: () =>
+    request<{ hash: string; amountBaseUnits: number; explorerUrl: string }>("/v1/spend/migrate", {
+      method: "POST",
+    }),
+
   // Transactions
   transactions: (limit = 50) => request<Transaction[]>(`/v1/transactions?limit=${limit}`),
 
@@ -254,6 +285,41 @@ export type Transaction = {
   tx_signature?: string;
   status: "success" | "failed" | "pending";
   created_at: number;
+};
+
+/** Transacción armada por el gateway para que el usuario la firme. */
+export type PreparedTx = {
+  kind: "trustline" | "approve" | "withdraw";
+  /** Hash (hex) a firmar con Privy `signRawHash`. */
+  hash: string;
+  /** XDR sin firmar, para wallets externas (Stellar Wallets Kit). */
+  xdr: string;
+  networkPassphrase: string;
+};
+
+export type SpendStatus = {
+  /** Wallet de pagos vinculada (G...), o null si aún no firmó un permiso. */
+  address: string | null;
+  kind: "privy" | "external" | null;
+  /** Permiso sin tope: el límite es el saldo. */
+  unlimited: boolean;
+  /** Wallet anterior (controlada por Kiba) con su saldo, para migrarla. */
+  legacy: { address: string; balanceBaseUnits: number } | null;
+  /** App ID público de Privy (null si el gateway no tiene Privy configurado). */
+  privyAppId: string | null;
+  /** Cuenta de Kiba que recibe el permiso (spender). */
+  spender: string;
+  balanceBaseUnits: number;
+  allowanceBaseUnits: number;
+  /** Consumo anotado aún no cobrado on-chain (negativo = a favor del usuario). */
+  debtBaseUnits: number;
+  debtCapBaseUnits: number;
+  blocked: boolean;
+  expiresLedger: number | null;
+  latestLedger: number;
+  /** Fecha estimada de vencimiento del permiso (unix s). */
+  expiresAt: number | null;
+  charges: { amount: number; status: "pending" | "settled" | "failed"; txHash: string | null; createdAt: number }[];
 };
 
 export type CallResult = {
