@@ -525,6 +525,18 @@ export async function reserveSpend(userId: number, amount: number): Promise<Rese
   return { ok: true, left: Number(available) - row.spend_debt };
 }
 
+/**
+ * Lo que el usuario puede gastar ya con su wallet de pagos: min(saldo, permiso) menos lo usado
+ * que aún no se cobró. Es el número que se le muestra (nunca ve el consumo pendiente aparte).
+ * Usa el último saldo conocido, sin esperar al RPC. null si no tiene wallet de pagos.
+ */
+export async function spendAvailable(userId: number): Promise<number | null> {
+  const u = await loadUser(userId);
+  if (!u?.spend_address) return null;
+  const r = await readForReserve(u.spend_address);
+  return Math.max(0, Number(min(r.balance, r.allowance)) - Math.max(u.spend_debt, 0));
+}
+
 /** Devuelve una reserva (la llamada al servicio falló). La deuda puede quedar negativa = a favor. */
 export async function releaseSpend(userId: number, amount: number): Promise<void> {
   await db.prepare('UPDATE users SET spend_debt = spend_debt - ? WHERE id = ?').run(amount, userId);

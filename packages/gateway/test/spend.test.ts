@@ -626,3 +626,15 @@ test('una recarga reciente no falla por el saldo guardado viejo', async () => {
   assert.ok(r.ok, JSON.stringify(r));
   assert.equal(await debtOf(u), USDC(0.31));
 });
+
+test('el saldo que ve el usuario es uno solo: regalo + wallet de pagos, ya descontado lo usado', async () => {
+  const { getUserBalances } = await import('../src/wallets');
+  const addr = Keypair.random().publicKey();
+  const u = await createTestUser('a@x.com', addr);
+  chain.balance.set(addr, BigInt(USDC(2)));
+  chain.allowance.set(addr, BigInt(USDC(100)));
+  await db.prepare('UPDATE users SET balance_lamports = ? WHERE id = ?').run(USDC(1), u);
+  assert.equal((await reserveSpend(u, USDC(0.25))).ok, true); // usado, aún sin cobrar
+  const b = await getUserBalances(u);
+  assert.equal(b.totalBaseUnits, USDC(1) + USDC(2) - USDC(0.25));
+});

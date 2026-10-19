@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import {
   formatUsd,
+  formatBalance,
   lamportsToUsd,
   baseUnitsToUsd,
   formatKibix,
@@ -103,17 +104,9 @@ export default function Billing() {
             <div className="billing-balance__row">
               <div>
                 <p className="billing-balance__label">{t("billing.available_balance")}</p>
-                <p className="billing-balance__value">
-                  {balance ? formatKibixLabel(usdToKibix(balance.balance_usd)) : "—"}
-                </p>
-                <p className="billing-balance__hint">
-                  {balance
-                    ? t("billing.balance_hint", {
-                        usd: formatUsd(balance.balance_usd),
-                        kibix_label: KIBIX_LABEL,
-                      })
-                    : t("billing.balance_hint_short", { kibix_label: KIBIX_LABEL })}
-                </p>
+                {/* Un solo saldo: lo regalado + la wallet de pagos, ya descontado lo usado. */}
+                <p className="billing-balance__value">{balance ? formatBalance(balance.total_usd) : "—"}</p>
+                <p className="billing-balance__hint">{t("billing.balance_hint_total")}</p>
               </div>
               <div className="billing-balance__icon">
                 <Wallet size={22} strokeWidth={2} />

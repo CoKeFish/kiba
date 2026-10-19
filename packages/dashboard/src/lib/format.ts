@@ -49,6 +49,13 @@ export function formatUsd(usd: number, fractionDigits: 2 | 4 | "auto" = "auto") 
   return fmt.format(usd);
 }
 
+/** Saldo del usuario: trunca en vez de redondear (nunca muestra más de lo que tiene). */
+export function formatBalance(usd: number) {
+  const digits: 2 | 4 = Math.abs(usd) >= 0.1 ? 2 : 4;
+  const f = 10 ** digits;
+  return formatUsd(Math.floor(usd * f) / f, digits);
+}
+
 export function formatAssetAmount(amount: number) {
   return `${amount.toFixed(6)} ${chain.asset}`;
 }

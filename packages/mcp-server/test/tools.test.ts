@@ -124,7 +124,7 @@ test('list_agents llama GET /v1/agents y devuelve content tipo text con JSON', a
 
 test('get_balance llama GET /v1/balance', async () => {
   getQueue.push(async () => ({
-    data: { balance_lamports: 33_333_333, balance_usd: 5.0 },
+    data: { balance_lamports: 33_333_333, balance_usd: 5.0, wallet_usd: 1.25, total_usd: 6.25 },
   }));
   const result = (await callHandler('tools/call', {
     name: 'get_balance',
@@ -133,8 +133,8 @@ test('get_balance llama GET /v1/balance', async () => {
 
   assert.equal(calls.length, 1);
   assert.match(calls[0].url, /\/v1\/balance$/);
-  const parsed = JSON.parse(result.content[0].text) as { balance_usd: number };
-  assert.equal(parsed.balance_usd, 5.0);
+  const parsed = JSON.parse(result.content[0].text) as { balanceUsd: number };
+  assert.deepEqual(parsed, { balanceUsd: 6.25 }, 'un solo saldo: el total');
 });
 
 // ─── tools/call: get_transactions → GET /v1/transactions ───────

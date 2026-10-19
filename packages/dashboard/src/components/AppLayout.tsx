@@ -23,7 +23,7 @@ import { useMode, type DashboardMode } from "@/lib/mode";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api } from "@/lib/api";
-import { formatUsd, formatKibix, usdToKibix, KIBIX_LABEL } from "@/lib/format";
+import { formatBalance } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { DemoFab } from "@/components/DemoFab";
@@ -258,14 +258,10 @@ export function AppLayout() {
               }}
             >
               {t("topbar.balance")}{" "}
+              {/* Un solo saldo: lo regalado + la wallet de pagos, ya descontado lo usado. */}
               <span style={{ color: "var(--color-fg)", fontWeight: 600 }}>
-                {balance ? `${formatKibix(usdToKibix(balance.balance_usd))} ${KIBIX_LABEL}` : "—"}
+                {balance ? formatBalance(balance.total_usd) : "—"}
               </span>
-              {balance && (
-                <span style={{ color: "var(--color-fg-subtle)", marginLeft: 6 }}>
-                  (= {formatUsd(balance.balance_usd)})
-                </span>
-              )}
             </div>
             <Button size="sm" onClick={() => navigate("/app/billing")}>
               {t("topbar.top_up")}

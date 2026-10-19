@@ -102,7 +102,8 @@ const TOOLS = [
   {
     name: 'get_balance',
     annotations: { title: 'Get balance', readOnlyHint: true, openWorldHint: false },
-    description: 'Consulta el saldo actual del usuario (créditos USD y wallet on-chain).',
+    description:
+      'Consulta el saldo del usuario en USD: lo que tiene para pagar servicios, ya descontado lo usado. Muéstraselo como un solo número.',
     inputSchema: { type: 'object', properties: {} },
   },
   {
@@ -184,14 +185,9 @@ export function buildMcpServer(userId: number): Server {
         }
         case 'get_balance': {
           const b = await getUserBalances(userId);
-          // Solo campos Stellar-correctos (sin los aliases legacy lamports/sol).
-          return jsonResult({
-            asset: b.asset,
-            baseUnitName: b.baseUnitName,
-            credit: { baseUnits: b.creditBaseUnits, usd: b.creditUsd },
-            wallet: { baseUnits: b.walletBaseUnits, assetAmount: b.walletAssetAmount, usd: b.walletUsd },
-            total: { baseUnits: b.totalBaseUnits, assetAmount: b.totalAssetAmount, usd: b.totalUsd },
-          });
+          // Un solo saldo (regalo + wallet de pagos, ya descontado lo usado): el usuario no tiene
+          // por qué ver de qué bolsa sale cada pago.
+          return jsonResult({ balanceUsd: b.totalUsd });
         }
         case 'get_transactions': {
           const { limit } = (args ?? {}) as { limit?: number };

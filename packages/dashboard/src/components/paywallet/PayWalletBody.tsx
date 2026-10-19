@@ -65,7 +65,8 @@ export function PayWalletBody({
   const linked = Boolean(st.address);
   const active = linked && st.allowanceBaseUnits > 0;
   const signer = st.kind === "privy" ? privy : external;
-  const available = Math.max(0, Math.min(st.balanceBaseUnits, st.allowanceBaseUnits) - Math.max(st.debtBaseUnits, 0));
+  // Al retirar primero se cobra lo usado: lo retirable es el saldo menos eso.
+  const withdrawable = Math.max(0, st.balanceBaseUnits - Math.max(st.debtBaseUnits, 0));
   const expiringSoon = active && st.expiresAt !== null && st.expiresAt - Date.now() / 1000 < RENEW_WARNING_S;
 
   const run = async (fn: () => Promise<{ text: string; hash?: string } | void>) => {
@@ -209,15 +210,13 @@ export function PayWalletBody({
               )}
             </div>
 
-            <dl className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
-              <Stat label={t("paywallet.balance")} value={`${usdc(st.balanceBaseUnits)} USDC`} strong />
-              <Stat label={t("paywallet.available")} value={active ? `${usdc(available)} USDC` : "—"} />
-              <Stat label={t("paywallet.pending")} value={`${usdc(Math.max(st.debtBaseUnits, 0))} USDC`} />
-              <Stat
-                label={t("paywallet.expires")}
-                value={active && st.expiresAt ? format(new Date(st.expiresAt * 1000), "MMM d yyyy") : "—"}
-              />
-            </dl>
+            {/* El saldo se muestra una sola vez (arriba, junto con el de regalo) y ya descontado lo
+                usado: aquí no se repite ni se separa lo pendiente de cobro. */}
+            {active && st.expiresAt && (
+              <p className="text-xs text-[var(--color-fg-muted)]">
+                {t("paywallet.expires")}: {format(new Date(st.expiresAt * 1000), "MMM d yyyy")}
+              </p>
+            )}
             {active && !st.unlimited && (
               <p className="text-xs text-[var(--color-fg-muted)]">
                 {t("paywallet.capped", { amount: usdc(st.allowanceBaseUnits) })}
@@ -247,7 +246,7 @@ export function PayWalletBody({
                 size="sm"
                 variant={panel === "withdraw" ? "default" : "subtle"}
                 onClick={() => setPanel(panel === "withdraw" ? null : "withdraw")}
-                disabled={busy || st.balanceBaseUnits <= 0}
+                disabled={busy || withdrawable <= 0}
               >
                 <ArrowUpFromLine size={14} />
                 {t("paywallet.withdraw")}
@@ -294,7 +293,7 @@ export function PayWalletBody({
 
             {panel === "withdraw" && (
               <div className="rounded-md border border-[var(--color-border)] p-4 space-y-3">
-                <p className="text-sm">{t("paywallet.withdraw_hint")}</p>
+                <p className="text-sm">{t("paywallet.withdraw_hint", { amount: usdc(withdrawable) })}</p>
                 <input
                   value={to}
                   onChange={(e) => setTo(e.target.value)}
@@ -322,32 +321,6 @@ export function PayWalletBody({
               </div>
             )}
 
-            {st.charges.length > 0 && (
-              <div>
-                <p className="text-xs font-medium mb-1.5">{t("paywallet.charges")}</p>
-                <ul className="space-y-1 text-xs">
-                  {st.charges.slice(0, 5).map((c, i) => (
-                    <li key={i} className="flex items-center gap-2 flex-wrap">
-                      <span className="text-[var(--color-fg-muted)] w-28">{format(new Date(c.createdAt * 1000), "MMM d, HH:mm")}</span>
-                      <span className="font-mono w-24">{usdc(c.amount)} USDC</span>
-                      <Badge tone={c.status === "settled" ? "success" : c.status === "failed" ? "danger" : "neutral"}>
-                        {t(`paywallet.charge_status.${c.status}`)}
-                      </Badge>
-                      {c.txHash && c.status === "settled" && (
-                        <a
-                          href={chain.explorerTx(c.txHash)}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-[var(--color-primary)] hover:underline inline-flex items-center gap-1"
-                        >
-                          {t("paywallet.view_tx")} <ExternalLink size={11} />
-                        </a>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
           </div>
         )}
 
@@ -371,15 +344,6 @@ export function PayWalletBody({
         {err && <Alert tone="danger">{err}</Alert>}
       </CardBody>
     </Card>
-  );
-}
-
-function Stat({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
-  return (
-    <div>
-      <dt className="text-xs text-[var(--color-fg-muted)]">{label}</dt>
-      <dd className={strong ? "font-semibold" : ""}>{value}</dd>
-    </div>
   );
 }
 

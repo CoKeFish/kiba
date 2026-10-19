@@ -235,7 +235,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: 'get_balance',
-        description: 'Consulta el saldo actual del usuario (en USD y lamports).',
+        description:
+          'Consulta el saldo del usuario en USD: lo que tiene para pagar servicios, ya descontado lo usado. Muéstraselo como un solo número.',
         inputSchema: { type: 'object', properties: {} },
       },
       {
@@ -280,8 +281,10 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
         return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
       }
       case 'get_balance': {
-        const data = await gatewayGet('/v1/balance');
-        return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
+        // Un solo saldo (regalo + wallet de pagos, ya descontado lo usado).
+        const data = (await gatewayGet('/v1/balance')) as { total_usd?: number; balance_usd?: number };
+        const balanceUsd = data.total_usd ?? data.balance_usd ?? 0;
+        return { content: [{ type: 'text', text: JSON.stringify({ balanceUsd }, null, 2) }] };
       }
       case 'get_transactions': {
         const data = await gatewayGet('/v1/transactions');
