@@ -85,6 +85,11 @@ export interface OpenEscrowArgs {
   payToAddress: string;
   nonce: bigint;
   amountBaseUnits: bigint;
+  /**
+   * Contrato de pagos de Kiba que anuncia el servicio en su quote. Si coincide con el del
+   * cliente, el escrow se abre ahí (una tx); si no, en Trustless Work (servicios con SDK viejo).
+   */
+  paymentsContract?: string;
 }
 
 /** Resultado de abrir (deploy+fund) un escrow. */
@@ -130,6 +135,21 @@ export interface ChainClient {
   readonly baseUnitsPerToken: number;
   /** Dirección de la wallet asociada a este cliente, formato nativo. */
   readonly ownerAddress: string;
+  /** Contrato de pagos de Kiba configurado (C...), si lo hay. */
+  readonly paymentsContractId?: string;
+
+  /**
+   * Pago directo con el split de la plataforma vía el contrato de pagos de Kiba (UNA tx).
+   * Envío único: nunca reintenta una tx que pudo haber entrado. `onSent` recibe el hash antes
+   * de enviar. Lanza `PaymentPendingError` (con `txHash`) si no se pudo saber si entró.
+   */
+  payService?(
+    args: { receiver: string; amountBaseUnits: bigint; reference?: bigint },
+    onSent?: (hash: string) => Promise<void> | void,
+  ): Promise<string>;
+
+  /** Estado definitivo de una tx por su hash (reconciliar pagos sin confirmación). */
+  transactionStatus?(hash: string): Promise<'success' | 'failed' | 'not_found'>;
 
   /**
    * Asegura que la wallet tenga fondos para operar (gas/fees).

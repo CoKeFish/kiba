@@ -60,7 +60,8 @@ import {
 import { listAgents, masterWalletPubkey, platformPublicKey } from './proxy';
 import { settleAgent, settleAllDue, MIN_PAYOUT, recordEarning } from './settlement';
 import { listUserSettlements, getDailySeries } from './publisher';
-import { warmEscrows, fundForCall } from './escrows';
+import { warmEscrows, enqueueChainTask } from './escrows';
+import { kibaPayEnabled, payOrFundForCall, reconcileKibaPays } from './kiba-pay';
 import {
   getSpendStatus,
   legacyWallet,
@@ -1126,7 +1127,7 @@ app.post('/v1/publisher/demo/fund', requireAuth, async (req, res) => {
     // Monto FIJO server-side (1 USDC gross); se ignora cualquier monto del cliente.
     const lamports = BASE_UNITS_PER_TOKEN;
     const earningId = await recordEarning({ service, payTo: agent.owner, lamports });
-    const onchain = await fundForCall({ service, payTo: agent.owner, lamports, earningId });
+    const onchain = await payOrFundForCall({ service, payTo: agent.owner, lamports, earningId });
 
     res.json({
       ok: true,
@@ -1502,9 +1503,16 @@ void initDb()
     void reconcilePendingSpend().catch((err) => console.warn('[spend] reconcile:', (err as Error).message));
   })
   .then(() => {
-    // Pre-calienta los escrows del ciclo (WARM_ESCROW_SERVICES) para que la primera
-    // llamada de cada servicio pague solo el fund, no el deploy. Best-effort.
-    warmEscrows();
+    // Pagos del contrato de Kiba que quedaron sin confirmación al reiniciar: se resuelven por hash.
+    // Con TW (sin contrato de Kiba): pre-calienta los escrows del ciclo (WARM_ESCROW_SERVICES)
+    // para que la primera llamada de cada servicio pague solo el fund, no el deploy.
+    if (kibaPayEnabled()) {
+      void enqueueChainTask(reconcileKibaPays).catch((err) =>
+        console.warn('[kiba-pay] reconcile:', (err as Error).message),
+      );
+    } else {
+      warmEscrows();
+    }
     app.listen(PORT, '0.0.0.0', () => {
       console.log('╔══════════════════════════════════════════╗');
       console.log('║  Kiba — Gateway                          ║');

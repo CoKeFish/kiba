@@ -114,10 +114,13 @@ export class AgentClient {
   async getQuote(
     service: string,
     payload: unknown,
-    /** `signer`: the platform signs the probe so the agent exempts it from its per-IP quote limit. */
-    options: { timeoutMs?: number; signer?: PlatformCallSigner } = {},
+    /**
+     * `signer`: the platform signs the probe so the agent exempts it from its per-IP quote limit.
+     * `manifest`: an already-discovered manifest (e.g. cached) — skips the registry lookup.
+     */
+    options: { timeoutMs?: number; signer?: PlatformCallSigner; manifest?: ServiceManifest } = {},
   ): Promise<{ manifest: ServiceManifest; quote: X402Quote }> {
-    const manifest = await this.discover(service);
+    const manifest = options.manifest ?? (await this.discover(service));
     let quote: X402Quote;
     const signed = options.signer
       ? await buildPlatformQuoteHeaders({ signer: options.signer, service, payload })
@@ -272,7 +275,8 @@ export class AgentClient {
       }
     }
 
-    // 2) Open (deploy+fund) the escrow in Trustless Work
+    // 2) Open the escrow: Kiba payments contract if the service announces it (one tx),
+    //    otherwise Trustless Work (deploy+fund).
     const tEscrow = performance.now();
     let escrowSig = 'NO_ONCHAIN_PROGRAM_ID';
     let escrowId = '';
@@ -283,13 +287,14 @@ export class AgentClient {
           payToAddress: quote.payTo,
           nonce: BigInt(quote.nonce),
           amountBaseUnits: BigInt(quote.amount),
+          paymentsContract: quote.paymentsContract,
         });
         escrowSig = opened.signature;
         escrowId = opened.escrowId;
       } catch (err) {
         throw new EscrowError(
           `opening escrow for '${service}' (nonce ${quote.nonce}) failed or did not confirm. ` +
-            `If the escrow was funded, recover it via the Trustless Work dispute flow. ` +
+            `If the escrow was funded, recover it with client.refundEscrow() once it expires. ` +
             `Cause: ${(err as Error).message}`,
           { recoverable: true, service, nonce: String(quote.nonce) },
         );

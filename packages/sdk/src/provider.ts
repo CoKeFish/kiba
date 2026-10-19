@@ -389,6 +389,8 @@ export class AgentProvider {
         service: this.config.service,
         nonce,
         expiresAt: Math.floor(Date.now() / 1000) + 60,
+        // El cliente abre el escrow en este contrato (una tx) en vez de Trustless Work.
+        ...(this.chain?.paymentsContractId ? { paymentsContract: this.chain.paymentsContractId } : {}),
       },
     };
   }

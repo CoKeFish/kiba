@@ -88,6 +88,9 @@ export {
   walletToSigner,
   StellarChainClient,
   LocalKeypairSigner,
+  KibaPaymentsClient,
+  PaymentPendingError,
+  isKibaEscrowId,
 } from './chain';
 export type {
   WalletLike,

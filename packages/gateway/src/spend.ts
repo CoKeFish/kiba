@@ -304,6 +304,7 @@ export function setSpendChain(c: SpendChain | null): void {
   chain = c;
   retryAfter.clear();
   lastRead.clear();
+  refreshing.clear();
 }
 
 // ─── Verificación del approve firmado ───────────────────────────────────────
@@ -398,15 +399,16 @@ async function withdrawalPending(userId: number): Promise<boolean> {
 export type ReserveResult = { ok: true; left: number } | { ok: false; reason: string };
 
 /**
- * Lectura de saldo + permiso para anotar una llamada. El RPC de Soroban responde en ~0.1 s pero
- * ~5% de las lecturas tarda >2 s (medido: hasta 12 s): si tarda más de READ_WAIT_MS se usa el
- * último valor conocido (≤ READ_MAX_AGE_MS). Es seguro: aunque el saldo real fuera menor, la
- * deuda nunca supera SPEND_DEBT_CAP, que es el riesgo que ya se acepta.
+ * Lectura de saldo + permiso para anotar una llamada. Para que el servicio empiece cuanto antes,
+ * se anota con el ÚLTIMO valor conocido (≤ READ_MAX_AGE_MS) y la cadena se relee en segundo
+ * plano: el RPC tarda ~70 ms por lectura y ~5% pasa de 2 s (medido: hasta 12 s). Es seguro: aunque
+ * el saldo real fuera menor, la deuda nunca supera SPEND_DEBT_CAP, que es el riesgo que ya se
+ * acepta. Si el valor guardado no alcanza, se relee la cadena antes de rechazar (una recarga
+ * reciente no falla por un dato viejo).
  *
  * El último valor vive en memoria y en `spend_reads`, para que tras un reinicio o un rato sin
- * uso la primera llamada tampoco dependa de un pico del RPC.
+ * uso la primera llamada tampoco dependa del RPC.
  */
-const READ_WAIT_MS = 2_500;
 const READ_MAX_AGE_MS = 24 * 3_600_000;
 type CachedRead = { balance: bigint; allowance: bigint; at: number };
 const lastRead = new Map<string, CachedRead>();
@@ -441,18 +443,31 @@ async function forgetRead(owner: string): Promise<void> {
   await db.prepare('DELETE FROM spend_reads WHERE address = ?').run(owner);
 }
 
-async function readForReserve(owner: string): Promise<{ balance: bigint; allowance: bigint }> {
-  const fresh = getChain()
-    .read(owner)
-    .then((r) => {
-      rememberRead(owner, r);
-      return r;
-    });
-  const cached = await cachedRead(owner);
-  if (!cached || Date.now() - cached.at > READ_MAX_AGE_MS) return fresh;
-  fresh.catch(() => {});
-  const timeout = new Promise<null>((r) => setTimeout(() => r(null), READ_WAIT_MS).unref());
-  return (await Promise.race([fresh, timeout])) ?? cached;
+/** Una lectura de la cadena en vuelo por wallet (las llamadas en ráfaga la comparten). */
+const refreshing = new Map<string, Promise<{ balance: bigint; allowance: bigint }>>();
+function refreshRead(owner: string): Promise<{ balance: bigint; allowance: bigint }> {
+  let p = refreshing.get(owner);
+  if (!p) {
+    p = getChain()
+      .read(owner)
+      .then((r) => {
+        rememberRead(owner, r);
+        return r;
+      })
+      .finally(() => refreshing.delete(owner));
+    refreshing.set(owner, p);
+  }
+  return p;
+}
+
+async function readForReserve(
+  owner: string,
+  opts: { fresh?: boolean } = {},
+): Promise<{ balance: bigint; allowance: bigint; cached: boolean }> {
+  const cached = opts.fresh ? undefined : await cachedRead(owner);
+  if (!cached || Date.now() - cached.at > READ_MAX_AGE_MS) return { ...(await refreshRead(owner)), cached: false };
+  refreshRead(owner).catch(() => {});
+  return { balance: cached.balance, allowance: cached.allowance, cached: true };
 }
 
 /** Tras un cobro, el último saldo conocido baja en lo cobrado (sin esperar a releer). */
@@ -486,15 +501,21 @@ export async function reserveSpend(userId: number, amount: number): Promise<Rese
     u = (await loadUser(userId))!;
     if (u.spend_debt + amount > SPEND_DEBT_CAP) return { ok: false, reason: 'deuda en el tope, cobro en curso' };
   }
-  const { balance, allowance } = await readForReserve(address);
-  const available = min(balance, allowance);
-  const row = await db
-    .prepare(
-      `UPDATE users SET spend_debt = spend_debt + ?
-       WHERE id = ? AND spend_blocked = 0 AND spend_debt + ? <= ? AND spend_debt + ? <= ?
-       RETURNING spend_debt`,
-    )
-    .get(amount, userId, amount, SPEND_DEBT_CAP, amount, Number(available)) as { spend_debt: number } | undefined;
+  const tryReserve = async (fresh: boolean) => {
+    const r = await readForReserve(address, { fresh });
+    const available = min(r.balance, r.allowance);
+    const row = (await db
+      .prepare(
+        `UPDATE users SET spend_debt = spend_debt + ?
+         WHERE id = ? AND spend_blocked = 0 AND spend_debt + ? <= ? AND spend_debt + ? <= ?
+         RETURNING spend_debt`,
+      )
+      .get(amount, userId, amount, SPEND_DEBT_CAP, amount, Number(available))) as { spend_debt: number } | undefined;
+    return { row, available, cached: r.cached };
+  };
+  let { row, available, cached } = await tryReserve(false);
+  // El saldo guardado no alcanzaba: puede ser una recarga reciente → releer la cadena una vez.
+  if (!row && cached && Number(available) < u.spend_debt + amount) ({ row, available } = await tryReserve(true));
   if (!row) {
     return Number(available) < u.spend_debt + amount
       ? { ok: false, reason: 'saldo insuficiente en tu wallet de pagos' }

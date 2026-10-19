@@ -35,6 +35,11 @@ export interface NetworkPreset {
    * explicitly. Absent → direct sweeps require TRUSTLESS_WORK_FEE_ADDRESS.
    */
   trustlessWorkFeeAddress?: string;
+  /**
+   * Kiba payments contract (C...): direct pay with the platform split and per-call x402
+   * escrow, in one transaction each. Replaces Trustless Work where both sides support it.
+   */
+  paymentsContractId?: string;
   /** Circle USDC issuer (G...) for this network. */
   usdcIssuer: string;
   usdcSymbol: 'USDC';
@@ -55,6 +60,8 @@ export const NETWORK_PRESETS: Record<Network, NetworkPreset> = {
     // Fee wallet de TW en testnet — extraída de los args de release_funds de releases
     // reales construidos por su API dev (verificado 2026-07-06, constante en todos).
     trustlessWorkFeeAddress: 'GA6KH5VWPCHBOEF63X57SPX6T4H366YFFKKGCVDBTXT2N7JVL6PJCK7G',
+    // packages/contracts-payments desplegado 2026-10-19 (USDC testnet, 5 %, treasury de Kiba).
+    paymentsContractId: 'CBARSI2VGH7SDUA2WD3CUEGWFY6GYGC2WRW5JYGYMR4BR2Q3WZHKDWL7',
     // Circle USDC on Stellar testnet.
     usdcIssuer: 'GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5',
     usdcSymbol: 'USDC',
@@ -111,6 +118,8 @@ export interface ChainOptions {
   assetIssuer?: string;
   /** Trustless Work escrow configuration. */
   trustlessWork?: TrustlessWorkOptions;
+  /** Kiba payments contract (C...). Defaults to the network preset; `null` disables it. */
+  paymentsContractId?: string | null;
 }
 
 export interface ResolvedTrustlessWork {
@@ -134,6 +143,7 @@ export interface ResolvedChainConfig {
   assetIssuer?: string;
   baseUnitsPerToken: number;
   tw?: ResolvedTrustlessWork;
+  paymentsContractId?: string;
 }
 
 type Env = Record<string, string | undefined>;
@@ -208,6 +218,10 @@ export function resolveChainConfig(opts: ChainOptions = {}, env: Env = process.e
     assetIssuer,
     baseUnitsPerToken: BASE_UNITS_PER_TOKEN,
     tw,
+    paymentsContractId:
+      opts.paymentsContractId === null
+        ? undefined
+        : pick(opts.paymentsContractId ?? undefined, env.KIBA_PAYMENTS_CONTRACT_ID, preset.paymentsContractId),
   };
 }
 

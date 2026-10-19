@@ -258,10 +258,14 @@ test('si el usuario vacía la wallet el cobro falla, bloquea la cuenta y la pér
   chain.allowance.set(addr, BigInt(USDC(10)));
 
   assert.equal((await reserveSpend(u, USDC(0.3))).ok, true);
-  chain.balance.set(addr, BigInt(USDC(0.1))); // vacía la wallet antes del cobro
-  assert.equal((await reserveSpend(u, USDC(0.3))).ok, false, 'la lectura on-chain ya lo frena');
+  chain.balance.set(addr, BigInt(USDC(0.1))); // vacía la wallet antes del cobro (por fuera de Kiba)
+  // La siguiente se anota con el saldo guardado (no espera a la cadena) y la relee detrás…
+  assert.equal((await reserveSpend(u, USDC(0.3))).ok, true, 'anota con el saldo guardado');
+  await new Promise((r) => setTimeout(r, 50));
+  // …así que la que sigue ya ve el saldo real y se frena.
+  assert.equal((await reserveSpend(u, USDC(0.3))).ok, false, 'la relectura on-chain lo frena');
 
-  await settled(u); // cobro de la deuda anotada (0.3) con 0.1 en la wallet → falla
+  await settled(u); // cobro de la deuda anotada (0.6) con 0.1 en la wallet → falla
   const st = await getSpendStatus(u);
   assert.equal(st.blocked, true);
   assert.equal(st.charges[0].status, 'failed');
@@ -273,7 +277,7 @@ test('si el usuario vacía la wallet el cobro falla, bloquea la cuenta y la pér
   assert.equal((await reserveSpend(u, USDC(0.1))).ok, true);
   const after = await getSpendStatus(u);
   assert.equal(after.blocked, false);
-  assert.equal(chain.pulled, BigInt(USDC(0.3)));
+  assert.equal(chain.pulled, BigInt(USDC(0.6)));
 });
 
 test('un fallo de red (con fondos) no bloquea la cuenta', async () => {
@@ -590,4 +594,35 @@ test('la última lectura sobrevive a un reinicio y a ratos sin uso; un retiro la
   await submitPrepared(u, { hash: w.hash, signature: signHash(kp, w.hash) });
   const left = await db.prepare('SELECT count(*) AS n FROM spend_reads WHERE address = ?').get(addr);
   assert.equal(Number((left as { n: number }).n), 0);
+});
+
+test('anota sin esperar a la cadena cuando hay un saldo guardado (la relee en segundo plano)', async () => {
+  const addr = Keypair.random().publicKey();
+  const u = await createTestUser('a@x.com', addr);
+  chain.balance.set(addr, BigInt(USDC(10)));
+  chain.allowance.set(addr, BigInt(USDC(10)));
+  assert.equal((await reserveSpend(u, USDC(0.1))).ok, true); // primera: lee la cadena
+  const realRead = chain.read.bind(chain);
+  let reads = 0;
+  chain.read = (owner) => {
+    reads++;
+    return new Promise((r) => setTimeout(() => r(realRead(owner)), 300).unref());
+  };
+  const t0 = Date.now();
+  for (let i = 0; i < 5; i++) assert.equal((await reserveSpend(u, USDC(0.01))).ok, true);
+  assert.ok(Date.now() - t0 < 250, `esperó ${Date.now() - t0} ms a la cadena`);
+  assert.ok(reads >= 1 && reads <= 5, `relecturas en segundo plano: ${reads}`);
+  chain.read = realRead;
+});
+
+test('una recarga reciente no falla por el saldo guardado viejo', async () => {
+  const addr = Keypair.random().publicKey();
+  const u = await createTestUser('a@x.com', addr);
+  chain.balance.set(addr, BigInt(USDC(0.05)));
+  chain.allowance.set(addr, BigInt(USDC(100)));
+  assert.equal((await reserveSpend(u, USDC(0.01))).ok, true); // guarda saldo 0.05
+  chain.balance.set(addr, BigInt(USDC(5))); // el usuario recarga
+  const r = await reserveSpend(u, USDC(0.3)); // el guardado (0.05) no alcanza → relee
+  assert.ok(r.ok, JSON.stringify(r));
+  assert.equal(await debtOf(u), USDC(0.31));
 });

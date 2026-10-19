@@ -37,6 +37,7 @@ import type {
   SettlePayoutArgs,
 } from './types';
 import { TrustlessWorkEscrowClient, type TrustlessWorkConfig } from './trustless-work';
+import { KibaPaymentsClient, isKibaEscrowId } from './kiba-payments';
 import type { StellarSigner } from './signer';
 
 /** Unidades base por token: 7 decimales en Stellar (vale para XLM nativo y para
@@ -74,6 +75,11 @@ export interface StellarChainClientConfig {
     TrustlessWorkConfig,
     'apiUrl' | 'apiKey' | 'platformAddress' | 'platformFee' | 'trustline' | 'feeAddress'
   >;
+  /**
+   * Contrato de pagos de Kiba (C...). Si está, el pago directo y los escrows x402 nuevos van
+   * por él (una tx); Trustless Work queda para servicios que no lo anuncian y escrows viejos.
+   */
+  paymentsContractId?: string;
 }
 
 export class StellarChainClient implements ChainClient {
@@ -93,6 +99,8 @@ export class StellarChainClient implements ChainClient {
   private readonly tw: TrustlessWorkEscrowClient | null;
   /** Fee wallet de TW para invocaciones directas al contrato del escrow. */
   private readonly twFeeAddress?: string;
+  /** Contrato de pagos de Kiba. null si no está configurado. */
+  private readonly payments: KibaPaymentsClient | null;
 
   constructor(cfg: StellarChainClientConfig) {
     this.server = new rpc.Server(cfg.rpcUrl);
@@ -114,10 +122,37 @@ export class StellarChainClient implements ChainClient {
         })
       : null;
     this.twFeeAddress = cfg.tw?.feeAddress;
+    this.payments = cfg.paymentsContractId
+      ? new KibaPaymentsClient({
+          contractId: cfg.paymentsContractId,
+          server: this.server,
+          signer: this.signer,
+          networkPassphrase: this.networkPassphrase,
+          label: `${this.label}:pay`,
+        })
+      : null;
   }
 
   get ownerAddress(): string {
     return this.signer.publicKey();
+  }
+
+  get paymentsContractId(): string | undefined {
+    return this.payments?.contractId;
+  }
+
+  async payService(
+    args: { receiver: string; amountBaseUnits: bigint; reference?: bigint },
+    onSent?: (hash: string) => Promise<void> | void,
+  ): Promise<string> {
+    return this.requirePayments().pay(
+      { to: args.receiver, amountBaseUnits: args.amountBaseUnits, reference: args.reference },
+      onSent,
+    );
+  }
+
+  async transactionStatus(hash: string): Promise<'success' | 'failed' | 'not_found'> {
+    return this.requirePayments().transactionStatus(hash);
   }
 
   // ─── helpers de invocación ─────────────────────────────────
@@ -439,8 +474,16 @@ export class StellarChainClient implements ChainClient {
   }
 
   async openEscrow(args: OpenEscrowArgs): Promise<OpenEscrowResult> {
-    // 'this' es el cliente/pagador (funder). El escrow se despliega+fondea en Trustless
-    // Work con el owner del agente como receiver/serviceProvider/releaseSigner/approver.
+    // 'this' es el cliente/pagador. Si el servicio acepta el contrato de pagos de Kiba (lo
+    // anuncia en su quote) el escrow es una sola tx ahí; si no, Trustless Work (deploy+fund)
+    // con el owner del agente como receiver/serviceProvider/releaseSigner/approver.
+    if (this.payments && args.paymentsContract === this.payments.contractId) {
+      const { escrowId, hash } = await this.payments.open({
+        receiver: args.payToAddress,
+        amountBaseUnits: args.amountBaseUnits,
+      });
+      return { escrowId, signature: hash, fundTxHash: hash };
+    }
     return this.requireTw().deployAndFund({
       agentOwner: args.payToAddress,
       service: args.service,
@@ -505,6 +548,13 @@ export class StellarChainClient implements ChainClient {
   }
 
   async fetchEscrow(args: FetchEscrowArgs): Promise<ChainEscrowInfo | null> {
+    if (isKibaEscrowId(args.escrowId)) {
+      // Existe = abierto sin cobrar (claim y refund lo borran). Confirmado al abrirse: sin indexer.
+      const esc = this.payments ? await this.payments.getEscrow(args.escrowId) : null;
+      return esc
+        ? { amountBaseUnits: esc.amountBaseUnits, state: 'Pending', receiver: esc.receiver, roles: { receiver: esc.receiver } }
+        : null;
+    }
     const info = await this.requireTw().getEscrow(args.escrowId);
     if (!info) return null;
     // El indexer de TW tarda ~30s en reflejar el fondeo (fund); el balance on-chain
@@ -538,12 +588,19 @@ export class StellarChainClient implements ChainClient {
 
   async claimPayment(args: ClaimPaymentArgs): Promise<string> {
     // 'this' es el agent owner (releaseSigner): libera los fondos al receiver.
+    if (isKibaEscrowId(args.escrowId)) return this.requirePayments().claim(args.escrowId);
     return this.requireTw().release(args.escrowId);
   }
 
   async refundEscrow(args: RefundEscrowArgs): Promise<string> {
-    // 'this' es el cliente/pagador: recupera fondos vía el flujo de disputa de TW.
+    // 'this' es el cliente/pagador. Contrato de Kiba: tras la expiración. TW: flujo de disputa.
+    if (isKibaEscrowId(args.escrowId)) return this.requirePayments().refund(args.escrowId);
     return this.requireTw().refund(args.escrowId);
+  }
+
+  private requirePayments(): KibaPaymentsClient {
+    if (!this.payments) throw new Error(`[${this.label}] escrow de Kiba sin contrato de pagos configurado`);
+    return this.payments;
   }
 
   /**

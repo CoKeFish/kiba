@@ -30,6 +30,7 @@ import { db, withTransaction } from './db';
 import { BASE_UNITS_PER_TOKEN, chainClientFor } from './chain';
 import { ensureTreasuryFunded, getMasterWallet } from './wallets';
 import { enqueueChainTask, warmServiceEscrow, type ServiceEscrowRow } from './escrows';
+import { KIBA_PAY_REF, kibaPayEnabled, reconcileKibaPays, sendKibaPay, treasuryClient } from './kiba-pay';
 
 /** Monto mínimo (unidades base) para liquidar. Default 1 USDC = 1e7 stroops. */
 export const MIN_PAYOUT = Number(process.env.SETTLEMENT_MIN_PAYOUT) || BASE_UNITS_PER_TOKEN;
@@ -109,6 +110,20 @@ export async function settleAgent(service: string): Promise<SettleResult> {
 }
 
 async function settleAgentInner(service: string): Promise<SettleResult> {
+  // Contrato de pagos de Kiba: lo acumulado sin fondear en TW se paga con UNA tx `pay`. El
+  // camino de TW de abajo sigue solo para barrer escrows de ciclo que aún tengan fondos.
+  if (kibaPayEnabled()) {
+    await reconcileKibaPays();
+    const paid = await settleWithKibaPay(service);
+    const twLeft = (await db
+      .prepare(
+        `SELECT (SELECT COUNT(*) FROM agent_earnings WHERE service = ? AND settlement_id IS NULL AND escrow_id IS NOT NULL)
+              + (SELECT COUNT(*) FROM service_escrows WHERE service = ? AND status IN ('active', 'releasing')) AS n`,
+      )
+      .get(service, service)) as { n: number | string };
+    if (Number(twLeft.n) === 0) return paid;
+  }
+
   // ── Fase 1: claim atómico + congelar escrows del ciclo ──────────────────
   let settlementId = 0;
   let amount = 0;
@@ -116,10 +131,13 @@ async function settleAgentInner(service: string): Promise<SettleResult> {
   let cycleEscrows: ServiceEscrowRow[] = [];
   // Suma reclamada por escrow del ciclo ('' = earnings nunca fondeadas → vía clásica).
   const coveredByEscrow = new Map<string, number>();
+  // Con el contrato de Kiba, aquí solo entran las ganancias fondeadas en escrows de TW (el
+  // resto ya lo pagó settleWithKibaPay).
+  const onlyFunded = kibaPayEnabled() ? ' AND escrow_id IS NOT NULL' : '';
   const claimed = await withTransaction(async (tx): Promise<{ ok: boolean; total: number }> => {
     const rows = (await tx
       .prepare(
-        'SELECT id, amount_lamports, pay_to FROM agent_earnings WHERE service = ? AND settlement_id IS NULL',
+        `SELECT id, amount_lamports, pay_to FROM agent_earnings WHERE service = ? AND settlement_id IS NULL${onlyFunded}`,
       )
       .all(service)) as Array<{ id: number; amount_lamports: number; pay_to: string }>;
     const total = rows.reduce((s, r) => s + r.amount_lamports, 0);
@@ -135,7 +153,7 @@ async function settleAgentInner(service: string): Promise<SettleResult> {
     settlementId = Number(info.lastInsertRowid);
     await tx
       .prepare(
-        'UPDATE agent_earnings SET settlement_id = ? WHERE service = ? AND settlement_id IS NULL',
+        `UPDATE agent_earnings SET settlement_id = ? WHERE service = ? AND settlement_id IS NULL${onlyFunded}`,
       )
       .run(settlementId, service);
     // Desglose por escrow: cuánto del total quedó fondeado en cada escrow del ciclo.
@@ -242,7 +260,8 @@ async function settleAgentInner(service: string): Promise<SettleResult> {
       }
     });
     // Pre-calienta el escrow del ciclo siguiente (fire-and-forget; misma cola, sin await).
-    warmServiceEscrow(service, payTo);
+    // Con el contrato de Kiba no hay ciclo siguiente en TW.
+    if (!kibaPayEnabled()) warmServiceEscrow(service, payTo);
     return { service, status: 'settled', amountLamports: amount, escrowId: escrowIds };
   } catch (err) {
     // ── Fase 3b: fallo → des-reclamar para reintentar sin pérdida ──────────
@@ -256,6 +275,64 @@ async function settleAgentInner(service: string): Promise<SettleResult> {
     });
     return { service, status: 'failed', amountLamports: amount, reason: (err as Error).message };
   }
+}
+
+/**
+ * Paga con el contrato de Kiba las ganancias pendientes del servicio que no se fondearon en
+ * un escrow de TW: reserva atómica en una liquidación 'pending' + UNA tx `pay`. Corre dentro
+ * de la cola de la treasury (desde settleAgentInner).
+ */
+async function settleWithKibaPay(service: string): Promise<SettleResult> {
+  let settlementId = 0;
+  let payTo = '';
+  const claimed = await withTransaction(async (tx): Promise<{ ok: boolean; total: number }> => {
+    const rows = (await tx
+      .prepare(
+        `SELECT amount_lamports, pay_to FROM agent_earnings
+         WHERE service = ? AND settlement_id IS NULL AND escrow_id IS NULL`,
+      )
+      .all(service)) as Array<{ amount_lamports: number; pay_to: string }>;
+    const total = rows.reduce((s, r) => s + Number(r.amount_lamports), 0);
+    if (total < MIN_PAYOUT) return { ok: false, total };
+    payTo = rows[0].pay_to;
+    const info = await tx
+      .prepare(
+        `INSERT INTO settlements (service, pay_to, amount_lamports, escrow_id, status, created_at)
+         VALUES (?, ?, ?, ?, 'pending', ?) RETURNING id`,
+      )
+      .run(service, payTo, total, KIBA_PAY_REF, Math.floor(Date.now() / 1000));
+    settlementId = Number(info.lastInsertRowid);
+    await tx
+      .prepare(
+        'UPDATE agent_earnings SET settlement_id = ? WHERE service = ? AND settlement_id IS NULL AND escrow_id IS NULL',
+      )
+      .run(settlementId, service);
+    return { ok: true, total };
+  });
+  if (!claimed.ok) {
+    return {
+      service,
+      status: 'skipped',
+      amountLamports: claimed.total,
+      reason: `acumulado ${claimed.total} < mínimo ${MIN_PAYOUT}`,
+    };
+  }
+  const cc = treasuryClient();
+  if (!cc?.payService) {
+    await db.prepare("UPDATE settlements SET status = 'failed' WHERE id = ?").run(settlementId);
+    await db.prepare('UPDATE agent_earnings SET settlement_id = NULL WHERE settlement_id = ?').run(settlementId);
+    return { service, status: 'failed', amountLamports: claimed.total, reason: 'treasury chain client no disponible' };
+  }
+  const r = await sendKibaPay(cc, settlementId, payTo, claimed.total);
+  if (r.status === 'settled') {
+    return { service, status: 'settled', amountLamports: claimed.total, escrowId: r.hash };
+  }
+  return {
+    service,
+    status: 'failed',
+    amountLamports: claimed.total,
+    reason: r.status === 'pending' ? `pago sin confirmación (${r.hash}); se reconcilia` : r.error,
+  };
 }
 
 let settling = false;

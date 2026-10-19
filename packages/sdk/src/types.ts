@@ -112,6 +112,8 @@ export interface X402Quote {
   nonce: string;
   /** Expiry timestamp (unix seconds). */
   expiresAt: number;
+  /** Kiba payments contract the service accepts escrows on (absent → Trustless Work only). */
+  paymentsContract?: string;
 }
 
 export type ProviderHandler<TRequest = unknown, TResponse = unknown> = (

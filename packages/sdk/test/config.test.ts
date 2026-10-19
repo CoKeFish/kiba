@@ -87,3 +87,19 @@ test('Trustless Work platformAddress can come from env', () => {
   assert.ok(c.tw);
   assert.equal(c.tw!.platformAddress, 'GENVPLAT');
 });
+
+test('payments contract: testnet preset by default, env overrides, null disables, none on mainnet', () => {
+  assert.equal(resolveChainConfig({}, {}).paymentsContractId, NETWORK_PRESETS.testnet.paymentsContractId);
+  assert.match(resolveChainConfig({}, {}).paymentsContractId ?? '', /^C[A-Z2-7]{55}$/);
+  assert.equal(resolveChainConfig({}, { KIBA_PAYMENTS_CONTRACT_ID: 'CENV' }).paymentsContractId, 'CENV');
+  assert.equal(resolveChainConfig({ paymentsContractId: 'COPT' }, { KIBA_PAYMENTS_CONTRACT_ID: 'CENV' }).paymentsContractId, 'COPT');
+  assert.equal(resolveChainConfig({ paymentsContractId: null }, {}).paymentsContractId, undefined);
+  assert.equal(resolveChainConfig({ network: 'mainnet' }, {}).paymentsContractId, undefined);
+});
+
+test('Kiba escrow ids are 32-byte hex; Trustless Work escrows are contract addresses', async () => {
+  const { isKibaEscrowId } = await import('../src/chain/kiba-payments');
+  assert.equal(isKibaEscrowId('a'.repeat(64)), true);
+  assert.equal(isKibaEscrowId('CDUKNIHR3GYQYOMJYOYJJJ3C57MTE4GJ7PGMMO5F2ZPHTLVXFQLCZQNK'), false);
+  assert.equal(isKibaEscrowId('A'.repeat(64)), false);
+});

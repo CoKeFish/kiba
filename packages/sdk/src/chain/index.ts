@@ -75,9 +75,9 @@ export function createChainClient(config: ChainClientConfig): ChainClient | null
   }
 
   const resolved = resolveChainConfig(config);
-  if (!resolved.tw) {
+  if (!resolved.tw && !resolved.paymentsContractId) {
     console.warn(
-      `[${label}] Trustless Work not configured (no apiKey) — x402 escrow cannot settle`,
+      `[${label}] no payments contract nor Trustless Work configured — x402 escrow cannot settle`,
     );
   }
 
@@ -93,6 +93,7 @@ export function createChainClient(config: ChainClientConfig): ChainClient | null
     assetIssuer: resolved.assetIssuer,
     baseUnitsPerToken: resolved.baseUnitsPerToken,
     tw: resolved.tw,
+    paymentsContractId: resolved.paymentsContractId,
   });
 }
 
@@ -112,4 +113,5 @@ export type {
 } from './types';
 export { StellarChainClient, type StellarChainClientConfig } from './stellar';
 export { TrustlessWorkEscrowClient, type TrustlessWorkConfig } from './trustless-work';
+export { KibaPaymentsClient, PaymentPendingError, isKibaEscrowId, type KibaEscrow } from './kiba-payments';
 export { LocalKeypairSigner, type StellarSigner } from './signer';

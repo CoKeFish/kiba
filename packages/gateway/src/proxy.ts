@@ -15,7 +15,7 @@
  *   4. La cascada es por call entera, no parcial — para no fragmentar el escrow.
  */
 import axios from 'axios';
-import { AgentClient, type X402Trace } from 'kiba-sdk';
+import { AgentClient, type ServiceManifest, type X402Quote, type X402Trace } from 'kiba-sdk';
 import { debit, getBalance, lamportsToUsd } from './billing';
 import { db, withTransaction } from './db';
 import {
@@ -28,7 +28,8 @@ import {
 } from './wallets';
 import { BASE_UNITS_PER_TOKEN, explorerTxUrl } from './chain';
 import { recordEarning } from './settlement';
-import { fundForCall, perCallFundEnabled, type PerCallFundResult } from './escrows';
+import { type PerCallFundResult } from './escrows';
+import { payOrFundForCall, perCallPaymentEnabled } from './kiba-pay';
 import { hasSpendWallet, releaseSpend, reserveSpend } from './spend';
 
 /**
@@ -198,6 +199,36 @@ function platformTrace(a: {
   };
 }
 
+/**
+ * Ficha (manifest) de cada servicio. Buscarla en el registro on-chain cuesta ~60 ms por llamada
+ * (con picos de segundos) y casi nunca cambia: se reutiliza MANIFEST_TTL_MS y luego se renueva en
+ * segundo plano sin hacer esperar a la llamada. Si el servicio falla, se descarta. El precio y el
+ * destinatario del pago NO salen de aquí: vienen de la quote del servicio en cada llamada.
+ */
+const MANIFEST_TTL_MS = 60_000;
+const MANIFEST_MAX_STALE_MS = 10 * 60_000;
+const manifests = new Map<string, { m: ServiceManifest; at: number; refreshing?: boolean }>();
+
+async function cachedManifest(client: AgentClient, service: string): Promise<ServiceManifest> {
+  const c = manifests.get(service);
+  const age = c ? Date.now() - c.at : Infinity;
+  if (c && age < MANIFEST_MAX_STALE_MS) {
+    if (age > MANIFEST_TTL_MS && !c.refreshing) {
+      c.refreshing = true;
+      void client
+        .discover(service)
+        .then((m) => manifests.set(service, { m, at: Date.now() }))
+        .catch(() => {
+          c.refreshing = false;
+        });
+    }
+    return c.m;
+  }
+  const m = await client.discover(service);
+  manifests.set(service, { m, at: Date.now() });
+  return m;
+}
+
 export async function callOnBehalf(args: {
   userId: number;
   service: string;
@@ -227,10 +258,18 @@ export async function callOnBehalf(args: {
   // La cotización va firmada con la clave de plataforma: todas las llamadas de todos los
   // usuarios llegan al agente desde la IP del gateway, y sin firma el límite por IP del agente
   // (60/min) se convierte en un límite de toda la plataforma.
-  const { manifest, quote } = await client.getQuote(args.service, args.payload, {
-    timeoutMs: 30_000,
-    signer: getPlatformSigner(),
-  });
+  let manifest: ServiceManifest;
+  let quote: X402Quote;
+  try {
+    ({ manifest, quote } = await client.getQuote(args.service, args.payload, {
+      timeoutMs: 30_000,
+      signer: getPlatformSigner(),
+      manifest: await cachedManifest(client, args.service),
+    }));
+  } catch (err) {
+    manifests.delete(args.service); // endpoint viejo o servicio caído: la próxima vez se rebusca
+    throw err;
+  }
   const quoteDurationMs = Math.max(1, Date.now() - tQuote);
   const lamports = Number(quote.amount);
   const virtualBalance = await getBalance(args.userId);
@@ -269,6 +308,7 @@ export async function callOnBehalf(args: {
       });
     } catch (err) {
       // El agente no entregó (o rechazó la firma de la plataforma) → reembolsa el crédito.
+      manifests.delete(args.service);
       await refundDebit(args.userId, lamports, args.service, (err as Error).message);
       throw err;
     }
@@ -285,8 +325,8 @@ export async function callOnBehalf(args: {
     // nunca falla por la cadena.
     let onchain: PerCallFundResult = {};
     const t1 = Date.now();
-    if (perCallFundEnabled()) {
-      const fund = fundForCall({
+    if (perCallPaymentEnabled()) {
+      const fund = payOrFundForCall({
         service: args.service,
         payTo: quote.payTo,
         lamports,
@@ -342,6 +382,7 @@ export async function callOnBehalf(args: {
         timeoutMs: 120_000,
       });
     } catch (err) {
+      manifests.delete(args.service);
       await releaseSpend(args.userId, lamports);
       throw err;
     }
