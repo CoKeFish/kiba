@@ -70,6 +70,27 @@ test('callAndStore: llamada rápida devuelve el resultado y lo guarda', async ()
   assert.equal(row?.cost_lamports, 1234);
 });
 
+test('callAndStore: el link on-chain que llega después de responder queda en el resultado', async () => {
+  const userId = await createTestUser('late-link@test.com');
+  // Modo crédito: responde sin link y el fund per-call confirma más tarde.
+  const call = (async (a: Parameters<typeof callOnBehalf>[0]) => {
+    setTimeout(() => a.onExplorerUrl?.('https://stellar.expert/tx/late'), 80);
+    return {
+      result: { ok: true },
+      cost: { lamports: 5000, usd: 0.0005 },
+      mode: 'virtual',
+      paidWith: 'credit',
+      newBalance: { lamports: 0, usd: 0 },
+      trace: { service: 's', endpoint: 'e', totalDurationMs: 1, steps: [] },
+    };
+  }) as unknown as typeof callOnBehalf;
+  const out = await callAndStore({ userId, service: 'world-clock', payload: {}, waitMs: 1000 }, call);
+  assert.equal(out.status, 'done');
+  assert.equal(out.status === 'done' && out.explorerUrl, undefined);
+  await new Promise((r) => setTimeout(r, 300));
+  assert.equal((await getResult(userId, out.resultId))?.explorer_url, 'https://stellar.expert/tx/late');
+});
+
 test('callAndStore: llamada lenta devuelve pending y el resultado se guarda después', async () => {
   const userId = await createTestUser('slow@test.com');
   const out = await callAndStore(

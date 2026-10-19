@@ -31,8 +31,12 @@ import { recordEarning } from './settlement';
 import { fundForCall, perCallFundEnabled, type PerCallFundResult } from './escrows';
 import { hasSpendWallet, releaseSpend, reserveSpend } from './spend';
 
-/** Máximo que la respuesta espera al fund per-call; la tarea sigue en background si excede. */
-const FUND_WAIT_TIMEOUT_MS = Number(process.env.PER_CALL_FUND_TIMEOUT_MS) || 90_000;
+/**
+ * Cuánto espera la respuesta al fund per-call (la tarea sigue en background si excede). Por
+ * defecto 0: el fondeo tarda 10-15 s y la llamada ya está pagada con crédito, así que se responde
+ * al instante y el link on-chain llega después por `onExplorerUrl`.
+ */
+const FUND_WAIT_TIMEOUT_MS = Number(process.env.PER_CALL_FUND_TIMEOUT_MS ?? 0) || 0;
 
 const WALLET_TX_FEE_BUFFER = 5_000_000;
 
@@ -198,6 +202,8 @@ export async function callOnBehalf(args: {
   userId: number;
   service: string;
   payload: unknown;
+  /** Modo crédito: link de la tx del fund per-call cuando confirma (después de responder). */
+  onExplorerUrl?: (url: string) => void;
 }): Promise<{
   result: unknown;
   cost: { lamports: number; usd: number };
@@ -280,18 +286,22 @@ export async function callOnBehalf(args: {
     let onchain: PerCallFundResult = {};
     const t1 = Date.now();
     if (perCallFundEnabled()) {
-      onchain = await Promise.race([
-        fundForCall({
-          service: args.service,
-          payTo: quote.payTo,
-          lamports,
-          earningId,
-          transactionId: debited.transactionId,
-        }),
-        new Promise<PerCallFundResult>((resolve) =>
-          setTimeout(() => resolve({}), FUND_WAIT_TIMEOUT_MS),
-        ),
-      ]);
+      const fund = fundForCall({
+        service: args.service,
+        payTo: quote.payTo,
+        lamports,
+        earningId,
+        transactionId: debited.transactionId,
+      }).catch((): PerCallFundResult => ({}));
+      void fund.then((r) => {
+        if (r.txHash) args.onExplorerUrl?.(explorerTxUrl(r.txHash));
+      });
+      if (FUND_WAIT_TIMEOUT_MS > 0) {
+        onchain = await Promise.race([
+          fund,
+          new Promise<PerCallFundResult>((resolve) => setTimeout(() => resolve({}), FUND_WAIT_TIMEOUT_MS)),
+        ]);
+      }
     }
 
     const trace = platformTrace({

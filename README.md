@@ -4,199 +4,139 @@
 
 # Kiba
 
-**A marketplace where AI assistants discover and pay specialized services on demand.**
+### Your AI assistant, now with a wallet.
 
-A technical demonstration bridging the Model Context Protocol (MCP) with x402 payments on Stellar (Soroban). Built for the **Stellar PULSO Hackathon** (NearX × Stellar Development Foundation). It is a working demonstration on testnet, not a launched product.
+Kiba lets any AI assistant find specialized services and pay for them on the spot —
+per use, in the same conversation. No sign-ups. No API keys. No subscriptions.
 
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
-[![Stellar](https://img.shields.io/badge/Stellar-testnet-000000?style=flat-square&logo=stellar&logoColor=white)](https://stellar.expert/explorer/testnet/contract/CDYLMRS2UTBHNTWS67NC2OPQIH2HXGS36WZYC4JUMLKZWT7XXVUUX7XF)
-[![Soroban](https://img.shields.io/badge/Soroban-smart%20contract-FDDA24?style=flat-square)](https://developers.stellar.org/docs/build/smart-contracts)
-[![Trustless Work](https://img.shields.io/badge/Trustless%20Work-escrow-2060F6?style=flat-square)](https://www.trustlesswork.com)
+**[Get started free →](https://app.kiba.tools)**
+
+[Website](https://kiba.tools) · [Docs](https://docs.kiba.tools) · [Publish your service](packages/sdk/README.md)
+
 [![MCP](https://img.shields.io/badge/MCP-compatible-14F195?style=flat-square)](https://modelcontextprotocol.io/)
 [![x402](https://img.shields.io/badge/x402-payments-2060F6?style=flat-square)](https://x402.org/)
-[![npm: kiba-sdk](https://img.shields.io/npm/v/kiba-sdk?style=flat-square&logo=npm&label=kiba-sdk&color=CB3837)](https://www.npmjs.com/package/kiba-sdk)
+[![Stellar](https://img.shields.io/badge/built%20on-Stellar-000000?style=flat-square&logo=stellar&logoColor=white)](https://stellar.expert/explorer/testnet/contract/CDYLMRS2UTBHNTWS67NC2OPQIH2HXGS36WZYC4JUMLKZWT7XXVUUX7XF)
 [![npm: kiba-mcp](https://img.shields.io/npm/v/kiba-mcp?style=flat-square&logo=npm&label=kiba-mcp&color=CB3837)](https://www.npmjs.com/package/kiba-mcp)
-
-**[Architecture](docs/architecture.md)** · **[Trustless Work](docs/trustless-work.md)** · Demo video · *(coming soon)*
+[![npm: kiba-sdk](https://img.shields.io/npm/v/kiba-sdk?style=flat-square&logo=npm&label=kiba-sdk&color=CB3837)](https://www.npmjs.com/package/kiba-sdk)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
 
 </div>
 
 ---
 
-## What it is
+## Ask. Your assistant handles the rest.
 
-Kiba is a single entry point for any AI assistant (Claude, Cursor, ChatGPT) to find a specialized service for a task and pay it per call — with no API keys and no per-service setup. A service can be an AI agent, an API, an indexer, or any procedural tool, published by a company, an organization, an institution, or an independent developer. Discovery and the catalog live on **Stellar testnet**: every service registers on-chain in a Soroban contract, and payment settles in **USDC** through the x402 protocol, with a 95/5 revenue split enforced by [Trustless Work](https://www.trustlesswork.com).
+> **You:** Make me a 30-second lo-fi track for my video intro.
+>
+> **Assistant:** Found *music-generator* on Kiba — $0.05 for this. Paid. Here's your track. 🎵
 
-The SDK abstracts the chain behind a `ChainClient` and runs on **Stellar/Soroban**.
+That's it. Your assistant discovers the right service, checks the price, pays, and brings back the result. You just ask.
 
-This submission shows the architecture working end to end and a reference implementation of every client surface. Third-party publisher onboarding at scale, mainnet deployment, formal audit, and real (production fiat) billing are explicitly out of scope.
+## One connection. Every specialist.
 
----
+The best answers rarely come from a general-purpose model alone. They come from specialists — a scraper that can read any site, a 3D generator, a composer, a live data feed. Until now, each one meant another account, another key, another monthly plan.
 
-## The problem
+**Kiba turns all of them into one tap away.**
 
-A general-purpose AI assistant draws on open sources and, often, returns outdated or low-quality information without the user noticing — or knowing how to improve it. The specialized sources that would actually solve their problem sit behind technical friction: signing up, integrating, sometimes an API key or a subscription just to use them once. Depending on their technical profile, each user hits a different obstacle: they can't improve the quality of the answers, they won't take on the integration time, or they don't even know a specialized service for their task exists. And on the other side, whoever builds that service has nowhere to offer it or charge for it — least of all when the consumer is an AI agent, not a person.
-
-## The solution
-
-Kiba addresses both sides of the problem with one protocol:
-
-- **For the assistant's user:** specialized capabilities are reached from the usual conversation. The assistant locates the service, receives a price, pays in a single round trip, and returns the answer — no per-service signup, no API keys, no wallet management.
-- **For the service publisher:** registration, discovery, payment, and the revenue split are provided by the marketplace. The publisher — a company, an organization, or an independent developer — exposes their service once and charges per call, even when the consumer is an AI agent rather than a person.
-
----
-
-## Screenshots
-
-| Landing | Hybrid search | Connect your assistant |
+| | Before | With Kiba |
 |---|---|---|
-| ![Kiba landing](submission-screenshots/1-landing-hero.png) | ![Hybrid search across the on-chain service catalog](submission-screenshots/2-semantic-search.png) | ![Connect Kiba to Claude, Cursor or ChatGPT](submission-screenshots/3-guide-connect.png) |
+| **Using a service** | Create an account, copy a key, pay a subscription | Just ask your assistant |
+| **Paying** | A plan per service, used or not | Pay only for what you use, per call |
+| **Selling a service** | Build billing, accounts and a storefront first | Publish once, get paid from day one |
+
+---
+
+## Built for people who use AI
+
+- 🧠 **Works with the assistant you already love** — Claude, ChatGPT, Cursor and every MCP-compatible client. Install in one click on Windows, or one line anywhere else.
+- 💳 **One balance, endless services** — top up once and your assistant pays as it goes. Every call, with its price, in your history.
+- 🔐 **A wallet that's truly yours** — your payments wallet is controlled by you, not by us. Sign one spending permission and your assistant pays without interrupting you. Top up, withdraw or revoke anytime.
+- 🎁 **Free credits to start** — explore the catalog before adding a cent.
+- ⚡ **Instant** — paid calls come back in a fraction of a second.
+
+## Built for people who build
+
+- 🚀 **Publish once, earn per call** — wrap your API, model or tool with the open SDK, set your price, and every connected assistant can find and pay you.
+- 💸 **Get paid in USDC** — keep **95%** of every call. Payouts settle on-chain, transparently.
+- 🧮 **Price it your way** — flat per call, or computed from each request: per page, per character, per second of audio.
+- 🛡️ **Verified, paid traffic** — every call arrives signed by Kiba, so you serve only paid requests, with no shared secrets to leak.
+- 📊 **Your numbers, live** — calls, earnings and payouts per service in your publisher dashboard.
+
+## Built for developers
+
+- **[`kiba-mcp`](https://www.npmjs.com/package/kiba-mcp)** — the connector for AI assistants, with OAuth sign-in. Your assistant never touches a key.
+- **[`kiba-sdk`](https://www.npmjs.com/package/kiba-sdk)** — open SDK to publish services or call them from your own app and wallet.
+- **REST API** — the same catalog and payments for any app, assistant or not.
+- **Smart discovery** — keyword and semantic search combined, so a plain-language request lands on the right service.
+
+---
+
+## Featured services
+
+| | Service | What it does |
+|---|---|---|
+| 🕸️ | **web-scraper** | Reads any web page — even JavaScript-heavy sites — powered by Firecrawl |
+| 🧊 | **3d-generator** | Turns a sentence into a downloadable 3D model, powered by Meshy |
+| 🎵 | **music-generator** | Composes songs and clips from a prompt, powered by Google Lyria |
+| 🌍 | **world-clock** | Live time and time zones for any city on Earth |
+| 🎲 | **randomizer** | Cryptographically secure random numbers, dice, draws and shuffles |
+
+…and a growing catalog. **[Add yours →](packages/sdk/README.md)**
 
 ---
 
 ## How it works
 
 ```mermaid
-graph TB
-    subgraph chain["Stellar (Soroban) · testnet"]
-        SC["Soroban contract<br/>Service registry"]
-        TW["Trustless Work<br/>Escrow + 95/5 split · USDC"]
-    end
-
-    subgraph platform["Platform services"]
-        BE["Backend (4000)<br/>Hybrid discovery<br/>FTS5 + embeddings"]
-        GW["Gateway (8000)<br/>OAuth, wallets, credits<br/>batched settlement"]
-        ORCH["Orchestrator (6001)<br/>Intent planner"]
-    end
-
-    subgraph clients["Client surfaces"]
-        MCP["MCP Server<br/>Claude, Cursor, IDEs"]
-        SDK["kiba-sdk<br/>Direct integration"]
-        DASH["Dashboard (3020)<br/>Web SPA"]
-    end
-
-    subgraph agents["Specialist services"]
-        A1["service 1"]
-        A2["service 2"]
-        A3["service N"]
-    end
-
-    MCP -->|OAuth 2.0 PKCE| GW
-    DASH -->|session cookie| GW
-    SDK -->|self-custodial| TW
-    GW -->|signed call| A1
-    GW -->|batched settlement| TW
-    ORCH -->|plan + x402| A2
-    BE -.->|indexes registry| SC
-    A1 & A2 & A3 -.->|register_agent| SC
-```
-
-Service **registration** is on-chain (Soroban contract): any registered service shows up in the catalog and becomes discoverable. The payment **escrow and split** do not live in the contract — Trustless Work handles them over USDC.
-
-### Payment flow (x402 handshake)
-
-x402 is an open, HTTP-native payment protocol introduced by Coinbase. A normal HTTP request goes out; the service answers `402 Payment Required` with a quote; the client opens an escrow on Trustless Work, retries with a payment header, and the service releases the funds after delivering the response.
-
-```mermaid
 sequenceDiagram
-    participant C as Client
-    participant A as Service
-    participant TW as Trustless Work (Stellar)
+    participant U as You
+    participant AI as Your assistant
+    participant K as Kiba
+    participant S as Service
 
-    C->>A: POST /service { payload }
-    A-->>C: 402 Payment Required { amount, payTo, nonce }
-    C->>TW: open + fund escrow (USDC)
-    TW-->>C: escrow funded
-    C->>A: POST /service + X-PAYMENT
-    A->>TW: verify escrow
-    A->>A: run handler
-    A-->>C: 200 OK { result }
-    A->>TW: release (background)
-    TW->>A: 95% to owner, 5% to treasury
+    U->>AI: "Scrape this page and summarize it"
+    AI->>K: Find the right service
+    K-->>AI: web-scraper · price for this request
+    AI->>K: Call it
+    K->>S: Signed, paid request
+    S-->>K: Result
+    K-->>AI: Result + receipt
+    AI-->>U: Your answer
+    Note over K,S: Publishers are paid in USDC on Stellar
 ```
 
-Pricing is per request, not fixed: a service can quote based on the payload (per character, per line, per symbol), and the on-chain split scales with the quoted amount.
+1. **Discover** — every service lives in an open on-chain registry: publish it and it's in the catalog.
+2. **Quote** — the service prices this exact request.
+3. **Pay** — from your credits or your payments wallet, instantly.
+4. **Settle** — publisher earnings are paid out in USDC through [Trustless Work](https://www.trustlesswork.com) escrows, with the split enforced on-chain.
 
-**Two payment modes, depending on the surface:**
+Go deeper: [architecture](docs/architecture.md) · [settlement](docs/trustless-work.md)
 
-- **Via the gateway (MCP / dashboard):** the user tops up credits and `call_agent` **does not touch the chain on the hot path** — the gateway calls the service with an asymmetric signature, debits the credit off-chain, and records the service's earning. The accrued balance is **settled in batches** to the service's wallet through a Trustless Work *self-release* escrow (the treasury funds and releases; TW applies the 5%). This takes the per-call deploy+fund+release out of the loop and the response returns in ~170 ms.
-- **Via the SDK (self-custodial):** the client runs the full x402 handshake against Trustless Work, funding the escrow from its own wallet.
+## Safe by design
 
-### Discovery
-
-A backend indexer mirrors the on-chain registry into SQLite (any registered service appears without being on any list). Queries run through a hybrid scorer:
-
-- **Keyword:** SQLite FTS5 with BM25 ranking.
-- **Semantic:** 384-d embeddings from `@xenova/transformers` (all-MiniLM-L6-v2), in-process, no external API.
-- **Hybrid:** weighted fusion of the two (0.6 keyword / 0.4 semantic).
-
-If the embedding model fails to load, the system degrades to keyword-only without dropping requests. Endpoint: `GET /agents?q=<query>&mode=keyword|semantic|hybrid`.
-
-### Auth for IDE clients
-
-The MCP server uses OAuth 2.0 with PKCE (RFC 7636). The user logs in once in the browser, the local MCP adapter stores an opaque bearer (`~/.config/kiba/token.json`), and Claude or Cursor can call services **without ever handling crypto or keys**. User wallets are provisioned as non-custodial server wallets on [Privy](https://privy.io) when configured (the key lives in their TEE; the gateway only signs via `raw_sign`).
+- **Spending limits built in** — pending usage on your wallet is capped and collected automatically.
+- **Never charged twice** — every collection is recorded, reconciled and verifiable.
+- **Leave anytime** — withdraw your full balance or revoke the permission in one click.
+- **No keys in the chat** — sign-in by OAuth; your assistant never sees a secret.
+- **Fully auditable** — every payout is a public transaction on [stellar.expert](https://stellar.expert/explorer/testnet).
 
 ---
 
-## Smart contract
+## Get started
 
-Soroban contract (Rust) deployed to Stellar testnet. Its responsibility is the marketplace's **service registry**.
+**Add Kiba to your assistant:**
 
-- **Contract ID:** `CDYLMRS2UTBHNTWS67NC2OPQIH2HXGS36WZYC4JUMLKZWT7XXVUUX7XF` ([stellar.expert](https://stellar.expert/explorer/testnet/contract/CDYLMRS2UTBHNTWS67NC2OPQIH2HXGS36WZYC4JUMLKZWT7XXVUUX7XF))
-- **Functions:** `register_agent`, `update_agent`, `deregister_agent`, `get_agent`.
-- **Storage:** one `Agent` entry per `service` (`owner`, `service`, `price_per_call`, `endpoint`, `description`, `total_calls`, `total_earned`, `created_at`). `owner.require_auth()` ensures only the owner can create/update/delete their registration.
-- **TTL:** persistent entries are extended ~30 days and renewed before expiry (Soroban rent).
-- **Events:** `agent_registered`, `agent_updated`, `agent_deregistered` — consumed by the backend indexer.
-
-The **x402 payment escrow and the 95/5 split are not in this contract**: they settle through [Trustless Work](https://www.trustlesswork.com) (escrow-as-a-service on Stellar), with a 5% `platformFee` (≡ 500 bps) and the treasury as the platform address. The asset is **USDC** (testnet, Circle issuer). Details in [`docs/trustless-work.md`](docs/trustless-work.md).
-
-> Contract tests: `cargo test` (native). The toolchain is the `kiba/stellar-cli` image (`docker/stellar-cli`); stellar-cli 26 builds for the `wasm32v1-none` target.
-
----
-
-## Tech stack
-
-| Layer | Stack |
-|---|---|
-| Contract | Rust, Soroban SDK, Stellar testnet |
-| Escrow / settlement | Trustless Work (USDC), 95/5 split |
-| SDK | TypeScript, `@stellar/stellar-sdk` (XDR/ScVal), chain-agnostic `ChainClient`, distributed on npm ([`kiba-sdk`](https://www.npmjs.com/package/kiba-sdk)) |
-| Backend | Node 20, Express 4, better-sqlite3, `@xenova/transformers` |
-| Gateway | Express, JWT cookies, OAuth 2.0 PKCE, non-custodial wallets (Privy) |
-| Dashboard | Vite 6, React 19, Tailwind 4, TanStack Query |
-| Landing | Astro 5, Tailwind 4 |
-| MCP adapter | `@modelcontextprotocol/sdk`, distributed on npm ([`kiba-mcp`](https://www.npmjs.com/package/kiba-mcp)) |
-| Installer | Tauri 2 (Windows) |
-| Orchestration | Docker Compose |
-
----
-
-## Repository structure
-
-Monorepo with npm workspaces, the Rust contract packages, and a Tauri installer.
-
-```
-packages/
-  contracts-soroban/    Rust + Soroban contract — service registry (Stellar)
-  sdk/                  kiba-sdk TypeScript library (ChainClient abstraction), distributed on npm
-  backend/              Discovery API + indexer (port 4000)
-  gateway/              Auth, wallets, credits, batched settlement (port 8000)
-  dashboard/            React SPA (port 3020)
-  landing/              Astro site (port 3010)
-  docs/                 Documentation site, Docusaurus 3 · es/en/pt (docs.kiba.tools)
-  mcp-server/           MCP adapter, distributed on npm
-  orchestrator-agent/   LLM intent planner (port 6001)
-  demo-agents/          Example services (ports 5001-5008)
-  installer/            Tauri 2 Windows installer
-docs/                   Architecture, diagrams, decisions
-submission-screenshots/ Visual assets for this submission
+```json
+{
+  "mcpServers": {
+    "kiba": { "command": "npx", "args": ["-y", "kiba-mcp"] }
+  }
+}
 ```
 
----
+The first call opens your browser to sign in — that's all. On Windows, grab the [installer](packages/installer/README.md).
 
-## Quickstart
-
-Requirements: Docker Desktop, Node 20+.
+**Run the platform yourself:**
 
 ```bash
 git clone https://github.com/CoKeFish/kiba
@@ -205,84 +145,52 @@ cp .env.example .env
 docker compose up --build -d
 ```
 
-This brings up the full stack:
+Landing at `localhost:3010` · dashboard at `localhost:3020` · API at `localhost:8000`.
 
-| Service | URL |
+<details>
+<summary><b>Under the hood</b></summary>
+
+| Layer | Stack |
 |---|---|
-| Landing | http://localhost:3010 |
-| Dashboard | http://localhost:3020 |
-| Backend (discovery API) | http://localhost:4000/agents |
-| Gateway (REST + auth) | http://localhost:8000 |
+| Registry | Rust smart contract on Soroban (Stellar) |
+| Settlement | Trustless Work escrows in USDC, 95/5 split |
+| Payments wallet | User-owned Stellar wallet (Privy or any Stellar wallet) with a spending permission |
+| Gateway | Node 20, Express, Postgres, OAuth 2.0 + PKCE |
+| Discovery | Keyword (BM25) + semantic embeddings, in-process |
+| Apps | React 19 + Vite, Astro 5, Tailwind 4 |
+| Connector / SDK | `kiba-mcp`, `kiba-sdk` |
+| Installer | Tauri 2 (Windows) |
 
-The Soroban contract is already deployed to Stellar testnet, so the stack talks to it out of the box — wallets are funded on demand via friendbot. `.env.example` ships with `CHAIN=stellar` and the live `STELLAR_CONTRACT_ID`. The Trustless Work escrow needs a `TRUSTLESS_WORK_API_KEY` (generated in the TW BackOffice); without it, registration and discovery still work, but on-chain settlement does not.
-
-### Try it from an IDE
-
-To use Kiba from Claude Desktop, Cursor, or any MCP-compatible client, add this block to the client's MCP config:
-
-```json
-{
-  "mcpServers": {
-    "kiba": {
-      "command": "npx",
-      "args": ["-y", "kiba-mcp"]
-    }
-  }
-}
+```
+packages/
+  gateway/            accounts, payments, payments wallet, settlement
+  backend/            catalog and search
+  contracts-soroban/  on-chain service registry
+  sdk/                kiba-sdk — publish or call services
+  mcp-server/         kiba-mcp — connector for assistants
+  dashboard/          app.kiba.tools
+  landing/            kiba.tools
+  docs/               docs.kiba.tools
+  demo-agents/        featured services
+  orchestrator-agent/ multi-step planner
+  installer/          Windows installer
 ```
 
-The first call opens a browser for OAuth login. After that the IDE can `list_agents`, `call_agent`, `get_balance`, and `get_transactions` against the marketplace.
-
----
-
-## Project status
-
-Honest snapshot. Kiba is a **technical demonstration** of the marketplace architecture. PULSO welcomes already-started projects and evaluates them at their current stage; this is ours. It is not a launched commercial product, has no third-party users, and moves no real funds.
-
-**Working end to end (testnet):**
-- All services come up with `docker compose up`.
-- On-chain service registry (Soroban), hybrid discovery (FTS5 + embeddings), and dashboard are functional.
-- Off-chain per-call payment (~170 ms) + **batched USDC settlement via Trustless Work**, with a 95/5 split — verified on-chain on testnet.
-- The MCP adapter completes the OAuth 2.0 PKCE flow against the gateway.
-- The gateway issues/manages wallets (non-custodial via Privy) and credits, with a cascade onto on-chain USDC.
-
-**In-repo mocks and stubs:**
-- Of the example services, **three are real** — a *web-scraper* built on Firecrawl (loads dynamic, JS-rendered content), *world-clock* (real timezone data via `Intl`/full-ICU, no external API), and *randomizer* (crypto-secure randomness via `node:crypto`). The other five (yield-hunter, risk-auditor, translator-pro, price-oracle, code-reviewer) return mocked responses. The contract treats them all like any registered service.
-- Fiat → credit top-ups run in **sandbox/test mode** (Stripe test, PayPal sandbox, Wompi sandbox, Bre-B sandbox); no real charges.
-
-**Explicitly out of scope:**
-- Third-party publishers and external users at scale.
-- Mainnet deployment.
-- Formal contract audit.
-- Regulatory work for custodial operation (KYC/AML).
-- Long-term operational reliability and SLA.
+</details>
 
 ---
 
 ## Team
 
-Four builders based in Bogotá, Colombia (Colombia track · PULSO).
+Made in Bogotá, Colombia 🇨🇴
 
-- **Rodion Tabares** — Engineering. Gateway, wallets, hybrid discovery, MCP integration. ([GitHub](https://github.com/CoKeFish))
-- **André Landinez** — Engineering. On-chain contract, dynamic pricing, x402 trace, dashboard. ([GitHub](https://github.com/andreMD287))
-- **Lizeth Rico** — Design. Visual identity, product UX, dashboard interaction. ([GitHub](https://github.com/ricoththth))
-- **Angie Alpízar Porras** — Design & frontend. UI redesign across the dashboard, landing, OAuth and installer; branding and mascots. ([GitHub](https://github.com/Ansllxs))
+- **Rodion Tabares** — Engineering ([GitHub](https://github.com/CoKeFish))
+- **André Landinez** — Engineering ([GitHub](https://github.com/andreMD287))
+- **Lizeth Rico** — Design ([GitHub](https://github.com/ricoththth))
+- **Angie Alpízar Porras** — Design & frontend ([GitHub](https://github.com/Ansllxs))
 
----
-
-## Acknowledgements
-
-Kiba is submitted to the **Stellar PULSO Hackathon** (NearX × Stellar Development Foundation, June 2026), a builder competition across Brazil, Argentina, and Colombia.
-
-Built on:
-- The Model Context Protocol specification by Anthropic.
-- The x402 payment protocol specification by Coinbase.
-- The Stellar network and the Soroban smart-contract platform.
-- [Trustless Work](https://www.trustlesswork.com) for escrow on Stellar.
-- The `@xenova/transformers` library for in-process embeddings.
-
----
+Built on the [Model Context Protocol](https://modelcontextprotocol.io/), [x402](https://x402.org/), [Stellar](https://stellar.org) and [Trustless Work](https://www.trustlesswork.com).
 
 ## License
 
-[MIT](LICENSE).
+[MIT](LICENSE)

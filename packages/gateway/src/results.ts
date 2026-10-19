@@ -87,12 +87,19 @@ export async function callAndStore(
 
   let output: CallOutput | undefined;
   let failure: Error | undefined;
-  const task = call({ userId: args.userId, service: args.service, payload: args.payload })
+  // El link on-chain del modo crédito llega después de la respuesta: se guarda en el resultado.
+  const onExplorerUrl = (url: string) =>
+    void db
+      .prepare('UPDATE call_results SET explorer_url = ? WHERE id = ?')
+      .run(url, id)
+      .catch((err: Error) => console.log(`[results] no se pudo guardar el link de ${id}:`, err.message));
+  const task = call({ userId: args.userId, service: args.service, payload: args.payload, onExplorerUrl })
     .then(async (out) => {
       output = out;
       await db
         .prepare(
-          `UPDATE call_results SET status = 'done', result = ?, cost_lamports = ?, explorer_url = ?,
+          `UPDATE call_results SET status = 'done', result = ?, cost_lamports = ?,
+           explorer_url = COALESCE(?, explorer_url),
            task_key = COALESCE(task_key, ?), completed_at = ? WHERE id = ?`,
         )
         .run(
