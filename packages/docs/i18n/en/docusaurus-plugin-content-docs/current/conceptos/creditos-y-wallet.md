@@ -18,8 +18,8 @@ A USD balance in the gateway ledger. It's what an assistant spends when it calls
 - New accounts start with **5 USD** in credit (testnet).
 - Top up from the dashboard's **Billing** page or with [`POST /v1/topup`](/api/endpoints#cuenta).
 - Spending is instant and off-chain: it's debited in milliseconds.
-- `get_balance` and `GET /v1/balance` report it as `balance_usd`.
-- The dashboard shows credits in **Kibix** (10,000 Kibix = 1 USD); the API returns USD and base units.
+- `GET /v1/balance` reports them as `balance_usd`.
+- The API returns USD and base units. In the dashboard, amounts such as top-ups, history and usage show in **Kibix** (10,000 Kibix = 1 USD).
 
 ## Wallet (on-chain)
 
@@ -27,6 +27,13 @@ Every account gets a Stellar wallet. When Privy is configured, it's provisioned 
 
 - It holds **USDC** on Stellar; the gateway sets up the [trustline](/stellar/usdc-y-trustlines).
 - To fund it, send USDC to its address: it's a regular Stellar account, no memo.
+
+## Your balance {/* #tu-saldo */}
+
+The dashboard (top bar and **Billing** page) and the [`get_balance`](/conecta-tu-asistente/herramientas-mcp#get_balance) tool show **a single balance in USD**: your credits plus what you can spend with your wallet, minus usage not yet charged. It's what your assistant has to pay for services.
+
+- The dashboard truncates it instead of rounding: it never shows more than you have.
+- In the API it's `total_usd` from [`GET /v1/balance`](/api/endpoints#cuenta).
 
 ## Which one pays a call {/* #cuál-paga-una-llamada */}
 
