@@ -123,7 +123,20 @@ export async function callAndStore(
         costLamports: out.cost.lamports,
         explorerUrl: out.explorerUrl,
       });
-      if (license) depositSoon(license.id);
+      if (license) {
+        // El hash on-chain del modo crédito puede haber llegado ANTES de que existiera la
+        // licencia (attachSettlement no encontró fila): se recupera de call_results.
+        if (!license.tx_hash) {
+          const row = await db
+            .prepare('SELECT explorer_url FROM call_results WHERE id = ?')
+            .get<{ explorer_url: string | null }>(id);
+          if (row?.explorer_url) {
+            await attachSettlement(id, row.explorer_url);
+            license = (await licenseForCall(id)) ?? license;
+          }
+        }
+        depositSoon(license.id);
+      }
     })
     .catch(async (err) => {
       // El servicio respondió pero falló el UPDATE: la llamada no es un error para el cliente.

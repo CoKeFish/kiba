@@ -197,3 +197,26 @@ test('certificado: los campos que manda el servicio se escapan (sin HTML inyecta
   assert.doesNotMatch(html, /<script>|<img|<b>/);
   assert.match(html, /&lt;script&gt;/);
 });
+
+test('callAndStore: el hash on-chain que llega antes que la licencia no se pierde', async () => {
+  const userId = await createTestUser('early@test.com');
+  const result = { license: { assetSha256: SHA, filename: 'a.png' } };
+  // El enlace on-chain se avisa ANTES de que el servicio devuelva (y antes de emitir la licencia).
+  const call = (async (a: { onExplorerUrl?: (u: string) => void }) => {
+    a.onExplorerUrl?.(`https://stellar.expert/explorer/testnet/tx/${TX}`);
+    await new Promise((r) => setTimeout(r, 50));
+    return {
+      result,
+      cost: { lamports: 500_000, usd: 0.05 },
+      mode: 'virtual',
+      paidWith: 'credit',
+      newBalance: { lamports: 0, usd: 0 },
+      trace: { service: 's', endpoint: 'e', totalDurationMs: 1, steps: [] },
+    };
+  }) as unknown as typeof callOnBehalf;
+  const out = await callAndStore({ userId, service: 'media-catalog', payload: {}, waitMs: 2000 }, call);
+  const row = (await licenseForCall(out.resultId))!;
+  assert.equal(row.tx_hash, TX);
+  assert.equal(JSON.parse(row.vc).evidence[0].txHash, TX);
+  assert.equal((out as { license?: { txHash?: string } }).license?.txHash, TX);
+});
