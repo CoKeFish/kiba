@@ -88,6 +88,11 @@ export const api = {
   results: (limit = 50) => request<CallResult[]>(`/v1/results?limit=${limit}`),
   result: (id: string) => request<CallResult>(`/v1/results/${encodeURIComponent(id)}`),
 
+  // Licencias (credenciales verificables de los archivos comprados)
+  licenses: (limit = 50) => request<LicenseSummary[]>(`/v1/licenses?limit=${limit}`),
+  /** Pública: no necesita sesión. */
+  verifyLicense: (id: string) => request<LicenseVerification>(`/v1/licenses/${encodeURIComponent(id)}/verify`),
+
   // Agents (via backend, not gateway — public discovery)
   agents: () => request<Agent[]>("/agents", {}, BACKEND),
   searchAgents: (q: string, mode: "keyword" | "semantic" | "hybrid" = "hybrid", limit = 20) =>
@@ -337,6 +342,55 @@ export type CallResult = {
   completedAt?: number;
   /** Solo en el detalle: las demás llamadas del mismo pedido (mismo taskId), en orden. */
   related?: CallResult[];
+  /** Solo en el detalle: la licencia emitida por el archivo entregado, si la hay. */
+  license?: LicenseSummary;
+};
+
+/** Términos de una licencia (forma de RSL 1.0; ver packages/sdk/src/license.ts). */
+export type LicenseTerms = {
+  name?: string;
+  usage?: string[];
+  user?: string[];
+  geo?: string[];
+  attribution?: boolean;
+  exclusive?: boolean;
+  transferable?: boolean;
+  duration?: string;
+  termsUrl?: string;
+  notes?: string;
+};
+
+/** Resumen de una licencia (credencial verificable emitida por Kiba). */
+export type LicenseSummary = {
+  id: string;
+  status: "valid" | "revoked";
+  service: string;
+  publisher?: string;
+  assetId?: string;
+  assetSha256: string;
+  title?: string;
+  terms: LicenseTerms;
+  issuer: { did: string; stellarAddress: string; verificationMethod: string };
+  txHash?: string;
+  explorerUrl?: string;
+  credentialUrl: string;
+  verifyUrl: string;
+  certificateUrl: string;
+  dashboardUrl: string;
+  actaVcId?: string;
+  actaTx?: string;
+  issuedAt: number;
+  revokedAt?: number;
+};
+
+export type LicenseVerification = {
+  id: string;
+  verified: boolean;
+  checks: { signature: boolean; issuerIsKiba: boolean; notRevoked: boolean; paymentAnchored: boolean };
+  status: "valid" | "revoked";
+  issuer?: string;
+  error?: string;
+  summary: LicenseSummary;
 };
 
 export type Agent = {

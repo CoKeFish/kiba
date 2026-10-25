@@ -704,6 +704,36 @@
       "running": "O serviço ainda está gerando…",
       "ended": "Tarefa encerrada: {{status}}",
       "hint": "Peça ao seu assistente para consultar o resultado de novo e atualizar o progresso."
+    },
+    "license": {
+      "title": "Licença",
+      "status": {
+        "valid": "Válida",
+        "revoked": "Revogada"
+      },
+      "explainer": "Credencial verificável emitida pela Kiba para este arquivo: os termos, o hash do arquivo e o pagamento na Stellar, assinados. Qualquer pessoa pode conferir sem conta.",
+      "asset": "Arquivo",
+      "hash": "SHA-256 do arquivo",
+      "template": "Licença",
+      "allowed_users": "Quem pode usar",
+      "usage": "Usos permitidos",
+      "territory": "Território",
+      "worldwide": "Mundial",
+      "duration": "Duração",
+      "perpetual": "Perpétua",
+      "attribution": "Atribuição obrigatória",
+      "exclusive": "Exclusiva",
+      "transferable": "Transferível",
+      "yes": "Sim",
+      "no": "Não",
+      "notes": "Notas",
+      "issued": "Emitida",
+      "payment": "Pagamento",
+      "payment_pending": "Liquidação on-chain pendente",
+      "certificate": "Certificado",
+      "credential": "Credencial (JSON)",
+      "verify": "Verificar",
+      "acta": "No seu vault da ACTA"
     }
   },
   "paywallet": {
@@ -778,5 +808,21 @@
     "err_login": "Não foi possível entrar na carteira ({{code}}).",
     "err_not_ready": "A carteira ainda está carregando. Tente em alguns segundos.",
     "err_other_privy": "Você entrou com um e-mail diferente do da sua carteira de pagamentos. Saia da carteira e entre com o e-mail com que a criou."
+  },
+  "verify": {
+    "title": "Verificação de licença",
+    "powered": "Emitida pela Kiba como credencial verificável W3C",
+    "loading": "Verificando…",
+    "not_found": "Esta licença não existe.",
+    "ok": "Esta licença é válida",
+    "bad": "Não foi possível verificar esta licença",
+    "checks": {
+      "signature": "A assinatura confere com a chave do emissor",
+      "issuer": "Emitida pela Kiba",
+      "not_revoked": "Não revogada",
+      "payment": "Pagamento ancorado na Stellar"
+    },
+    "how": "Qualquer pessoa pode repetir esta verificação offline: baixe a credencial, verifique a assinatura Ed25519 contra o did:key do emissor e leia a lista de status.",
+    "credential": "Abrir a credencial"
   }
 }

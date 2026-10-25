@@ -704,6 +704,36 @@
       "running": "The service is still generating…",
       "ended": "Task ended: {{status}}",
       "hint": "Ask your assistant to check the result again to update its progress."
+    },
+    "license": {
+      "title": "License",
+      "status": {
+        "valid": "Valid",
+        "revoked": "Revoked"
+      },
+      "explainer": "A verifiable credential issued by Kiba for this file: the terms, the file hash and the Stellar payment, signed. Anyone can check it without an account.",
+      "asset": "File",
+      "hash": "SHA-256 of the file",
+      "template": "License",
+      "allowed_users": "Who may use it",
+      "usage": "Permitted uses",
+      "territory": "Territory",
+      "worldwide": "Worldwide",
+      "duration": "Duration",
+      "perpetual": "Perpetual",
+      "attribution": "Attribution required",
+      "exclusive": "Exclusive",
+      "transferable": "Transferable",
+      "yes": "Yes",
+      "no": "No",
+      "notes": "Notes",
+      "issued": "Issued",
+      "payment": "Payment",
+      "payment_pending": "On-chain settlement pending",
+      "certificate": "Certificate",
+      "credential": "Credential (JSON)",
+      "verify": "Verify",
+      "acta": "In your ACTA vault"
     }
   },
   "paywallet": {
@@ -778,5 +808,21 @@
     "err_login": "Could not sign in to the wallet ({{code}}).",
     "err_not_ready": "The wallet is still loading. Try again in a few seconds.",
     "err_other_privy": "You signed in with a different email than your payments wallet. Sign out of the wallet and sign in with the email you created it with."
+  },
+  "verify": {
+    "title": "License verification",
+    "powered": "Issued by Kiba as a W3C Verifiable Credential",
+    "loading": "Checking…",
+    "not_found": "This license does not exist.",
+    "ok": "This license is valid",
+    "bad": "This license could not be verified",
+    "checks": {
+      "signature": "Signature matches the issuer key",
+      "issuer": "Issued by Kiba",
+      "not_revoked": "Not revoked",
+      "payment": "Payment anchored on Stellar"
+    },
+    "how": "Anyone can repeat this check offline: fetch the credential, verify its Ed25519 signature against the issuer did:key and read the status list.",
+    "credential": "Open the credential"
   }
 }

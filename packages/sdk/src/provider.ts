@@ -32,6 +32,7 @@ import {
   PLATFORM_SIGNATURE_HEADER,
   PLATFORM_QUOTE_CERT_HEADER,
 } from './platform-auth';
+import { normalizeLicense } from './license';
 
 /** Result of the framework-agnostic verify+serve entry point. */
 export interface ServeResult {
@@ -180,6 +181,8 @@ export class AgentProvider {
       ownerWallet: this.ownerAddress,
       acceptedToken: this.asset,
       platformAuth: !!this.platformPublicKey,
+      ...(this.config.license ? { license: this.config.license } : {}),
+      ...(this.config.catalog ? { catalog: true } : {}),
     };
   }
 
@@ -351,7 +354,7 @@ export class AgentProvider {
     // Funds are locked for this agent → respond now and release in the background
     // (Trustless Work release is slow/flaky). If release fails, funds stay in the
     // escrow and can be retried/recovered — the caller still got its result.
-    const body = withPayment(result, {
+    const body = withPayment(normalizeLicense(result, this.config.license), {
       claimed: false,
       settling: true,
       escrowId,
@@ -400,7 +403,7 @@ export class AgentProvider {
   private async runHandler(body: unknown, payment: Record<string, unknown>): Promise<ServeResult> {
     try {
       const result = await this.handler!(body);
-      return { status: 200, body: withPayment(result, payment) };
+      return { status: 200, body: withPayment(normalizeLicense(result, this.config.license), payment) };
     } catch (err) {
       return { status: 500, body: { error: err instanceof Error ? err.message : 'unknown error' } };
     }

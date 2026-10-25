@@ -60,6 +60,15 @@ const agent = new AgentProvider({
     '{ lyrics } to sing your own words. Any language. Music generation, text to music, songs, jingles, background ' +
     'music, soundtracks.',
   endpoint: PUBLIC_ENDPOINT,
+  // Términos de la licencia de cada pista entregada: el gateway emite una credencial verificable
+  // por compra. Honesto con lo que Google concede: uso comercial, no exclusivo, no único.
+  license: {
+    name: 'commercial',
+    attribution: false,
+    notes:
+      'AI-generated with Google Lyria. Non-exclusive and not unique: the provider may generate the same or ' +
+      'similar content for others. Contains an inaudible SynthID watermark. Not for resale as a standalone track.',
+  },
   // Acepta llamadas firmadas por la plataforma (gateway), verificando con la clave PÚBLICA publicada.
   platform: process.env.KIBA_PLATFORM_PUBLIC_KEY
     ? { publicKey: process.env.KIBA_PLATFORM_PUBLIC_KEY }

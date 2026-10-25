@@ -19,7 +19,7 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { listAgents } from './proxy';
-import { callAndStore, getResult, listResults, resultDto } from './results';
+import { callAndStore, getResult, licenseDtoForCall, listResults, resultDto } from './results';
 import { getUserBalances } from './wallets';
 import { getTransactions } from './billing';
 import { explorerTxUrl } from './chain';
@@ -176,7 +176,7 @@ export function buildMcpServer(userId: number): Server {
           if (!resultId) throw new Error('resultId required');
           const row = await getResult(userId, resultId, 25_000);
           if (!row) throw new Error(`result not found: ${resultId}`);
-          return jsonResult(resultDto(row));
+          return jsonResult({ ...resultDto(row), license: await licenseDtoForCall(row.id) });
         }
         case 'list_results': {
           const { limit } = (args ?? {}) as { limit?: number };

@@ -5,6 +5,7 @@ import { api } from "@/lib/api";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ResultPreview, latestState } from "@/components/results/ResultPreview";
+import { LicenseCard } from "@/components/results/LicenseCard";
 import { field } from "@/components/results/content";
 import { formatKibix, baseUnitsToKibix, KIBIX_LABEL } from "@/lib/format";
 import { format } from "date-fns";
@@ -85,6 +86,8 @@ export default function ResultDetail() {
               </CardBody>
             </Card>
           )}
+
+          {r.license && <LicenseCard license={r.license} />}
 
           {history.length > 0 && (
             <Card>

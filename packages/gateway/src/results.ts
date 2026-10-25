@@ -14,6 +14,7 @@
 import { randomBytes } from 'node:crypto';
 import { db } from './db';
 import { callOnBehalf } from './proxy';
+import { attachSettlement, issueLicenseForCall, licenseDto, licenseForCall, type LicenseRow } from './licenses';
 
 export const CALL_WAIT_MS = Number(process.env.CALL_WAIT_MS) || 40_000;
 /** Tope del long-poll de get_result (el cliente MCP también tiene timeout). */
@@ -66,7 +67,7 @@ export async function callAndStore(
   args: { userId: number; service: string; payload: unknown; waitMs?: number },
   call: typeof callOnBehalf = callOnBehalf, // inyectable en tests
 ): Promise<
-  | (CallOutput & { status: 'done'; resultId: string; resultUrl: string })
+  | (CallOutput & { status: 'done'; resultId: string; resultUrl: string; license?: Record<string, unknown> })
   | { status: 'pending'; resultId: string; resultUrl: string; service: string; message: string }
 > {
   const id = `res_${randomBytes(12).toString('hex')}`;
@@ -87,11 +88,13 @@ export async function callAndStore(
 
   let output: CallOutput | undefined;
   let failure: Error | undefined;
+  let license: LicenseRow | null = null;
   // El link on-chain del modo crédito llega después de la respuesta: se guarda en el resultado.
   const onExplorerUrl = (url: string) =>
     void db
       .prepare('UPDATE call_results SET explorer_url = ? WHERE id = ?')
       .run(url, id)
+      .then(() => attachSettlement(id, url))
       .catch((err: Error) => console.log(`[results] no se pudo guardar el link de ${id}:`, err.message));
   const task = call({ userId: args.userId, service: args.service, payload: args.payload, onExplorerUrl })
     .then(async (out) => {
@@ -110,6 +113,15 @@ export async function callAndStore(
           Math.floor(Date.now() / 1000),
           id,
         );
+      // Si el servicio entregó un archivo con licencia, se emite la credencial (nunca falla la llamada).
+      license = await issueLicenseForCall({
+        callId: id,
+        userId: args.userId,
+        service: args.service,
+        result: out.result,
+        costLamports: out.cost.lamports,
+        explorerUrl: out.explorerUrl,
+      });
     })
     .catch(async (err) => {
       // El servicio respondió pero falló el UPDATE: la llamada no es un error para el cliente.
@@ -125,7 +137,15 @@ export async function callAndStore(
 
   const finished = await waitFor(task, args.waitMs ?? CALL_WAIT_MS);
   if (finished && failure) throw failure;
-  if (finished && output) return { ...output, status: 'done', resultId: id, resultUrl: resultUrl(id) };
+  if (finished && output) {
+    return {
+      ...output,
+      status: 'done',
+      resultId: id,
+      resultUrl: resultUrl(id),
+      ...(license ? { license: licenseDto(license) } : {}),
+    };
+  }
   return {
     status: 'pending',
     resultId: id,
@@ -180,6 +200,12 @@ export async function listResults(userId: number, limit = 20): Promise<CallResul
   return db
     .prepare('SELECT * FROM call_results WHERE user_id = ? ORDER BY created_at DESC LIMIT ?')
     .all<CallResultRow>(userId, Math.min(Math.max(limit, 1), 200));
+}
+
+/** La licencia emitida para una llamada, en formato DTO (o undefined). */
+export async function licenseDtoForCall(callId: string): Promise<Record<string, unknown> | undefined> {
+  const row = await licenseForCall(callId);
+  return row ? licenseDto(row) : undefined;
 }
 
 /** DTO común a MCP y REST. `full: false` omite el cuerpo (listados). */

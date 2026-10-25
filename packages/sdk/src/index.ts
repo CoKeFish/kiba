@@ -79,6 +79,8 @@ export {
 
 // Fees + keypair persistence.
 export { PLATFORM_FEE_BPS, BPS_DENOMINATOR, computeFeeSplit } from './fees';
+export { LICENSE_TEMPLATES, mergeLicenseTerms, normalizeLicense, sha256Hex } from './license';
+export type { LicenseGrant, LicenseTerms } from './license';
 export { loadOrCreateKeypair, loadKeypairFromEnvOrFile } from './keypair-store';
 
 // Chain abstraction: AgentClient/AgentProvider operate the blockchain only through

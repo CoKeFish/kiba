@@ -16,6 +16,7 @@ import {
   callAndStore,
   failOrphanedResults,
   getResult,
+  licenseDtoForCall,
   listResults,
   relatedResults,
   resultDto,
@@ -58,6 +59,16 @@ import {
   COP_USD_RATE,
 } from './payments';
 import { listAgents, masterWalletPubkey, platformPublicKey } from './proxy';
+import {
+  certificateHtml,
+  getLicense,
+  issuerInfo,
+  kibaContext,
+  licenseDto,
+  listLicenses,
+  statusListCredential,
+  verifyLicense,
+} from './licenses';
 import { settleAgent, settleAllDue, MIN_PAYOUT, recordEarning } from './settlement';
 import { listUserSettlements, getDailySeries } from './publisher';
 import { warmEscrows, enqueueChainTask } from './escrows';
@@ -1427,7 +1438,61 @@ app.get('/v1/results/:id', requireAuth, async (req, res) => {
   if (!row) return res.status(404).json({ error: 'result not found' });
   // `related`: las otras llamadas del mismo pedido (p.ej. las consultas de estado de un modelo 3D).
   const related = await relatedResults(row);
-  res.json({ ...resultDto(row), related: related.map((r) => resultDto(r)) });
+  res.json({ ...resultDto(row), license: await licenseDtoForCall(row.id), related: related.map((r) => resultDto(r)) });
+});
+
+// ─── Licencias de medios (credenciales verificables; ver licenses.ts) ──
+// Las rutas de lectura de una credencial son PÚBLICAS a propósito: cualquiera con el id (que va
+// en el certificado del comprador) debe poder verificarla sin cuenta en Kiba.
+
+app.get('/v1/licenses', requireAuth, async (req, res) => {
+  const rows = await listLicenses(req.bearerUser!.id, Number(req.query.limit) || 50);
+  res.json(rows.map(licenseDto));
+});
+
+app.get('/v1/licenses/issuer', (_req, res) => {
+  res.json(issuerInfo());
+});
+
+app.get('/v1/licenses/context/v1', (_req, res) => {
+  res.type('application/ld+json').json(kibaContext());
+});
+
+app.get('/v1/licenses/status/:list', async (_req, res) => {
+  res.type('application/vc').json(await statusListCredential());
+});
+
+app.get('/v1/licenses/:id', async (req, res) => {
+  const row = await getLicense(req.params.id);
+  if (!row) return res.status(404).json({ error: 'license not found' });
+  res.type('application/vc').json(JSON.parse(row.vc));
+});
+
+app.get('/v1/licenses/:id/verify', async (req, res) => {
+  const row = await getLicense(req.params.id);
+  if (!row) return res.status(404).json({ error: 'license not found' });
+  res.json({ id: row.id, ...(await verifyLicense(row)), summary: licenseDto(row) });
+});
+
+app.get('/v1/licenses/:id/receipt', async (req, res) => {
+  const row = await getLicense(req.params.id);
+  if (!row) return res.status(404).json({ error: 'license not found' });
+  res.json({
+    id: row.id,
+    callId: row.call_id,
+    service: row.service,
+    amountBaseUnits: row.amount_lamports ?? undefined,
+    txHash: row.tx_hash ?? undefined,
+    explorerUrl: row.tx_hash ? explorerTxUrl(row.tx_hash) : undefined,
+    issuedAt: row.created_at,
+    status: row.status,
+  });
+});
+
+app.get('/v1/licenses/:id/certificate', async (req, res) => {
+  const row = await getLicense(req.params.id);
+  if (!row) return res.status(404).send('license not found');
+  res.type('html').send(certificateHtml(row));
 });
 
 // ─── API Keys (long-lived bearer tokens for direct REST access) ──

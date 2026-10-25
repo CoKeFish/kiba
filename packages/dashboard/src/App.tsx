@@ -7,6 +7,7 @@ import Connect from "@/routes/Connect";
 import Transactions from "@/routes/Transactions";
 import Results from "@/routes/Results";
 import ResultDetail from "@/routes/ResultDetail";
+import Verify from "@/routes/Verify";
 import Credentials from "@/routes/Credentials";
 import Agents from "@/routes/Agents";
 import Playground from "@/routes/Playground";
@@ -79,6 +80,8 @@ export default function App() {
       </Route>
       {/* Enlaces externos legacy (p.ej. el "View all agents" del landing apunta a
           /agents): normalizamos el path plano a su equivalente bajo /app. */}
+      {/* Verificación pública de una licencia (la URL del certificado y del QR). Sin sesión. */}
+      <Route path="/verify/:id" element={<Verify />} />
       <Route path="/agents" element={<Navigate to="/app/agents" replace />} />
       <Route path="/" element={<Navigate to="/app" replace />} />
       <Route path="*" element={<Navigate to="/app" replace />} />

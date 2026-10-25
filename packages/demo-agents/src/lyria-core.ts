@@ -11,7 +11,8 @@
  * Como eso no cabe en una respuesta MCP, el agente guarda el archivo en disco (con caducidad)
  * y devuelve un enlace de descarga en su propio endpoint público (/audio/<id>.mp3).
  */
-import { randomBytes } from 'node:crypto';
+import type { LicenseGrant } from 'kiba-sdk';
+import { createHash, randomBytes } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 
@@ -42,6 +43,8 @@ export interface LyriaResult {
   lyrics?: string;
   /** Epoch ms hasta el que el enlace sigue disponible. */
   expiresAt: number;
+  /** Licencia del archivo entregado (hash + términos); el gateway emite la credencial. */
+  license?: LicenseGrant;
   /** Qué hacer a continuación (pensado para el asistente que llama). */
   next: string;
 }
@@ -257,6 +260,15 @@ export async function generate(config: LyriaConfig, req: unknown): Promise<Lyria
     approxDurationSec: approxDurationSec(audio.length, mimeType),
     ...(lyrics ? { lyrics } : {}),
     expiresAt,
+    license: {
+      assetSha256: createHash('sha256').update(audio).digest('hex'),
+      assetId: name.replace(/\.[a-z0-9]+$/, ''),
+      title: n.prompt.slice(0, 120),
+      filename: name,
+      mimeType,
+      bytes: audio.length,
+      assetUrl: `${base}/audio/${name}`,
+    },
     next:
       `Give the user the audioUrl link to listen or download (${extensionFor(mimeType).toUpperCase()}). ` +
       `The link expires in ${Math.round(config.ttlMs / 3_600_000)} h. Lyrics are in \`lyrics\`.`,

@@ -704,6 +704,36 @@
       "running": "El servicio sigue generando…",
       "ended": "Tarea terminada: {{status}}",
       "hint": "Pídele a tu asistente que vuelva a consultar el resultado para actualizar el progreso."
+    },
+    "license": {
+      "title": "Licencia",
+      "status": {
+        "valid": "Válida",
+        "revoked": "Revocada"
+      },
+      "explainer": "Credencial verificable emitida por Kiba para este archivo: los términos, el hash del archivo y el pago en Stellar, firmados. Cualquiera puede comprobarla sin cuenta.",
+      "asset": "Archivo",
+      "hash": "SHA-256 del archivo",
+      "template": "Licencia",
+      "allowed_users": "Quién puede usarlo",
+      "usage": "Usos permitidos",
+      "territory": "Territorio",
+      "worldwide": "Todo el mundo",
+      "duration": "Duración",
+      "perpetual": "Perpetua",
+      "attribution": "Atribución obligatoria",
+      "exclusive": "Exclusiva",
+      "transferable": "Transferible",
+      "yes": "Sí",
+      "no": "No",
+      "notes": "Notas",
+      "issued": "Emitida",
+      "payment": "Pago",
+      "payment_pending": "Liquidación en cadena pendiente",
+      "certificate": "Certificado",
+      "credential": "Credencial (JSON)",
+      "verify": "Verificar",
+      "acta": "En tu vault de ACTA"
     }
   },
   "paywallet": {
@@ -778,5 +808,21 @@
     "err_login": "No se pudo iniciar sesión en la wallet ({{code}}).",
     "err_not_ready": "La wallet todavía está cargando. Inténtalo en unos segundos.",
     "err_other_privy": "Entraste con un correo distinto al de tu wallet de pagos. Cierra sesión de la wallet y entra con el correo con el que la creaste."
+  },
+  "verify": {
+    "title": "Verificación de licencia",
+    "powered": "Emitida por Kiba como credencial verificable W3C",
+    "loading": "Comprobando…",
+    "not_found": "Esta licencia no existe.",
+    "ok": "Esta licencia es válida",
+    "bad": "No se pudo verificar esta licencia",
+    "checks": {
+      "signature": "La firma coincide con la clave del emisor",
+      "issuer": "Emitida por Kiba",
+      "not_revoked": "No revocada",
+      "payment": "Pago anclado en Stellar"
+    },
+    "how": "Cualquiera puede repetir esta comprobación sin conexión: descarga la credencial, verifica su firma Ed25519 contra el did:key del emisor y lee la lista de estado.",
+    "credential": "Abrir la credencial"
   }
 }

@@ -288,7 +288,35 @@ async function runInit(): Promise<void> {
       FOREIGN KEY (user_id) REFERENCES users(id)
     );
 
+    -- Licencias de medios (licenses.ts): una credencial verificable por llamada pagada cuyo
+    -- resultado trae license. seq es el índice en la lista de estado (revocación). vc = JSON.
+    CREATE TABLE IF NOT EXISTS licenses (
+      id TEXT PRIMARY KEY,
+      seq BIGINT GENERATED ALWAYS AS IDENTITY,
+      call_id TEXT NOT NULL,
+      user_id BIGINT NOT NULL,
+      service TEXT NOT NULL,
+      publisher TEXT,
+      asset_id TEXT,
+      asset_sha256 TEXT NOT NULL,
+      title TEXT,
+      terms TEXT NOT NULL,
+      amount_lamports BIGINT,
+      tx_hash TEXT,
+      vc TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'valid',
+      revoked_at BIGINT,
+      revoke_reason TEXT,
+      acta_vc_id TEXT,
+      acta_tx TEXT,
+      created_at BIGINT NOT NULL,
+      updated_at BIGINT,
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    );
+
     CREATE INDEX IF NOT EXISTS idx_tokens_user ON oauth_tokens(user_id);
+    CREATE INDEX IF NOT EXISTS idx_licenses_user ON licenses(user_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_licenses_call ON licenses(call_id);
     CREATE INDEX IF NOT EXISTS idx_results_user ON call_results(user_id, created_at);
     CREATE INDEX IF NOT EXISTS idx_results_task ON call_results(user_id, task_key);
     CREATE INDEX IF NOT EXISTS idx_tx_user ON transactions(user_id);
