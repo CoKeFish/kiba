@@ -14,8 +14,7 @@
 import { randomBytes } from 'node:crypto';
 import { db } from './db';
 import { callOnBehalf } from './proxy';
-import { attachSettlement, issueLicenseForCall, licenseDto, licenseForCall, type LicenseRow } from './licenses';
-import { depositSoon } from './acta';
+import { attachSettlement, issueLicenseForCall, licenseDto, licenseForCall, referenceOf, type LicenseRow } from './licenses';
 
 export const CALL_WAIT_MS = Number(process.env.CALL_WAIT_MS) || 40_000;
 /** Tope del long-poll de get_result (el cliente MCP también tiene timeout). */
@@ -90,6 +89,24 @@ export async function callAndStore(
   let output: CallOutput | undefined;
   let failure: Error | undefined;
   let license: LicenseRow | null = null;
+  // Si el servicio entregó un archivo con licencia, el documento se escribe ANTES de pagar y su
+  // huella viaja en el pago por llamada (modo crédito). Nunca falla la llamada.
+  const issue = async (result: unknown, costLamports: number | null, payTo?: string, explorerUrl?: string) => {
+    license ??= await issueLicenseForCall({
+      callId: id,
+      userId: args.userId,
+      service: args.service,
+      result,
+      costLamports,
+      payTo,
+      explorerUrl,
+    });
+    return license;
+  };
+  const onBeforePay = async (result: unknown, info: { lamports: number; payTo: string }) => {
+    const row = await issue(result, info.lamports, info.payTo);
+    return row ? referenceOf(row.doc_sha256) : undefined;
+  };
   // El link on-chain del modo crédito llega después de la respuesta: se guarda en el resultado.
   const onExplorerUrl = (url: string) =>
     void db
@@ -97,7 +114,7 @@ export async function callAndStore(
       .run(url, id)
       .then(() => attachSettlement(id, url))
       .catch((err: Error) => console.log(`[results] no se pudo guardar el link de ${id}:`, err.message));
-  const task = call({ userId: args.userId, service: args.service, payload: args.payload, onExplorerUrl })
+  const task = call({ userId: args.userId, service: args.service, payload: args.payload, onExplorerUrl, onBeforePay })
     .then(async (out) => {
       output = out;
       await db
@@ -114,28 +131,20 @@ export async function callAndStore(
           Math.floor(Date.now() / 1000),
           id,
         );
-      // Si el servicio entregó un archivo con licencia, se emite la credencial (nunca falla la llamada).
-      license = await issueLicenseForCall({
-        callId: id,
-        userId: args.userId,
-        service: args.service,
-        result: out.result,
-        costLamports: out.cost.lamports,
-        explorerUrl: out.explorerUrl,
-      });
-      if (license) {
-        // El hash on-chain del modo crédito puede haber llegado ANTES de que existiera la
-        // licencia (attachSettlement no encontró fila): se recupera de call_results.
-        if (!license.tx_hash) {
-          const row = await db
-            .prepare('SELECT explorer_url FROM call_results WHERE id = ?')
-            .get<{ explorer_url: string | null }>(id);
-          if (row?.explorer_url) {
-            await attachSettlement(id, row.explorer_url);
-            license = (await licenseForCall(id)) ?? license;
-          }
+      // Si la llamada no pasó por onBeforePay (otros modos de pago), el documento se escribe aquí;
+      // si el pago ya confirmó en línea, se ancla.
+      await issue(out.result, out.cost.lamports, undefined, out.explorerUrl);
+      if (license && out.explorerUrl) await attachSettlement(id, out.explorerUrl);
+      // El hash on-chain puede haber llegado antes de que existiera la fila de la licencia
+      // (attachSettlement no encontró nada): se recupera de call_results.
+      if (license && !license.tx_hash) {
+        const row = await db
+          .prepare('SELECT explorer_url FROM call_results WHERE id = ?')
+          .get<{ explorer_url: string | null }>(id);
+        if (row?.explorer_url) {
+          await attachSettlement(id, row.explorer_url);
+          license = (await licenseForCall(id)) ?? license;
         }
-        depositSoon(license.id);
       }
     })
     .catch(async (err) => {

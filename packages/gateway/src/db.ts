@@ -288,14 +288,15 @@ async function runInit(): Promise<void> {
       FOREIGN KEY (user_id) REFERENCES users(id)
     );
 
-    -- Licencias de medios (licenses.ts): una credencial verificable por llamada pagada cuyo
-    -- resultado trae license. seq es el índice en la lista de estado (revocación). vc = JSON.
+    -- Licencias de medios (licenses.ts): un documento por llamada pagada cuyo resultado trae
+    -- license. doc = JSON canónico; doc_sha256 = su huella (los 8 primeros bytes viajan en el
+    -- reference del pago por llamada). anchor_ok = la transacción leída lleva esa huella.
     CREATE TABLE IF NOT EXISTS licenses (
       id TEXT PRIMARY KEY,
-      seq BIGINT GENERATED ALWAYS AS IDENTITY,
       call_id TEXT NOT NULL,
       user_id BIGINT NOT NULL,
       service TEXT NOT NULL,
+      pay_to TEXT,
       publisher TEXT,
       asset_id TEXT,
       asset_sha256 TEXT NOT NULL,
@@ -303,39 +304,15 @@ async function runInit(): Promise<void> {
       terms TEXT NOT NULL,
       amount_lamports BIGINT,
       tx_hash TEXT,
-      vc TEXT NOT NULL,
+      doc TEXT NOT NULL,
+      doc_sha256 TEXT NOT NULL,
       status TEXT NOT NULL DEFAULT 'valid',
       revoked_at BIGINT,
       revoke_reason TEXT,
-      acta_vc_id TEXT,
-      acta_tx TEXT,
-      acta_attempts INTEGER NOT NULL DEFAULT 0,
-      acta_error TEXT,
-      acta_next_at BIGINT,
+      anchor_ok BOOLEAN,
+      anchor_checked_at BIGINT,
       created_at BIGINT NOT NULL,
       updated_at BIGINT,
-      FOREIGN KEY (user_id) REFERENCES users(id)
-    );
-
-    -- Identidad del emisor de licencias en ACTA (acta.ts): un did:stellar por cuenta firmante y red.
-    CREATE TABLE IF NOT EXISTS issuer_identities (
-      controller TEXT NOT NULL,
-      network TEXT NOT NULL,
-      did TEXT NOT NULL,
-      tx_id TEXT,
-      created_at BIGINT NOT NULL,
-      PRIMARY KEY (controller, network)
-    );
-
-    -- Vault ACTA de cada comprador (patrocinado por Kiba), uno por usuario y red.
-    CREATE TABLE IF NOT EXISTS acta_vaults (
-      user_id BIGINT NOT NULL,
-      network TEXT NOT NULL,
-      owner TEXT NOT NULL,
-      did_uri TEXT NOT NULL,
-      vault_tx TEXT,
-      created_at BIGINT NOT NULL,
-      PRIMARY KEY (user_id, network),
       FOREIGN KEY (user_id) REFERENCES users(id)
     );
 
@@ -430,6 +407,16 @@ async function runInit(): Promise<void> {
   `);
   // Fund per-call: earning fondeada on-chain apunta al escrow del ciclo (NULL = legacy/acumulado).
   await pool.query(`ALTER TABLE agent_earnings ADD COLUMN IF NOT EXISTS escrow_id TEXT`);
+  // licenses (rama hackmeridian-2026, antes del primer despliegue): de credencial firmada a
+  // documento + huella en el pago. Deja las bases locales creadas con el esquema anterior al día.
+  for (const col of ['pay_to TEXT', "doc TEXT NOT NULL DEFAULT '{}'", "doc_sha256 TEXT NOT NULL DEFAULT ''", 'anchor_ok BOOLEAN', 'anchor_checked_at BIGINT']) {
+    await pool.query(`ALTER TABLE licenses ADD COLUMN IF NOT EXISTS ${col}`);
+  }
+  for (const col of ['vc', 'seq', 'acta_vc_id', 'acta_tx', 'acta_attempts', 'acta_error', 'acta_next_at']) {
+    await pool.query(`ALTER TABLE licenses DROP COLUMN IF EXISTS ${col}`);
+  }
+  await pool.query('DROP TABLE IF EXISTS acta_vaults');
+  await pool.query('DROP TABLE IF EXISTS issuer_identities');
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_earnings_escrow ON agent_earnings(escrow_id)`);
 
   // Backfills idempotentes (no-op en DB fresca; protegen DBs existentes).

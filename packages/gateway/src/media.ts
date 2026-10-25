@@ -155,7 +155,7 @@ export async function searchMedia(
     items: merged,
     hint:
       merged.length > 0
-        ? 'Show the user a few options with price and previewUrl. To buy one: call_agent(service, { assetId }); the response includes the download link and a verifiable license credential.'
+        ? 'Show the user a few options with price and previewUrl. To buy one: call_agent(service, { assetId }); the response includes the download link and the license (file hash, terms, price), whose fingerprint travels in the Stellar payment.'
         : 'No licensed media matched. Try other words, or a generator service (music-generator, 3d-generator) which also delivers a license.',
   };
 }

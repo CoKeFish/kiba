@@ -724,7 +724,7 @@
         "valid": "Válida",
         "revoked": "Revocada"
       },
-      "explainer": "Credencial verificable emitida por Kiba para este archivo: los términos, el hash del archivo y el pago en Stellar, firmados. Cualquiera puede comprobarla sin cuenta.",
+      "explainer": "La licencia de este archivo: los términos, el hash del archivo y el precio, en un documento cuya huella viaja en el pago en Stellar. Cualquiera puede comprobarla sin cuenta.",
       "asset": "Archivo",
       "hash": "SHA-256 del archivo",
       "template": "Licencia",
@@ -743,10 +743,9 @@
       "issued": "Emitida",
       "payment": "Pago",
       "payment_pending": "Liquidación en cadena pendiente",
-      "certificate": "Certificado",
-      "credential": "Credencial (JSON)",
       "verify": "Verificar",
-      "acta": "En tu vault de ACTA"
+      "fingerprint": "Huella del documento",
+      "document": "Documento de licencia (JSON)"
     }
   },
   "paywallet": {
@@ -824,19 +823,20 @@
   },
   "verify": {
     "title": "Verificación de licencia",
-    "powered": "Emitida por Kiba como credencial verificable W3C",
+    "powered": "El pago en Stellar es la prueba",
     "loading": "Comprobando…",
     "not_found": "Esta licencia no existe.",
     "ok": "Esta licencia es válida",
     "bad": "No se pudo verificar esta licencia",
+    "pending": "El pago todavía se está liquidando en Stellar. Vuelve a comprobar en unos segundos.",
     "checks": {
-      "signature": "La firma coincide con la clave del emisor",
-      "issuer": "Emitida por Kiba",
-      "not_revoked": "No revocada",
-      "payment": "Pago anclado en Stellar"
+      "document": "El documento coincide con su huella",
+      "payment_found": "El pago existe en Stellar",
+      "payment_commits": "El pago lleva la huella del documento",
+      "not_revoked": "No revocada"
     },
-    "how": "Cualquiera puede repetir esta comprobación sin conexión: descarga la credencial, verifica su firma Ed25519 contra el did:key del emisor y lee la lista de estado.",
-    "credential": "Abrir la credencial"
+    "how": "Cualquiera puede repetir esta comprobación: descarga el documento, calcula su SHA-256, abre la transacción en Stellar y compara su referencia con los primeros 8 bytes del hash.",
+    "document": "Abrir el documento"
   },
   "media": {
     "entry_text": "¿Buscas fotos, música o modelos 3D con licencia?",

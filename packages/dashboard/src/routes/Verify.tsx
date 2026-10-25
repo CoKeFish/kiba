@@ -1,14 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
-import { Check, ExternalLink, ShieldCheck, ShieldOff, X } from "lucide-react";
+import { Check, Clock, ExternalLink, ShieldCheck, ShieldOff, X } from "lucide-react";
 import { api } from "@/lib/api";
 import { LicenseCard } from "@/components/results/LicenseCard";
 
 /**
- * Verificación PÚBLICA de una licencia (sin cuenta): /verify/:id. Es la URL que va en el
- * certificado y en el QR. Pide al gateway que compruebe la firma, el emisor y el estado, y
- * muestra el resultado con enlaces a la credencial, al certificado y a la transacción.
+ * Verificación PÚBLICA de una licencia (sin cuenta): /verify/:id. Pide al gateway que compruebe
+ * que el documento coincide con su huella, que el pago existe en Stellar y lleva esa huella, y
+ * que la licencia no está revocada. Enlaces al documento y a la transacción.
  */
 export default function Verify() {
   const { id = "" } = useParams();
@@ -17,14 +17,15 @@ export default function Verify() {
     queryKey: ["verify-license", id],
     queryFn: () => api.verifyLicense(id),
     retry: false,
+    refetchInterval: (q) => (q.state.data?.pending ? 5000 : false),
   });
 
   const checks: [string, boolean | undefined][] = data
     ? [
-        [t("verify.checks.signature"), data.checks.signature],
-        [t("verify.checks.issuer"), data.checks.issuerIsKiba],
+        [t("verify.checks.document"), data.checks.document],
+        [t("verify.checks.payment_found"), data.checks.paymentFound],
+        [t("verify.checks.payment_commits"), data.checks.paymentCommits],
         [t("verify.checks.not_revoked"), data.checks.notRevoked],
-        [t("verify.checks.payment"), data.checks.paymentAnchored],
       ]
     : [];
 
@@ -48,16 +49,24 @@ export default function Verify() {
           <>
             <div
               className={`rounded-lg border p-4 flex items-center gap-3 ${
-                data.verified ? "border-[var(--color-success)]" : "border-[var(--color-danger)]"
+                data.verified
+                  ? "border-[var(--color-success)]"
+                  : data.pending
+                    ? "border-[var(--color-border)]"
+                    : "border-[var(--color-danger)]"
               }`}
             >
               {data.verified ? (
                 <ShieldCheck className="w-6 h-6 text-[var(--color-success)]" />
+              ) : data.pending ? (
+                <Clock className="w-6 h-6 text-[var(--color-fg-muted)]" />
               ) : (
                 <ShieldOff className="w-6 h-6 text-[var(--color-danger)]" />
               )}
               <div>
-                <p className="font-medium">{data.verified ? t("verify.ok") : t("verify.bad")}</p>
+                <p className="font-medium">
+                  {data.verified ? t("verify.ok") : data.pending ? t("verify.pending") : t("verify.bad")}
+                </p>
                 {data.error && <p className="text-xs text-[var(--color-fg-muted)]">{data.error}</p>}
               </div>
             </div>
@@ -80,12 +89,12 @@ export default function Verify() {
             <p className="text-xs text-[var(--color-fg-muted)]">
               {t("verify.how")}{" "}
               <a
-                href={data.summary.credentialUrl}
+                href={data.summary.documentUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-[var(--color-primary)] hover:underline inline-flex items-center gap-1"
               >
-                {t("verify.credential")} <ExternalLink className="w-3 h-3" />
+                {t("verify.document")} <ExternalLink className="w-3 h-3" />
               </a>
             </p>
           </>

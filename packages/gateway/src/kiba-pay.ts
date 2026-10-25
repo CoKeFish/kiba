@@ -71,17 +71,20 @@ async function markFailed(settlementId: number): Promise<void> {
 /**
  * Envía el pago de una liquidación ya reservada ('pending'). Debe correr dentro de la cola de
  * la treasury. 'pending' = no se supo si entró (lo resuelve reconcileKibaPays).
+ * `reference` va en el evento `paid` del contrato: por defecto el id de la liquidación; en un
+ * pago por llamada con licencia, la huella del documento de licencia (licenses.ts).
  */
 export async function sendKibaPay(
   cc: ChainClient,
   settlementId: number,
   payTo: string,
   amount: number,
+  reference?: bigint,
 ): Promise<{ status: 'settled' | 'pending' | 'failed'; hash?: string; error?: string }> {
   try {
     await ensureTreasuryFunded();
     const hash = await cc.payService!(
-      { receiver: payTo, amountBaseUnits: BigInt(amount), reference: BigInt(settlementId) },
+      { receiver: payTo, amountBaseUnits: BigInt(amount), reference: reference ?? BigInt(settlementId) },
       async (h) => {
         await db
           .prepare('UPDATE settlements SET signature = ?, escrow_id = ? WHERE id = ?')
@@ -110,6 +113,8 @@ export function payForCall(args: {
   lamports: number;
   earningId: number;
   transactionId?: number;
+  /** Huella de la licencia (licenses.ts): viaja en el pago en vez del id de la liquidación. */
+  reference?: bigint;
 }): Promise<PerCallFundResult> {
   if (!kibaPayPerCallEnabled()) return Promise.resolve({});
   if (chainQueuePending() >= MAX_PENDING) {
@@ -139,7 +144,7 @@ export function payForCall(args: {
       }).catch(() => null);
       if (settlementId == null) return {};
 
-      const r = await sendKibaPay(cc, settlementId, args.payTo, args.lamports);
+      const r = await sendKibaPay(cc, settlementId, args.payTo, args.lamports, args.reference);
       if (r.status !== 'settled' || !r.hash) return {};
       if (args.transactionId != null) await attachSignature(args.transactionId, r.hash);
       return { txHash: r.hash };

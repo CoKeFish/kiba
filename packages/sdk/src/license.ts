@@ -3,23 +3,39 @@
  *
  * Un servicio que vende imágenes, música, modelos 3D o cualquier archivo devuelve, junto al
  * resultado, un bloque `license` con el hash del archivo y los términos. El gateway de Kiba
- * convierte ese bloque en una credencial verificable (W3C VC) firmada, anclada al pago en
- * Stellar, y se la entrega al comprador con el resultado.
+ * escribe con él un documento de licencia (comprador, vendedor, archivo, términos, precio) y el
+ * pago en Stellar de esa llamada lleva la huella del documento: la transacción es la prueba.
  *
- * Los términos siguen la forma de RSL 1.0 (Really Simple Licensing): `usage`, `user` y `geo`
- * usan sus mismos valores, para poder exportar la licencia como documento RSL más adelante.
+ * Los usos permitidos (`usage`) y quién puede usarlo (`user`) son palabras del sector de medios,
+ * pensadas para que las lea una persona: "advertising", "social-media", "commercial"…
  */
 import { createHash } from 'node:crypto';
 
-/** Términos de una licencia (forma de RSL 1.0). Todos los campos son opcionales: lo que falte se
- *  completa con la plantilla del servicio (`AgentConfig.license`) y, en último término, con
+/** Usos permitidos de un archivo (vocabulario del sector de medios). */
+export const LICENSE_USAGES = [
+  'advertising', // anuncios pagados: digital, exterior, televisión
+  'social-media', // publicaciones y vídeos en redes sociales
+  'broadcast', // televisión, radio, streaming
+  'print', // impresión: revistas, carteles, libros
+  'merchandise', // productos a la venta con el archivo impreso
+  'editorial', // noticias, blogs, documentales
+  'web', // sitios web y apps
+] as const;
+export type LicenseUsage = (typeof LICENSE_USAGES)[number];
+
+/** Quién puede usar el archivo. */
+export const LICENSE_USERS = ['commercial', 'personal', 'education', 'non-commercial', 'government'] as const;
+export type LicenseUser = (typeof LICENSE_USERS)[number];
+
+/** Términos de una licencia. Todos los campos son opcionales: lo que falte se completa con la
+ *  plantilla del servicio (`AgentConfig.license`) y, en último término, con
  *  `LICENSE_TEMPLATES.commercial`. */
 export interface LicenseTerms {
   /** Nombre de la plantilla: 'personal' | 'commercial' | 'commercial-attribution' | otro. */
   name?: string;
-  /** Usos permitidos (RSL): 'all' | 'ai-all' | 'ai-train' | 'ai-input' | 'ai-index' | 'search'. */
+  /** Usos permitidos: ver {@link LICENSE_USAGES}. */
   usage?: string[];
-  /** Quién puede usarlo (RSL): 'commercial' | 'non-commercial' | 'education' | 'government' | 'personal'. */
+  /** Quién puede usarlo: ver {@link LICENSE_USERS}. */
   user?: string[];
   /** Territorios ISO 3166-1 alpha-2, o ['*'] para todo el mundo. */
   geo?: string[];
@@ -58,7 +74,7 @@ export interface LicenseGrant {
 export const LICENSE_TEMPLATES: Record<string, LicenseTerms> = {
   personal: {
     name: 'personal',
-    usage: ['all'],
+    usage: ['web', 'social-media', 'print'],
     user: ['personal', 'non-commercial', 'education'],
     geo: ['*'],
     attribution: false,
@@ -68,7 +84,7 @@ export const LICENSE_TEMPLATES: Record<string, LicenseTerms> = {
   },
   commercial: {
     name: 'commercial',
-    usage: ['all'],
+    usage: [...LICENSE_USAGES],
     user: ['commercial', 'personal', 'education', 'non-commercial'],
     geo: ['*'],
     attribution: false,
@@ -78,7 +94,7 @@ export const LICENSE_TEMPLATES: Record<string, LicenseTerms> = {
   },
   'commercial-attribution': {
     name: 'commercial-attribution',
-    usage: ['all'],
+    usage: [...LICENSE_USAGES],
     user: ['commercial', 'personal', 'education', 'non-commercial'],
     geo: ['*'],
     attribution: true,

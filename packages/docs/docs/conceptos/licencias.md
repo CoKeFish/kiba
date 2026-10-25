@@ -1,12 +1,12 @@
 ---
 title: "Licencias de medios"
-description: "Qué recibes al comprar un archivo por Kiba: una credencial verificable con los términos, el hash del archivo y el pago en Stellar. Plantillas, verificación y cómo declararla como publisher."
+description: "Qué recibes al comprar un archivo por Kiba: un documento de licencia (archivo, términos, precio) cuya huella viaja en el pago en Stellar. Plantillas, verificación y cómo declararla como publisher."
 slug: /licencias
 ---
 
 # Licencias de medios
 
-Cuando tu asistente compra por Kiba un archivo (una foto, una pista de música, un modelo 3D, un documento), no recibe solo el archivo. Recibe también una **licencia**: una credencial verificable, firmada por Kiba, que dice quién compró qué, bajo qué términos y con qué pago. No es un token ni un NFT. Es un documento que cualquiera puede comprobar sin cuenta y sin conexión.
+Cuando tu asistente compra por Kiba un archivo (una foto, una pista de música, un modelo 3D, un documento), recibe el archivo y una **licencia**: un documento que dice quién compró qué, bajo qué términos y por cuánto. La prueba es el pago: la transacción en Stellar que pagó esa llamada lleva la huella del documento. No hay certificado, ni token, ni firma en la que confiar. La transacción es la prueba y el documento es lo que prueba.
 
 ## Qué recibes al comprar
 
@@ -15,37 +15,38 @@ Tu asistente busca gratis en todos los catálogos con la herramienta `search_med
 | Pieza | Qué es | Dónde está |
 |---|---|---|
 | El archivo | Enlace de descarga (firmado, con caducidad) del servicio que lo vende | En la respuesta del asistente y en **Resultados** del dashboard |
-| La credencial | Un documento W3C Verifiable Credential 2.0 (`MediaLicenseCredential`) firmado con Ed25519 | `https://api.kiba.tools/v1/licenses/<id>` (pública) |
-| El certificado | La misma información en una página legible e imprimible | `…/v1/licenses/<id>/certificate` |
-| La verificación | Comprobación de firma, emisor y estado, con enlace al pago en Stellar | `https://app.kiba.tools/verify/<id>` |
+| El documento de licencia | JSON plano: comprador, vendedor, SHA-256 del archivo, términos, precio | `https://api.kiba.tools/v1/licenses/<id>/document` (público) |
+| El pago | La transacción en Stellar que pagó la llamada. Su argumento `reference` son los primeros 8 bytes del SHA-256 del documento | Enlace al explorador en la respuesta y en el dashboard |
+| La verificación | Comprueba el documento, el pago y el estado | `https://app.kiba.tools/verify/<id>` |
 
-La credencial contiene: el identificador de tu cuenta de Kiba (no tu nombre ni tu correo), el servicio y el publisher, el **SHA-256 del archivo** (lo que identifica exactamente qué compraste), los términos, y como evidencia la llamada pagada y, cuando existe, el **hash de la transacción en Stellar**.
+El documento identifica al comprador por su cuenta de Kiba (no por nombre ni correo) y, si tiene wallet de pagos, por su dirección Stellar.
 
-## Plantillas de términos
+## Términos
 
-Los términos siguen la forma de [RSL 1.0](https://rslstandard.org/rsl), el estándar abierto de licencias legibles por máquina, para que la licencia pueda exportarse e incrustarse en los metadatos del archivo.
+Campos: usos permitidos, quién puede usarlo, territorio, duración, atribución, exclusiva, transferible, notas y URL de los términos completos.
 
-| Plantilla | Quién puede usarlo | Atribución | Exclusiva | Transferible | Duración |
-|---|---|---|---|---|---|
-| `personal` | Uso personal, educativo y no comercial | No | No | No | Perpetua |
-| `commercial` | Uso comercial y personal | No | No | No | Perpetua |
-| `commercial-attribution` | Uso comercial y personal | **Sí** (el texto exacto viene en la credencial) | No | No | Perpetua |
+Usos permitidos: `advertising` (anuncios), `social-media` (redes sociales), `broadcast` (televisión, radio, streaming), `print` (impresión), `merchandise` (productos a la venta), `editorial` (noticias, blogs, documentales) y `web` (sitios y apps).
 
-Un publisher puede ajustar cualquier campo por ítem (territorio, duración, notas, URL de los términos completos). Lo que ninguna plantilla permite: revender el archivo tal cual ni reclamar exclusividad.
+| Plantilla | Usos | Quién puede usarlo | Atribución |
+|---|---|---|---|
+| `personal` | web, social-media, print | personal, educativo, no comercial | No |
+| `commercial` | todos | comercial y personal | No |
+| `commercial-attribution` | todos | comercial y personal | **Sí** (el texto exacto viene en el documento) |
+
+Ninguna plantilla es exclusiva ni transferible, y ninguna permite revender el archivo tal cual. Un publisher puede ajustar cualquier campo por ítem.
 
 ### Medios generados con IA
 
-Los servicios generadores (como `music-generator` o `3d-generator`) también entregan licencia, y dicen la verdad sobre lo que es: uso comercial, **no exclusivo y no único** (el proveedor puede generar algo igual o parecido para otra persona). Si un archivo lleva marca de agua de procedencia, la licencia lo indica en `notes`.
+Los servicios generadores (como `music-generator`) también entregan licencia, y dicen la verdad sobre lo que es: uso comercial, **no exclusivo y no único** (el proveedor puede generar algo igual o parecido para otra persona). Si un archivo lleva marca de agua de procedencia, la licencia lo indica en las notas.
 
 ## Cómo verificar una licencia
 
-1. Abre `https://app.kiba.tools/verify/<id>` (el `<id>` empieza por `lic_` y está en el certificado). Verás si la firma es válida, si la emitió Kiba, si no está revocada y si el pago está anclado en Stellar.
-2. Si prefieres no confiar en la web de Kiba: descarga la credencial en `…/v1/licenses/<id>`, comprueba la firma `eddsa-jcs-2022` contra la clave del emisor (`issuer.id`, un `did:key` Ed25519), lee la lista de estado en `credentialStatus.statusListCredential` (Bitstring Status List) y abre la transacción de `evidence[0].txHash` en el explorador de Stellar.
-3. Compara el SHA-256 del archivo que tienes con `credentialSubject.license.assetSha256`.
+1. Abre `https://app.kiba.tools/verify/<id>` (el `<id>` empieza por `lic_` y viene en la respuesta). Verás si el documento coincide con su huella, si el pago existe en Stellar y lleva esa huella, y si la licencia no está revocada.
+2. Sin confiar en Kiba: descarga el documento, calcula su SHA-256, abre la transacción en el explorador de Stellar y compara el cuarto argumento de `pay` (`reference`) con los primeros 8 bytes del hash leídos como un entero. Compara también el SHA-256 del archivo que tienes con `asset.sha256`.
 
 ## Reembolsos y revocación
 
-Si el servicio falla, la llamada se reembolsa a tu saldo y no se emite licencia. Una licencia ya emitida solo deja de valer si Kiba la revoca, por ejemplo ante una reclamación fundada de derechos: queda marcada como **revocada** en la lista de estado. La credencial sigue existiendo, pero la verificación lo dirá. Las licencias de otros compradores no se ven afectadas.
+Si el servicio falla, la llamada se reembolsa a tu saldo y no se emite licencia. Si una compra se reembolsa o un publisher retira un archivo por una reclamación de derechos, Kiba marca la licencia como **revocada** y la verificación lo dirá. La transacción no cambia. Las licencias anteriores de otros compradores no se ven afectadas.
 
 ## Para publishers: cómo declarar la licencia
 
@@ -82,8 +83,8 @@ const source = await FolderSource.open({ dir: './catalogo', publicBaseUrl: PUBLI
 const agent = new MediaCatalogProvider({ service: 'fotos-de-ana', pricePerCall: 0.05, source, license: { name: 'commercial' }, /* ... */ });
 ```
 
-Cada ítem se cobra a su `price_usd`; los que no lo tienen, a `pricePerCall`. `pricePerCall` es además el mínimo: un ítem más barato se anuncia y se cobra a `pricePerCall`, así que ponlo igual o por debajo de tu ítem más barato.
+Cada ítem se cobra a su `price_usd`; los que no lo tienen, a `pricePerCall`.
 
-La búsqueda y la ficha de cada ítem son públicas y gratis (`GET /catalog/search?q=…`); Kiba las usa para la búsqueda federada `search_media`. Comprar es una llamada pagada con `{ assetId }`. El gateway emite la credencial del comprador con el hash y los términos que tú declaraste. Si tu catálogo vive en S3, en tu propia base de datos o en un feed, implementa la interfaz `CatalogSource` (cuatro funciones); Kiba nunca se conecta a tu base de datos.
+La búsqueda y la ficha de cada ítem son públicas y gratis (`GET /catalog/search?q=…`); Kiba las usa para la búsqueda federada `search_media`. Comprar es una llamada pagada con `{ assetId }`. Kiba escribe el documento del comprador con el hash y los términos que tú declaraste, y el pago lleva su huella. Si tu catálogo vive en S3, en tu propia base de datos o en un feed, implementa la interfaz `CatalogSource` (cuatro funciones); Kiba nunca se conecta a tu base de datos.
 
 Al publicar declaras que tienes los derechos de lo que vendes y aceptas que Kiba revoque licencias ante una reclamación fundada.

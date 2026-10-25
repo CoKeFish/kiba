@@ -41,7 +41,7 @@ export interface AgentConfig extends ChainOptions {
   /**
    * Default license terms for the files this service delivers (media catalogs, generators).
    * A handler that returns `{ ..., license: { assetSha256, ... } }` gets these terms merged in,
-   * and the Kiba gateway issues a verifiable credential for the buyer. See ./license.ts.
+   * and the Kiba gateway writes a license document whose fingerprint travels in the payment. See ./license.ts.
    */
   license?: LicenseTerms;
   /** True when this service is a browsable media catalog (exposes GET /catalog/search). */

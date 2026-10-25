@@ -724,7 +724,7 @@
         "valid": "Válida",
         "revoked": "Revogada"
       },
-      "explainer": "Credencial verificável emitida pela Kiba para este arquivo: os termos, o hash do arquivo e o pagamento na Stellar, assinados. Qualquer pessoa pode conferir sem conta.",
+      "explainer": "A licença deste arquivo: os termos, o hash do arquivo e o preço, em um documento cuja impressão digital viaja no pagamento na Stellar. Qualquer pessoa pode conferir sem conta.",
       "asset": "Arquivo",
       "hash": "SHA-256 do arquivo",
       "template": "Licença",
@@ -743,10 +743,9 @@
       "issued": "Emitida",
       "payment": "Pagamento",
       "payment_pending": "Liquidação on-chain pendente",
-      "certificate": "Certificado",
-      "credential": "Credencial (JSON)",
       "verify": "Verificar",
-      "acta": "No seu vault da ACTA"
+      "fingerprint": "Impressão digital do documento",
+      "document": "Documento de licença (JSON)"
     }
   },
   "paywallet": {
@@ -824,19 +823,20 @@
   },
   "verify": {
     "title": "Verificação de licença",
-    "powered": "Emitida pela Kiba como credencial verificável W3C",
-    "loading": "Verificando…",
+    "powered": "O pagamento na Stellar é a prova",
+    "loading": "Conferindo…",
     "not_found": "Esta licença não existe.",
     "ok": "Esta licença é válida",
     "bad": "Não foi possível verificar esta licença",
+    "pending": "O pagamento ainda está sendo liquidado na Stellar. Confira de novo em alguns segundos.",
     "checks": {
-      "signature": "A assinatura confere com a chave do emissor",
-      "issuer": "Emitida pela Kiba",
-      "not_revoked": "Não revogada",
-      "payment": "Pagamento ancorado na Stellar"
+      "document": "O documento confere com sua impressão digital",
+      "payment_found": "O pagamento existe na Stellar",
+      "payment_commits": "O pagamento carrega a impressão digital do documento",
+      "not_revoked": "Não revogada"
     },
-    "how": "Qualquer pessoa pode repetir esta verificação offline: baixe a credencial, verifique a assinatura Ed25519 contra o did:key do emissor e leia a lista de status.",
-    "credential": "Abrir a credencial"
+    "how": "Qualquer pessoa pode repetir esta conferência: baixe o documento, calcule seu SHA-256, abra a transação na Stellar e compare a referência com os primeiros 8 bytes do hash.",
+    "document": "Abrir o documento"
   },
   "media": {
     "entry_text": "Procurando fotos, músicas ou modelos 3D licenciados?",

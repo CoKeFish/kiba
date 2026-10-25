@@ -6,9 +6,9 @@ import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
 /**
- * Tarjeta de la licencia de un resultado: la credencial verificable que Kiba emitió por el
- * archivo entregado (términos, hash, pago). Enlaces al certificado, a la credencial en JSON,
- * a la verificación pública y a la transacción en Stellar.
+ * Tarjeta de la licencia de un resultado: el documento del archivo comprado (términos, hash,
+ * precio) y el pago en Stellar que lo prueba. Enlaces al documento, a la verificación pública
+ * y a la transacción.
  */
 export function LicenseCard({ license, compact = false }: { license: LicenseSummary; compact?: boolean }) {
   const { t } = useTranslation();
@@ -99,13 +99,15 @@ export function LicenseCard({ license, compact = false }: { license: LicenseSumm
                 : t("results.license.payment_pending")}
             </dd>
           </div>
+          <div className="sm:col-span-2">
+            <dt className="text-[var(--color-fg-muted)]">{t("results.license.fingerprint")}</dt>
+            <dd className="font-mono text-xs break-all">{license.documentSha256}</dd>
+          </div>
         </dl>
 
         <div className="flex flex-wrap gap-4">
-          {link(license.certificateUrl, t("results.license.certificate"))}
-          {link(license.credentialUrl, t("results.license.credential"))}
+          {link(license.documentUrl, t("results.license.document"))}
           {link(license.dashboardUrl, t("results.license.verify"))}
-          {license.actaExplorerUrl && link(license.actaExplorerUrl, t("results.license.acta"))}
         </div>
         <p className="text-xs text-[var(--color-fg-muted)] font-mono break-all">{license.id}</p>
       </CardBody>

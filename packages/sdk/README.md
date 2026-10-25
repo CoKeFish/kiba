@@ -83,8 +83,8 @@ price, so the 402 quote and the post-payment check agree.
 ### Media licenses and catalogs
 
 A service that delivers files can attach a **license** to each result. Declare default terms in
-`license` and return a `license` block with the file's SHA-256; the Kiba gateway turns it into a
-W3C Verifiable Credential for the buyer (signed, revocable, verifiable offline):
+`license` and return a `license` block with the file's SHA-256; the Kiba gateway writes a license
+document for the buyer (file hash, terms, price) and the Stellar payment of that call carries its fingerprint:
 
 ```ts
 import { AgentProvider, sha256Hex } from 'kiba-sdk';

@@ -11,8 +11,8 @@
  *   - buscar y ver son PÚBLICAS y gratis: GET /catalog/search?q=…&type=…  ·  GET /catalog/items/:id
  *     (el gateway de Kiba las usa para la búsqueda federada; el gateway no acepta precio cero).
  *   - licenciar es PAGADA: POST /service { assetId } cobra el precio del ítem y devuelve el enlace de
- *     descarga (firmado, con caducidad) y el bloque `license` (hash + términos). Kiba emite con él la
- *     credencial verificable del comprador.
+ *     descarga (firmado, con caducidad) y el bloque `license` (hash + términos). Kiba escribe con él el
+ *     documento de licencia del comprador y el pago de la llamada lleva su huella.
  *
  * El catálogo vive donde el publisher quiera: `CatalogSource` son cuatro funciones (list, search,
  * get, deliver). `FolderSource` las implementa sobre una carpeta con un items.csv o items.json
@@ -175,8 +175,8 @@ export class MediaCatalogProvider extends AgentProvider {
       expiresAt,
       license,
       next:
-        'Give the user the downloadUrl. The purchase comes with a verifiable license credential issued by Kiba ' +
-        '(see `license` in the Kiba response); mention attribution if the terms require it.',
+        'Give the user the downloadUrl. The purchase comes with a license (file hash, terms, price) whose ' +
+        'fingerprint travels in the Stellar payment (see `license` in the Kiba response); mention attribution if the terms require it.',
     };
   }
 

@@ -81,7 +81,7 @@ export default function App() {
         <Route path="publisher/pricing" element={<PublisherGate><PublisherPricing /></PublisherGate>} />
         <Route path="publisher/publish" element={<PublisherGate><PublisherPublish /></PublisherGate>} />
       </Route>
-      {/* Verificación pública de una licencia (la URL del certificado y del QR). Sin sesión. */}
+      {/* Verificación pública de una licencia (la URL que acompaña a la licencia). Sin sesión. */}
       <Route path="/verify/:id" element={<Verify />} />
       {/* Enlaces externos legacy (p.ej. el "View all agents" del landing apunta a
           /agents): normalizamos el path plano a su equivalente bajo /app. */}

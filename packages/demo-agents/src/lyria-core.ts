@@ -43,7 +43,7 @@ export interface LyriaResult {
   lyrics?: string;
   /** Epoch ms hasta el que el enlace sigue disponible. */
   expiresAt: number;
-  /** Licencia del archivo entregado (hash + términos); el gateway emite la credencial. */
+  /** Licencia del archivo entregado (hash + términos); el gateway escribe el documento y el pago lleva su huella. */
   license?: LicenseGrant;
   /** Qué hacer a continuación (pensado para el asistente que llama). */
   next: string;

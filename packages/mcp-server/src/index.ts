@@ -225,7 +225,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: 'search_media',
         description:
-          'Busca archivos con licencia (imágenes, música, modelos 3D, documentos) en todos los catálogos de Kiba, gratis. Devuelve ítems con service, assetId, título, tipo, precio en USD, previewUrl y resumen de la licencia. Para comprar uno: call_agent(service, { assetId }); la respuesta trae el enlace de descarga y una credencial de licencia verificable emitida por Kiba.',
+          'Busca archivos con licencia (imágenes, música, modelos 3D, documentos) en todos los catálogos de Kiba, gratis. Devuelve ítems con service, assetId, título, tipo, precio en USD, previewUrl y resumen de la licencia. Para comprar uno: call_agent(service, { assetId }); la respuesta trae el enlace de descarga y la licencia: un documento con el archivo (hash), los términos y el precio, cuya huella viaja en el pago en Stellar.',
         inputSchema: {
           type: 'object',
           properties: {

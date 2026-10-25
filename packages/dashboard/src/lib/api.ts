@@ -88,7 +88,7 @@ export const api = {
   results: (limit = 50) => request<CallResult[]>(`/v1/results?limit=${limit}`),
   result: (id: string) => request<CallResult>(`/v1/results/${encodeURIComponent(id)}`),
 
-  // Licencias (credenciales verificables de los archivos comprados)
+  // Licencias (documento del archivo comprado + pago en Stellar que lo prueba)
   licenses: (limit = 50) => request<LicenseSummary[]>(`/v1/licenses?limit=${limit}`),
   /** Búsqueda federada en los catálogos de medios con licencia (gratis). `q` vacío = sin filtro. */
   mediaSearch: (opts: { q?: string; type?: MediaType; maxPriceUsd?: number; limit?: number } = {}) => {
@@ -384,7 +384,7 @@ export type MediaSearchResponse = {
   hint: string;
 };
 
-/** Términos de una licencia (forma de RSL 1.0; ver packages/sdk/src/license.ts). */
+/** Términos de una licencia (ver packages/sdk/src/license.ts). */
 export type LicenseTerms = {
   name?: string;
   usage?: string[];
@@ -398,26 +398,26 @@ export type LicenseTerms = {
   notes?: string;
 };
 
-/** Resumen de una licencia (credencial verificable emitida por Kiba). */
+/** Resumen de una licencia: el documento del archivo comprado y el pago en Stellar que lo prueba. */
 export type LicenseSummary = {
   id: string;
   status: "valid" | "revoked";
   service: string;
+  payTo?: string;
   publisher?: string;
   assetId?: string;
   assetSha256: string;
   title?: string;
   terms: LicenseTerms;
-  issuer: { did: string; stellarAddress: string; verificationMethod: string };
+  /** El documento en JSON canónico; su SHA-256 es documentSha256. */
+  documentUrl: string;
+  documentSha256: string;
+  /** Los primeros 8 bytes de documentSha256 como entero: lo que lleva el pago. */
+  reference: string;
   txHash?: string;
   explorerUrl?: string;
-  credentialUrl: string;
   verifyUrl: string;
-  certificateUrl: string;
   dashboardUrl: string;
-  actaVcId?: string;
-  actaTx?: string;
-  actaExplorerUrl?: string;
   issuedAt: number;
   revokedAt?: number;
 };
@@ -425,9 +425,10 @@ export type LicenseSummary = {
 export type LicenseVerification = {
   id: string;
   verified: boolean;
-  checks: { signature: boolean; issuerIsKiba: boolean; notRevoked: boolean; paymentAnchored: boolean };
+  /** Todavía sin transacción de pago (llega segundos después de la compra). */
+  pending: boolean;
+  checks: { document: boolean; paymentFound: boolean; paymentCommits: boolean; notRevoked: boolean };
   status: "valid" | "revoked";
-  issuer?: string;
   error?: string;
   summary: LicenseSummary;
 };

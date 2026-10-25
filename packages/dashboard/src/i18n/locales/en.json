@@ -724,7 +724,7 @@
         "valid": "Valid",
         "revoked": "Revoked"
       },
-      "explainer": "A verifiable credential issued by Kiba for this file: the terms, the file hash and the Stellar payment, signed. Anyone can check it without an account.",
+      "explainer": "The license of this file: the terms, the file hash and the price, in a document whose fingerprint travels in the Stellar payment. Anyone can check it without an account.",
       "asset": "File",
       "hash": "SHA-256 of the file",
       "template": "License",
@@ -743,10 +743,9 @@
       "issued": "Issued",
       "payment": "Payment",
       "payment_pending": "On-chain settlement pending",
-      "certificate": "Certificate",
-      "credential": "Credential (JSON)",
       "verify": "Verify",
-      "acta": "In your ACTA vault"
+      "fingerprint": "Document fingerprint",
+      "document": "License document (JSON)"
     }
   },
   "paywallet": {
@@ -824,19 +823,20 @@
   },
   "verify": {
     "title": "License verification",
-    "powered": "Issued by Kiba as a W3C Verifiable Credential",
+    "powered": "The payment on Stellar is the proof",
     "loading": "Checking…",
     "not_found": "This license does not exist.",
     "ok": "This license is valid",
     "bad": "This license could not be verified",
+    "pending": "The payment is still settling on Stellar. Check again in a few seconds.",
     "checks": {
-      "signature": "Signature matches the issuer key",
-      "issuer": "Issued by Kiba",
-      "not_revoked": "Not revoked",
-      "payment": "Payment anchored on Stellar"
+      "document": "The document matches its fingerprint",
+      "payment_found": "The payment exists on Stellar",
+      "payment_commits": "The payment carries the document fingerprint",
+      "not_revoked": "Not revoked"
     },
-    "how": "Anyone can repeat this check offline: fetch the credential, verify its Ed25519 signature against the issuer did:key and read the status list.",
-    "credential": "Open the credential"
+    "how": "Anyone can repeat this check: download the document, compute its SHA-256, open the Stellar transaction and compare its reference with the first 8 bytes of the hash.",
+    "document": "Open the document"
   },
   "media": {
     "entry_text": "Looking for licensed photos, music or 3D models?",

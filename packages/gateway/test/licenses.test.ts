@@ -3,26 +3,19 @@ import { TRUNCATE_SQL } from './_setup-env';
 
 import { test, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { gunzipSync } from 'node:zlib';
-import { Keypair } from '@stellar/stellar-sdk';
 import { db, initDb, pool } from '../src/db';
 import { callAndStore } from '../src/results';
 import {
   attachSettlement,
-  certificateHtml,
-  base58btcDecode,
-  base58btcEncode,
-  didKeyFromStellar,
   getLicense,
-  issuerDid,
   jcs,
+  licenseDto,
   licenseForCall,
+  referenceOf,
   revokeLicense,
-  signCredential,
-  statusListCredential,
-  stellarFromDidKey,
+  sha256Hex,
   verifyLicense,
-  verifySignature,
+  type PaymentTx,
 } from '../src/licenses';
 import type { callOnBehalf } from '../src/proxy';
 
@@ -51,18 +44,27 @@ async function createTestUser(email: string): Promise<number> {
 
 const SHA = 'a'.repeat(64);
 const TX = 'f'.repeat(64);
+const PAY_TO = 'GCS7D7E2OM4T54QA75QGAFJ3KTXYRQWMKP7FI3EVEDCXXXPH5SJ5PXC4';
 
-function fakeCall(result: unknown, explorerUrl?: string): typeof callOnBehalf {
-  return (async () => ({
-    result,
-    cost: { lamports: 500_000, usd: 0.05 },
-    mode: 'virtual',
-    paidWith: 'credit',
-    newBalance: { lamports: 0, usd: 0 },
-    trace: { service: 's', endpoint: 'e', totalDurationMs: 1, steps: [] },
-    explorerUrl,
-  })) as unknown as typeof callOnBehalf;
+/** Stub de callOnBehalf: como el modo crédito, llama a onBeforePay ANTES de "pagar". */
+function fakeCall(result: unknown, explorerUrl?: string, seen?: { reference?: bigint }): typeof callOnBehalf {
+  return (async (a: Parameters<typeof callOnBehalf>[0]) => {
+    const reference = await a.onBeforePay?.(result, { lamports: 500_000, payTo: PAY_TO });
+    if (seen) seen.reference = reference;
+    return {
+      result,
+      cost: { lamports: 500_000, usd: 0.05 },
+      mode: 'virtual',
+      paidWith: 'credit',
+      newBalance: { lamports: 0, usd: 0 },
+      trace: { service: 's', endpoint: 'e', totalDurationMs: 1, steps: [] },
+      explorerUrl,
+    };
+  }) as unknown as typeof callOnBehalf;
 }
+
+const readerWith = (reference: bigint | undefined, found = true) => async (): Promise<PaymentTx> =>
+  found ? { found: true, to: PAY_TO, amount: 500_000n, reference } : { found: false };
 
 test('jcs: claves ordenadas, anidado, sin espacios, undefined fuera', () => {
   assert.equal(jcs({ b: 1, a: { d: [1, 'x', null], c: true }, z: undefined }), '{"a":{"c":true,"d":[1,"x",null]},"b":1}');
@@ -70,134 +72,141 @@ test('jcs: claves ordenadas, anidado, sin espacios, undefined fuera', () => {
   assert.equal(jcs(1e21), '1e+21');
 });
 
-test('base58btc: ida y vuelta, ceros iniciales', () => {
-  for (const hex of ['00', '0000ff', 'deadbeef', '00'.repeat(32), 'ff'.repeat(64)]) {
-    const bytes = Buffer.from(hex, 'hex');
-    assert.equal(Buffer.from(base58btcDecode(base58btcEncode(bytes))).toString('hex'), hex);
-  }
-  assert.equal(base58btcEncode(Buffer.from('Hello World!')), '2NEpo7TZRRrLZSi2U');
+test('referenceOf: los primeros 8 bytes de la huella como u64 big-endian', () => {
+  assert.equal(referenceOf('0000000000000001' + 'ff'.repeat(24)), 1n);
+  assert.equal(referenceOf('ffffffffffffffff' + '00'.repeat(24)), 2n ** 64n - 1n);
+  assert.equal(referenceOf('0123456789abcdef' + '00'.repeat(24)), 0x0123456789abcdefn);
 });
 
-test('did:key Ed25519 ↔ clave Stellar', () => {
-  const kp = Keypair.random();
-  const did = didKeyFromStellar(kp.publicKey());
-  assert.match(did, /^did:key:z6Mk/);
-  assert.equal(stellarFromDidKey(did), kp.publicKey());
-  assert.equal(stellarFromDidKey(`${did}#${did.slice(8)}`), kp.publicKey());
-});
-
-test('eddsa-jcs-2022: firma y verificación; una alteración invalida', async () => {
-  const kp = Keypair.random();
-  const key = { publicKey: () => kp.publicKey(), sign: (m: Uint8Array) => kp.sign(Buffer.from(m)) };
-  const did = didKeyFromStellar(kp.publicKey());
-  const vc = await signCredential(
-    {
-      '@context': ['https://www.w3.org/ns/credentials/v2'],
-      type: ['VerifiableCredential'],
-      issuer: did,
-      credentialSubject: { id: 'urn:x:1', n: 1 },
-    },
-    key,
-  );
-  const proof = vc.proof as Record<string, unknown>;
-  assert.equal(proof.cryptosuite, 'eddsa-jcs-2022');
-  assert.equal(proof.verificationMethod, `${did}#${did.slice(8)}`);
-  assert.deepEqual(verifySignature(vc), { ok: true, issuer: did });
-  const tampered = { ...vc, credentialSubject: { id: 'urn:x:1', n: 2 } };
-  assert.equal(verifySignature(tampered).ok, false);
-  // La firma de otra clave que diga ser el mismo emisor tampoco pasa.
-  const other = Keypair.random();
-  const forged = await signCredential({ ...vc, proof: undefined }, { publicKey: () => other.publicKey(), sign: (m) => other.sign(Buffer.from(m)) });
-  assert.equal(verifySignature({ ...forged, issuer: did }).ok, false);
-});
-
-test('callAndStore: un resultado con license emite la credencial y la devuelve', async () => {
+test('callAndStore: el documento se escribe antes del pago y su huella viaja en el reference', async () => {
   const userId = await createTestUser('lic@test.com');
   const result = {
     audioUrl: 'https://svc/audio/1.mp3',
-    license: { assetSha256: SHA, filename: '1.mp3', mimeType: 'audio/mpeg', bytes: 10, terms: { name: 'commercial', attribution: false } },
+    license: {
+      assetSha256: SHA,
+      assetId: 'track-1',
+      title: 'Lo-fi 1',
+      filename: '1.mp3',
+      mimeType: 'audio/mpeg',
+      bytes: 10,
+      terms: { name: 'commercial', usage: ['web', 'social-media'], user: ['commercial'], attribution: false },
+    },
   };
-  const out = await callAndStore({ userId, service: 'music-generator', payload: { prompt: 'lofi' }, waitMs: 2000 }, fakeCall(result));
+  const seen: { reference?: bigint } = {};
+  const out = await callAndStore(
+    { userId, service: 'music-generator', payload: { prompt: 'lofi' }, waitMs: 2000 },
+    fakeCall(result, undefined, seen),
+  );
   assert.equal(out.status, 'done');
   const lic = (out as { license?: Record<string, unknown> }).license;
   assert.ok(lic, 'la respuesta trae license');
   assert.match(String(lic!.id), /^lic_[0-9a-f]{20}$/);
   assert.equal(lic!.status, 'valid');
   assert.equal(lic!.assetSha256, SHA);
-  assert.ok(String(lic!.credentialUrl).endsWith(`/v1/licenses/${lic!.id}`));
+  assert.equal(lic!.payTo, PAY_TO);
+  assert.ok(String(lic!.documentUrl).endsWith(`/v1/licenses/${lic!.id}/document`));
 
-  const row = await licenseForCall(out.resultId);
+  const row = (await licenseForCall(out.resultId))!;
   assert.ok(row);
-  const vc = JSON.parse(row!.vc);
-  assert.deepEqual(vc.type, ['VerifiableCredential', 'MediaLicenseCredential']);
-  assert.equal(vc.issuer.id, issuerDid());
-  assert.equal(vc.credentialSubject.id, `urn:kiba:user:${userId}`);
-  assert.equal(vc.credentialSubject.license.assetSha256, SHA);
-  assert.equal(vc.credentialSubject.license.service, 'music-generator');
-  assert.equal(vc.credentialSubject.license.terms.name, 'commercial');
-  assert.equal(vc.credentialStatus.statusListIndex, String(row!.seq));
-  assert.equal(vc.evidence[0].callId, out.resultId);
-  assert.equal(vc.evidence[0].txHash, undefined, 'sin tx todavía');
-  assert.equal(verifySignature(vc).ok, true);
-  const v = await verifyLicense(row!);
-  assert.equal(v.verified, true);
-  assert.deepEqual(v.checks, { signature: true, issuerIsKiba: true, notRevoked: true, paymentAnchored: false });
+  // La huella que se pasó al pago es la del documento guardado.
+  assert.equal(seen.reference, referenceOf(row.doc_sha256));
+  assert.equal(String(lic!.reference), referenceOf(row.doc_sha256).toString());
+  // El documento guardado es JSON canónico y su SHA-256 es la huella.
+  assert.equal(sha256Hex(row.doc), row.doc_sha256);
+  const doc = JSON.parse(row.doc);
+  assert.equal(jcs(doc), row.doc);
+  assert.equal(doc.kind, 'kiba-license/1');
+  assert.equal(doc.id, row.id);
+  assert.equal(doc.callId, out.resultId);
+  assert.equal(doc.buyer.account, `urn:kiba:user:${userId}`);
+  assert.deepEqual(doc.seller, { service: 'music-generator', payTo: PAY_TO });
+  assert.equal(doc.asset.sha256, SHA);
+  assert.equal(doc.asset.assetId, 'track-1');
+  assert.deepEqual(doc.terms.usage, ['web', 'social-media']);
+  assert.equal(doc.price.amountBaseUnits, '500000');
+  assert.equal(doc.price.token, 'USDC');
+  assert.equal(doc.asset.assetUrl, undefined, 'la URL de descarga caduca: no va en el documento');
 
-  // Llega el enlace on-chain: se ancla el pago y la credencial se vuelve a firmar.
+  // Sin transacción todavía: pendiente, no verificada.
+  const v0 = await verifyLicense(row, readerWith(undefined, false));
+  assert.equal(v0.verified, false);
+  assert.equal(v0.pending, true);
+  assert.deepEqual(v0.checks, { document: true, paymentFound: false, paymentCommits: false, notRevoked: true });
+
+  // Llega el enlace on-chain y la transacción lleva la huella: verificada.
   await attachSettlement(out.resultId, `https://stellar.expert/explorer/testnet/tx/${TX}`);
-  const row2 = await getLicense(row!.id);
-  assert.equal(row2!.tx_hash, TX);
-  const vc2 = JSON.parse(row2!.vc);
-  assert.equal(vc2.evidence[0].txHash, TX);
-  assert.equal(vc2.validFrom, vc.validFrom);
-  assert.equal(verifySignature(vc2).ok, true);
-  assert.equal((await verifyLicense(row2!)).checks.paymentAnchored, true);
+  const row2 = (await getLicense(row.id))!;
+  assert.equal(row2.tx_hash, TX);
+  const v1 = await verifyLicense(row2, readerWith(referenceOf(row.doc_sha256)));
+  assert.equal(v1.verified, true);
+  assert.equal(v1.pending, false);
+  assert.deepEqual(v1.checks, { document: true, paymentFound: true, paymentCommits: true, notRevoked: true });
+  assert.equal(v1.txHash, TX);
+  // La lectura confirmada se recuerda: la siguiente verificación no vuelve a la cadena.
+  const row3 = (await getLicense(row.id))!;
+  assert.equal(row3.anchor_ok, true);
+  const v2 = await verifyLicense(row3, async () => {
+    throw new Error('no debería leer la cadena');
+  });
+  assert.equal(v2.verified, true);
+
+  const dto = licenseDto(row3);
+  assert.equal(dto.txHash, TX);
+  assert.ok(String(dto.explorerUrl).includes(TX));
 });
 
-test('callAndStore: sin license (o con hash inválido) no se emite nada', async () => {
+test('verify: una transacción con otra huella no verifica', async () => {
+  const userId = await createTestUser('bad@test.com');
+  const out = await callAndStore(
+    { userId, service: 'x', payload: {}, waitMs: 2000 },
+    fakeCall({ license: { assetSha256: SHA } }, `https://stellar.expert/explorer/testnet/tx/${TX}`),
+  );
+  const row = (await licenseForCall(out.resultId))!;
+  assert.equal(row.tx_hash, TX, 'el hash viene con el resultado');
+  const v = await verifyLicense(row, readerWith(12345n));
+  assert.equal(v.verified, false);
+  assert.deepEqual(v.checks, { document: true, paymentFound: true, paymentCommits: false, notRevoked: true });
+  assert.equal((await getLicense(row.id))!.anchor_ok, false);
+});
+
+test('verify: un documento alterado en la base no pasa', async () => {
+  const userId = await createTestUser('tamper@test.com');
+  const out = await callAndStore({ userId, service: 'x', payload: {}, waitMs: 2000 }, fakeCall({ license: { assetSha256: SHA } }));
+  const row = (await licenseForCall(out.resultId))!;
+  const doc = JSON.parse(row.doc);
+  doc.terms = { name: 'commercial', exclusive: true };
+  await db.prepare('UPDATE licenses SET doc = ? WHERE id = ?').run(jcs(doc), row.id);
+  const v = await verifyLicense((await getLicense(row.id))!, readerWith(referenceOf(row.doc_sha256)));
+  assert.equal(v.verified, false);
+  assert.equal((v.checks as { document: boolean }).document, false);
+});
+
+test('callAndStore: sin license (o con hash inválido) no se escribe nada', async () => {
   const userId = await createTestUser('nolic@test.com');
-  const a = await callAndStore({ userId, service: 'world-clock', payload: {}, waitMs: 2000 }, fakeCall({ time: 'now' }));
+  const seen: { reference?: bigint } = {};
+  const a = await callAndStore({ userId, service: 'world-clock', payload: {}, waitMs: 2000 }, fakeCall({ time: 'now' }, undefined, seen));
   assert.equal((a as { license?: unknown }).license, undefined);
+  assert.equal(seen.reference, undefined, 'sin licencia el pago lleva el reference de siempre');
   assert.equal(await licenseForCall(a.resultId), null);
   const b = await callAndStore({ userId, service: 'x', payload: {}, waitMs: 2000 }, fakeCall({ license: { assetSha256: 'nope' } }));
   assert.equal(await licenseForCall(b.resultId), null);
 });
 
-test('revocación: verify falla y la lista de estado marca el bit', async () => {
+test('revocación: verify falla aunque el pago sea correcto', async () => {
   const userId = await createTestUser('rev@test.com');
   const out = await callAndStore(
     { userId, service: 'music-generator', payload: {}, waitMs: 2000 },
-    fakeCall({ license: { assetSha256: SHA } }),
+    fakeCall({ license: { assetSha256: SHA } }, `https://stellar.expert/explorer/testnet/tx/${TX}`),
   );
   const row = (await licenseForCall(out.resultId))!;
   assert.equal(await revokeLicense(row.id, 'refund'), true);
   assert.equal(await revokeLicense(row.id, 'refund'), false, 'idempotente');
-  const v = await verifyLicense((await getLicense(row.id))!);
+  const v = await verifyLicense((await getLicense(row.id))!, readerWith(referenceOf(row.doc_sha256)));
   assert.equal(v.verified, false);
   assert.equal(v.status, 'revoked');
-
-  const list = await statusListCredential();
-  assert.equal(verifySignature(list).ok, true);
-  const encoded = String((list.credentialSubject as { encodedList: string }).encodedList);
-  assert.equal(encoded[0], 'u');
-  const bits = gunzipSync(Buffer.from(encoded.slice(1), 'base64url'));
-  assert.ok(bits.length * 8 >= 131_072, 'tamaño mínimo de la lista');
-  const i = Number(row.seq);
-  assert.equal((bits[i >> 3] >> (7 - (i & 7))) & 1, 1, 'bit de la licencia revocada');
-  assert.equal((bits[(i + 1) >> 3] >> (7 - ((i + 1) & 7))) & 1, 0);
+  assert.deepEqual(v.checks, { document: true, paymentFound: true, paymentCommits: true, notRevoked: false });
 });
 
-test('certificado: los campos que manda el servicio se escapan (sin HTML inyectado)', async () => {
-  const userId = await createTestUser('xss@test.com');
-  const result = {
-    license: { assetSha256: SHA, title: '<b>t</b>', mimeType: 'image/png"><script>alert(1)</script>', bytes: '<img src=x onerror=alert(1)>' },
-  };
-  const out = await callAndStore({ userId, service: 'media-catalog', payload: {}, waitMs: 2000 }, fakeCall(result));
-  const html = certificateHtml((await licenseForCall(out.resultId))!);
-  // Lo inyectado no aparece como HTML (el certificado sí usa <img> para el logo y <b> propios).
-  assert.doesNotMatch(html, /<script>|<img src=x|<b>t<\/b>/);
-  assert.match(html, /&lt;script&gt;/);
-});
 
 test('callAndStore: el hash on-chain que llega antes que la licencia no se pierde', async () => {
   const userId = await createTestUser('early@test.com');
@@ -218,6 +227,5 @@ test('callAndStore: el hash on-chain que llega antes que la licencia no se pierd
   const out = await callAndStore({ userId, service: 'media-catalog', payload: {}, waitMs: 2000 }, call);
   const row = (await licenseForCall(out.resultId))!;
   assert.equal(row.tx_hash, TX);
-  assert.equal(JSON.parse(row.vc).evidence[0].txHash, TX);
   assert.equal((out as { license?: { txHash?: string } }).license?.txHash, TX);
 });

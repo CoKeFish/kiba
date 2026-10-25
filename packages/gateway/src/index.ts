@@ -59,19 +59,8 @@ import {
   COP_USD_RATE,
 } from './payments';
 import { listAgents, masterWalletPubkey, platformPublicKey } from './proxy';
-import {
-  certificateHtml,
-  certificateLang,
-  getLicense,
-  issuerInfo,
-  kibaContext,
-  licenseDto,
-  listLicenses,
-  statusListCredential,
-  verifyLicense,
-} from './licenses';
+import { getLicense, licenseDto, listLicenses, verifyLicense } from './licenses';
 import { searchMedia } from './media';
-import { startActaWorker } from './acta';
 import { settleAgent, settleAllDue, MIN_PAYOUT, recordEarning } from './settlement';
 import { listUserSettlements, getDailySeries } from './publisher';
 import { warmEscrows, enqueueChainTask } from './escrows';
@@ -1444,9 +1433,9 @@ app.get('/v1/results/:id', requireAuth, async (req, res) => {
   res.json({ ...resultDto(row), license: await licenseDtoForCall(row.id), related: related.map((r) => resultDto(r)) });
 });
 
-// ─── Licencias de medios (credenciales verificables; ver licenses.ts) ──
-// Las rutas de lectura de una credencial son PÚBLICAS a propósito: cualquiera con el id (que va
-// en el certificado del comprador) debe poder verificarla sin cuenta en Kiba.
+// ─── Licencias de medios (ver licenses.ts) ───────────────────────────
+// Las rutas de lectura de una licencia son PÚBLICAS a propósito: cualquiera con el id debe poder
+// leer el documento y verificarlo contra la transacción de pago sin cuenta en Kiba.
 
 // Búsqueda federada de medios con licencia (gratis; ver media.ts).
 app.get('/v1/media/search', requireAuth, async (req, res) => {
@@ -1468,49 +1457,24 @@ app.get('/v1/licenses', requireAuth, async (req, res) => {
   res.json(rows.map(licenseDto));
 });
 
-app.get('/v1/licenses/issuer', (_req, res) => {
-  res.json(issuerInfo());
-});
-
-app.get('/v1/licenses/context/v1', (_req, res) => {
-  res.type('application/ld+json').json(kibaContext());
-});
-
-app.get('/v1/licenses/status/:list', async (_req, res) => {
-  res.type('application/vc').json(await statusListCredential());
-});
-
 app.get('/v1/licenses/:id', async (req, res) => {
   const row = await getLicense(req.params.id);
   if (!row) return res.status(404).json({ error: 'license not found' });
-  res.type('application/vc').json(JSON.parse(row.vc));
+  res.json({ ...licenseDto(row), document: JSON.parse(row.doc) });
+});
+
+// El documento en JSON canónico, byte a byte: su SHA-256 es `documentSha256` y sus primeros
+// 8 bytes son el `reference` del pago.
+app.get('/v1/licenses/:id/document', async (req, res) => {
+  const row = await getLicense(req.params.id);
+  if (!row) return res.status(404).json({ error: 'license not found' });
+  res.type('application/json').send(row.doc);
 });
 
 app.get('/v1/licenses/:id/verify', async (req, res) => {
   const row = await getLicense(req.params.id);
   if (!row) return res.status(404).json({ error: 'license not found' });
   res.json({ id: row.id, ...(await verifyLicense(row)), summary: licenseDto(row) });
-});
-
-app.get('/v1/licenses/:id/receipt', async (req, res) => {
-  const row = await getLicense(req.params.id);
-  if (!row) return res.status(404).json({ error: 'license not found' });
-  res.json({
-    id: row.id,
-    callId: row.call_id,
-    service: row.service,
-    amountBaseUnits: row.amount_lamports ?? undefined,
-    txHash: row.tx_hash ?? undefined,
-    explorerUrl: row.tx_hash ? explorerTxUrl(row.tx_hash) : undefined,
-    issuedAt: row.created_at,
-    status: row.status,
-  });
-});
-
-app.get('/v1/licenses/:id/certificate', async (req, res) => {
-  const row = await getLicense(req.params.id);
-  if (!row) return res.status(404).send('license not found');
-  res.type('html').send(certificateHtml(row, certificateLang(req.query.lang, req.headers['accept-language'])));
 });
 
 // ─── API Keys (long-lived bearer tokens for direct REST access) ──
@@ -1581,10 +1545,6 @@ try {
 // (DATABASE_URL ausente/incorrecto, Postgres inalcanzable), no arrancamos.
 void initDb()
   .then(failOrphanedResults)
-  // Depósito de licencias en ACTA (opcional; solo con ACTA_API_KEY). Nunca bloquea el arranque.
-  .then(() => {
-    startActaWorker();
-  })
   .then(() => {
     // Cobros del permiso de gasto que quedaron en vuelo al reiniciar: se resuelven por su hash.
     void reconcilePendingSpend().catch((err) => console.warn('[spend] reconcile:', (err as Error).message));

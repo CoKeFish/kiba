@@ -60,8 +60,8 @@ const agent = new AgentProvider({
     '{ lyrics } to sing your own words. Any language. Music generation, text to music, songs, jingles, background ' +
     'music, soundtracks.',
   endpoint: PUBLIC_ENDPOINT,
-  // Términos de la licencia de cada pista entregada: el gateway emite una credencial verificable
-  // por compra. Honesto con lo que Google concede: uso comercial, no exclusivo, no único.
+  // Términos de la licencia de cada pista entregada: el gateway escribe un documento de licencia
+  // por compra, anclado al pago. Honesto con lo que Google concede: uso comercial, no exclusivo, no único.
   license: {
     name: 'commercial',
     attribution: false,
