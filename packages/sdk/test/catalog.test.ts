@@ -89,6 +89,14 @@ test('FolderSource: rechaza archivos fuera de la carpeta o inexistentes', async 
   await fs.rm(bad, { recursive: true, force: true });
 });
 
+test('FolderSource: una vista previa que no existe es un error al abrir', async () => {
+  const bad = await fs.mkdtemp(path.join(os.tmpdir(), 'kiba-catalog-prev-'));
+  await fs.writeFile(path.join(bad, 'a.png'), PNG);
+  await fs.writeFile(path.join(bad, 'items.json'), JSON.stringify([{ file: 'a.png', preview: 'a.preview.png' }]));
+  await assert.rejects(FolderSource.open({ dir: bad }), /preview not found: a.preview.png/);
+  await fs.rm(bad, { recursive: true, force: true });
+});
+
 test('publicItem: el precio anunciado nunca baja del mínimo que se cobra (pricePerCall)', () => {
   const cheap = provider.publicItem({ id: 'x', title: 'x', type: 'image', priceUsd: 0.01 });
   assert.equal(cheap.priceUsd, 0.05);

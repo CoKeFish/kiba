@@ -407,6 +407,18 @@ export class FolderSource implements CatalogSource {
       }
       const mimeType = mimeTypeFor(file);
       const previewFile = row.preview ? safeJoin(dir, row.preview) : undefined;
+      if (row.preview) {
+        if (!previewFile) {
+          problems.push(`row ${i + 1}: preview escapes the catalog folder: ${row.preview}`);
+          continue;
+        }
+        try {
+          await fs.stat(previewFile);
+        } catch {
+          problems.push(`row ${i + 1}: preview not found: ${row.preview}`);
+          continue;
+        }
+      }
       const terms = parseTerms(row);
       const price = row.price_usd === undefined || row.price_usd === '' ? undefined : Number(row.price_usd);
       if (price !== undefined && !(price > 0)) {
