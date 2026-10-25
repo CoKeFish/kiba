@@ -32,7 +32,7 @@ import {
   PLATFORM_SIGNATURE_HEADER,
   PLATFORM_QUOTE_CERT_HEADER,
 } from './platform-auth';
-import { normalizeLicense } from './license';
+import { normalizeLicense, sha256Hex } from './license';
 
 /** Result of the framework-agnostic verify+serve entry point. */
 export interface ServeResult {
@@ -67,7 +67,7 @@ export class AgentProvider {
   private readonly platformQuoteReplay = new ReplayGuard();
 
   /** nonce → quoted amount, so the post-payment check reuses the quote (priceFn runs once). */
-  private readonly quoteCache = new Map<string, { amount: bigint; exp: number }>();
+  private readonly quoteCache = new Map<string, { amount: bigint; exp: number; bodyHash: string }>();
   /** Per-IP counter for the unpaid 402 path (anti-DoS on priceFn compute). */
   private readonly rate = new Map<string, { count: number; windowStart: number }>();
   /** escrowId → consumedAt (unix sec). Serves each funded escrow at most once. */
@@ -298,7 +298,7 @@ export class AgentProvider {
       return { status: 409, body: { error: 'escrow already consumed' } };
     }
 
-    const expected = this.amountForNonce(parsed.nonce, input.body);
+    const expected = await this.amountForNonce(parsed.nonce, input.body);
 
     // The escrow may take a moment to index AND its funding to confirm on-chain.
     // Retry until Pending + funded (>= price), or time out (~30s).
@@ -381,7 +381,7 @@ export class AgentProvider {
     const amount = await this.computeAmountBaseUnits(input.body);
     // Cache so the post-payment check reuses this amount (priceFn runs once, and a
     // non-deterministic priceFn can't strand funds by quoting a different number).
-    this.quoteCache.set(nonce, { amount, exp: Math.floor(Date.now() / 1000) + 120 });
+    this.quoteCache.set(nonce, { amount, exp: Math.floor(Date.now() / 1000) + 120, bodyHash: bodyHash(input.body) });
     this.pruneQuotes();
     return {
       status: 402,
@@ -409,15 +409,18 @@ export class AgentProvider {
     }
   }
 
-  /** Use the cached quote amount for this nonce if present; otherwise recompute. */
-  private amountForNonce(nonce: string | undefined, body: unknown): bigint {
+  /**
+   * Use the cached quote amount for this nonce if it was quoted for THIS body; otherwise
+   * recompute. The quote is bound to the body: with dynamic pricing (e.g. a media catalog
+   * priced per item) a quote for a cheap request must not pay for an expensive one, and a
+   * missing nonce must not fall back to the floor.
+   */
+  private async amountForNonce(nonce: string | undefined, body: unknown): Promise<bigint> {
     if (nonce) {
       const cached = this.quoteCache.get(nonce);
-      if (cached) return cached.amount;
+      if (cached && cached.bodyHash === bodyHash(body)) return cached.amount;
     }
-    // Fallback: recompute synchronously from the floor (no priceFn await here — the
-    // escrow amount is the binding constraint; the floor is the minimum we accept).
-    return BigInt(Math.floor(this.config.pricePerCall * this.baseUnitsPerToken));
+    return this.computeAmountBaseUnits(body);
   }
 
   /**
@@ -558,6 +561,11 @@ function generateNonce(): bigint {
   const ts = BigInt(Date.now());
   const rand = BigInt(Math.floor(Math.random() * 1_000_000));
   return (ts << 20n) | rand;
+}
+
+/** Hash of a parsed request body, to bind a quote to the request it priced. */
+function bodyHash(body: unknown): string {
+  return sha256Hex(JSON.stringify(body ?? null));
 }
 
 function sleep(ms: number): Promise<void> {
