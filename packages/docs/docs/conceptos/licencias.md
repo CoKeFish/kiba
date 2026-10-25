@@ -6,9 +6,11 @@ slug: /licencias
 
 # Licencias de medios
 
-Cuando tu asistente compra por Kiba un archivo (una foto, una pista de música, un modelo 3D, un documento), no recibe solo el archivo. Recibe también una **licencia**: una credencial verificable, firmada por Kiba, que dice quién compró qué, bajo qué términos y con qué pago. No es un token ni un NFT. Es un documento que cualquiera puede comprobar sin cuenta y sin conexión, y que se revoca si hay reembolso.
+Cuando tu asistente compra por Kiba un archivo (una foto, una pista de música, un modelo 3D, un documento), no recibe solo el archivo. Recibe también una **licencia**: una credencial verificable, firmada por Kiba, que dice quién compró qué, bajo qué términos y con qué pago. No es un token ni un NFT. Es un documento que cualquiera puede comprobar sin cuenta y sin conexión.
 
 ## Qué recibes al comprar
+
+Tu asistente busca gratis en todos los catálogos con la herramienta `search_media` y compra un ítem con `call_agent` y `{ assetId }`. Buscar llamando al servicio con `call_agent` cobra su precio base.
 
 | Pieza | Qué es | Dónde está |
 |---|---|---|
@@ -43,7 +45,7 @@ Los servicios generadores (como `music-generator` o `3d-generator`) también ent
 
 ## Reembolsos y revocación
 
-Si una compra se reembolsa o un publisher retira un archivo por una reclamación de derechos, Kiba marca la licencia como **revocada** en la lista de estado. La credencial sigue existiendo, pero la verificación lo dirá. Las licencias anteriores de otros compradores no se ven afectadas.
+Si el servicio falla, la llamada se reembolsa a tu saldo y no se emite licencia. Una licencia ya emitida solo deja de valer si Kiba la revoca, por ejemplo ante una reclamación fundada de derechos: queda marcada como **revocada** en la lista de estado. La credencial sigue existiendo, pero la verificación lo dirá. Las licencias de otros compradores no se ven afectadas.
 
 ## Para publishers: cómo declarar la licencia
 
@@ -80,6 +82,8 @@ const source = await FolderSource.open({ dir: './catalogo', publicBaseUrl: PUBLI
 const agent = new MediaCatalogProvider({ service: 'fotos-de-ana', pricePerCall: 0.05, source, license: { name: 'commercial' }, /* ... */ });
 ```
 
-La búsqueda y la ficha de cada ítem son públicas y gratis (`GET /catalog/search?q=…`); comprar es una llamada pagada con `{ assetId }`. El gateway emite la credencial del comprador con el hash y los términos que tú declaraste. Si tu catálogo vive en S3, en tu propia base de datos o en un feed, implementa la interfaz `CatalogSource` (cuatro funciones); Kiba nunca se conecta a tu base de datos.
+Cada ítem se cobra a su `price_usd`; los que no lo tienen, a `pricePerCall`. `pricePerCall` es además el mínimo: un ítem más barato se anuncia y se cobra a `pricePerCall`, así que ponlo igual o por debajo de tu ítem más barato.
+
+La búsqueda y la ficha de cada ítem son públicas y gratis (`GET /catalog/search?q=…`); Kiba las usa para la búsqueda federada `search_media`. Comprar es una llamada pagada con `{ assetId }`. El gateway emite la credencial del comprador con el hash y los términos que tú declaraste. Si tu catálogo vive en S3, en tu propia base de datos o en un feed, implementa la interfaz `CatalogSource` (cuatro funciones); Kiba nunca se conecta a tu base de datos.
 
 Al publicar declaras que tienes los derechos de lo que vendes y aceptas que Kiba revoque licencias ante una reclamación fundada.

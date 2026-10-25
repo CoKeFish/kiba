@@ -6,9 +6,11 @@ slug: /licencias
 
 # Media licenses
 
-When your assistant buys a file through Kiba (a photo, a music track, a 3D model, a document), it does not get only the file. It also gets a **license**: a verifiable credential, signed by Kiba, stating who bought what, under which terms and with which payment. It is not a token or an NFT. It is a document anyone can check without an account and without a connection, and it is revoked on refund.
+When your assistant buys a file through Kiba (a photo, a music track, a 3D model, a document), it does not get only the file. It also gets a **license**: a verifiable credential, signed by Kiba, stating who bought what, under which terms and with which payment. It is not a token or an NFT. It is a document anyone can check without an account and without a connection.
 
 ## What you receive
+
+Your assistant searches every catalog for free with the `search_media` tool and buys an item with `call_agent` and `{ assetId }`. Searching by calling the service with `call_agent` charges its base price.
 
 | Piece | What it is | Where |
 |---|---|---|
@@ -43,7 +45,7 @@ Generator services (such as `music-generator` or `3d-generator`) also deliver a 
 
 ## Refunds and revocation
 
-If a purchase is refunded, or a publisher withdraws a file after a rights claim, Kiba marks the license as **revoked** in the status list. The credential still exists, but verification will say so. Other buyers' earlier licenses are not affected.
+If the service fails, the call is refunded to your balance and no license is issued. A license already issued only stops being valid if Kiba revokes it, for example after a well-founded rights claim: it is marked as **revoked** in the status list. The credential still exists, but verification will say so. Other buyers' licenses are not affected.
 
 ## For publishers: declaring the license
 
@@ -80,6 +82,8 @@ const source = await FolderSource.open({ dir: './catalog', publicBaseUrl: PUBLIC
 const agent = new MediaCatalogProvider({ service: 'anas-photos', pricePerCall: 0.05, source, license: { name: 'commercial' }, /* ... */ });
 ```
 
-Search and item details are public and free (`GET /catalog/search?q=…`); buying is a paid call with `{ assetId }`. The gateway issues the buyer's credential with the hash and the terms you declared. If your catalog lives in S3, in your own database or in a feed, implement the `CatalogSource` interface (four functions); Kiba never connects to your database.
+Each item is charged at its `price_usd`; items without one, at `pricePerCall`. `pricePerCall` is also the minimum: a cheaper item is listed and charged at `pricePerCall`, so set it at or below your cheapest item.
+
+Search and item details are public and free (`GET /catalog/search?q=…`); Kiba uses them for the federated `search_media` search. Buying is a paid call with `{ assetId }`. The gateway issues the buyer's credential with the hash and the terms you declared. If your catalog lives in S3, in your own database or in a feed, implement the `CatalogSource` interface (four functions); Kiba never connects to your database.
 
 By publishing you declare that you hold the rights to what you sell and accept that Kiba revokes licenses after a well-founded claim.

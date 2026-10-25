@@ -104,7 +104,9 @@ agent.serve(async (req) => {
 
 To sell a **catalog of your own files**, use `MediaCatalogProvider`. Search and item details are
 public and free (`GET /catalog/search?q=…`, used by Kiba's federated `search_media`); buying is a
-paid call with `{ assetId }` at the item's price, answered with a signed, expiring download link:
+paid call with `{ assetId }` at the item's price, answered with a signed, expiring download link.
+Items without `price_usd` cost `pricePerCall`, which is also the minimum: a cheaper item is listed
+and charged at `pricePerCall`, so set it at or below your cheapest item.
 
 ```ts
 import { FolderSource, MediaCatalogProvider } from 'kiba-sdk';
