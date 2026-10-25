@@ -78,6 +78,7 @@ The best answers rarely come from a general-purpose model alone. They come from 
 | 🕸️ | **web-scraper** | Reads any web page — even JavaScript-heavy sites — powered by Firecrawl |
 | 🧊 | **3d-generator** | Turns a sentence into a downloadable 3D model, powered by Meshy |
 | 🎵 | **music-generator** | Composes songs and clips from a prompt, powered by Google Lyria |
+| 🖼️ | **media-catalog** | Licensed photos and music clips from an independent creator — every download comes with a verifiable license credential |
 | 🌍 | **world-clock** | Live time and time zones for any city on Earth |
 | 🎲 | **randomizer** | Cryptographically secure random numbers, dice, draws and shuffles |
 
@@ -119,6 +120,20 @@ Go deeper: [architecture](docs/architecture.md) · [settlement](docs/trustless-w
 - **Leave anytime** — withdraw your full balance or revoke the permission in one click.
 - **No keys in the chat** — sign-in by OAuth; your assistant never sees a secret.
 - **Fully auditable** — every payout is a public transaction on [stellar.expert](https://stellar.expert/explorer/testnet).
+
+---
+
+## Licensed media
+
+Buy a photo, a music clip or a 3D model through your assistant and you get more than a file: every paid download comes with a **license you can prove**.
+
+- **A verifiable credential**, not an NFT. Kiba issues a W3C Verifiable Credential (`MediaLicenseCredential`) signed with Ed25519: who bought it (your Kiba account), the SHA-256 of the file, the terms, and the Stellar payment as evidence. Anyone can verify it offline; a refund revokes it.
+- **Terms in the open.** Three templates (`personal`, `commercial`, `commercial-attribution`) shaped like [RSL 1.0](https://rslstandard.org/rsl), adjustable per item. AI-generated media says so: non-exclusive, not unique.
+- **Search across every catalog for free.** `search_media("lofi beat")` asks all publisher catalogs at once; buying is one `call_agent(service, { assetId })`.
+- **Publish a catalog in ten minutes.** A folder plus an `items.csv`, or your own S3, database or feed behind a four-function interface. Kiba never connects to your data.
+- **Stellar-native identity.** With [ACTA](https://acta.build) configured, each credential is also deposited in the buyer's vault on Soroban under Kiba's `did:stellar`.
+
+Read more: [media licenses](https://docs.kiba.tools/licencias) · [SDK: catalogs](packages/sdk/README.md#media-licenses-and-catalogs)
 
 ---
 
@@ -177,6 +192,21 @@ packages/
 ```
 
 </details>
+
+---
+
+## Built at HackMeridian 2026 (Lisbon, 25–26 October)
+
+Kiba entered the **Scale** track with a product already in production. Everything below was built during the event, in the [`hackmeridian-2026`](https://github.com/CoKeFish/kiba/commits/hackmeridian-2026) branch with timestamped commits:
+
+| Commit | What |
+|---|---|
+| `41fc53d` | License credentials: a signed W3C Verifiable Credential per purchased file, public verification, printable certificate, revocation list, license card in the dashboard |
+| `595b177` | `MediaCatalogProvider` + `FolderSource` in the SDK (folder + CSV, free public search, per-item prices, signed download links) and the `media-catalog` service |
+| `101f711` | Federated `search_media` in the MCP connector and the REST API |
+| `d9e6471` | Deposit of credentials in the buyer's [ACTA](https://acta.build) vault under a `did:stellar` issuer, with a retry queue; licenses documentation in ES/EN/PT |
+
+Goals were declared in the submission form on Sunday at 13:00 WET, before the first commit.
 
 ---
 
