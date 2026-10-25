@@ -194,7 +194,8 @@ test('certificado: los campos que manda el servicio se escapan (sin HTML inyecta
   };
   const out = await callAndStore({ userId, service: 'media-catalog', payload: {}, waitMs: 2000 }, fakeCall(result));
   const html = certificateHtml((await licenseForCall(out.resultId))!);
-  assert.doesNotMatch(html, /<script>|<img|<b>/);
+  // Lo inyectado no aparece como HTML (el certificado sí usa <img> para el logo y <b> propios).
+  assert.doesNotMatch(html, /<script>|<img src=x|<b>t<\/b>/);
   assert.match(html, /&lt;script&gt;/);
 });
 

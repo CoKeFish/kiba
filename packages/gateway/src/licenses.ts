@@ -517,41 +517,193 @@ function esc(s: unknown): string {
   return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 }
 
+type CertLang = 'es' | 'en' | 'pt';
+
+const CERT_TEXT: Record<CertLang, Record<string, string>> = {
+  es: {
+    doc: 'Certificado de licencia', valid: 'Licencia válida', revoked: 'Licencia revocada',
+    lead: 'Este certificado acredita una licencia de uso emitida por Kiba como credencial verificable (W3C).',
+    asset: 'Archivo licenciado', hash: 'Huella SHA-256 del archivo', terms: 'Qué permite la licencia',
+    template: 'Plantilla', users: 'Quién puede usarlo', usage: 'Usos permitidos', territory: 'Territorio', worldwide: 'Todo el mundo',
+    duration: 'Duración', perpetual: 'Perpetua', attribution: 'Exige atribución', exclusive: 'Exclusiva', transferable: 'Transferible',
+    yes: 'Sí', no: 'No', notes: 'Notas del vendedor', fullTerms: 'Términos completos',
+    details: 'Detalles', licenseId: 'ID de la licencia', issued: 'Emitida', licensee: 'Titular', service: 'Vendido por',
+    payment: 'Pago', paymentPending: 'Llamada {{call}} · liquidación on-chain pendiente', issuer: 'Emisor',
+    verify: 'Verificar esta licencia', print: 'Imprimir o guardar PDF', credential: 'Credencial (JSON)',
+    footer: 'El titular se identifica con un identificador de cuenta de Kiba, no por su nombre. Cualquiera puede verificar este certificado: descarga la credencial, comprueba su firma Ed25519 contra el did:key del emisor, revisa la lista de estado y abre la transacción en Stellar.',
+    status: 'Lista de estado',
+  },
+  en: {
+    doc: 'License certificate', valid: 'Valid license', revoked: 'Revoked license',
+    lead: 'This certificate attests a usage license issued by Kiba as a verifiable credential (W3C).',
+    asset: 'Licensed file', hash: 'File SHA-256 fingerprint', terms: 'What the license allows',
+    template: 'Template', users: 'Who may use it', usage: 'Permitted uses', territory: 'Territory', worldwide: 'Worldwide',
+    duration: 'Duration', perpetual: 'Perpetual', attribution: 'Attribution required', exclusive: 'Exclusive', transferable: 'Transferable',
+    yes: 'Yes', no: 'No', notes: "Seller's notes", fullTerms: 'Full terms',
+    details: 'Details', licenseId: 'License ID', issued: 'Issued', licensee: 'Licensee', service: 'Sold by',
+    payment: 'Payment', paymentPending: 'Call {{call}} · on-chain settlement pending', issuer: 'Issuer',
+    verify: 'Verify this license', print: 'Print or save as PDF', credential: 'Credential (JSON)',
+    footer: "The licensee is identified by a Kiba account identifier, not by name. Anyone can verify this certificate: fetch the credential, check its Ed25519 signature against the issuer's did:key, check the status list, and open the Stellar transaction.",
+    status: 'Status list',
+  },
+  pt: {
+    doc: 'Certificado de licença', valid: 'Licença válida', revoked: 'Licença revogada',
+    lead: 'Este certificado atesta uma licença de uso emitida pela Kiba como credencial verificável (W3C).',
+    asset: 'Arquivo licenciado', hash: 'Impressão SHA-256 do arquivo', terms: 'O que a licença permite',
+    template: 'Modelo', users: 'Quem pode usar', usage: 'Usos permitidos', territory: 'Território', worldwide: 'Mundo todo',
+    duration: 'Duração', perpetual: 'Perpétua', attribution: 'Exige atribuição', exclusive: 'Exclusiva', transferable: 'Transferível',
+    yes: 'Sim', no: 'Não', notes: 'Notas do vendedor', fullTerms: 'Termos completos',
+    details: 'Detalhes', licenseId: 'ID da licença', issued: 'Emitida', licensee: 'Titular', service: 'Vendido por',
+    payment: 'Pagamento', paymentPending: 'Chamada {{call}} · liquidação on-chain pendente', issuer: 'Emissor',
+    verify: 'Verificar esta licença', print: 'Imprimir ou salvar PDF', credential: 'Credencial (JSON)',
+    footer: 'O titular é identificado por um identificador de conta da Kiba, não pelo nome. Qualquer pessoa pode verificar este certificado: baixe a credencial, confira a assinatura Ed25519 com o did:key do emissor, consulte a lista de status e abra a transação na Stellar.',
+    status: 'Lista de status',
+  },
+};
+
+/** Nombres legibles de las plantillas y de los valores RSL (`user`, `usage`). */
+const CERT_VALUES: Record<CertLang, Record<string, string>> = {
+  es: {
+    personal: 'Personal', commercial: 'Comercial', 'commercial-attribution': 'Comercial con atribución',
+    education: 'Educación', 'non-commercial': 'No comercial', government: 'Gobierno',
+    all: 'Todos', 'ai-all': 'Cualquier uso con IA', 'ai-train': 'Entrenar IA', 'ai-input': 'Entrada para IA',
+    'ai-index': 'Indexación por IA', search: 'Buscadores',
+  },
+  en: {
+    personal: 'Personal', commercial: 'Commercial', 'commercial-attribution': 'Commercial with attribution',
+    education: 'Education', 'non-commercial': 'Non-commercial', government: 'Government',
+    all: 'All', 'ai-all': 'Any AI use', 'ai-train': 'AI training', 'ai-input': 'AI input',
+    'ai-index': 'AI indexing', search: 'Search engines',
+  },
+  pt: {
+    personal: 'Pessoal', commercial: 'Comercial', 'commercial-attribution': 'Comercial com atribuição',
+    education: 'Educação', 'non-commercial': 'Não comercial', government: 'Governo',
+    all: 'Todos', 'ai-all': 'Qualquer uso com IA', 'ai-train': 'Treinar IA', 'ai-input': 'Entrada para IA',
+    'ai-index': 'Indexação por IA', search: 'Buscadores',
+  },
+};
+
+/** Idioma del certificado: `?lang=` o, si no, el primero de Accept-Language que conozcamos. */
+export function certificateLang(query?: unknown, acceptLanguage?: string): CertLang {
+  const pick = (v: string) => v.slice(0, 2).toLowerCase();
+  if (typeof query === 'string' && pick(query) in CERT_TEXT) return pick(query) as CertLang;
+  for (const part of (acceptLanguage ?? '').split(',')) {
+    const l = pick(part.trim());
+    if (l in CERT_TEXT) return l as CertLang;
+  }
+  return 'en';
+}
+
 /** Certificado legible (HTML imprimible → PDF desde el navegador). Público: no lleva datos personales. */
-export function certificateHtml(row: LicenseRow): string {
+export function certificateHtml(row: LicenseRow, lang: CertLang = 'en'): string {
+  const T = CERT_TEXT[lang];
+  const tr = (v: string) => CERT_VALUES[lang][v] ?? v;
   const terms = JSON.parse(row.terms) as LicenseTerms;
   const vc = JSON.parse(row.vc) as Json;
-  const subject = vc.credentialSubject as Json;
+  const subject = (vc.credentialSubject ?? {}) as Json;
   const lic = (subject.license ?? {}) as Record<string, unknown>;
   const issuer = issuerInfo();
-  const yesNo = (v: unknown) => (v ? 'yes' : 'no');
-  const rows: [string, string][] = [
-    ['License ID', row.id],
-    ['Status', row.status === 'valid' ? 'Valid' : `Revoked${row.revoke_reason ? ` (${row.revoke_reason})` : ''}`],
-    ['Issued', new Date(row.created_at * 1000).toUTCString()],
-    ['Licensee', String(subject.id ?? '')],
-    ['Service / publisher', `${row.service}${row.publisher ? ` · ${row.publisher}` : ''}`],
-    ['Asset', `${String(lic.title ?? lic.filename ?? row.asset_id ?? '')}${lic.mimeType ? ` (${String(lic.mimeType)}${lic.bytes ? `, ${String(lic.bytes)} bytes` : ''})` : ''}`],
-    ['Asset SHA-256', row.asset_sha256],
-    ['Template', String(terms.name ?? 'commercial')],
-    ['Permitted users', (terms.user ?? []).join(', ')],
-    ['Permitted usage', (terms.usage ?? []).join(', ')],
-    ['Territory', (terms.geo ?? ['*']).join(', ').replace('*', 'worldwide')],
-    ['Duration', String(terms.duration ?? 'perpetual')],
-    ['Attribution required', yesNo(terms.attribution)],
-    ['Exclusive', yesNo(terms.exclusive)],
-    ['Transferable', yesNo(terms.transferable)],
-    ...(terms.notes ? ([['Notes', String(terms.notes)]] as [string, string][]) : []),
-    ...(terms.termsUrl ? ([['Full terms', String(terms.termsUrl)]] as [string, string][]) : []),
-    ['Payment', row.tx_hash ? `Stellar ${NETWORK} · ${row.tx_hash}` : `Kiba call ${row.call_id} (on-chain settlement pending)`],
-    ['Issuer', `Kiba · ${issuer.did} · Stellar ${issuer.stellarAddress}`],
-    ['Verify', `${licenseUrl(row.id)}/verify`],
-  ];
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Kiba license ${esc(row.id)}</title>
+  const valid = row.status === 'valid';
+  const verifyUrl = `${DASHBOARD_URL}/verify/${row.id}`;
+  const locale = lang === 'en' ? 'en-US' : lang === 'pt' ? 'pt-BR' : 'es-CO';
+  const issued = new Date(row.created_at * 1000).toLocaleString(locale, { dateStyle: 'long', timeStyle: 'short', timeZone: 'UTC' });
+  const title = String(lic.title ?? lic.filename ?? row.asset_id ?? row.asset_sha256.slice(0, 12));
+  const fileMeta = [lic.mimeType, lic.bytes ? `${Number(lic.bytes).toLocaleString(locale)} bytes` : '']
+    .filter(Boolean)
+    .map(String)
+    .join(' · ');
+
+  // Todo valor dinámico pasa por esc(): parte viene del servicio que vende el archivo.
+  const flag = (label: string, on: unknown) =>
+    `<li class="flag ${on ? 'on' : 'off'}"><span class="dot">${on ? '✓' : '–'}</span>${esc(label)}<b>${on ? esc(T.yes) : esc(T.no)}</b></li>`;
+  const pair = (label: string, value: string, mono = false) =>
+    `<div class="pair"><dt>${esc(label)}</dt><dd${mono ? ' class="mono"' : ''}>${esc(value)}</dd></div>`;
+  const paymentText = row.tx_hash ? `Stellar ${NETWORK} · ${row.tx_hash}` : T.paymentPending.replace('{{call}}', row.call_id);
+  const note =
+    terms.notes || terms.termsUrl
+      ? `<p class="note">${terms.notes ? `<b>${esc(T.notes)}:</b> ${esc(terms.notes)}` : ''}${
+          terms.termsUrl
+            ? `${terms.notes ? '<br>' : ''}<a href="${esc(terms.termsUrl)}" target="_blank" rel="noopener noreferrer">${esc(T.fullTerms)} ↗</a>`
+            : ''
+        }</p>`
+      : '';
+
+  return `<!doctype html><html lang="${lang}"><head><meta charset="utf-8"><title>${esc(T.doc)} · ${esc(title)} · Kiba</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<style>body{font:14px/1.5 system-ui,sans-serif;margin:40px auto;max-width:760px;color:#111;padding:0 16px}h1{font-size:22px;margin:0 0 4px}p.sub{color:#555;margin:0 0 24px}table{border-collapse:collapse;width:100%}td{padding:8px 10px;border-top:1px solid #e5e5e5;vertical-align:top;word-break:break-all}td:first-child{color:#555;white-space:nowrap;width:180px}.ok{color:#0a7d2c;font-weight:600}.bad{color:#b00020;font-weight:600}footer{margin-top:28px;color:#555;font-size:12px}@media print{a{color:inherit;text-decoration:none}}</style></head>
-<body><h1>Media license certificate</h1><p class="sub">Issued by Kiba as a W3C Verifiable Credential. The machine-readable credential is at <a href="${esc(licenseUrl(row.id))}">${esc(licenseUrl(row.id))}</a>.</p>
-<table>${rows.map(([k, v]) => `<tr><td>${esc(k)}</td><td class="${k === 'Status' ? (row.status === 'valid' ? 'ok' : 'bad') : ''}">${esc(v)}</td></tr>`).join('')}</table>
-<footer>The licensee is identified by a Kiba account identifier, not by name. Anyone can verify this certificate: fetch the credential, check its Ed25519 signature against the issuer's did:key, check the status list, and open the Stellar transaction. Credential status: <a href="${esc(statusListUrl())}">${esc(statusListUrl())}</a>.</footer>
-</body></html>`;
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--fg:#0b0b12;--muted:#66626f;--subtle:#8e89a0;--line:#e7e6ec;--primary:#4fa3c7;--purple:#6c48ff;--pink:#ff6ec7;--yellow:#ffd54a;--ok:#16a34a;--bad:#e11d48;--paper:#fff;--bg:#f4f6fb}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.55 "Space Grotesk",system-ui,sans-serif;padding:32px 16px}
+.sheet{max-width:820px;margin:0 auto;background:var(--paper);border-radius:24px;overflow:hidden;box-shadow:0 1px 2px rgba(11,11,18,.05),0 18px 48px rgba(11,11,18,.08);border:1px solid var(--line)}
+.band{height:8px;background:linear-gradient(90deg,var(--primary),var(--purple),var(--pink),var(--yellow))}
+header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:28px 36px 0}
+.brand{display:flex;align-items:center;font:800 22px "Baloo 2",system-ui,sans-serif;color:var(--fg);text-decoration:none}
+.brand img{height:30px}
+.doc{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--subtle)}
+.hero{padding:22px 36px 26px;border-bottom:1px solid var(--line)}
+.status{display:inline-flex;align-items:center;gap:8px;padding:6px 14px;border-radius:999px;font-weight:700;font-size:13px}
+.status.ok{background:#dcfce7;color:var(--ok)}.status.bad{background:#ffe4e6;color:var(--bad)}
+h1{font:800 34px/1.1 "Baloo 2",system-ui,sans-serif;letter-spacing:-.02em;margin:14px 0 4px;word-break:break-word}
+.meta{color:var(--muted);margin:0}
+.lead{color:var(--muted);margin:14px 0 0;max-width:620px}
+section{padding:24px 36px;border-bottom:1px solid var(--line)}
+h2{font:700 12px "Space Grotesk",system-ui,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:var(--subtle);margin:0 0 14px}
+.hash{font:500 13px "JetBrains Mono",ui-monospace,monospace;background:#f8fafc;border:1px solid var(--line);border-radius:12px;padding:12px 14px;word-break:break-all;margin:0}
+.flags{list-style:none;padding:0;margin:0 0 18px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.flag{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:14px;border:1px solid var(--line);font-weight:500}
+.flag b{margin-left:auto;font-weight:700}
+.flag .dot{width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0}
+.flag.on .dot{background:#dcfce7;color:var(--ok)}.flag.off .dot{background:#f1f1f4;color:var(--subtle)}
+dl{margin:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 28px}
+.pair dt{font-size:12px;font-weight:600;color:var(--subtle)}
+.pair dd{margin:2px 0 0;word-break:break-word}
+.mono{font:500 12px "JetBrains Mono",ui-monospace,monospace;word-break:break-all}
+.note{margin:18px 0 0;padding:12px 14px;border-radius:12px;background:#f5f3ff;color:#4c3bb8}
+.note a{color:inherit}
+.actions{display:flex;flex-wrap:wrap;gap:10px;padding:24px 36px}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:10px 18px;border-radius:999px;font-weight:600;font-size:14px;text-decoration:none;border:1.5px solid var(--primary);color:var(--primary);background:#fff;cursor:pointer;font-family:inherit}
+.btn.primary{background:var(--primary);color:#fff}
+footer{padding:0 36px 28px;color:var(--muted);font-size:12px}
+footer a{color:var(--muted);word-break:break-all}
+@media (max-width:640px){header,.hero,section,.actions,footer{padding-left:20px;padding-right:20px}.flags,dl{grid-template-columns:1fr}h1{font-size:28px}}
+@media print{body{background:#fff;padding:0}.sheet{box-shadow:none;border:none;border-radius:0}.actions{display:none}a{color:inherit;text-decoration:none}}
+</style></head>
+<body><main class="sheet">
+<div class="band"></div>
+<header><a class="brand" href="https://kiba.tools"><img src="${esc(DASHBOARD_URL)}/logo.png" alt="Kiba"></a><span class="doc">${esc(T.doc)}</span></header>
+<div class="hero">
+<span class="status ${valid ? 'ok' : 'bad'}">${valid ? '✓' : '✕'} ${esc(valid ? T.valid : T.revoked)}${!valid && row.revoke_reason ? ` · ${esc(row.revoke_reason)}` : ''}</span>
+<h1>${esc(title)}</h1>
+${fileMeta ? `<p class="meta">${esc(fileMeta)}</p>` : ''}
+<p class="lead">${esc(T.lead)}</p>
+</div>
+<section><h2>${esc(T.hash)}</h2><p class="hash">${esc(row.asset_sha256)}</p></section>
+<section><h2>${esc(T.terms)}</h2>
+<ul class="flags">${flag(T.attribution, terms.attribution)}${flag(T.exclusive, terms.exclusive)}${flag(T.transferable, terms.transferable)}</ul>
+<dl>
+${pair(T.template, tr(String(terms.name ?? 'commercial')))}
+${pair(T.users, (terms.user ?? []).map(tr).join(', ') || '—')}
+${pair(T.usage, (terms.usage ?? []).map(tr).join(', ') || '—')}
+${pair(T.territory, (terms.geo ?? ['*']).map((g) => (g === '*' ? T.worldwide : g)).join(', '))}
+${pair(T.duration, !terms.duration || terms.duration === 'perpetual' ? T.perpetual : String(terms.duration))}
+</dl>
+${note}
+</section>
+<section><h2>${esc(T.details)}</h2><dl>
+${pair(T.licenseId, row.id, true)}
+${pair(T.issued, `${issued} UTC`)}
+${pair(T.licensee, String(subject.id ?? ''), true)}
+${pair(T.service, `${row.service}${row.publisher ? ` · ${row.publisher}` : ''}`)}
+${pair(T.payment, paymentText, true)}
+${pair(T.issuer, `Kiba · ${issuer.did}`, true)}
+</dl></section>
+<div class="actions">
+<a class="btn primary" href="${esc(verifyUrl)}">${esc(T.verify)}</a>
+<button class="btn" type="button" onclick="window.print()">${esc(T.print)}</button>
+<a class="btn" href="${esc(licenseUrl(row.id))}">${esc(T.credential)}</a>
+</div>
+<footer>${esc(T.footer)} ${esc(T.status)}: <a href="${esc(statusListUrl())}">${esc(statusListUrl())}</a></footer>
+</main></body></html>`;
 }

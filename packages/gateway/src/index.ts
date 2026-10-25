@@ -61,6 +61,7 @@ import {
 import { listAgents, masterWalletPubkey, platformPublicKey } from './proxy';
 import {
   certificateHtml,
+  certificateLang,
   getLicense,
   issuerInfo,
   kibaContext,
@@ -1509,7 +1510,7 @@ app.get('/v1/licenses/:id/receipt', async (req, res) => {
 app.get('/v1/licenses/:id/certificate', async (req, res) => {
   const row = await getLicense(req.params.id);
   if (!row) return res.status(404).send('license not found');
-  res.type('html').send(certificateHtml(row));
+  res.type('html').send(certificateHtml(row, certificateLang(req.query.lang, req.headers['accept-language'])));
 });
 
 // ─── API Keys (long-lived bearer tokens for direct REST access) ──
