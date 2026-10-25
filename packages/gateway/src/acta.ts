@@ -232,10 +232,32 @@ async function holderAddress(userId: number): Promise<string | null> {
 }
 
 /**
+ * Los depósitos van de uno en uno en este proceso: el intento inmediato (depositSoon) y el worker
+ * pueden tomar la misma licencia a la vez, y cada `vc/issue` cuesta una tasa on-chain. En serie,
+ * el segundo relee la fila y ve que ya está depositada. También evita registrar dos did:stellar
+ * del emisor o crear dos veces el vault de un comprador.
+ */
+let actaChain: Promise<unknown> = Promise.resolve();
+function serialized<T>(fn: () => Promise<T>): Promise<T> {
+  const run = actaChain.then(fn, fn);
+  actaChain = run.catch(() => undefined);
+  return run;
+}
+
+/**
  * Deposita UNA licencia en ACTA. Devuelve el estado final; guarda tx/errores en la fila.
  * Nunca lanza: los fallos quedan en `acta_error` con reintento programado.
  */
-export async function depositLicense(client: ActaClient, row: LicenseRow): Promise<'done' | 'skipped' | 'retry'> {
+export function depositLicense(client: ActaClient, row: LicenseRow): Promise<'done' | 'skipped' | 'retry'> {
+  return serialized(async () => {
+    // Relee la fila: otro intento pudo depositarla mientras esta esperaba su turno.
+    const fresh = (await getLicense(row.id)) ?? row;
+    if (fresh.acta_vc_id) return 'done';
+    return depositLicenseNow(client, fresh);
+  });
+}
+
+async function depositLicenseNow(client: ActaClient, row: LicenseRow): Promise<'done' | 'skipped' | 'retry'> {
   const now = Math.floor(Date.now() / 1000);
   try {
     const owner = await holderAddress(row.user_id);

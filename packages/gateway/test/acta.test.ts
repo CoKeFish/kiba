@@ -176,3 +176,15 @@ test('depositLicense: sin wallet se omite; un fallo programa reintento y la cola
   assert.equal(await runActaQueueOnce(client()), 1);
   assert.equal((await getLicense(row.id))!.acta_tx, 'issue-tx-1');
 });
+
+test('depositLicense: dos intentos a la vez (inmediato + worker) depositan una sola vez', async () => {
+  const userId = await createUser('dup@test.com', holder.publicKey());
+  const out = await callAndStore({ userId, service: 'media-catalog', payload: { assetId: 'x' }, waitMs: 2000 }, fakeCall(LICENSE));
+  const row = (await licenseForCall(out.resultId))!;
+  received.length = 0;
+  const results = await Promise.all([depositLicense(client(), row), depositLicense(client(), row)]);
+  assert.deepEqual(results, ['done', 'done']);
+  const issues = received.filter((r) => r.path === '/contracts/vc/issue' && !r.body.signedXdr);
+  assert.equal(issues.length, 1, 'una sola emisión (una sola tasa on-chain)');
+  assert.equal(received.filter((r) => r.path === '/v1/dids/stellar').length, 1, 'un solo did:stellar del emisor');
+});
