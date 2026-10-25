@@ -39,22 +39,15 @@
   color: var(--color-fg-muted);
 }
 
+/* Ocupa todo el ancho disponible (Servicios se queda en 960px): las columnas se adaptan solas. */
+.media-page {
+  max-width: none;
+}
+
 .media-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
   gap: 16px;
-}
-
-@media (max-width: 960px) {
-  .media-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (max-width: 600px) {
-  .media-grid {
-    grid-template-columns: 1fr;
-  }
 }
 
 .media-card {

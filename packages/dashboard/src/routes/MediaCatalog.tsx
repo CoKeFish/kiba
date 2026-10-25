@@ -46,7 +46,7 @@ export default function MediaCatalog() {
   const items = data?.items ?? [];
 
   return (
-    <div className="agents-page">
+    <div className="agents-page media-page">
       <Link to="/app/agents" className="media-back">
         <ArrowLeft size={15} /> {t("media.back")}
       </Link>
