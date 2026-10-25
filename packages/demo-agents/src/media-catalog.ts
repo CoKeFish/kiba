@@ -37,8 +37,8 @@ const PRICE_DEFAULT_USDC = Number(process.env.CATALOG_PRICE_USDC) || 0.02;
     description:
       'Catálogo de imágenes y clips de música con licencia, de un creador independiente. ' +
       'Licensed stock photos, backgrounds and short music clips you can use in videos, posts and apps. ' +
-      'Search for free: { op: "search", query: "lofi beat" } or { op: "search", query: "sunset background", type: "image" }; ' +
-      'each item has a price and license terms. Buy with { assetId }: you get a download link plus a verifiable ' +
+      'Find items for free with the search_media tool (e.g. query "lofi beat", or "sunset background" with type "image"); ' +
+      'each item has a price and license terms. Buy one with { assetId }: you get a download link plus a verifiable ' +
       'license credential issued by Kiba. Stock images, royalty-free music, backgrounds, jingles, licensed media.',
     endpoint: PUBLIC_ENDPOINT,
     publicBaseUrl: PUBLIC_ENDPOINT,
