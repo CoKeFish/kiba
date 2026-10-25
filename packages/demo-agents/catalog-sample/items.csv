@@ -1,0 +1,9 @@
+id,file,title,type,tags,price_usd,license,attribution,attribution_text,description,preview
+amanecer-andino,amanecer-andino.png,Amanecer andino,image,amanecer;andes;cielo;fondo,0.05,commercial,,,"Degradado cálido de amanecer, 512x512. Imagen de muestra generada por código.",amanecer-andino.preview.png
+bruma-azul,bruma-azul.png,Bruma azul,image,azul;bruma;mar;fondo;textura,0.05,commercial,,,"Degradado azul con bandas suaves, 512x512. Imagen de muestra generada por código.",bruma-azul.preview.png
+selva-humeda,selva-humeda.png,Selva húmeda,image,selva;verde;naturaleza;fondo,0.05,commercial-attribution,true,Imagen: catálogo de muestra de Kiba,"Degradado verde, 512x512. Imagen de muestra generada por código.",selva-humeda.preview.png
+ondas-morado,ondas-morado.png,Ondas morado,image,ondas;morado;abstracto;kiba,0.02,personal,,,"Anillos concéntricos en morado Kiba, 512x512. Imagen de muestra generada por código.",ondas-morado.preview.png
+ondas-dorado,ondas-dorado.png,Ondas dorado,image,ondas;dorado;abstracto,0.02,personal,,,"Anillos concéntricos dorados, 512x512. Imagen de muestra generada por código.",ondas-dorado.preview.png
+lofi-lluvia,lofi-lluvia.wav,Lo-fi lluvia,audio,lofi;beat;relax;estudio,0.10,commercial,,,"Clip de 6 s, 22 kHz mono. Audio de muestra sintetizado por código.",lofi-lluvia.preview.wav
+sintesis-nocturna,sintesis-nocturna.wav,Síntesis nocturna,audio,synth;noche;ambiente;intro,0.10,commercial,,,"Clip de 6 s, 22 kHz mono. Audio de muestra sintetizado por código.",sintesis-nocturna.preview.wav
+cumbia-de-bolsillo,cumbia-de-bolsillo.wav,Cumbia de bolsillo,audio,cumbia;latino;jingle;alegre,0.15,commercial-attribution,true,Música: catálogo de muestra de Kiba,"Clip de 6 s, 22 kHz mono. Audio de muestra sintetizado por código.",cumbia-de-bolsillo.preview.wav
