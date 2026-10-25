@@ -130,6 +130,19 @@
       "result_ready": "Respuesta lista en Respuesta en vivo",
       "debited": "Debitado {{amount}}",
       "result_awaiting": "Esperando resultado"
+    },
+    "summary": {
+      "purchased": "Comprado · el enlace de descarga caduca",
+      "download": "Descargar",
+      "license": "Licencia emitida · verificar",
+      "items_one": "{{count}} elemento",
+      "items_other": "{{count}} elementos",
+      "yes": "sí",
+      "no": "no",
+      "nothing": "El servicio respondió sin contenido para mostrar. Mira la respuesta técnica.",
+      "show_json": "Ver respuesta técnica (JSON)",
+      "hide_json": "Ocultar respuesta técnica",
+      "open_result": "Abrir en Resultados"
     }
   },
   "billing": {

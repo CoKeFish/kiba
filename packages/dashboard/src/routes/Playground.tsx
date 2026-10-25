@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, type Agent, type X402Trace } from "@/lib/api";
+import { api, type Agent, type LicenseSummary, type X402Trace } from "@/lib/api";
+import { ResponseSummary } from "@/components/results/ResponseSummary";
 import { formatKibix, formatUsd, usdToKibix, KIBIX_LABEL } from "@/lib/format";
 import { chain } from "@/lib/chain";
 import { serviceToName, solToUsd } from "@/components/AgentManager";
@@ -65,6 +66,8 @@ interface CallEntry {
   error?: string;
   cost?: { usd: number };
   trace?: X402Trace;
+  resultId?: string;
+  license?: LicenseSummary;
   durationMs: number;
 }
 
@@ -196,6 +199,8 @@ export default function Playground() {
         result: data.result,
         cost: { usd: data.cost.usd },
         trace: data.trace,
+        resultId: data.resultId,
+        license: data.license,
         durationMs: performance.now() - t0,
       });
       qc.invalidateQueries({ queryKey: ["balance"] });
@@ -337,7 +342,7 @@ export default function Playground() {
             </div>
             <div className="playground-card__body">
               {latest?.ok ? (
-                <pre className="playground-json">{JSON.stringify(latest.result, null, 2)}</pre>
+                <ResponseSummary result={latest.result} license={latest.license} resultId={latest.resultId} />
               ) : latest?.error ? (
                 <pre className="playground-json" style={{ color: "var(--color-danger)" }}>
                   {latest.error}

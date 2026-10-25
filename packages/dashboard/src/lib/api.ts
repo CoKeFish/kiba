@@ -118,6 +118,10 @@ export const api = {
       newBalance: { lamports: number; usd: number };
       refill?: { signature: string; lamports: number };
       trace: X402Trace;
+      /** Resultado guardado (ver en /app/results/:id). */
+      resultId?: string;
+      /** Licencia emitida si el servicio entregó un archivo con licencia. */
+      license?: LicenseSummary;
     }>("/v1/call", {
       method: "POST",
       body: JSON.stringify({ service, payload }),

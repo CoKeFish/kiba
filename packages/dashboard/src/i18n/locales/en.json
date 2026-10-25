@@ -130,6 +130,19 @@
       "result_ready": "Response ready in Live response",
       "debited": "Debited {{amount}}",
       "result_awaiting": "Awaiting result"
+    },
+    "summary": {
+      "purchased": "Purchased · the download link expires",
+      "download": "Download",
+      "license": "License issued · verify",
+      "items_one": "{{count}} item",
+      "items_other": "{{count}} items",
+      "yes": "yes",
+      "no": "no",
+      "nothing": "The service replied with nothing to display. See the technical response.",
+      "show_json": "View technical response (JSON)",
+      "hide_json": "Hide technical response",
+      "open_result": "Open in Results"
     }
   },
   "billing": {
