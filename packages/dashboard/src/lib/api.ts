@@ -379,6 +379,7 @@ export type LicenseSummary = {
   dashboardUrl: string;
   actaVcId?: string;
   actaTx?: string;
+  actaExplorerUrl?: string;
   issuedAt: number;
   revokedAt?: number;
 };

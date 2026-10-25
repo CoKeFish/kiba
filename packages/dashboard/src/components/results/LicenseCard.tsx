@@ -105,7 +105,7 @@ export function LicenseCard({ license, compact = false }: { license: LicenseSumm
           {link(license.certificateUrl, t("results.license.certificate"))}
           {link(license.credentialUrl, t("results.license.credential"))}
           {link(license.dashboardUrl, t("results.license.verify"))}
-          {license.actaVcId && link(`https://acta.build/viewer?vc=${encodeURIComponent(license.actaVcId)}`, t("results.license.acta"))}
+          {license.actaExplorerUrl && link(license.actaExplorerUrl, t("results.license.acta"))}
         </div>
         <p className="text-xs text-[var(--color-fg-muted)] font-mono break-all">{license.id}</p>
       </CardBody>

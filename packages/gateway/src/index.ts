@@ -70,6 +70,7 @@ import {
   verifyLicense,
 } from './licenses';
 import { searchMedia } from './media';
+import { startActaWorker } from './acta';
 import { settleAgent, settleAllDue, MIN_PAYOUT, recordEarning } from './settlement';
 import { listUserSettlements, getDailySeries } from './publisher';
 import { warmEscrows, enqueueChainTask } from './escrows';
@@ -1578,6 +1579,10 @@ try {
 // (DATABASE_URL ausente/incorrecto, Postgres inalcanzable), no arrancamos.
 void initDb()
   .then(failOrphanedResults)
+  // Depósito de licencias en ACTA (opcional; solo con ACTA_API_KEY). Nunca bloquea el arranque.
+  .then(() => {
+    startActaWorker();
+  })
   .then(() => {
     // Cobros del permiso de gasto que quedaron en vuelo al reiniciar: se resuelven por su hash.
     void reconcilePendingSpend().catch((err) => console.warn('[spend] reconcile:', (err as Error).message));

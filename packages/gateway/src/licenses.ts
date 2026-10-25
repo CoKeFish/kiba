@@ -191,6 +191,9 @@ export interface LicenseRow {
   revoke_reason: string | null;
   acta_vc_id: string | null;
   acta_tx: string | null;
+  acta_attempts?: number | null;
+  acta_error?: string | null;
+  acta_next_at?: number | null;
   created_at: number;
   updated_at: number | null;
 }
@@ -242,7 +245,10 @@ function buildCredential(a: {
     issuer: { id: did, name: 'Kiba', url: 'https://kiba.tools' },
     validFrom: a.issuedAt,
     credentialSubject: {
-      id: `urn:kiba:user:${a.userId}`,
+      // Un DID cuando el comprador tiene cuenta Stellar (did:key de su clave; ACTA exige un DID);
+      // si no, su cuenta de Kiba.
+      id: holderDid(a.holderAddress) ?? `urn:kiba:user:${a.userId}`,
+      kibaAccount: `urn:kiba:user:${a.userId}`,
       ...(a.holderAddress ? { holderAccount: `stellar:${NETWORK}:${a.holderAddress}` } : {}),
       license: {
         service: a.service,
@@ -262,6 +268,11 @@ function buildCredential(a: {
   };
 }
 
+function holderDid(address: string | null | undefined): string | null {
+  if (!address || !StrKey.isValidEd25519PublicKey(address)) return null;
+  return didKeyFromStellar(address);
+}
+
 function grantOf(result: unknown): LicenseGrant | null {
   if (typeof result !== 'object' || result === null) return null;
   const g = (result as { license?: unknown }).license;
@@ -272,8 +283,11 @@ function grantOf(result: unknown): LicenseGrant | null {
 }
 
 async function holderAddress(userId: number): Promise<string | null> {
-  const row = await db.prepare('SELECT stellar_address FROM users WHERE id = ?').get<{ stellar_address: string | null }>(userId);
-  return row?.stellar_address ?? null;
+  const row = await db
+    .prepare('SELECT stellar_address, custodial_wallet_pubkey FROM users WHERE id = ?')
+    .get<{ stellar_address: string | null; custodial_wallet_pubkey: string | null }>(userId);
+  const a = row?.stellar_address || row?.custodial_wallet_pubkey || null;
+  return a && StrKey.isValidEd25519PublicKey(a) ? a : null;
 }
 
 /**
@@ -424,6 +438,7 @@ export function licenseDto(row: LicenseRow): Record<string, unknown> {
     dashboardUrl: `${DASHBOARD_URL}/verify/${row.id}`,
     actaVcId: row.acta_vc_id ?? undefined,
     actaTx: row.acta_tx ?? undefined,
+    actaExplorerUrl: row.acta_tx && /^[a-f0-9]{64}$/i.test(row.acta_tx) ? explorerTxUrl(row.acta_tx) : undefined,
     issuedAt: row.created_at,
     revokedAt: row.revoked_at ?? undefined,
   };

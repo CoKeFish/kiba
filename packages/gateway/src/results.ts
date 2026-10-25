@@ -15,6 +15,7 @@ import { randomBytes } from 'node:crypto';
 import { db } from './db';
 import { callOnBehalf } from './proxy';
 import { attachSettlement, issueLicenseForCall, licenseDto, licenseForCall, type LicenseRow } from './licenses';
+import { depositSoon } from './acta';
 
 export const CALL_WAIT_MS = Number(process.env.CALL_WAIT_MS) || 40_000;
 /** Tope del long-poll de get_result (el cliente MCP también tiene timeout). */
@@ -122,6 +123,7 @@ export async function callAndStore(
         costLamports: out.cost.lamports,
         explorerUrl: out.explorerUrl,
       });
+      if (license) depositSoon(license.id);
     })
     .catch(async (err) => {
       // El servicio respondió pero falló el UPDATE: la llamada no es un error para el cliente.
