@@ -1449,8 +1449,9 @@ app.get('/v1/results/:id', requireAuth, async (req, res) => {
 
 // Búsqueda federada de medios con licencia (gratis; ver media.ts).
 app.get('/v1/media/search', requireAuth, async (req, res) => {
+  // `q` vacío lista lo que cada catálogo devuelva sin filtro (la vista del dashboard lo usa
+  // para mostrar el catálogo al entrar). El conector MCP sigue exigiendo `query`.
   const q = String(req.query.q ?? req.query.query ?? '').trim();
-  if (!q) return res.status(400).json({ error: 'q required' });
   res.json(
     await searchMedia({
       query: q,

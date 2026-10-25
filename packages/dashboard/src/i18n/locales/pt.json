@@ -824,5 +824,41 @@
     },
     "how": "Qualquer pessoa pode repetir esta verificação offline: baixe a credencial, verifique a assinatura Ed25519 contra o did:key do emissor e leia a lista de status.",
     "credential": "Abrir a credencial"
+  },
+  "media": {
+    "entry_text": "Procurando fotos, músicas ou modelos 3D licenciados?",
+    "entry_link": "Ver os catálogos de mídia",
+    "back": "Serviços",
+    "title": "Mídia licenciada",
+    "subtitle": "Fotos, músicas, modelos 3D e documentos de empresas e criadores que vendem pela Kiba. Cada compra vem com uma licença verificável.",
+    "assistant_note": "Você não precisa comprar por aqui: peça ao seu assistente o que precisa (\"uma faixa lo-fi para o meu vídeo\") e ele busca e compra por você. Esta página é só para ver o que existe.",
+    "search_placeholder": "Busque — tente \"lofi\", \"fundo azul\" ou \"cumbia\"",
+    "type_label": "Tipo de arquivo",
+    "types": {
+      "all": "tudo",
+      "image": "imagens",
+      "audio": "áudio",
+      "video": "vídeo",
+      "model": "3D",
+      "document": "documentos"
+    },
+    "count_one": "{{count}} item · {{catalogs}} catálogo(s) consultado(s)",
+    "count_other": "{{count}} itens · {{catalogs}} catálogo(s) consultado(s)",
+    "empty": "Esses catálogos ainda não têm itens.",
+    "no_match": "Nada correspondeu a \"{{query}}\". Tente outras palavras.",
+    "no_catalogs": "Ainda não há catálogos de mídia publicados.",
+    "error": "Não foi possível consultar os catálogos. Tente novamente.",
+    "license_template": "licença {{name}}",
+    "attribution": "exige atribuição",
+    "non_exclusive": "não exclusiva",
+    "copy_request": "Copiar pedido para o seu assistente",
+    "copied": "Copiado",
+    "try_playground": "Testar no Playground",
+    "assistant_request": "Compre na Kiba \"{{title}}\" (assetId {{assetId}}) do serviço {{service}} e me dê o link de download e a licença.",
+    "templates": {
+      "personal": "licença pessoal",
+      "commercial": "licença comercial",
+      "commercial-attribution": "comercial com atribuição"
+    }
   }
 }

@@ -142,8 +142,10 @@ export default function Playground() {
   const agents = liveAgents.length > 0 ? liveAgents : DEMO_AGENTS;
 
   const [service, setService] = useState(initialService);
+  // `?payload=` llega desde el catálogo de medios (p.ej. { "assetId": "…" }) ya rellenado.
+  const initialPayload = params.get("payload");
   const [payloadText, setPayloadText] = useState(
-    SAMPLE_PAYLOADS[initialService] || QUICK_PROMPTS[0].payload,
+    initialPayload || SAMPLE_PAYLOADS[initialService] || QUICK_PROMPTS[0].payload,
   );
   const [running, setRunning] = useState(false);
   const [latest, setLatest] = useState<CallEntry | null>(null);

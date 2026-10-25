@@ -90,6 +90,14 @@ export const api = {
 
   // Licencias (credenciales verificables de los archivos comprados)
   licenses: (limit = 50) => request<LicenseSummary[]>(`/v1/licenses?limit=${limit}`),
+  /** Búsqueda federada en los catálogos de medios con licencia (gratis). `q` vacío = sin filtro. */
+  mediaSearch: (opts: { q?: string; type?: MediaType; maxPriceUsd?: number; limit?: number } = {}) => {
+    const qs = new URLSearchParams({ q: opts.q ?? "" });
+    if (opts.type) qs.set("type", opts.type);
+    if (opts.maxPriceUsd !== undefined) qs.set("maxPriceUsd", String(opts.maxPriceUsd));
+    qs.set("limit", String(opts.limit ?? 50));
+    return request<MediaSearchResponse>(`/v1/media/search?${qs.toString()}`);
+  },
   /** Pública: no necesita sesión. */
   verifyLicense: (id: string) => request<LicenseVerification>(`/v1/licenses/${encodeURIComponent(id)}/verify`),
 
@@ -344,6 +352,32 @@ export type CallResult = {
   related?: CallResult[];
   /** Solo en el detalle: la licencia emitida por el archivo entregado, si la hay. */
   license?: LicenseSummary;
+};
+
+export type MediaType = "image" | "audio" | "video" | "model" | "document" | "other";
+
+/** Un ítem de un catálogo de medios, tal como lo devuelve la búsqueda federada (gateway media.ts). */
+export type MediaHit = {
+  service: string;
+  assetId: string;
+  title: string;
+  type: MediaType | string;
+  description?: string;
+  tags?: string[];
+  mimeType?: string;
+  bytes?: number;
+  priceUsd: number;
+  previewUrl?: string;
+  sha256?: string;
+  license?: { name?: string; attribution?: boolean; exclusive?: boolean; user?: string[]; notes?: string };
+};
+
+export type MediaSearchResponse = {
+  query: string;
+  catalogsQueried: number;
+  count: number;
+  items: MediaHit[];
+  hint: string;
 };
 
 /** Términos de una licencia (forma de RSL 1.0; ver packages/sdk/src/license.ts). */

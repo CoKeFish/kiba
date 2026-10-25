@@ -10,6 +10,7 @@ import ResultDetail from "@/routes/ResultDetail";
 import Verify from "@/routes/Verify";
 import Credentials from "@/routes/Credentials";
 import Agents from "@/routes/Agents";
+import MediaCatalog from "@/routes/MediaCatalog";
 import Playground from "@/routes/Playground";
 import Usage from "@/routes/Usage";
 import Billing from "@/routes/Billing";
@@ -62,6 +63,8 @@ export default function App() {
         <Route path="results" element={<Results />} />
         <Route path="results/:id" element={<ResultDetail />} />
         <Route path="agents" element={<Agents />} />
+        {/* Vista secundaria (no está en el menú): catálogos de medios con licencia. */}
+        <Route path="agents/media" element={<MediaCatalog />} />
         <Route path="playground" element={<Playground />} />
         <Route path="credentials" element={<Credentials />} />
         <Route path="billing" element={<Billing />} />

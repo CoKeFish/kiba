@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type Agent, type AgentSearchHit } from "@/lib/api";
 import { formatUsd } from "@/lib/format";
@@ -10,6 +10,7 @@ import { DEMO_AGENTS, DEMO_AGENT_TAGS } from "@/lib/demoAgents";
 import { mascotFor } from "@/lib/agentMascots";
 import { useTranslation } from "react-i18next";
 import "./agents.css";
+import "./media.css";
 
 type Mode = "keyword" | "semantic" | "hybrid";
 
@@ -182,6 +183,11 @@ export default function Agents() {
         </div>
         <img src="/agents/corazon.png" alt="" aria-hidden className="agents-help__mascot" />
       </section>
+
+      {/* Discreto a propósito: el asistente es quien compra; esto es solo para mirar. */}
+      <p className="agents-media-link">
+        {t("media.entry_text")} <Link to="/app/agents/media">{t("media.entry_link")}</Link>
+      </p>
     </div>
   );
 }

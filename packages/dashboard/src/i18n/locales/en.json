@@ -824,5 +824,41 @@
     },
     "how": "Anyone can repeat this check offline: fetch the credential, verify its Ed25519 signature against the issuer did:key and read the status list.",
     "credential": "Open the credential"
+  },
+  "media": {
+    "entry_text": "Looking for licensed photos, music or 3D models?",
+    "entry_link": "Browse the media catalogs",
+    "back": "Services",
+    "title": "Licensed media",
+    "subtitle": "Photos, music, 3D models and documents from companies and creators selling through Kiba. Every purchase comes with a verifiable license.",
+    "assistant_note": "You don't need to buy from here: ask your assistant for what you need (\"a lo-fi track for my video\") and it searches and buys for you. This page is just to see what's available.",
+    "search_placeholder": "Search — try \"lofi\", \"blue background\" or \"cumbia\"",
+    "type_label": "File type",
+    "types": {
+      "all": "all",
+      "image": "images",
+      "audio": "audio",
+      "video": "video",
+      "model": "3D",
+      "document": "documents"
+    },
+    "count_one": "{{count}} item · {{catalogs}} catalog(s) queried",
+    "count_other": "{{count}} items · {{catalogs}} catalog(s) queried",
+    "empty": "These catalogs have no items yet.",
+    "no_match": "Nothing matched \"{{query}}\". Try other words.",
+    "no_catalogs": "No media catalogs have been published yet.",
+    "error": "Couldn't query the catalogs. Try again.",
+    "license_template": "{{name}} license",
+    "attribution": "attribution required",
+    "non_exclusive": "non-exclusive",
+    "copy_request": "Copy request for your assistant",
+    "copied": "Copied",
+    "try_playground": "Try it in the Playground",
+    "assistant_request": "Buy \"{{title}}\" (assetId {{assetId}}) from the {{service}} service on Kiba and give me the download link and the license.",
+    "templates": {
+      "personal": "personal license",
+      "commercial": "commercial license",
+      "commercial-attribution": "commercial with attribution"
+    }
   }
 }
