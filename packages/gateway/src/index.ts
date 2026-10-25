@@ -69,6 +69,7 @@ import {
   statusListCredential,
   verifyLicense,
 } from './licenses';
+import { searchMedia } from './media';
 import { settleAgent, settleAllDue, MIN_PAYOUT, recordEarning } from './settlement';
 import { listUserSettlements, getDailySeries } from './publisher';
 import { warmEscrows, enqueueChainTask } from './escrows';
@@ -1444,6 +1445,20 @@ app.get('/v1/results/:id', requireAuth, async (req, res) => {
 // ─── Licencias de medios (credenciales verificables; ver licenses.ts) ──
 // Las rutas de lectura de una credencial son PÚBLICAS a propósito: cualquiera con el id (que va
 // en el certificado del comprador) debe poder verificarla sin cuenta en Kiba.
+
+// Búsqueda federada de medios con licencia (gratis; ver media.ts).
+app.get('/v1/media/search', requireAuth, async (req, res) => {
+  const q = String(req.query.q ?? req.query.query ?? '').trim();
+  if (!q) return res.status(400).json({ error: 'q required' });
+  res.json(
+    await searchMedia({
+      query: q,
+      type: typeof req.query.type === 'string' ? req.query.type : undefined,
+      maxPriceUsd: req.query.maxPriceUsd !== undefined ? Number(req.query.maxPriceUsd) : undefined,
+      limit: req.query.limit !== undefined ? Number(req.query.limit) : undefined,
+    }),
+  );
+});
 
 app.get('/v1/licenses', requireAuth, async (req, res) => {
   const rows = await listLicenses(req.bearerUser!.id, Number(req.query.limit) || 50);
