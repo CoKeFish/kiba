@@ -253,11 +253,15 @@ export class MediaCatalogProvider extends AgentProvider {
     });
   }
 
-  /** Lo que se publica de un ítem (con precio efectivo y términos efectivos). */
+  /**
+   * Lo que se publica de un ítem (con precio efectivo y términos efectivos). El precio efectivo
+   * nunca baja de `pricePerCall`: es el mínimo que cobra el proveedor, así que un ítem más barato
+   * se cobraría igual al mínimo y anunciar otro número engañaría al comprador.
+   */
   publicItem(item: CatalogItem): CatalogItem & { priceUsd: number; terms: LicenseTerms } {
     return {
       ...item,
-      priceUsd: item.priceUsd ?? this.config.pricePerCall,
+      priceUsd: Math.max(item.priceUsd ?? this.config.pricePerCall, this.config.pricePerCall),
       terms: mergeLicenseTerms(this.serviceTerms, item.terms),
     };
   }

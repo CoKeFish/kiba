@@ -21,7 +21,9 @@ const wallet = loadKeypairFromEnvOrFile('AGENT_WALLET_SECRET', KEYPAIR_PATH);
 const PUBLIC_ENDPOINT = process.env.PUBLIC_ENDPOINT || 'http://demo-agents:5011';
 // En Docker el cwd es packages/demo-agents (WORKDIR); en local también se arranca desde ahí.
 const CATALOG_DIR = process.env.CATALOG_DIR || path.resolve(process.cwd(), 'catalog-sample');
-const PRICE_DEFAULT_USDC = Number(process.env.CATALOG_PRICE_USDC) || 0.05;
+// Es el MÍNIMO que cobra el servicio (el SDK nunca cobra menos), así que debe ser <= que el ítem más
+// barato del CSV (0.02 en catalog-sample); si no, esos ítems se cobrarían a este precio.
+const PRICE_DEFAULT_USDC = Number(process.env.CATALOG_PRICE_USDC) || 0.02;
 
 (async () => {
   const source = await FolderSource.open({ dir: CATALOG_DIR, publicBaseUrl: PUBLIC_ENDPOINT });

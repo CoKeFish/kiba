@@ -89,6 +89,13 @@ test('FolderSource: rechaza archivos fuera de la carpeta o inexistentes', async 
   await fs.rm(bad, { recursive: true, force: true });
 });
 
+test('publicItem: el precio anunciado nunca baja del mínimo que se cobra (pricePerCall)', () => {
+  const cheap = provider.publicItem({ id: 'x', title: 'x', type: 'image', priceUsd: 0.01 });
+  assert.equal(cheap.priceUsd, 0.05);
+  assert.equal(provider.publicItem({ id: 'y', title: 'y', type: 'image', priceUsd: 0.5 }).priceUsd, 0.5);
+  assert.equal(provider.publicItem({ id: 'z', title: 'z', type: 'image' }).priceUsd, 0.05);
+});
+
 test('búsqueda: etiquetas y título puntúan, filtro por tipo, vacío lista todo', async () => {
   assert.deepEqual((await source.search('atardecer bogota')).map((i) => i.id), ['atardecer']);
   assert.deepEqual((await source.search('lofi')).map((i) => i.id), ['lofi-01']);
