@@ -9,6 +9,7 @@ import { db, initDb, pool } from '../src/db';
 import { callAndStore } from '../src/results';
 import {
   attachSettlement,
+  certificateHtml,
   base58btcDecode,
   base58btcEncode,
   didKeyFromStellar,
@@ -184,4 +185,15 @@ test('revocación: verify falla y la lista de estado marca el bit', async () => 
   const i = Number(row.seq);
   assert.equal((bits[i >> 3] >> (7 - (i & 7))) & 1, 1, 'bit de la licencia revocada');
   assert.equal((bits[(i + 1) >> 3] >> (7 - ((i + 1) & 7))) & 1, 0);
+});
+
+test('certificado: los campos que manda el servicio se escapan (sin HTML inyectado)', async () => {
+  const userId = await createTestUser('xss@test.com');
+  const result = {
+    license: { assetSha256: SHA, title: '<b>t</b>', mimeType: 'image/png"><script>alert(1)</script>', bytes: '<img src=x onerror=alert(1)>' },
+  };
+  const out = await callAndStore({ userId, service: 'media-catalog', payload: {}, waitMs: 2000 }, fakeCall(result));
+  const html = certificateHtml((await licenseForCall(out.resultId))!);
+  assert.doesNotMatch(html, /<script>|<img|<b>/);
+  assert.match(html, /&lt;script&gt;/);
 });

@@ -531,7 +531,7 @@ export function certificateHtml(row: LicenseRow): string {
     ['Issued', new Date(row.created_at * 1000).toUTCString()],
     ['Licensee', String(subject.id ?? '')],
     ['Service / publisher', `${row.service}${row.publisher ? ` · ${row.publisher}` : ''}`],
-    ['Asset', `${esc(lic.title ?? lic.filename ?? row.asset_id ?? '')}${lic.mimeType ? ` (${lic.mimeType}${lic.bytes ? `, ${lic.bytes} bytes` : ''})` : ''}`],
+    ['Asset', `${String(lic.title ?? lic.filename ?? row.asset_id ?? '')}${lic.mimeType ? ` (${String(lic.mimeType)}${lic.bytes ? `, ${String(lic.bytes)} bytes` : ''})` : ''}`],
     ['Asset SHA-256', row.asset_sha256],
     ['Template', String(terms.name ?? 'commercial')],
     ['Permitted users', (terms.user ?? []).join(', ')],
@@ -551,7 +551,7 @@ export function certificateHtml(row: LicenseRow): string {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>body{font:14px/1.5 system-ui,sans-serif;margin:40px auto;max-width:760px;color:#111;padding:0 16px}h1{font-size:22px;margin:0 0 4px}p.sub{color:#555;margin:0 0 24px}table{border-collapse:collapse;width:100%}td{padding:8px 10px;border-top:1px solid #e5e5e5;vertical-align:top;word-break:break-all}td:first-child{color:#555;white-space:nowrap;width:180px}.ok{color:#0a7d2c;font-weight:600}.bad{color:#b00020;font-weight:600}footer{margin-top:28px;color:#555;font-size:12px}@media print{a{color:inherit;text-decoration:none}}</style></head>
 <body><h1>Media license certificate</h1><p class="sub">Issued by Kiba as a W3C Verifiable Credential. The machine-readable credential is at <a href="${esc(licenseUrl(row.id))}">${esc(licenseUrl(row.id))}</a>.</p>
-<table>${rows.map(([k, v]) => `<tr><td>${esc(k)}</td><td class="${k === 'Status' ? (row.status === 'valid' ? 'ok' : 'bad') : ''}">${k === 'Asset' ? v : esc(v)}</td></tr>`).join('')}</table>
+<table>${rows.map(([k, v]) => `<tr><td>${esc(k)}</td><td class="${k === 'Status' ? (row.status === 'valid' ? 'ok' : 'bad') : ''}">${esc(v)}</td></tr>`).join('')}</table>
 <footer>The licensee is identified by a Kiba account identifier, not by name. Anyone can verify this certificate: fetch the credential, check its Ed25519 signature against the issuer's did:key, check the status list, and open the Stellar transaction. Credential status: <a href="${esc(statusListUrl())}">${esc(statusListUrl())}</a>.</footer>
 </body></html>`;
 }
