@@ -30,6 +30,15 @@ const PRICE_DEFAULT_USDC = Number(process.env.CATALOG_PRICE_USDC) || 0.02;
 const DOWNLOAD_SECRET =
   process.env.CATALOG_DOWNLOAD_SECRET || createHash('sha256').update(`catalog-links:${wallet.secret()}`).digest('hex');
 
+const DESCRIPTION =
+  'Catálogo de imágenes y clips de música con licencia, de un creador independiente. ' +
+  'Licensed stock photos, backgrounds and short music clips for videos, posts and apps. ' +
+  'Find items for free with the search_media tool (e.g. query "lofi beat", or "sunset background" with type "image"); ' +
+  'each item has a price and license terms. Buy with { assetId }: you get a download link plus a license ' +
+  'whose fingerprint travels in the Stellar payment. Stock images, royalty-free music, backgrounds, jingles, licensed media.';
+// El contrato de registro on-chain rechaza descripciones de más de 512 BYTES (UTF-8): mejor fallar al arrancar.
+if (Buffer.byteLength(DESCRIPTION, 'utf8') > 512) throw new Error(`description too long: ${Buffer.byteLength(DESCRIPTION, 'utf8')} bytes (max 512)`);
+
 (async () => {
   const source = await FolderSource.open({ dir: CATALOG_DIR, publicBaseUrl: PUBLIC_ENDPOINT });
   console.log(`[media-catalog] ${source.size} ítems cargados de ${CATALOG_DIR}`);
@@ -39,12 +48,7 @@ const DOWNLOAD_SECRET =
     service: 'media-catalog',
     pricePerCall: PRICE_DEFAULT_USDC,
     pricingNote: `Precio por ítem (ver priceUsd en cada resultado de búsqueda); por defecto ${PRICE_DEFAULT_USDC} USDC`,
-    description:
-      'Catálogo de imágenes y clips de música con licencia, de un creador independiente. ' +
-      'Licensed stock photos, backgrounds and short music clips you can use in videos, posts and apps. ' +
-      'Find items for free with the search_media tool (e.g. query "lofi beat", or "sunset background" with type "image"); ' +
-      'each item has a price and license terms. Buy with { assetId }: you get a download link plus a license ' +
-      'whose fingerprint travels in the Stellar payment. Stock images, royalty-free music, backgrounds, jingles, licensed media.',
+    description: DESCRIPTION,
     endpoint: PUBLIC_ENDPOINT,
     publicBaseUrl: PUBLIC_ENDPOINT,
     downloadSecret: DOWNLOAD_SECRET,
