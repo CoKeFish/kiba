@@ -460,6 +460,10 @@ services:
       - PORT=5011
       - PUBLIC_ENDPOINT=https://agent-catalog.kiba.tools
       - BACKEND_URL=http://backend:4000
+      # Keypair persistido en el volumen si AGENT_WALLET_SECRET_<KEY> no está en Doppler.
+      - AGENT_WALLET_FILE_FALLBACK=1
+    volumes:
+      - agent-catalog-data:/app/data
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:5011/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 30s
@@ -480,6 +484,10 @@ services:
       - PORT=5012
       - PUBLIC_ENDPOINT=https://agent-andes.kiba.tools
       - BACKEND_URL=http://backend:4000
+      # Keypair persistido en el volumen si AGENT_WALLET_SECRET_<KEY> no está en Doppler.
+      - AGENT_WALLET_FILE_FALLBACK=1
+    volumes:
+      - agent-andes-data:/app/data
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:5012/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 30s
@@ -637,3 +645,5 @@ volumes:
   postgres-data:
   backend-data:
   umami-db-data:
+  agent-catalog-data:
+  agent-andes-data:

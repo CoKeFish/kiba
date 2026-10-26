@@ -3,6 +3,8 @@
 # (los secretos de Doppler ya están en el entorno): mapea el secreto namespaced
 # AGENT_WALLET_SECRET_<KEY> -> AGENT_WALLET_SECRET según AGENT_NAME, y hace
 # unset del resto para que cada agente solo conserve SU keypair.
+# Con AGENT_WALLET_FILE_FALLBACK=1 (servicios con volumen en /app/data) la falta
+# del secreto no es fatal: el SDK persiste su propio keypair en el volumen.
 # Mapeo (criterio %%-*): translator-pro -> TRANSLATOR,
 # yield-hunter -> YIELD, risk-auditor -> RISK, price-oracle -> PRICE,
 # code-reviewer -> CODE, firecrawl -> FIRECRAWL, world-clock -> WORLD,
@@ -18,8 +20,16 @@ short="${AGENT_NAME%%-*}"
 key=$(printf '%s' "$short" | tr '[:lower:]' '[:upper:]')
 
 eval "secret=\${AGENT_WALLET_SECRET_${key}:-}"
-[ -n "$secret" ] || { echo "FATAL: AGENT_WALLET_SECRET_${key} no está en Doppler (keypair fondeado con friendbot; ver docs/DEPLOYMENT.md § Agregar otro demo-agent)" >&2; exit 1; }
-export AGENT_WALLET_SECRET="$secret"
+if [ -n "$secret" ]; then
+  export AGENT_WALLET_SECRET="$secret"
+elif [ "${AGENT_WALLET_FILE_FALLBACK:-0}" = "1" ]; then
+  # Sin secreto en Doppler: el SDK crea (o reutiliza) el keypair en /app/data
+  # (volumen del servicio) y lo fondea con friendbot en testnet.
+  echo "AVISO: AGENT_WALLET_SECRET_${key} no está en Doppler; se usa el keypair persistido en /app/data" >&2
+else
+  echo "FATAL: AGENT_WALLET_SECRET_${key} no está en Doppler (keypair fondeado con friendbot; ver docs/DEPLOYMENT.md § Agregar otro demo-agent)" >&2
+  exit 1
+fi
 
 unset secret
 unset AGENT_WALLET_SECRET_TRANSLATOR AGENT_WALLET_SECRET_YIELD \
