@@ -84,7 +84,7 @@ interface HashInfo {
   contentType?: string;
 }
 
-const MEDIA_TYPES: readonly CatalogMediaType[] = ['image', 'audio', 'video', 'model', 'document', 'other'];
+const MEDIA_TYPES: readonly CatalogMediaType[] = ['image', 'audio', 'video', 'model', 'document', 'font', 'other'];
 const SHA256_HEX = /^[a-f0-9]{64}$/;
 
 export class HttpCatalogSource<Raw = unknown> implements CatalogSource {

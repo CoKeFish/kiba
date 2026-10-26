@@ -23,6 +23,21 @@ export const LICENSE_USAGES = [
 ] as const;
 export type LicenseUsage = (typeof LICENSE_USAGES)[number];
 
+/**
+ * Usos propios de las fuentes tipográficas. Una fuente no se "publica" como una foto: se instala
+ * para diseñar o se incrusta en un sitio, una app o un libro, y cada cosa se licencia aparte.
+ */
+export const FONT_LICENSE_USAGES = [
+  'desktop', // instalarla en computadores para diseñar (lo que se produce: impresos, imágenes, logos)
+  'webfont', // incrustarla en sitios web con @font-face
+  'app', // incrustarla dentro de una app móvil o de escritorio
+  'ebook', // incrustarla en libros y documentos electrónicos
+] as const;
+export type FontLicenseUsage = (typeof FONT_LICENSE_USAGES)[number];
+
+/** Lo que se hace con lo diseñado en escritorio (impresos, imágenes): sirve a cualquier licencia de fuente. */
+const FONT_OUTPUT_USAGES = ['print', 'advertising', 'social-media', 'merchandise', 'editorial', 'broadcast'];
+
 /** Quién puede usar el archivo. */
 export const LICENSE_USERS = ['commercial', 'personal', 'education', 'non-commercial', 'government'] as const;
 export type LicenseUser = (typeof LICENSE_USERS)[number];
@@ -98,6 +113,37 @@ export const LICENSE_TEMPLATES: Record<string, LicenseTerms> = {
     user: ['commercial', 'personal', 'education', 'non-commercial'],
     geo: ['*'],
     attribution: true,
+    exclusive: false,
+    transferable: false,
+    duration: 'perpetual',
+  },
+  // Fuentes: el número de equipos o de visitas va en `notes` de cada ítem.
+  'font-desktop': {
+    name: 'font-desktop',
+    usage: ['desktop', ...FONT_OUTPUT_USAGES],
+    user: ['commercial', 'personal', 'education', 'non-commercial'],
+    geo: ['*'],
+    attribution: false,
+    exclusive: false,
+    transferable: false,
+    duration: 'perpetual',
+  },
+  'font-web': {
+    name: 'font-web',
+    usage: ['desktop', 'webfont', ...FONT_OUTPUT_USAGES],
+    user: ['commercial', 'personal', 'education', 'non-commercial'],
+    geo: ['*'],
+    attribution: false,
+    exclusive: false,
+    transferable: false,
+    duration: 'perpetual',
+  },
+  'font-full': {
+    name: 'font-full',
+    usage: [...FONT_LICENSE_USAGES, ...FONT_OUTPUT_USAGES],
+    user: ['commercial', 'personal', 'education', 'non-commercial'],
+    geo: ['*'],
+    attribution: false,
     exclusive: false,
     transferable: false,
     duration: 'perpetual',

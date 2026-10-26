@@ -28,7 +28,7 @@ import { AgentProvider } from './provider';
 import type { AgentConfig } from './types';
 import { mergeLicenseTerms, type LicenseGrant, type LicenseTerms } from './license';
 
-export type CatalogMediaType = 'image' | 'audio' | 'video' | 'model' | 'document' | 'other';
+export type CatalogMediaType = 'image' | 'audio' | 'video' | 'model' | 'document' | 'font' | 'other';
 
 /** Un ítem del catálogo tal como se anuncia (sin el archivo). */
 export interface CatalogItem {
@@ -279,6 +279,9 @@ function sendDelivery(res: Response, d: CatalogDelivery, cacheControl: string): 
   }
   // sendFile pone Content-Length y atiende Range: sin eso el reproductor de audio del navegador
   // mostraba 0:00 hasta bajar el archivo entero y no dejaba saltar dentro de la pista.
+  // CORS abierto: el navegador solo carga una fuente de otro dominio (@font-face / FontFace) si el
+  // servidor lo permite, y así el dashboard puede mostrar la fuente. Las descargas siguen
+  // protegidas por su firma, no por el origen.
   res.sendFile(
     d.path,
     {
@@ -288,6 +291,7 @@ function sendDelivery(res: Response, d: CatalogDelivery, cacheControl: string): 
         'Content-Type': d.mimeType,
         'Cache-Control': cacheControl,
         'Content-Disposition': `inline; filename="${d.filename.replace(/["\\\r\n]/g, '_')}"`,
+        'Access-Control-Allow-Origin': '*',
       },
     },
     (err?: Error) => {
@@ -327,6 +331,10 @@ const MIME: Record<string, string> = {
   '.gltf': 'model/gltf+json',
   '.obj': 'model/obj',
   '.fbx': 'application/octet-stream',
+  '.otf': 'font/otf',
+  '.ttf': 'font/ttf',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2',
   '.pdf': 'application/pdf',
   '.epub': 'application/epub+zip',
   '.zip': 'application/zip',
@@ -343,6 +351,7 @@ export function mediaTypeFor(mimeType: string): CatalogMediaType {
   if (mimeType.startsWith('audio/')) return 'audio';
   if (mimeType.startsWith('video/')) return 'video';
   if (mimeType.startsWith('model/')) return 'model';
+  if (mimeType.startsWith('font/')) return 'font';
   if (/pdf|epub|text\//.test(mimeType)) return 'document';
   return 'other';
 }

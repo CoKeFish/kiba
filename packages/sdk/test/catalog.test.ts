@@ -193,3 +193,64 @@ test('op search por la vía pagada y assetId desconocido', async () => {
   assert.equal(u.status, 500);
   assert.match(((await u.json()) as { error: string }).error, /unknown asset/);
 });
+
+test('fuentes: .otf es tipo font, con licencia de fuente y vista previa cargable desde otro dominio', async () => {
+  const fdir = await fs.mkdtemp(path.join(os.tmpdir(), 'kiba-fonts-'));
+  try {
+    const OTF = Buffer.concat([Buffer.from('OTTO'), Buffer.alloc(60, 7)]);
+    await fs.writeFile(path.join(fdir, 'redonda.otf'), OTF);
+    await fs.writeFile(path.join(fdir, 'redonda.preview.otf'), OTF.subarray(0, 30));
+    await fs.writeFile(
+      path.join(fdir, 'items.json'),
+      JSON.stringify([
+        {
+          file: 'redonda.otf',
+          preview: 'redonda.preview.otf',
+          title: 'Redonda',
+          price_usd: 0.12,
+          license: { name: 'font-web', notes: 'hasta 10.000 visitas al mes' },
+        },
+      ]),
+    );
+    const fonts = await FolderSource.open({ dir: fdir, publicBaseUrl: 'http://fonts.test' });
+    const item = await fonts.get('redonda');
+    assert.equal(item!.type, 'font');
+    assert.equal(item!.mimeType, 'font/otf');
+    assert.deepEqual((await fonts.search('', { type: 'font' })).map((i) => i.id), ['redonda']);
+
+    const shop = new MediaCatalogProvider({
+      secret: Keypair.random().secret(),
+      service: 'fuentes-test',
+      pricePerCall: 0.05,
+      description: 'fundición de prueba',
+      allowUnverified: true,
+      source: fonts,
+      license: { name: 'font-desktop', notes: 'del servicio' },
+      publicBaseUrl: 'http://fonts.test',
+      downloadSecret: 'test-secret',
+    });
+    // La plantilla de la fuente manda sobre la del servicio; la nota del ítem también.
+    const terms = shop.publicItem(item!).terms;
+    assert.equal(terms.name, 'font-web');
+    assert.ok(terms.usage!.includes('webfont') && terms.usage!.includes('desktop'));
+    assert.ok(!terms.usage!.includes('app'), 'la licencia web no cubre apps');
+    assert.equal(terms.notes, 'hasta 10.000 visitas al mes');
+
+    const srv = await new Promise<Server>((resolve) => {
+      const s = shop.app.listen(0, '127.0.0.1', () => resolve(s));
+    });
+    try {
+      const url = `http://127.0.0.1:${(srv.address() as AddressInfo).port}`;
+      const r = await fetch(`${url}/catalog/preview/redonda`);
+      assert.equal(r.status, 200);
+      assert.equal(r.headers.get('content-type'), 'font/otf');
+      // Sin este permiso el navegador no carga la fuente de otro dominio (@font-face / FontFace).
+      assert.equal(r.headers.get('access-control-allow-origin'), '*');
+      assert.equal((await r.arrayBuffer()).byteLength, 30);
+    } finally {
+      srv.close();
+    }
+  } finally {
+    await fs.rm(fdir, { recursive: true, force: true });
+  }
+});
