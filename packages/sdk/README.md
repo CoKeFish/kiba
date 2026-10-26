@@ -122,7 +122,33 @@ await agent.bootstrap();
 await agent.listen(5011);
 ```
 
-Catalog in S3, in your own database or behind a feed? Implement `CatalogSource` (`list`, `search`,
+Already have the catalog behind your own HTTP API? Don't migrate it: `HttpCatalogSource` reads it
+with your key and a `map` from your format to a Kiba item. It caches the catalog (background reload
+every `refreshMs`, 5 min by default; keeps the last good copy if your API fails), searches in memory,
+asks your API for a fresh link on each purchase (`downloadPath`, or a static `downloadUrl`), computes
+the SHA-256 once if your API doesn't give it, and only sends your `headers` to the origin of `baseUrl`.
+For custom pagination, pass `fetchItems: async (api) => …` instead of `listPath`.
+
+```ts
+import { HttpCatalogSource } from 'kiba-sdk';
+
+interface MyApiItem { sku: string; name: string; price_cents: number; thumbnail_url?: string }
+
+const source = new HttpCatalogSource<MyApiItem>({
+  baseUrl: 'https://api.mycompany.com/v1',
+  headers: { Authorization: `Bearer ${process.env.COMPANY_API_KEY}` },
+  listPath: 'items', // an array or { items | data | results: [] }
+  map: (raw) => ({
+    id: raw.sku, title: raw.name, type: 'image', priceUsd: raw.price_cents / 100,
+    previewUrl: raw.thumbnail_url,
+    downloadPath: `items/${raw.sku}/download-link`, // answers { url, sha256?, bytes? }
+  }),
+  publicBaseUrl: PUBLIC_ENDPOINT,
+});
+// then: new MediaCatalogProvider({ ..., source })
+```
+
+Catalog in S3, in your own database or elsewhere? Implement `CatalogSource` (`list`, `search`,
 `get`, `deliver`, optional `preview`). Kiba never connects to your storage; it only talks to your
 service. Templates: `personal`, `commercial`, `commercial-attribution` (see `LICENSE_TEMPLATES`).
 

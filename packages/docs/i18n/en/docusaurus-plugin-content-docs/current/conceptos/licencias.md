@@ -85,6 +85,38 @@ const agent = new MediaCatalogProvider({ service: 'anas-photos', pricePerCall: 0
 
 Each item is charged at its `price_usd`; items without one, at `pricePerCall`.
 
-Search and item details are public and free (`GET /catalog/search?q=…`); Kiba uses them for the federated `search_media` search. Buying is a paid call with `{ assetId }`. Kiba writes the buyer's document with the hash and the terms you declared, and the payment carries its fingerprint. If your catalog lives in S3, in your own database or behind a feed, implement the `CatalogSource` interface (four functions); Kiba never connects to your database.
+Search and item details are public and free (`GET /catalog/search?q=…`); Kiba uses them for the federated `search_media` search. Buying is a paid call with `{ assetId }`. Kiba writes the buyer's document with the hash and the terms you declared, and the payment carries its fingerprint.
+
+**A catalog you already have behind your own API.** If your company already has its catalog behind an HTTP API, don't migrate it: use `HttpCatalogSource`. You give it your API's base URL, the headers with your key and a `map` function that turns each record of your API into a Kiba item:
+
+```ts
+import { HttpCatalogSource, MediaCatalogProvider } from 'kiba-sdk';
+
+interface MyApiItem { sku: string; name: string; price_cents: number; thumbnail_url?: string }
+
+const source = new HttpCatalogSource<MyApiItem>({
+  baseUrl: 'https://api.mycompany.com/v1',
+  headers: { Authorization: `Bearer ${process.env.COMPANY_API_KEY}` },
+  listPath: 'items', // returns an array or { items | data | results: [] }
+  map: (raw) => ({
+    id: raw.sku,
+    title: raw.name,
+    type: 'image',
+    priceUsd: raw.price_cents / 100,
+    previewUrl: raw.thumbnail_url,
+    downloadPath: `items/${raw.sku}/download-link`, // your API answers { url, sha256?, bytes? }
+  }),
+  publicBaseUrl: PUBLIC_ENDPOINT,
+});
+const agent = new MediaCatalogProvider({ service: 'my-company-photos', pricePerCall: 0.05, source, license: { name: 'commercial' }, /* ... */ });
+```
+
+- **Cache.** The catalog is loaded the first time it is used and reloaded in the background every 5 minutes (`refreshMs`). If your API fails during a reload, the last good copy keeps being served. Search runs in memory, without calling your API.
+- **A fresh link on every purchase.** With `downloadPath`, the link is requested from your API at purchase time, so your short-lived signed links work. If your links don't expire, return `downloadUrl` from `map` and it is delivered as is.
+- **Hash.** If your API doesn't give the file's `sha256`, the file is downloaded once to compute it and kept in memory. `source.prehash()` computes it for the whole catalog at startup.
+- **Your key never leaves your API.** The `headers` are only sent to the origin of `baseUrl`, never to other domains that appear in your responses (for example, the download CDN).
+- **Your own pagination.** If your API paginates, pass `fetchItems: async (api) => …` instead of `listPath` and walk the pages with `api.getJson(path, query)`. A record that `map` can't translate is skipped with a warning; it doesn't bring down the catalog.
+
+For other sources (S3, your own database), implement the `CatalogSource` interface (four functions). Kiba never connects to your database.
 
 By publishing you declare that you hold the rights to what you sell and accept that Kiba revokes licenses after a substantiated claim.

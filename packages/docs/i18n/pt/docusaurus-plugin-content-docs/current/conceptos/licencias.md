@@ -85,6 +85,38 @@ const agent = new MediaCatalogProvider({ service: 'fotos-da-ana', pricePerCall: 
 
 Cada item é cobrado pelo seu `price_usd`; os que não têm, por `pricePerCall`.
 
-A busca e a ficha de cada item são públicas e gratuitas (`GET /catalog/search?q=…`); a Kiba as usa para a busca federada `search_media`. Comprar é uma chamada paga com `{ assetId }`. A Kiba escreve o documento do comprador com o hash e os termos que você declarou, e o pagamento carrega a sua impressão digital. Se o seu catálogo vive no S3, no seu próprio banco de dados ou atrás de um feed, implemente a interface `CatalogSource` (quatro funções); a Kiba nunca se conecta ao seu banco de dados.
+A busca e a ficha de cada item são públicas e gratuitas (`GET /catalog/search?q=…`); a Kiba as usa para a busca federada `search_media`. Comprar é uma chamada paga com `{ assetId }`. A Kiba escreve o documento do comprador com o hash e os termos que você declarou, e o pagamento carrega a sua impressão digital.
+
+**Um catálogo que você já tem na sua própria API.** Se a sua empresa já tem o catálogo atrás de uma API HTTP, não o migre: use `HttpCatalogSource`. Você informa a URL base da sua API, os cabeçalhos com a sua chave e uma função `map` que traduz cada registro da sua API para um item da Kiba:
+
+```ts
+import { HttpCatalogSource, MediaCatalogProvider } from 'kiba-sdk';
+
+interface ItemDaMinhaApi { sku: string; name: string; price_cents: number; thumbnail_url?: string }
+
+const source = new HttpCatalogSource<ItemDaMinhaApi>({
+  baseUrl: 'https://api.minhaempresa.com/v1',
+  headers: { Authorization: `Bearer ${process.env.EMPRESA_API_KEY}` },
+  listPath: 'items', // responde um array ou { items | data | results: [] }
+  map: (raw) => ({
+    id: raw.sku,
+    title: raw.name,
+    type: 'image',
+    priceUsd: raw.price_cents / 100,
+    previewUrl: raw.thumbnail_url,
+    downloadPath: `items/${raw.sku}/download-link`, // sua API responde { url, sha256?, bytes? }
+  }),
+  publicBaseUrl: PUBLIC_ENDPOINT,
+});
+const agent = new MediaCatalogProvider({ service: 'fotos-da-minha-empresa', pricePerCall: 0.05, source, license: { name: 'commercial' }, /* ... */ });
+```
+
+- **Cache.** O catálogo é carregado na primeira vez que é usado e recarregado em segundo plano a cada 5 minutos (`refreshMs`). Se a sua API falhar ao recarregar, a última cópia boa continua sendo servida. A busca é feita em memória, sem chamar a sua API.
+- **Link novo em cada compra.** Com `downloadPath`, o link é pedido à sua API no momento da compra, então seus links assinados de curta duração funcionam. Se os seus links não expiram, devolva `downloadUrl` em `map` e ele é entregue como está.
+- **Hash.** Se a sua API não fornece o `sha256` do arquivo, ele é baixado uma vez para calculá-lo e fica guardado em memória. `source.prehash()` o calcula para todo o catálogo na inicialização.
+- **Sua chave não sai da sua API.** Os `headers` só são enviados à origem de `baseUrl`, nunca a outros domínios que apareçam nas suas respostas (por exemplo, o CDN de download).
+- **Paginação própria.** Se a sua API pagina, passe `fetchItems: async (api) => …` em vez de `listPath` e percorra as páginas com `api.getJson(caminho, query)`. Um registro que `map` não consegue traduzir é omitido com um aviso; não derruba o catálogo.
+
+Para outras origens (S3, seu próprio banco de dados), implemente a interface `CatalogSource` (quatro funções). A Kiba nunca se conecta ao seu banco de dados.
 
 Ao publicar você declara que detém os direitos do que vende e aceita que a Kiba revogue licenças diante de uma reclamação fundamentada.
