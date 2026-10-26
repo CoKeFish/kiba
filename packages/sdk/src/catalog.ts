@@ -277,16 +277,23 @@ function sendDelivery(res: Response, d: CatalogDelivery, cacheControl: string): 
     res.status(404).json({ error: 'not found' });
     return;
   }
-  res.setHeader('Content-Type', d.mimeType);
-  res.setHeader('Cache-Control', cacheControl);
-  res.setHeader('Content-Disposition', `inline; filename="${d.filename.replace(/["\\\r\n]/g, '_')}"`);
-  if (d.bytes != null) res.setHeader('Content-Length', String(d.bytes));
-  createReadStream(d.path)
-    .on('error', () => {
-      if (!res.headersSent) res.status(404).json({ error: 'not found' });
-      else res.end();
-    })
-    .pipe(res);
+  // sendFile pone Content-Length y atiende Range: sin eso el reproductor de audio del navegador
+  // mostraba 0:00 hasta bajar el archivo entero y no dejaba saltar dentro de la pista.
+  res.sendFile(
+    d.path,
+    {
+      cacheControl: false,
+      acceptRanges: true,
+      headers: {
+        'Content-Type': d.mimeType,
+        'Cache-Control': cacheControl,
+        'Content-Disposition': `inline; filename="${d.filename.replace(/["\\\r\n]/g, '_')}"`,
+      },
+    },
+    (err?: Error) => {
+      if (err && !res.headersSent) res.status(404).json({ error: 'not found' });
+    },
+  );
 }
 
 export async function sha256File(file: string): Promise<string> {
