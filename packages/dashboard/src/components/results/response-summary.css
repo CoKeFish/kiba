@@ -50,6 +50,18 @@
   height: 36px;
 }
 
+.rs-asset__font {
+  margin: 0;
+  padding: 14px 16px;
+  border-radius: 10px;
+  background: #fff;
+  border: 1px solid var(--color-border);
+  font-size: 24px;
+  line-height: 1.35;
+  color: var(--color-fg);
+  overflow-wrap: anywhere;
+}
+
 .rs-asset__row {
   display: flex;
   align-items: center;

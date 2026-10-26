@@ -21,6 +21,9 @@ const SAMPLE_PAYLOADS: Record<string, string> = {
   "andes-stock": `{
   "assetId": "AS-0006"
 }`,
+  "tipos-del-sur": `{
+  "assetId": "cafe-redonda"
+}`,
   "yield-hunter": `{
   "token": "USDC",
   "riskTolerance": "medium"

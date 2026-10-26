@@ -358,7 +358,7 @@ export type CallResult = {
   license?: LicenseSummary;
 };
 
-export type MediaType = "image" | "audio" | "video" | "model" | "document" | "other";
+export type MediaType = "image" | "audio" | "video" | "model" | "document" | "font" | "other";
 
 /** Un ítem de un catálogo de medios, tal como lo devuelve la búsqueda federada (gateway media.ts). */
 export type MediaHit = {

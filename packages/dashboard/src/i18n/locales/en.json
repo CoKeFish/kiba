@@ -842,11 +842,11 @@
     "document": "Open the document"
   },
   "media": {
-    "entry_text": "Looking for licensed photos, music or 3D models?",
+    "entry_text": "Looking for licensed photos, music, fonts or 3D models?",
     "entry_link": "Browse the media catalogs",
     "back": "Services",
     "title": "Licensed media",
-    "subtitle": "Photos, music, 3D models and documents from companies and creators selling through Kiba. Every purchase comes with a verifiable license.",
+    "subtitle": "Photos, music, fonts, 3D models and documents from companies and creators selling through Kiba. Every purchase comes with a verifiable license.",
     "assistant_note": "You don't need to buy from here: ask your assistant for what you need (\"a lo-fi track for my video\") and it searches and buys for you. This page is just to see what's available.",
     "search_placeholder": "Search — try \"lofi\", \"blue background\" or \"cumbia\"",
     "type_label": "File type",
@@ -856,6 +856,7 @@
       "audio": "audio",
       "video": "video",
       "model": "3D",
+      "font": "fonts",
       "document": "documents"
     },
     "count_one": "{{count}} item · {{catalogs}} catalog(s) queried",
@@ -870,12 +871,18 @@
     "copy_request": "Copy request for your assistant",
     "copied": "Copied",
     "try_playground": "Try it in the Playground",
+    "font_sample_label": "Try the fonts with your text",
+    "font_sample_default": "My brand",
+    "font_preview_note": "The preview has letters only; the font you buy includes numbers, punctuation and accents.",
     "assistant_request": "Buy \"{{title}}\" (assetId {{assetId}}) from the {{service}} service on Kiba and give me the download link and the license.",
     "templates": {
       "personal": "personal license",
       "commercial": "commercial license",
       "commercial-attribution": "commercial with attribution",
-      "commercial-extended": "extended commercial"
+      "commercial-extended": "extended commercial",
+      "font-desktop": "font · desktop",
+      "font-web": "font · desktop + web",
+      "font-full": "font · full"
     }
   }
 }

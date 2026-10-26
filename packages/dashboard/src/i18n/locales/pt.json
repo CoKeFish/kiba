@@ -842,11 +842,11 @@
     "document": "Abrir o documento"
   },
   "media": {
-    "entry_text": "Procurando fotos, músicas ou modelos 3D licenciados?",
+    "entry_text": "Procurando fotos, músicas, fontes ou modelos 3D licenciados?",
     "entry_link": "Ver os catálogos de mídia",
     "back": "Serviços",
     "title": "Mídia licenciada",
-    "subtitle": "Fotos, músicas, modelos 3D e documentos de empresas e criadores que vendem pela Kiba. Cada compra vem com uma licença verificável.",
+    "subtitle": "Fotos, músicas, fontes, modelos 3D e documentos de empresas e criadores que vendem pela Kiba. Cada compra vem com uma licença verificável.",
     "assistant_note": "Você não precisa comprar por aqui: peça ao seu assistente o que precisa (\"uma faixa lo-fi para o meu vídeo\") e ele busca e compra por você. Esta página é só para ver o que existe.",
     "search_placeholder": "Busque — tente \"lofi\", \"fundo azul\" ou \"cumbia\"",
     "type_label": "Tipo de arquivo",
@@ -856,6 +856,7 @@
       "audio": "áudio",
       "video": "vídeo",
       "model": "3D",
+      "font": "fontes",
       "document": "documentos"
     },
     "count_one": "{{count}} item · {{catalogs}} catálogo(s) consultado(s)",
@@ -870,12 +871,18 @@
     "copy_request": "Copiar pedido para o seu assistente",
     "copied": "Copiado",
     "try_playground": "Testar no Playground",
+    "font_sample_label": "Teste as fontes com seu texto",
+    "font_sample_default": "Minha marca",
+    "font_preview_note": "A prévia traz só letras; a fonte que você compra inclui números, sinais e acentos.",
     "assistant_request": "Compre na Kiba \"{{title}}\" (assetId {{assetId}}) do serviço {{service}} e me dê o link de download e a licença.",
     "templates": {
       "personal": "licença pessoal",
       "commercial": "licença comercial",
       "commercial-attribution": "comercial com atribuição",
-      "commercial-extended": "comercial ampliada"
+      "commercial-extended": "comercial ampliada",
+      "font-desktop": "fonte · desktop",
+      "font-web": "fonte · desktop + web",
+      "font-full": "fonte · completa"
     }
   }
 }

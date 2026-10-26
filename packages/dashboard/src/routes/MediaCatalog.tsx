@@ -2,9 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, Box, Check, Copy, FileText, Image as ImageIcon, Music, Search, Video } from "lucide-react";
+import { ArrowLeft, Box, Check, Copy, FileText, Image as ImageIcon, Music, Search, Type, Video } from "lucide-react";
 import { api, type MediaHit, type MediaType } from "@/lib/api";
 import { formatUsd } from "@/lib/format";
+import { useFontFace } from "@/lib/useFontFace";
 import { serviceToName } from "@/components/AgentManager";
 import "./agents.css";
 import "./media.css";
@@ -15,13 +16,14 @@ import "./media.css";
  * asistente (search_media + call_agent); esta página es para mirar qué hay. Por eso no está en el
  * menú: se llega desde un enlace discreto al final de Servicios.
  */
-const TYPES: (MediaType | "all")[] = ["all", "image", "audio", "video", "model", "document"];
+const TYPES: (MediaType | "all")[] = ["all", "image", "audio", "video", "model", "font", "document"];
 
 const TYPE_ICON: Record<string, typeof ImageIcon> = {
   image: ImageIcon,
   audio: Music,
   video: Video,
   model: Box,
+  font: Type,
   document: FileText,
 };
 
@@ -30,6 +32,8 @@ export default function MediaCatalog() {
   const [query, setQuery] = useState("");
   const [debounced, setDebounced] = useState("");
   const [type, setType] = useState<MediaType | "all">("all");
+  // Texto con el que se prueban las fuentes (p.ej. el nombre de tu marca).
+  const [sample, setSample] = useState("");
   const timer = useRef<number | undefined>(undefined);
 
   useEffect(() => {
@@ -44,6 +48,8 @@ export default function MediaCatalog() {
   });
 
   const items = data?.items ?? [];
+  const hasFonts = items.some((i) => i.type === "font");
+  const sampleText = sample.trim() || t("media.font_sample_default");
 
   return (
     <div className="agents-page">
@@ -100,9 +106,25 @@ export default function MediaCatalog() {
           <p className="media-count">
             {t("media.count", { count: items.length, catalogs: data?.catalogsQueried ?? 0 })}
           </p>
+          {hasFonts && (
+            <div className="media-font-tester">
+              <label htmlFor="font-sample">
+                <Type size={16} aria-hidden /> {t("media.font_sample_label")}
+              </label>
+              <input
+                id="font-sample"
+                type="text"
+                value={sample}
+                maxLength={40}
+                onChange={(e) => setSample(e.target.value)}
+                placeholder={t("media.font_sample_default")}
+              />
+              <p>{t("media.font_preview_note")}</p>
+            </div>
+          )}
           <div className="media-grid">
             {items.map((item) => (
-              <MediaCard key={`${item.service}/${item.assetId}`} item={item} />
+              <MediaCard key={`${item.service}/${item.assetId}`} item={item} sample={sampleText} />
             ))}
           </div>
         </>
@@ -111,12 +133,13 @@ export default function MediaCatalog() {
   );
 }
 
-function MediaCard({ item }: { item: MediaHit }) {
+function MediaCard({ item, sample }: { item: MediaHit; sample: string }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
   const Icon = TYPE_ICON[item.type] ?? FileText;
   const lic = item.license ?? {};
+  const fontFamily = useFontFace(item.type === "font" ? item.previewUrl : undefined);
 
   const request = t("media.assistant_request", {
     title: item.title,
@@ -146,6 +169,10 @@ function MediaCard({ item }: { item: MediaHit }) {
       <div className={`media-card__preview media-card__preview--${item.type}`}>
         {item.previewUrl && item.type === "image" ? (
           <img src={item.previewUrl} alt={item.title} loading="lazy" />
+        ) : item.type === "font" && fontFamily ? (
+          <p className="media-card__font" style={{ fontFamily: `"${fontFamily}"` }}>
+            {sample}
+          </p>
         ) : (
           <Icon size={34} strokeWidth={1.5} aria-hidden />
         )}

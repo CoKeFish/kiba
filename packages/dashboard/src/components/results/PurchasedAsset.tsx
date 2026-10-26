@@ -2,7 +2,11 @@ import { useTranslation } from "react-i18next";
 import { Download } from "lucide-react";
 import { format } from "date-fns";
 import { enUS, es, pt } from "date-fns/locale";
+import { useFontFace } from "@/lib/useFontFace";
 import "./response-summary.css";
+
+/** Muestra de una fuente comprada: todo lo que trae la fuente completa (la vista previa no tenía números ni acentos). */
+const FONT_SPECIMEN = "ABCDEFGHIJKLMNOPQRSTUVWXYZ 0123456789 ÁÉÍÓÚ Ñ Ü ¿?¡!";
 
 const LOCALES = { en: enUS, es, pt } as const;
 
@@ -22,6 +26,7 @@ export function PurchasedAsset({
 }) {
   const { t, i18n } = useTranslation();
   const mime = String(asset.mimeType ?? "");
+  const fontFamily = useFontFace(mime.startsWith("font/") ? downloadUrl : undefined);
   const lang = (i18n.resolvedLanguage ?? i18n.language ?? "en").slice(0, 2) as keyof typeof LOCALES;
   const when =
     typeof expiresAt === "number" && Number.isFinite(expiresAt)
@@ -34,6 +39,11 @@ export function PurchasedAsset({
     <div className="rs-asset">
       {mime.startsWith("image/") && <img className="rs-asset__img" src={downloadUrl} alt={String(asset.title ?? "")} />}
       {mime.startsWith("audio/") && <audio className="rs-asset__audio" controls src={downloadUrl} />}
+      {fontFamily && (
+        <p className="rs-asset__font" style={{ fontFamily: `"${fontFamily}"` }}>
+          {FONT_SPECIMEN}
+        </p>
+      )}
       <div className="rs-asset__row">
         <div>
           <p className="rs-asset__title">{String(asset.title ?? asset.id ?? "")}</p>
