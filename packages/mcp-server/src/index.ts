@@ -225,12 +225,12 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: 'search_media',
         description:
-          'Busca archivos con licencia (imágenes, música, modelos 3D, documentos) en todos los catálogos de Kiba, gratis. Devuelve ítems con service, assetId, título, tipo, precio en USD, previewUrl y resumen de la licencia. Para comprar uno: call_agent(service, { assetId }); la respuesta trae el enlace de descarga y la licencia: un documento con el archivo (hash), los términos y el precio, cuya huella viaja en el pago en Stellar.',
+          'Busca archivos con licencia (imágenes, música, modelos 3D, documentos, fuentes tipográficas) en todos los catálogos de Kiba, gratis. Devuelve ítems con service, assetId, título, tipo, precio en USD, previewUrl y resumen de la licencia. Para comprar uno: call_agent(service, { assetId }); la respuesta trae el enlace de descarga y la licencia: un documento con el archivo (hash), los términos y el precio, cuya huella viaja en el pago en Stellar.',
         inputSchema: {
           type: 'object',
           properties: {
             query: { type: 'string', description: 'Qué buscas, en cualquier idioma (p.ej. "lofi beat", "fondo atardecer").' },
-            type: { type: 'string', enum: ['image', 'audio', 'video', 'model', 'document', 'other'], description: 'Filtra por tipo de archivo.' },
+            type: { type: 'string', enum: ['image', 'audio', 'video', 'model', 'document', 'font', 'other'], description: 'Filtra por tipo de archivo.' },
             maxPriceUsd: { type: 'number', description: 'Precio máximo por ítem en USD.' },
             limit: { type: 'number', description: 'Máximo de ítems (default 20, max 50).' },
           },
