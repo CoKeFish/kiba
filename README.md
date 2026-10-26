@@ -154,8 +154,6 @@ Further reading: [media licenses](https://docs.kiba.tools/licencias) · [SDK: ca
 - `search_media` in the connector and the API: one query, every catalog.
 - `HttpCatalogSource` in the SDK, and `andes-stock`, a simulated stock agency whose existing API (its own key, record format and signed links) is sold through Kiba without migrating its catalog.
 - A catalog browser, a license card and a readable summary of each call in the dashboard. Documentation in Spanish, English and Portuguese.
-- Demo content made by the team: photos and backgrounds generated with AI, music composed by code.
-- Fixes in what ships today: the announced price is the price charged, the x402 quote is bound to the request body, an on-chain hash that arrived early is no longer lost, and the `media-catalog` description fits the registry contract's 512-byte limit.
 
 **Architecture.** Purchase → Kiba writes the license document and computes its SHA-256 → the payment transaction carries the first 8 bytes of the hash → the file is delivered together with the document → any party verifies by hashing the document and comparing it with the transaction.
 
