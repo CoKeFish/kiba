@@ -129,7 +129,6 @@ A photo, a music clip or a 3D model bought through an assistant comes with a **l
 - **Clear terms.** Three templates (`personal`, `commercial`, `commercial-attribution`) with media-industry uses (advertising, social media, broadcast, print, merchandise, editorial, web), adjustable per item. AI-generated media is labelled as non-exclusive and not unique.
 - **Free search across every catalog.** `search_media("lofi beat")` queries all publisher catalogs at once. Buying is one `call_agent(service, { assetId })`.
 - **Catalogs in minutes.** A folder plus an `items.csv`, or an existing S3 bucket, database or feed behind a four-function interface. Kiba never connects to the publisher's data.
-- **Existing catalog APIs.** `HttpCatalogSource` reads a publisher's existing API with the publisher's own key and maps its records to Kiba's format. Each purchase requests a fresh signed download link from that API. The publisher's process holds the key; Kiba never does.
 
 Further reading: [media licenses](https://docs.kiba.tools/licencias) · [SDK: catalogs](packages/sdk/README.md#media-licenses-and-catalogs).
 
@@ -139,7 +138,7 @@ Further reading: [media licenses](https://docs.kiba.tools/licencias) · [SDK: ca
 
 **Starting point.** Before 25 October 2026, Kiba was in production: the gateway and the MCP connector, the SDK, the Soroban payments contract, the user's payments wallet, the dashboard, documentation in three languages and ten published services.
 
-**New work during the event (25 and 26 October): licensed media.** All of it is in the [`hackmeridian-2026`](https://github.com/CoKeFish/kiba/commits/hackmeridian-2026) branch, with timestamped commits. [HACKMERIDIAN.md](HACKMERIDIAN.md) is the guide for the jury: the problem, how it works, how to verify a license, and what is simulated.
+**New work during the event (25 and 26 October): licensed media.** All of it is in the [`hackmeridian-2026`](https://github.com/CoKeFish/kiba/commits/hackmeridian-2026) branch, with timestamped commits.
 
 **Problem.** When an assistant buys a photo or a music clip on behalf of a user, the user receives a file and nothing else. There is no answer to the question of whether the file may be used in an advertisement. Stock sites solve this with accounts and invoices; assistants have neither.
 
@@ -152,8 +151,7 @@ Further reading: [media licenses](https://docs.kiba.tools/licencias) · [SDK: ca
 - License terms in plain language: three templates with media-industry uses, adjustable per item.
 - Catalogs in the SDK: a folder plus a CSV becomes a service with free search, per-item prices and signed download links.
 - `search_media` in the connector and the API: one query, every catalog.
-- `HttpCatalogSource` in the SDK, and `andes-stock`, a simulated stock agency whose existing API (its own key, record format and signed links) is sold through Kiba without migrating its catalog.
-- A catalog browser, a license card and a readable summary of each call in the dashboard. Documentation in Spanish, English and Portuguese.
+- A catalog browser and a license card in the dashboard. Documentation in Spanish, English and Portuguese.
 
 **Architecture.** Purchase → Kiba writes the license document and computes its SHA-256 → the payment transaction carries the first 8 bytes of the hash → the file is delivered together with the document → any party verifies by hashing the document and comparing it with the transaction.
 
