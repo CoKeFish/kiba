@@ -18,7 +18,7 @@ short="${AGENT_NAME%%-*}"
 key=$(printf '%s' "$short" | tr '[:lower:]' '[:upper:]')
 
 eval "secret=\${AGENT_WALLET_SECRET_${key}:-}"
-[ -n "$secret" ] || { echo "FATAL: AGENT_WALLET_SECRET_${key} no está en Doppler" >&2; exit 1; }
+[ -n "$secret" ] || { echo "FATAL: AGENT_WALLET_SECRET_${key} no está en Doppler (keypair fondeado con friendbot; ver docs/DEPLOYMENT.md § Agregar otro demo-agent)" >&2; exit 1; }
 export AGENT_WALLET_SECRET="$secret"
 
 unset secret
