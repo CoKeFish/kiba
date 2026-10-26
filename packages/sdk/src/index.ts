@@ -81,7 +81,7 @@ export {
 export { PLATFORM_FEE_BPS, BPS_DENOMINATOR, computeFeeSplit } from './fees';
 export { LICENSE_TEMPLATES, mergeLicenseTerms, normalizeLicense, sha256Hex } from './license';
 export type { LicenseGrant, LicenseTerms } from './license';
-export { FolderSource, MediaCatalogProvider, mediaTypeFor, mimeTypeFor, parseCsv, sha256File } from './catalog';
+export { FolderSource, MediaCatalogProvider, mediaTypeFor, mimeTypeFor, parseCsv, searchCatalogItems, sha256File } from './catalog';
 export type {
   CatalogDelivery,
   CatalogItem,
@@ -93,6 +93,8 @@ export type {
   FolderSourceOptions,
   MediaCatalogConfig,
 } from './catalog';
+export { HttpCatalogSource } from './catalog-http';
+export type { HttpCatalogApi, HttpCatalogEntry, HttpCatalogSourceOptions } from './catalog-http';
 export { loadOrCreateKeypair, loadKeypairFromEnvOrFile } from './keypair-store';
 
 // Chain abstraction: AgentClient/AgentProvider operate the blockchain only through

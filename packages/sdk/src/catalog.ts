@@ -16,7 +16,8 @@
  *
  * El catálogo vive donde el publisher quiera: `CatalogSource` son cuatro funciones (list, search,
  * get, deliver). `FolderSource` las implementa sobre una carpeta con un items.csv o items.json
- * (la vía de subida masiva). Para S3, una base de datos propia o un feed, implementa la interfaz;
+ * (la vía de subida masiva); `HttpCatalogSource` (catalog-http.ts), sobre la API HTTP que una
+ * empresa ya tiene. Para S3, una base de datos propia o un feed, implementa la interfaz;
  * Kiba nunca se conecta a la base de datos del publisher.
  */
 import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
@@ -466,26 +467,7 @@ export class FolderSource implements CatalogSource {
 
   /** Búsqueda por palabras en título, descripción, etiquetas e id (ordenada por coincidencias). */
   async search(query: string, opts?: { type?: CatalogMediaType; limit?: number }): Promise<CatalogItem[]> {
-    const words = tokens(query);
-    const limit = Math.min(Math.max(opts?.limit ?? 20, 1), 100);
-    const scored: { item: FolderItem; score: number }[] = [];
-    for (const item of this.items.values()) {
-      if (opts?.type && item.type !== opts.type) continue;
-      if (words.length === 0) {
-        scored.push({ item, score: 0 });
-        continue;
-      }
-      const hay = `${item.title} ${item.description ?? ''} ${(item.tags ?? []).join(' ')} ${item.id}`.toLowerCase();
-      let score = 0;
-      for (const w of words) {
-        if ((item.tags ?? []).some((t) => t.toLowerCase() === w)) score += 3;
-        else if (item.title.toLowerCase().includes(w)) score += 2;
-        else if (hay.includes(w)) score += 1;
-      }
-      if (score > 0) scored.push({ item, score });
-    }
-    scored.sort((a, b) => b.score - a.score || a.item.title.localeCompare(b.item.title));
-    return scored.slice(0, limit).map((s) => this.strip(s.item));
+    return searchCatalogItems(this.items.values(), query, opts).map((i) => this.strip(i));
   }
 
   async get(id: string): Promise<CatalogItem | null> {
@@ -585,6 +567,38 @@ function parseTerms(row: CatalogRow): LicenseTerms | undefined {
     terms = { ...(terms ?? {}), attribution: b };
   }
   return terms;
+}
+
+/**
+ * Búsqueda en memoria que comparten las fuentes que cachean su catálogo (FolderSource,
+ * HttpCatalogSource): etiqueta exacta 3 puntos, título 2, descripción o id 1; ordena por
+ * puntuación y luego por título. Sin palabras, devuelve todo (filtrado por tipo).
+ */
+export function searchCatalogItems<T extends CatalogItem>(
+  items: Iterable<T>,
+  query: string,
+  opts?: { type?: CatalogMediaType; limit?: number },
+): T[] {
+  const words = tokens(query);
+  const limit = Math.min(Math.max(opts?.limit ?? 20, 1), 100);
+  const scored: { item: T; score: number }[] = [];
+  for (const item of items) {
+    if (opts?.type && item.type !== opts.type) continue;
+    if (words.length === 0) {
+      scored.push({ item, score: 0 });
+      continue;
+    }
+    const hay = `${item.title} ${item.description ?? ''} ${(item.tags ?? []).join(' ')} ${item.id}`.toLowerCase();
+    let score = 0;
+    for (const w of words) {
+      if ((item.tags ?? []).some((t) => t.toLowerCase() === w)) score += 3;
+      else if (item.title.toLowerCase().includes(w)) score += 2;
+      else if (hay.includes(w)) score += 1;
+    }
+    if (score > 0) scored.push({ item, score });
+  }
+  scored.sort((a, b) => b.score - a.score || a.item.title.localeCompare(b.item.title));
+  return scored.slice(0, limit).map((s) => s.item);
 }
 
 function tokens(q: string): string[] {
