@@ -29,7 +29,7 @@ const MASCOTS = {
   morado: "/agents/morado.png",
 } as const;
 
-const DOCS_URL = "https://github.com/CoKeFish/kiba/tree/main/docs";
+const DOCS_URL = "https://docs.kiba.tools/";
 
 function explorerWallet(addr: string): string {
   return chain.explorerAddr(addr);

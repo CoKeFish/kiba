@@ -249,7 +249,7 @@ export default function Overview() {
           </div>
           <div className="overview-help__actions">
             <a
-              href="https://github.com/CoKeFish/kiba/tree/main/docs"
+              href="https://docs.kiba.tools/"
               target="_blank"
               rel="noopener noreferrer"
               className="overview-help-btn"

@@ -18,7 +18,7 @@ const HELP_MASCOTS = [
   "/agents/corazon.png",
 ] as const;
 
-const DOCS_URL = "https://github.com/CoKeFish/kiba/tree/main/docs";
+const DOCS_URL = "https://docs.kiba.tools/";
 
 export default function Credentials() {
   const { t } = useTranslation();

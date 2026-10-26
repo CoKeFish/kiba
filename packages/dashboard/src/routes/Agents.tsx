@@ -172,7 +172,7 @@ export default function Agents() {
             <p className="agents-help__text">{t("agents.help_text")}</p>
           </div>
           <a
-            href="https://github.com/CoKeFish/kiba/tree/main/docs"
+            href="https://docs.kiba.tools/"
             target="_blank"
             rel="noopener noreferrer"
             className="agents-help-btn"
