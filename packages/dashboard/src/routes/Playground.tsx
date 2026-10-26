@@ -14,6 +14,13 @@ import type { TFunction } from "i18next";
 import "./playground.css";
 
 const SAMPLE_PAYLOADS: Record<string, string> = {
+  // Catálogos de medios: se compra un ítem por su assetId (los ids salen de la búsqueda federada).
+  "media-catalog": `{
+  "assetId": "lofi-estudio"
+}`,
+  "andes-stock": `{
+  "assetId": "AS-0006"
+}`,
   "yield-hunter": `{
   "token": "USDC",
   "riskTolerance": "medium"
@@ -193,6 +200,9 @@ export default function Playground() {
       ) ?? null,
   });
   const estUsd = assetHit ? assetHit.priceUsd : selected ? solToUsd(selected.pricePerCall) : 0;
+  // Compra de un ítem de catálogo: los prompts de ejemplo (resumir, riesgos…) no aplican y el
+  // precio es el del ítem, no escala con el payload.
+  const isPurchase = !!assetId;
   const agentMascot = service ? mascotFor(service) : "/agents/circulo.png";
   const flowSteps = buildFlowSteps(t, latest?.trace, latest?.service ?? service, latest?.cost?.usd);
 
@@ -273,7 +283,8 @@ export default function Playground() {
 
             <div className="playground-tip">
               <p>
-                <strong>{t("playground.tip_label")}</strong> {t("playground.tip_text")}
+                <strong>{t("playground.tip_label")}</strong>{" "}
+                {isPurchase ? t("playground.tip_purchase") : t("playground.tip_text")}
               </p>
               <img
                 key={service}
@@ -284,6 +295,7 @@ export default function Playground() {
               />
             </div>
 
+            {!isPurchase && (
             <div className="playground-prompts">
               {QUICK_PROMPTS.map((p) => (
                 <button
@@ -296,6 +308,7 @@ export default function Playground() {
                 </button>
               ))}
             </div>
+            )}
 
             <label className="playground-label" htmlFor="pg-payload">
               {t("playground.payload_label")}
@@ -310,7 +323,10 @@ export default function Playground() {
 
             <div className="playground-cost">
               {t("playground.estimated_cost")} <strong>{formatUsd(estUsd, 4)}</strong>
-              <span style={{ color: "var(--color-fg-muted)" }}> · {t("playground.amount_scales")}</span>
+              <span style={{ color: "var(--color-fg-muted)" }}>
+                {" · "}
+                {isPurchase && assetHit ? t("playground.amount_fixed") : t("playground.amount_scales")}
+              </span>
             </div>
 
             <div className="playground-run-row">

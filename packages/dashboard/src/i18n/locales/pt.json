@@ -102,6 +102,8 @@
     "payload_label": "Payload (JSON)",
     "estimated_cost": "Custo estimado:",
     "amount_scales": "o valor varia conforme o payload",
+    "amount_fixed": "preço do item, fixo",
+    "tip_purchase": "Você compra um item do catálogo pelo seu assetId. Os ids vêm da busca em Mídia licenciada; seu assistente os encontra com search_media.",
     "running": "Executando…",
     "run_request": "Executar requisição",
     "live_response": "Resposta ao vivo",
