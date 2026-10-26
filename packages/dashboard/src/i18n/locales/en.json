@@ -871,7 +871,8 @@
     "templates": {
       "personal": "personal license",
       "commercial": "commercial license",
-      "commercial-attribution": "commercial with attribution"
+      "commercial-attribution": "commercial with attribution",
+      "commercial-extended": "extended commercial"
     }
   }
 }
