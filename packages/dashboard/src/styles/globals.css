@@ -136,6 +136,11 @@ h1, h2, h3, h4, h5, h6 {
   object-fit: contain;
 }
 
+/* En la barra lateral del dashboard, un poco más grande (las pantallas de login usan el base). */
+.kiba-logo--sidebar {
+  height: 34px;
+}
+
 /* Animated brand dot (pink ⇄ star-blue), same as the auth header. */
 .kiba-dot {
   display: inline-block;

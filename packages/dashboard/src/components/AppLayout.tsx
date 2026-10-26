@@ -28,6 +28,9 @@ import { Button } from "@/components/ui/button";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { DemoFab } from "@/components/DemoFab";
 
+/** Alto de la barra superior y del recuadro del logo: iguales para que sus bordes inferiores coincidan. */
+const TOPBAR_HEIGHT = 64;
+
 // `label` es una clave i18n; se resuelve con t() en el render.
 const consumerNav = [
   { to: "/app", label: "nav.overview", icon: LayoutDashboard, end: true },
@@ -84,13 +87,13 @@ export function AppLayout() {
           borderRight: "1px solid var(--color-border)",
         }}
       >
-        {/* Brand */}
+        {/* Brand — misma altura que la barra superior para que los dos bordes queden en línea */}
         <div
-          className="px-5 py-4 flex items-center"
-          style={{ borderBottom: "1px solid var(--color-border)" }}
+          className="px-5 flex items-center shrink-0"
+          style={{ height: TOPBAR_HEIGHT, borderBottom: "1px solid var(--color-border)" }}
         >
           <Link to="/app" className="kiba-brand-link" aria-label="Kiba home">
-            <img src="/logo.png" alt="Kiba" className="kiba-logo" />
+            <img src="/logo.png" alt="Kiba" className="kiba-logo kiba-logo--sidebar" />
           </Link>
         </div>
 
@@ -232,9 +235,9 @@ export function AppLayout() {
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Top bar */}
         <header
-          className="flex items-center justify-between px-6"
+          className="flex items-center justify-between px-6 shrink-0"
           style={{
-            height: 56,
+            height: TOPBAR_HEIGHT,
             borderBottom: "1px solid var(--color-border)",
             background: "var(--color-bg-soft)",
           }}
@@ -263,7 +266,7 @@ export function AppLayout() {
                 {balance ? formatBalance(balance.total_usd) : "—"}
               </span>
             </div>
-            <Button size="sm" onClick={() => navigate("/app/billing")}>
+            <Button size="md" onClick={() => navigate("/app/billing")}>
               {t("topbar.top_up")}
             </Button>
           </div>
