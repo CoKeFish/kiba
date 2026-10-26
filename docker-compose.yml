@@ -104,6 +104,7 @@ services:
       - "5010:5010"  # lyria (music-generator)
       - "5011:5011"  # media-catalog
       - "5012:5012"  # andes-stock (empresa existente con su propia API)
+      - "5013:5013"  # tipos-del-sur (fundición tipográfica simulada)
     environment:
       - NODE_ENV=development
       - BACKEND_URL=http://backend:4000

@@ -1,0 +1,41 @@
+[
+  {
+    "id": "condor-pixel",
+    "file": "condor-pixel.otf",
+    "preview": "condor-pixel.preview.otf",
+    "title": "Cóndor Pixel",
+    "tags": ["pixel", "retro", "videojuego", "8-bit", "gaming", "arcade", "titulares", "display", "mayúsculas"],
+    "price_usd": 0.06,
+    "license": {
+      "name": "font-desktop",
+      "notes": "Desktop license: install on up to 5 computers of one person or company and use it in print, images, logos and video. Not for embedding in websites or apps."
+    },
+    "description": "Fuente pixel de 5×7 para titulares retro, videojuegos y carteles. Solo mayúsculas, con números, signos y acentos (á, ñ, ü, ã). Fuente generada por código para la demo."
+  },
+  {
+    "id": "cafe-redonda",
+    "file": "cafe-redonda.otf",
+    "preview": "cafe-redonda.preview.otf",
+    "title": "Café Redonda",
+    "tags": ["redondeada", "geométrica", "amable", "logo", "marca", "café", "restaurante", "web", "titulares", "display", "mayúsculas"],
+    "price_usd": 0.12,
+    "license": {
+      "name": "font-web",
+      "notes": "Desktop + web license: install on up to 2 computers and embed it in your own websites (@font-face) for up to 10,000 page views per month. Not for apps or ebooks."
+    },
+    "description": "Fuente de trazo redondeado y amable para logos, menús y sitios web de cafés, restaurantes y marcas cercanas. Solo mayúsculas, con números, signos y acentos. Fuente generada por código para la demo."
+  },
+  {
+    "id": "cargo-stencil",
+    "file": "cargo-stencil.otf",
+    "preview": "cargo-stencil.preview.otf",
+    "title": "Cargo Stencil",
+    "tags": ["stencil", "industrial", "militar", "logística", "cajas", "urbano", "titulares", "display", "mayúsculas"],
+    "price_usd": 0.2,
+    "license": {
+      "name": "font-full",
+      "notes": "Full license: install on up to 10 computers, embed it in websites with no page-view limit, and in your own apps and ebooks."
+    },
+    "description": "Fuente stencil de aire industrial, con puentes en cada esquina, para marcas de logística, empaques y carteles urbanos. Solo mayúsculas, con números, signos y acentos. Fuente generada por código para la demo."
+  }
+]

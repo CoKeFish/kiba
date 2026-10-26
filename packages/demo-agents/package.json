@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "concurrently \"npm:dev:yield\" \"npm:dev:risk\" \"npm:dev:translator\" \"npm:dev:price\" \"npm:dev:code\" \"npm:dev:firecrawl\" \"npm:dev:world\" \"npm:dev:randomizer\" \"npm:dev:meshy\" \"npm:dev:lyria\" \"npm:dev:catalog\" \"npm:dev:andes\"",
+    "dev": "concurrently \"npm:dev:yield\" \"npm:dev:risk\" \"npm:dev:translator\" \"npm:dev:price\" \"npm:dev:code\" \"npm:dev:firecrawl\" \"npm:dev:world\" \"npm:dev:randomizer\" \"npm:dev:meshy\" \"npm:dev:lyria\" \"npm:dev:catalog\" \"npm:dev:andes\" \"npm:dev:tipos\"",
     "dev:yield": "tsx watch src/yield-hunter.ts",
     "dev:risk": "tsx watch src/risk-auditor.ts",
     "dev:translator": "tsx watch src/translator.ts",
@@ -16,6 +16,7 @@
     "dev:lyria": "tsx watch src/lyria.ts",
     "dev:catalog": "tsx watch src/media-catalog.ts",
     "dev:andes": "tsx watch src/andes-stock.ts",
+    "dev:tipos": "tsx watch src/tipos-del-sur.ts",
     "start:yield": "tsx src/yield-hunter.ts",
     "start:risk": "tsx src/risk-auditor.ts",
     "start:translator": "tsx src/translator.ts",
@@ -28,6 +29,7 @@
     "start:lyria": "tsx src/lyria.ts",
     "start:catalog": "tsx src/media-catalog.ts",
     "start:andes": "tsx src/andes-stock.ts",
+    "start:tipos": "tsx src/tipos-del-sur.ts",
     "build": "tsc",
     "test": "node --import tsx --test --test-reporter=spec test/firecrawl.test.ts test/meshy.test.ts test/lyria.test.ts"
   },
