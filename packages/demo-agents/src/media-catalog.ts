@@ -12,6 +12,7 @@
  * Contenido: CATALOG_DIR (por defecto la carpeta catalog-sample del paquete: imágenes generadas
  * con IA y música compuesta por síntesis, todo propio del equipo; ver catalog-sample/README.md).
  */
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { FolderSource, MediaCatalogProvider, loadKeypairFromEnvOrFile } from 'kiba-sdk';
 
@@ -24,6 +25,10 @@ const CATALOG_DIR = process.env.CATALOG_DIR || path.resolve(process.cwd(), 'cata
 // Es el MÍNIMO que cobra el servicio (el SDK nunca cobra menos), así que debe ser <= que el ítem más
 // barato del CSV (0.02 en catalog-sample); si no, esos ítems se cobrarían a este precio.
 const PRICE_DEFAULT_USDC = Number(process.env.CATALOG_PRICE_USDC) || 0.02;
+// Secreto de los enlaces de descarga firmados: derivado de la wallet (o CATALOG_DOWNLOAD_SECRET) para
+// que los enlaces ya entregados sigan valiendo tras un reinicio o un redeploy.
+const DOWNLOAD_SECRET =
+  process.env.CATALOG_DOWNLOAD_SECRET || createHash('sha256').update(`catalog-links:${wallet.secret()}`).digest('hex');
 
 (async () => {
   const source = await FolderSource.open({ dir: CATALOG_DIR, publicBaseUrl: PUBLIC_ENDPOINT });
@@ -42,6 +47,7 @@ const PRICE_DEFAULT_USDC = Number(process.env.CATALOG_PRICE_USDC) || 0.02;
       'whose fingerprint travels in the Stellar payment. Stock images, royalty-free music, backgrounds, jingles, licensed media.',
     endpoint: PUBLIC_ENDPOINT,
     publicBaseUrl: PUBLIC_ENDPOINT,
+    downloadSecret: DOWNLOAD_SECRET,
     source,
     license: {
       name: 'commercial',
