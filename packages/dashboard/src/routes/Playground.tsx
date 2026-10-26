@@ -173,7 +173,26 @@ export default function Playground() {
     [agents, service],
   );
 
-  const estUsd = selected ? solToUsd(selected.pricePerCall) : 0;
+  // Con un catálogo el precio depende del ítem: si el payload trae { assetId }, se busca su precio
+  // real en la búsqueda federada (gratis). Si no, el precio base del servicio.
+  const assetId = useMemo(() => {
+    try {
+      const p = JSON.parse(payloadText) as { assetId?: unknown };
+      return typeof p?.assetId === "string" ? p.assetId : undefined;
+    } catch {
+      return undefined;
+    }
+  }, [payloadText]);
+  const { data: assetHit } = useQuery({
+    queryKey: ["playground-asset-price", service, assetId],
+    enabled: !!service && !!assetId,
+    staleTime: 60_000,
+    queryFn: async () =>
+      (await api.mediaSearch({ q: assetId, limit: 50 })).items.find(
+        (i) => i.service === service && i.assetId === assetId,
+      ) ?? null,
+  });
+  const estUsd = assetHit ? assetHit.priceUsd : selected ? solToUsd(selected.pricePerCall) : 0;
   const agentMascot = service ? mascotFor(service) : "/agents/circulo.png";
   const flowSteps = buildFlowSteps(t, latest?.trace, latest?.service ?? service, latest?.cost?.usd);
 
