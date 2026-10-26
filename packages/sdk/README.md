@@ -80,6 +80,52 @@ new AgentProvider({
 `priceFn` **must be deterministic** in the payload: the same input must yield the same
 price, so the 402 quote and the post-payment check agree.
 
+### Media licenses and catalogs
+
+A service that delivers files can attach a **license** to each result. Declare default terms in
+`license` and return a `license` block with the file's SHA-256; the Kiba gateway writes a license
+document for the buyer (file hash, terms, price) and the Stellar payment of that call carries its fingerprint:
+
+```ts
+import { AgentProvider, sha256Hex } from 'kiba-sdk';
+
+const agent = new AgentProvider({
+  /* … */
+  license: { name: 'commercial', notes: 'AI-generated; non-exclusive.' },
+});
+agent.serve(async (req) => {
+  const file = await generate(req);
+  return {
+    downloadUrl: file.url,
+    license: { assetSha256: sha256Hex(file.bytes), filename: file.name, mimeType: file.mime, bytes: file.bytes.length },
+  };
+});
+```
+
+To sell a **catalog of your own files**, use `MediaCatalogProvider`. Search and item details are
+public and free (`GET /catalog/search?q=…`, used by Kiba's federated `search_media`); buying is a
+paid call with `{ assetId }` at the item's price, answered with a signed, expiring download link.
+Items without `price_usd` cost `pricePerCall`, which is also the minimum: a cheaper item is listed
+and charged at `pricePerCall`, so set it at or below your cheapest item.
+
+```ts
+import { FolderSource, MediaCatalogProvider } from 'kiba-sdk';
+
+// A folder with your files and an items.csv:
+// id,file,title,type,tags,price_usd,license,attribution,attribution_text,description,preview
+const source = await FolderSource.open({ dir: './catalog', publicBaseUrl: PUBLIC_ENDPOINT });
+const agent = new MediaCatalogProvider({
+  wallet, service: 'anas-photos', pricePerCall: 0.05, endpoint: PUBLIC_ENDPOINT,
+  source, license: { name: 'commercial' },
+});
+await agent.bootstrap();
+await agent.listen(5011);
+```
+
+Catalog in S3, in your own database or behind a feed? Implement `CatalogSource` (`list`, `search`,
+`get`, `deliver`, optional `preview`). Kiba never connects to your storage; it only talks to your
+service. Templates: `personal`, `commercial`, `commercial-attribution` (see `LICENSE_TEMPLATES`).
+
 ---
 
 ## Quickstart: consume a service

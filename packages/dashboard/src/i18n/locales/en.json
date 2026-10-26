@@ -130,6 +130,19 @@
       "result_ready": "Response ready in Live response",
       "debited": "Debited {{amount}}",
       "result_awaiting": "Awaiting result"
+    },
+    "summary": {
+      "purchased": "Purchased · the download link expires",
+      "download": "Download",
+      "license": "License issued · verify",
+      "items_one": "{{count}} item",
+      "items_other": "{{count}} items",
+      "yes": "yes",
+      "no": "no",
+      "nothing": "The service replied with nothing to display. See the technical response.",
+      "show_json": "View technical response (JSON)",
+      "hide_json": "Hide technical response",
+      "open_result": "Open in Results"
     }
   },
   "billing": {
@@ -704,6 +717,35 @@
       "running": "The service is still generating…",
       "ended": "Task ended: {{status}}",
       "hint": "Ask your assistant to check the result again to update its progress."
+    },
+    "license": {
+      "title": "License",
+      "status": {
+        "valid": "Valid",
+        "revoked": "Revoked"
+      },
+      "explainer": "The license of this file: the terms, the file hash and the price, in a document whose fingerprint travels in the Stellar payment. Anyone can check it without an account.",
+      "asset": "File",
+      "hash": "SHA-256 of the file",
+      "template": "License",
+      "allowed_users": "Who may use it",
+      "usage": "Permitted uses",
+      "territory": "Territory",
+      "worldwide": "Worldwide",
+      "duration": "Duration",
+      "perpetual": "Perpetual",
+      "attribution": "Attribution required",
+      "exclusive": "Exclusive",
+      "transferable": "Transferable",
+      "yes": "Yes",
+      "no": "No",
+      "notes": "Notes",
+      "issued": "Issued",
+      "payment": "Payment",
+      "payment_pending": "On-chain settlement pending",
+      "verify": "Verify",
+      "fingerprint": "Document fingerprint",
+      "document": "License document (JSON)"
     }
   },
   "paywallet": {
@@ -778,5 +820,58 @@
     "err_login": "Could not sign in to the wallet ({{code}}).",
     "err_not_ready": "The wallet is still loading. Try again in a few seconds.",
     "err_other_privy": "You signed in with a different email than your payments wallet. Sign out of the wallet and sign in with the email you created it with."
+  },
+  "verify": {
+    "title": "License verification",
+    "powered": "The payment on Stellar is the proof",
+    "loading": "Checking…",
+    "not_found": "This license does not exist.",
+    "ok": "This license is valid",
+    "bad": "This license could not be verified",
+    "pending": "The payment is still settling on Stellar. Check again in a few seconds.",
+    "checks": {
+      "document": "The document matches its fingerprint",
+      "payment_found": "The payment exists on Stellar",
+      "payment_commits": "The payment carries the document fingerprint",
+      "not_revoked": "Not revoked"
+    },
+    "how": "Anyone can repeat this check: download the document, compute its SHA-256, open the Stellar transaction and compare its reference with the first 8 bytes of the hash.",
+    "document": "Open the document"
+  },
+  "media": {
+    "entry_text": "Looking for licensed photos, music or 3D models?",
+    "entry_link": "Browse the media catalogs",
+    "back": "Services",
+    "title": "Licensed media",
+    "subtitle": "Photos, music, 3D models and documents from companies and creators selling through Kiba. Every purchase comes with a verifiable license.",
+    "assistant_note": "You don't need to buy from here: ask your assistant for what you need (\"a lo-fi track for my video\") and it searches and buys for you. This page is just to see what's available.",
+    "search_placeholder": "Search — try \"lofi\", \"blue background\" or \"cumbia\"",
+    "type_label": "File type",
+    "types": {
+      "all": "all",
+      "image": "images",
+      "audio": "audio",
+      "video": "video",
+      "model": "3D",
+      "document": "documents"
+    },
+    "count_one": "{{count}} item · {{catalogs}} catalog(s) queried",
+    "count_other": "{{count}} items · {{catalogs}} catalog(s) queried",
+    "empty": "These catalogs have no items yet.",
+    "no_match": "Nothing matched \"{{query}}\". Try other words.",
+    "no_catalogs": "No media catalogs have been published yet.",
+    "error": "Couldn't query the catalogs. Try again.",
+    "license_template": "{{name}} license",
+    "attribution": "attribution required",
+    "non_exclusive": "non-exclusive",
+    "copy_request": "Copy request for your assistant",
+    "copied": "Copied",
+    "try_playground": "Try it in the Playground",
+    "assistant_request": "Buy \"{{title}}\" (assetId {{assetId}}) from the {{service}} service on Kiba and give me the download link and the license.",
+    "templates": {
+      "personal": "personal license",
+      "commercial": "commercial license",
+      "commercial-attribution": "commercial with attribution"
+    }
   }
 }

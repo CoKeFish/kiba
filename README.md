@@ -78,6 +78,7 @@ The best answers rarely come from a general-purpose model alone. They come from 
 | 🕸️ | **web-scraper** | Reads any web page — even JavaScript-heavy sites — powered by Firecrawl |
 | 🧊 | **3d-generator** | Turns a sentence into a downloadable 3D model, powered by Meshy |
 | 🎵 | **music-generator** | Composes songs and clips from a prompt, powered by Google Lyria |
+| 🖼️ | **media-catalog** | Licensed photos and music clips from an independent creator — every download comes with a license whose fingerprint travels in the Stellar payment |
 | 🌍 | **world-clock** | Live time and time zones for any city on Earth |
 | 🎲 | **randomizer** | Cryptographically secure random numbers, dice, draws and shuffles |
 
@@ -122,61 +123,29 @@ Go deeper: [architecture](docs/architecture.md) · [settlement](docs/trustless-w
 
 ---
 
-## Get started
+## Licensed media
 
-**Add Kiba to your assistant:**
+Buy a photo, a music clip or a 3D model through your assistant and you get more than a file: every paid download comes with a **license you can prove**.
 
-```json
-{
-  "mcpServers": {
-    "kiba": { "command": "npx", "args": ["-y", "kiba-mcp"] }
-  }
-}
-```
+- **The payment is the proof.** Each purchase writes a plain license document (buyer, seller, file SHA-256, terms, price). The Stellar transaction that pays for the call carries the document's fingerprint in the payments contract's `reference` argument. Anyone can download the document, hash it and compare it with the transaction. No certificate, no token, no signature to trust.
+- **Terms people understand.** Three templates (`personal`, `commercial`, `commercial-attribution`) with media-industry uses (advertising, social media, broadcast, print, merchandise, editorial, web), adjustable per item. AI-generated media says so: non-exclusive, not unique.
+- **Search across every catalog for free.** `search_media("lofi beat")` asks all publisher catalogs at once; buying is one `call_agent(service, { assetId })`.
+- **Publish a catalog in ten minutes.** A folder plus an `items.csv`, or your own S3, database or feed behind a four-function interface. Kiba never connects to your data.
 
-The first call opens your browser to sign in — that's all. On Windows, grab the [installer](packages/installer/README.md).
+Read more: [media licenses](https://docs.kiba.tools/licencias) · [SDK: catalogs](packages/sdk/README.md#media-licenses-and-catalogs)
 
-**Run the platform yourself:**
+---
 
-```bash
-git clone https://github.com/CoKeFish/kiba
-cd kiba
-cp .env.example .env
-docker compose up --build -d
-```
+## Built at HackMeridian 2026 (Lisbon, 25-26 October)
 
-Landing at `localhost:3010` · dashboard at `localhost:3020` · API at `localhost:8000`.
+Kiba entered the **Scale** track with a product already in production. Everything below was built during the event, in the [`hackmeridian-2026`](https://github.com/CoKeFish/kiba/commits/hackmeridian-2026) branch with timestamped commits:
 
-<details>
-<summary><b>Under the hood</b></summary>
+- **Licensed media.** A license document per purchased file, its fingerprint carried by the Stellar payment, public verification (`/verify/<id>`) and a license card in the dashboard.
+- **Catalogs in the SDK.** `MediaCatalogProvider` + `FolderSource` (folder + CSV, free public search, per-item prices, signed download links) and the `media-catalog` service.
+- **Federated search.** `search_media` in the MCP connector and the REST API.
+- **Docs** on licenses in ES/EN/PT.
 
-| Layer | Stack |
-|---|---|
-| Registry | Rust smart contract on Soroban (Stellar) |
-| Settlement | Trustless Work escrows in USDC, 95/5 split |
-| Payments wallet | User-owned Stellar wallet (Privy or any Stellar wallet) with a spending permission |
-| Gateway | Node 20, Express, Postgres, OAuth 2.0 + PKCE |
-| Discovery | Keyword (BM25) + semantic embeddings, in-process |
-| Apps | React 19 + Vite, Astro 5, Tailwind 4 |
-| Connector / SDK | `kiba-mcp`, `kiba-sdk` |
-| Installer | Tauri 2 (Windows) |
-
-```
-packages/
-  gateway/            accounts, payments, payments wallet, settlement
-  backend/            catalog and search
-  contracts-soroban/  on-chain service registry
-  sdk/                kiba-sdk — publish or call services
-  mcp-server/         kiba-mcp — connector for assistants
-  dashboard/          app.kiba.tools
-  landing/            kiba.tools
-  docs/               docs.kiba.tools
-  demo-agents/        featured services
-  orchestrator-agent/ multi-step planner
-  installer/          Windows installer
-```
-
-</details>
+Goals were declared in the submission form on Sunday at 13:00 WET, before the first commit.
 
 ---
 

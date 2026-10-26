@@ -88,6 +88,19 @@ export const api = {
   results: (limit = 50) => request<CallResult[]>(`/v1/results?limit=${limit}`),
   result: (id: string) => request<CallResult>(`/v1/results/${encodeURIComponent(id)}`),
 
+  // Licencias (documento del archivo comprado + pago en Stellar que lo prueba)
+  licenses: (limit = 50) => request<LicenseSummary[]>(`/v1/licenses?limit=${limit}`),
+  /** Búsqueda federada en los catálogos de medios con licencia (gratis). `q` vacío = sin filtro. */
+  mediaSearch: (opts: { q?: string; type?: MediaType; maxPriceUsd?: number; limit?: number } = {}) => {
+    const qs = new URLSearchParams({ q: opts.q ?? "" });
+    if (opts.type) qs.set("type", opts.type);
+    if (opts.maxPriceUsd !== undefined) qs.set("maxPriceUsd", String(opts.maxPriceUsd));
+    qs.set("limit", String(opts.limit ?? 50));
+    return request<MediaSearchResponse>(`/v1/media/search?${qs.toString()}`);
+  },
+  /** Pública: no necesita sesión. */
+  verifyLicense: (id: string) => request<LicenseVerification>(`/v1/licenses/${encodeURIComponent(id)}/verify`),
+
   // Agents (via backend, not gateway — public discovery)
   agents: () => request<Agent[]>("/agents", {}, BACKEND),
   searchAgents: (q: string, mode: "keyword" | "semantic" | "hybrid" = "hybrid", limit = 20) =>
@@ -105,6 +118,10 @@ export const api = {
       newBalance: { lamports: number; usd: number };
       refill?: { signature: string; lamports: number };
       trace: X402Trace;
+      /** Resultado guardado (ver en /app/results/:id). */
+      resultId?: string;
+      /** Licencia emitida si el servicio entregó un archivo con licencia. */
+      license?: LicenseSummary;
     }>("/v1/call", {
       method: "POST",
       body: JSON.stringify({ service, payload }),
@@ -337,6 +354,83 @@ export type CallResult = {
   completedAt?: number;
   /** Solo en el detalle: las demás llamadas del mismo pedido (mismo taskId), en orden. */
   related?: CallResult[];
+  /** Solo en el detalle: la licencia emitida por el archivo entregado, si la hay. */
+  license?: LicenseSummary;
+};
+
+export type MediaType = "image" | "audio" | "video" | "model" | "document" | "other";
+
+/** Un ítem de un catálogo de medios, tal como lo devuelve la búsqueda federada (gateway media.ts). */
+export type MediaHit = {
+  service: string;
+  assetId: string;
+  title: string;
+  type: MediaType | string;
+  description?: string;
+  tags?: string[];
+  mimeType?: string;
+  bytes?: number;
+  priceUsd: number;
+  previewUrl?: string;
+  sha256?: string;
+  license?: { name?: string; attribution?: boolean; exclusive?: boolean; user?: string[]; notes?: string };
+};
+
+export type MediaSearchResponse = {
+  query: string;
+  catalogsQueried: number;
+  count: number;
+  items: MediaHit[];
+  hint: string;
+};
+
+/** Términos de una licencia (ver packages/sdk/src/license.ts). */
+export type LicenseTerms = {
+  name?: string;
+  usage?: string[];
+  user?: string[];
+  geo?: string[];
+  attribution?: boolean;
+  exclusive?: boolean;
+  transferable?: boolean;
+  duration?: string;
+  termsUrl?: string;
+  notes?: string;
+};
+
+/** Resumen de una licencia: el documento del archivo comprado y el pago en Stellar que lo prueba. */
+export type LicenseSummary = {
+  id: string;
+  status: "valid" | "revoked";
+  service: string;
+  payTo?: string;
+  publisher?: string;
+  assetId?: string;
+  assetSha256: string;
+  title?: string;
+  terms: LicenseTerms;
+  /** El documento en JSON canónico; su SHA-256 es documentSha256. */
+  documentUrl: string;
+  documentSha256: string;
+  /** Los primeros 8 bytes de documentSha256 como entero: lo que lleva el pago. */
+  reference: string;
+  txHash?: string;
+  explorerUrl?: string;
+  verifyUrl: string;
+  dashboardUrl: string;
+  issuedAt: number;
+  revokedAt?: number;
+};
+
+export type LicenseVerification = {
+  id: string;
+  verified: boolean;
+  /** Todavía sin transacción de pago (llega segundos después de la compra). */
+  pending: boolean;
+  checks: { document: boolean; paymentFound: boolean; paymentCommits: boolean; notRevoked: boolean };
+  status: "valid" | "revoked";
+  error?: string;
+  summary: LicenseSummary;
 };
 
 export type Agent = {

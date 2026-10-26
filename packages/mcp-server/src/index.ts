@@ -223,6 +223,21 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         },
       },
       {
+        name: 'search_media',
+        description:
+          'Busca archivos con licencia (imágenes, música, modelos 3D, documentos) en todos los catálogos de Kiba, gratis. Devuelve ítems con service, assetId, título, tipo, precio en USD, previewUrl y resumen de la licencia. Para comprar uno: call_agent(service, { assetId }); la respuesta trae el enlace de descarga y la licencia: un documento con el archivo (hash), los términos y el precio, cuya huella viaja en el pago en Stellar.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            query: { type: 'string', description: 'Qué buscas, en cualquier idioma (p.ej. "lofi beat", "fondo atardecer").' },
+            type: { type: 'string', enum: ['image', 'audio', 'video', 'model', 'document', 'other'], description: 'Filtra por tipo de archivo.' },
+            maxPriceUsd: { type: 'number', description: 'Precio máximo por ítem en USD.' },
+            limit: { type: 'number', description: 'Máximo de ítems (default 20, max 50).' },
+          },
+          required: ['query'],
+        },
+      },
+      {
         name: 'list_results',
         description:
           'Lista los resultados guardados más recientes de la cuenta (sin el contenido; usa get_result para verlo). Útil si una llamada se cortó y no tienes su resultId.',
@@ -273,6 +288,21 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
         const { resultId } = (args ?? {}) as { resultId?: string };
         if (!resultId) throw new Error('resultId required');
         const data = await gatewayGet(`/v1/results/${encodeURIComponent(resultId)}?waitMs=25000`);
+        return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
+      }
+      case 'search_media': {
+        const { query, type, maxPriceUsd, limit } = (args ?? {}) as {
+          query?: string;
+          type?: string;
+          maxPriceUsd?: number;
+          limit?: number;
+        };
+        if (!query || !query.trim()) throw new Error('query required');
+        const qs = new URLSearchParams({ q: query.trim() });
+        if (type) qs.set('type', type);
+        if (maxPriceUsd !== undefined) qs.set('maxPriceUsd', String(maxPriceUsd));
+        if (limit !== undefined) qs.set('limit', String(limit));
+        const data = await gatewayGet(`/v1/media/search?${qs.toString()}`);
         return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
       }
       case 'list_results': {

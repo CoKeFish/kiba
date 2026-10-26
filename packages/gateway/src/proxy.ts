@@ -235,6 +235,9 @@ export async function callOnBehalf(args: {
   payload: unknown;
   /** Modo crédito: link de la tx del fund per-call cuando confirma (después de responder). */
   onExplorerUrl?: (url: string) => void;
+  /** Modo crédito: se llama con el resultado ANTES de enviar el pago por llamada. Lo que devuelva
+   *  (u64) viaja en el `reference` del pago: la huella del documento de licencia (licenses.ts). */
+  onBeforePay?: (result: unknown, info: { lamports: number; payTo: string }) => Promise<bigint | undefined>;
 }): Promise<{
   result: unknown;
   cost: { lamports: number; usd: number };
@@ -325,6 +328,9 @@ export async function callOnBehalf(args: {
     // nunca falla por la cadena.
     let onchain: PerCallFundResult = {};
     const t1 = Date.now();
+    // Si el resultado trae licencia, su documento se escribe ahora (con la wallet que cobra) y su
+    // huella viaja en el pago por llamada.
+    const reference = await args.onBeforePay?.(result, { lamports, payTo: quote.payTo }).catch(() => undefined);
     if (perCallPaymentEnabled()) {
       const fund = payOrFundForCall({
         service: args.service,
@@ -332,6 +338,7 @@ export async function callOnBehalf(args: {
         lamports,
         earningId,
         transactionId: debited.transactionId,
+        reference,
       }).catch((): PerCallFundResult => ({}));
       void fund.then((r) => {
         if (r.txHash) args.onExplorerUrl?.(explorerTxUrl(r.txHash));

@@ -130,6 +130,19 @@
       "result_ready": "Resposta pronta em Resposta ao vivo",
       "debited": "Debitado {{amount}}",
       "result_awaiting": "Aguardando resultado"
+    },
+    "summary": {
+      "purchased": "Comprado · o link de download expira",
+      "download": "Baixar",
+      "license": "Licença emitida · verificar",
+      "items_one": "{{count}} item",
+      "items_other": "{{count}} itens",
+      "yes": "sim",
+      "no": "não",
+      "nothing": "O serviço respondeu sem conteúdo para mostrar. Veja a resposta técnica.",
+      "show_json": "Ver resposta técnica (JSON)",
+      "hide_json": "Ocultar resposta técnica",
+      "open_result": "Abrir em Resultados"
     }
   },
   "billing": {
@@ -704,6 +717,35 @@
       "running": "O serviço ainda está gerando…",
       "ended": "Tarefa encerrada: {{status}}",
       "hint": "Peça ao seu assistente para consultar o resultado de novo e atualizar o progresso."
+    },
+    "license": {
+      "title": "Licença",
+      "status": {
+        "valid": "Válida",
+        "revoked": "Revogada"
+      },
+      "explainer": "A licença deste arquivo: os termos, o hash do arquivo e o preço, em um documento cuja impressão digital viaja no pagamento na Stellar. Qualquer pessoa pode conferir sem conta.",
+      "asset": "Arquivo",
+      "hash": "SHA-256 do arquivo",
+      "template": "Licença",
+      "allowed_users": "Quem pode usar",
+      "usage": "Usos permitidos",
+      "territory": "Território",
+      "worldwide": "Mundial",
+      "duration": "Duração",
+      "perpetual": "Perpétua",
+      "attribution": "Atribuição obrigatória",
+      "exclusive": "Exclusiva",
+      "transferable": "Transferível",
+      "yes": "Sim",
+      "no": "Não",
+      "notes": "Notas",
+      "issued": "Emitida",
+      "payment": "Pagamento",
+      "payment_pending": "Liquidação on-chain pendente",
+      "verify": "Verificar",
+      "fingerprint": "Impressão digital do documento",
+      "document": "Documento de licença (JSON)"
     }
   },
   "paywallet": {
@@ -778,5 +820,58 @@
     "err_login": "Não foi possível entrar na carteira ({{code}}).",
     "err_not_ready": "A carteira ainda está carregando. Tente em alguns segundos.",
     "err_other_privy": "Você entrou com um e-mail diferente do da sua carteira de pagamentos. Saia da carteira e entre com o e-mail com que a criou."
+  },
+  "verify": {
+    "title": "Verificação de licença",
+    "powered": "O pagamento na Stellar é a prova",
+    "loading": "Conferindo…",
+    "not_found": "Esta licença não existe.",
+    "ok": "Esta licença é válida",
+    "bad": "Não foi possível verificar esta licença",
+    "pending": "O pagamento ainda está sendo liquidado na Stellar. Confira de novo em alguns segundos.",
+    "checks": {
+      "document": "O documento confere com sua impressão digital",
+      "payment_found": "O pagamento existe na Stellar",
+      "payment_commits": "O pagamento carrega a impressão digital do documento",
+      "not_revoked": "Não revogada"
+    },
+    "how": "Qualquer pessoa pode repetir esta conferência: baixe o documento, calcule seu SHA-256, abra a transação na Stellar e compare a referência com os primeiros 8 bytes do hash.",
+    "document": "Abrir o documento"
+  },
+  "media": {
+    "entry_text": "Procurando fotos, músicas ou modelos 3D licenciados?",
+    "entry_link": "Ver os catálogos de mídia",
+    "back": "Serviços",
+    "title": "Mídia licenciada",
+    "subtitle": "Fotos, músicas, modelos 3D e documentos de empresas e criadores que vendem pela Kiba. Cada compra vem com uma licença verificável.",
+    "assistant_note": "Você não precisa comprar por aqui: peça ao seu assistente o que precisa (\"uma faixa lo-fi para o meu vídeo\") e ele busca e compra por você. Esta página é só para ver o que existe.",
+    "search_placeholder": "Busque — tente \"lofi\", \"fundo azul\" ou \"cumbia\"",
+    "type_label": "Tipo de arquivo",
+    "types": {
+      "all": "tudo",
+      "image": "imagens",
+      "audio": "áudio",
+      "video": "vídeo",
+      "model": "3D",
+      "document": "documentos"
+    },
+    "count_one": "{{count}} item · {{catalogs}} catálogo(s) consultado(s)",
+    "count_other": "{{count}} itens · {{catalogs}} catálogo(s) consultado(s)",
+    "empty": "Esses catálogos ainda não têm itens.",
+    "no_match": "Nada correspondeu a \"{{query}}\". Tente outras palavras.",
+    "no_catalogs": "Ainda não há catálogos de mídia publicados.",
+    "error": "Não foi possível consultar os catálogos. Tente novamente.",
+    "license_template": "licença {{name}}",
+    "attribution": "exige atribuição",
+    "non_exclusive": "não exclusiva",
+    "copy_request": "Copiar pedido para o seu assistente",
+    "copied": "Copiado",
+    "try_playground": "Testar no Playground",
+    "assistant_request": "Compre na Kiba \"{{title}}\" (assetId {{assetId}}) do serviço {{service}} e me dê o link de download e a licença.",
+    "templates": {
+      "personal": "licença pessoal",
+      "commercial": "licença comercial",
+      "commercial-attribution": "comercial com atribuição"
+    }
   }
 }

@@ -1,6 +1,7 @@
 import type { ChainOptions } from './config';
 import type { StellarSigner } from './chain/signer';
 import type { ChainClient, WalletLike } from './chain';
+import type { LicenseTerms } from './license';
 
 /**
  * Configuration for an {@link AgentProvider}. Extends {@link ChainOptions}, so all
@@ -37,6 +38,14 @@ export interface AgentConfig extends ChainOptions {
   pricingNote?: string;
   /** Free-text description for the catalog (max 512 chars). */
   description?: string;
+  /**
+   * Default license terms for the files this service delivers (media catalogs, generators).
+   * A handler that returns `{ ..., license: { assetSha256, ... } }` gets these terms merged in,
+   * and the Kiba gateway writes a license document whose fingerprint travels in the payment. See ./license.ts.
+   */
+  license?: LicenseTerms;
+  /** True when this service is a browsable media catalog (exposes GET /catalog/search). */
+  catalog?: boolean;
   /** Public endpoint where other agents reach this service (max 256 chars). */
   endpoint?: string;
   /**
@@ -97,6 +106,10 @@ export interface ServiceManifest {
   endpoint: string;
   ownerWallet: string;
   acceptedToken: 'USDC' | 'XLM';
+  /** Default license terms of the files this service delivers, if any. */
+  license?: LicenseTerms;
+  /** True for browsable media catalogs. */
+  catalog?: boolean;
 }
 
 export interface X402Quote {

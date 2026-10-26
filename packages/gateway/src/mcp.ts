@@ -19,10 +19,11 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { listAgents } from './proxy';
-import { callAndStore, getResult, listResults, resultDto } from './results';
+import { callAndStore, getResult, licenseDtoForCall, listResults, resultDto } from './results';
 import { getUserBalances } from './wallets';
 import { getTransactions } from './billing';
 import { explorerTxUrl } from './chain';
+import { searchMedia } from './media';
 
 type ToolResult = { content: Array<{ type: 'text'; text: string }>; isError?: boolean };
 
@@ -72,6 +73,22 @@ const TOOLS = [
       },
       required: ['service'],
       additionalProperties: false,
+    },
+  },
+  {
+    name: 'search_media',
+    annotations: { title: 'Search licensed media', readOnlyHint: true, openWorldHint: true },
+    description:
+      'Busca archivos con licencia (imágenes, música, modelos 3D, documentos) en todos los catálogos de Kiba, gratis. Devuelve ítems con service, assetId, título, tipo, precio en USD, previewUrl y resumen de la licencia. Para comprar uno: call_agent(service, { assetId }); la respuesta trae el enlace de descarga y la licencia: un documento con el archivo (hash), los términos y el precio, cuya huella viaja en el pago en Stellar.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: 'Qué buscas, en cualquier idioma (p.ej. "lofi beat", "fondo atardecer").' },
+        type: { type: 'string', enum: ['image', 'audio', 'video', 'model', 'document', 'other'], description: 'Filtra por tipo de archivo.' },
+        maxPriceUsd: { type: 'number', description: 'Precio máximo por ítem en USD.' },
+        limit: { type: 'number', description: 'Máximo de ítems (default 20, max 50).' },
+      },
+      required: ['query'],
     },
   },
   {
@@ -171,12 +188,22 @@ export function buildMcpServer(userId: number): Server {
           }
           return jsonResult(clean);
         }
+        case 'search_media': {
+          const { query, type, maxPriceUsd, limit } = (args ?? {}) as {
+            query?: string;
+            type?: string;
+            maxPriceUsd?: number;
+            limit?: number;
+          };
+          if (!query || !String(query).trim()) throw new Error('query required');
+          return jsonResult(await searchMedia({ query: String(query), type, maxPriceUsd, limit }));
+        }
         case 'get_result': {
           const { resultId } = (args ?? {}) as { resultId?: string };
           if (!resultId) throw new Error('resultId required');
           const row = await getResult(userId, resultId, 25_000);
           if (!row) throw new Error(`result not found: ${resultId}`);
-          return jsonResult(resultDto(row));
+          return jsonResult({ ...resultDto(row), license: await licenseDtoForCall(row.id) });
         }
         case 'list_results': {
           const { limit } = (args ?? {}) as { limit?: number };

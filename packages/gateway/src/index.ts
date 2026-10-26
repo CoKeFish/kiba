@@ -16,6 +16,7 @@ import {
   callAndStore,
   failOrphanedResults,
   getResult,
+  licenseDtoForCall,
   listResults,
   relatedResults,
   resultDto,
@@ -58,6 +59,8 @@ import {
   COP_USD_RATE,
 } from './payments';
 import { listAgents, masterWalletPubkey, platformPublicKey } from './proxy';
+import { getLicense, licenseDto, listLicenses, verifyLicense } from './licenses';
+import { searchMedia } from './media';
 import { settleAgent, settleAllDue, MIN_PAYOUT, recordEarning } from './settlement';
 import { listUserSettlements, getDailySeries } from './publisher';
 import { warmEscrows, enqueueChainTask } from './escrows';
@@ -1427,7 +1430,51 @@ app.get('/v1/results/:id', requireAuth, async (req, res) => {
   if (!row) return res.status(404).json({ error: 'result not found' });
   // `related`: las otras llamadas del mismo pedido (p.ej. las consultas de estado de un modelo 3D).
   const related = await relatedResults(row);
-  res.json({ ...resultDto(row), related: related.map((r) => resultDto(r)) });
+  res.json({ ...resultDto(row), license: await licenseDtoForCall(row.id), related: related.map((r) => resultDto(r)) });
+});
+
+// ─── Licencias de medios (ver licenses.ts) ───────────────────────────
+// Las rutas de lectura de una licencia son PÚBLICAS a propósito: cualquiera con el id debe poder
+// leer el documento y verificarlo contra la transacción de pago sin cuenta en Kiba.
+
+// Búsqueda federada de medios con licencia (gratis; ver media.ts).
+app.get('/v1/media/search', requireAuth, async (req, res) => {
+  // `q` vacío lista lo que cada catálogo devuelva sin filtro (la vista del dashboard lo usa
+  // para mostrar el catálogo al entrar). El conector MCP sigue exigiendo `query`.
+  const q = String(req.query.q ?? req.query.query ?? '').trim();
+  res.json(
+    await searchMedia({
+      query: q,
+      type: typeof req.query.type === 'string' ? req.query.type : undefined,
+      maxPriceUsd: req.query.maxPriceUsd !== undefined ? Number(req.query.maxPriceUsd) : undefined,
+      limit: req.query.limit !== undefined ? Number(req.query.limit) : undefined,
+    }),
+  );
+});
+
+app.get('/v1/licenses', requireAuth, async (req, res) => {
+  const rows = await listLicenses(req.bearerUser!.id, Number(req.query.limit) || 50);
+  res.json(rows.map(licenseDto));
+});
+
+app.get('/v1/licenses/:id', async (req, res) => {
+  const row = await getLicense(req.params.id);
+  if (!row) return res.status(404).json({ error: 'license not found' });
+  res.json({ ...licenseDto(row), document: JSON.parse(row.doc) });
+});
+
+// El documento en JSON canónico, byte a byte: su SHA-256 es `documentSha256` y sus primeros
+// 8 bytes son el `reference` del pago.
+app.get('/v1/licenses/:id/document', async (req, res) => {
+  const row = await getLicense(req.params.id);
+  if (!row) return res.status(404).json({ error: 'license not found' });
+  res.type('application/json').send(row.doc);
+});
+
+app.get('/v1/licenses/:id/verify', async (req, res) => {
+  const row = await getLicense(req.params.id);
+  if (!row) return res.status(404).json({ error: 'license not found' });
+  res.json({ id: row.id, ...(await verifyLicense(row)), summary: licenseDto(row) });
 });
 
 // ─── API Keys (long-lived bearer tokens for direct REST access) ──

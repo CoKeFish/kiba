@@ -34,6 +34,7 @@ const sidebars: SidebarsConfig = {
       doc('conceptos/descubrimiento-hibrido', 'search'),
       doc('conceptos/creditos-y-wallet', 'wallet'),
       doc('conceptos/pagos-y-liquidacion', 'coin'),
+      doc('conceptos/licencias', 'shield'),
       doc('conceptos/arquitectura', 'layers'),
       doc('conceptos/modelo-de-confianza', 'shield'),
     ]),

@@ -313,3 +313,33 @@ test('no handler configured → 500', async () => {
   const res = await lonely.verifyAndServe({ body: {}, headers: {} });
   assert.equal(res.status, 500);
 });
+
+test('dynamic price: a quote for a cheap body cannot pay for an expensive one; no nonce ≠ floor', async () => {
+  const p = new AgentProvider({
+    secret: Keypair.random().secret(),
+    service: 'catalog',
+    pricePerCall: 0.01, // floor = 100000 stroops
+    priceFn: (req: unknown) => ((req as { assetId?: string }).assetId === 'cara' ? 0.5 : 0.01),
+    escrowPollAttempts: 1,
+    escrowPollIntervalMs: 1,
+  });
+  p.serve(async (req: unknown) => ({ echoed: req }));
+  // El escrow paga lo que cotizó el ítem barato.
+  (p as unknown as { chain: ChainClient }).chain = mockChain({ amountBaseUnits: 100000n, state: 'Pending', receiver: OWNER });
+
+  const quote = await p.verifyAndServe({ body: { assetId: 'barata' }, headers: {} });
+  assert.equal(quote.status, 402);
+  const { nonce, amount } = quote.body as { nonce: string; amount: string };
+  assert.equal(amount, '100000');
+  const pay = (n?: string) => Buffer.from(JSON.stringify({ escrowId: `CDYN${n ?? 'none'}`, nonce: n })).toString('base64');
+
+  const swapped = await p.verifyAndServe({ body: { assetId: 'cara' }, headers: { 'x-payment': pay(nonce) } });
+  assert.equal(swapped.status, 402, 'misma cotización, otro ítem → se recotiza');
+  assert.match((swapped.body as { error: string }).error, /below price 5000000/);
+
+  const noNonce = await p.verifyAndServe({ body: { assetId: 'cara' }, headers: { 'x-payment': pay() } });
+  assert.equal(noNonce.status, 402, 'sin nonce no se cae al precio mínimo');
+
+  const ok = await p.verifyAndServe({ body: { assetId: 'barata' }, headers: { 'x-payment': pay(nonce) } });
+  assert.equal(ok.status, 200, 'el cuerpo cotizado sí se sirve');
+});
