@@ -132,7 +132,8 @@
       "result_awaiting": "Awaiting result"
     },
     "summary": {
-      "purchased": "Purchased · the download link expires",
+      "purchased": "Purchased",
+      "purchased_expires": "Purchased · the download link expires {{when}}",
       "download": "Download",
       "license": "License issued · verify",
       "items_one": "{{count}} item",

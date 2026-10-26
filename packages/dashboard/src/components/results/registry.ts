@@ -1,4 +1,5 @@
 import type { ResultView, ResultViewProps } from "./types";
+import { mediaPurchaseView } from "./views/MediaPurchaseView";
 import { taskProgressView } from "./views/TaskProgressView";
 import { genericView } from "./views/GenericView";
 
@@ -11,6 +12,7 @@ import { genericView } from "./views/GenericView";
  * para no engordar el bundle del resto del dashboard.
  */
 const VIEWS: ResultView[] = [
+  mediaPurchaseView,
   taskProgressView,
   // `genericView` acepta todo: siempre al final.
   genericView,

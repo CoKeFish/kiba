@@ -2,9 +2,10 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { ChevronDown, Download, ExternalLink, FileBadge } from "lucide-react";
+import { ChevronDown, ExternalLink, FileBadge } from "lucide-react";
 import type { LicenseSummary } from "@/lib/api";
 import { collectUrls, field } from "./content";
+import { PurchasedAsset } from "./PurchasedAsset";
 import "./response-summary.css";
 
 /**
@@ -67,7 +68,6 @@ export function ResponseSummary({
   // Compra de un catálogo: { asset, downloadUrl, license }.
   const asset = field<Record<string, unknown>>(result, "asset");
   const downloadUrl = field<string>(result, "downloadUrl");
-  const mime = String(asset?.mimeType ?? "");
 
   const mainKey = obj ? MAIN_TEXT.find((k) => typeof obj[k] === "string" && !isUrl(obj[k])) : undefined;
   const mainText = typeof result === "string" ? result : mainKey ? String(obj![mainKey]) : undefined;
@@ -87,19 +87,7 @@ export function ResponseSummary({
   return (
     <div className="rs">
       {asset && downloadUrl && (
-        <div className="rs-asset">
-          {mime.startsWith("image/") && <img className="rs-asset__img" src={downloadUrl} alt={String(asset.title ?? "")} />}
-          {mime.startsWith("audio/") && <audio className="rs-asset__audio" controls src={downloadUrl} />}
-          <div className="rs-asset__row">
-            <div>
-              <p className="rs-asset__title">{String(asset.title ?? asset.id ?? "")}</p>
-              <p className="rs-muted">{t("playground.summary.purchased")}</p>
-            </div>
-            <a className="rs-btn" href={downloadUrl} target="_blank" rel="noopener noreferrer">
-              <Download size={14} /> {t("playground.summary.download")}
-            </a>
-          </div>
-        </div>
+        <PurchasedAsset asset={asset} downloadUrl={downloadUrl} expiresAt={field(result, "expiresAt")} />
       )}
 
       {license && (

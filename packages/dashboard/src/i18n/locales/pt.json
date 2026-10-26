@@ -132,7 +132,8 @@
       "result_awaiting": "Aguardando resultado"
     },
     "summary": {
-      "purchased": "Comprado · o link de download expira",
+      "purchased": "Comprado",
+      "purchased_expires": "Comprado · o link de download expira em {{when}}",
       "download": "Baixar",
       "license": "Licença emitida · verificar",
       "items_one": "{{count}} item",
