@@ -28,17 +28,40 @@ const SAMPLE_PAYLOADS: Record<string, string> = {
   "risk-auditor": `{
   "protocols": ["Blend", "YieldBlox"]
 }`,
+  // El traductor de la demo conoce frases cortas ("good morning", "thank you"…); otro texto
+  // vuelve marcado como "[ES] …", así que el ejemplo usa una que sí traduce.
   "translator-pro": `{
-  "text": "The quarterly report shows a 12% increase in revenue across all regions.",
+  "text": "good morning",
   "to": "es"
 }`,
   "price-oracle": `{
-  "symbols": ["XLM", "BTC", "ETH"],
-  "vs": "USD"
+  "symbols": ["XLM", "BTC", "ETH"]
 }`,
   "code-reviewer": `{
   "code": "const x: any = eval('1+1');\\nconsole.log(x);",
   "language": "typescript"
+}`,
+  "world-clock": `{
+  "zones": ["Bogotá", "Lisbon", "Tokyo"],
+  "meeting": ["Bogotá", "Lisbon"]
+}`,
+  randomizer: `{
+  "type": "pick",
+  "choices": ["pizza", "sushi", "tacos"]
+}`,
+  "web-scraper": `{
+  "url": "https://kiba.tools",
+  "prompt": "extrae el título y la descripción de la página"
+}`,
+  // Meshy es asíncrono: esto crea la tarea; el progreso se consulta luego con { "taskId": "…" }.
+  "3d-generator": `{
+  "prompt": "a small wooden treasure chest, low poly",
+  "quality": "standard"
+}`,
+  "music-generator": `{
+  "prompt": "upbeat cumbia with accordion for a short video intro",
+  "format": "clip",
+  "instrumental": true
 }`,
 };
 
