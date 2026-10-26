@@ -601,11 +601,18 @@ export function searchCatalogItems<T extends CatalogItem>(
   return scored.slice(0, limit).map((s) => s.item);
 }
 
+/**
+ * Palabras de la consulta. Lo que va con guion ("lo-fi", "hip-hop") se busca también pegado ("lofi"),
+ * que es como suele venir en etiquetas y títulos. Las sílabas de 1–2 letras ("lo", "fi", "a") no
+ * cuentan: como substring aparecen en casi cualquier descripción y "lo-fi" devolvía hasta fotos.
+ * Si no queda nada (consulta "3d", "ia"), se usan tal cual para no listar todo el catálogo.
+ */
 function tokens(q: string): string[] {
-  return q
-    .toLowerCase()
-    .split(/[^\p{L}\p{N}]+/u)
-    .filter((w) => w.length > 1);
+  const lower = q.toLowerCase();
+  const all = lower.split(/[^\p{L}\p{N}]+/u).filter((w) => w.length > 0);
+  const words = all.filter((w) => w.length > 2);
+  for (const m of lower.matchAll(/[\p{L}\p{N}]+(?:-[\p{L}\p{N}]+)+/gu)) words.push(m[0].replace(/-/g, ''));
+  return [...new Set(words.length > 0 ? words : all)];
 }
 
 function slug(s: string): string {
