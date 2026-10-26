@@ -112,6 +112,17 @@ sequenceDiagram
 
 Further reading: [architecture](docs/architecture.md).
 
+## Contracts
+
+Both contracts run on **Stellar testnet** and are open source in this repository.
+
+| Contract | Role | Source | Address |
+|---|---|---|---|
+| **Payments** | `pay()` per call with the 95/5 split, x402 escrow and the voucher channel; the `reference` argument carries the license fingerprint | [`packages/contracts-payments`](packages/contracts-payments) | [`CBARSI2VGH7SDUA2WD3CUEGWFY6GYGC2WRW5JYGYMR4BR2Q3WZHKDWL7`](https://stellar.expert/explorer/testnet/contract/CBARSI2VGH7SDUA2WD3CUEGWFY6GYGC2WRW5JYGYMR4BR2Q3WZHKDWL7) |
+| **Registry** | Open on-chain catalog of services: name, endpoint, owner and price | [`packages/contracts-soroban`](packages/contracts-soroban) | [`CDYLMRS2UTBHNTWS67NC2OPQIH2HXGS36WZYC4JUMLKZWT7XXVUUX7XF`](https://stellar.expert/explorer/testnet/contract/CDYLMRS2UTBHNTWS67NC2OPQIH2HXGS36WZYC4JUMLKZWT7XXVUUX7XF) |
+
+Example of a per-call payment settled by the payments contract: [transaction `11dbb1c7…`](https://stellar.expert/explorer/testnet/tx/11dbb1c76720208284c713d7277e77f3b0a724c5ad69174194a3ae433f340d57) (0.005 USDC, 95% to the publisher).
+
 ## Security
 
 - **Spending limits.** Pending usage on the payments wallet is capped and collected automatically.
