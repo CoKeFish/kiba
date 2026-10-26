@@ -39,11 +39,6 @@
   color: var(--color-fg-muted);
 }
 
-/* Ocupa todo el ancho disponible (Servicios se queda en 960px): las columnas se adaptan solas. */
-.media-page {
-  max-width: none;
-}
-
 .media-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
