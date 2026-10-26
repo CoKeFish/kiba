@@ -39,11 +39,6 @@
   color: var(--color-fg-muted);
 }
 
-/* Ocupa todo el ancho disponible (Servicios se queda en 960px): las columnas se adaptan solas. */
-.media-page {
-  max-width: none;
-}
-
 .media-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
@@ -195,20 +190,49 @@
   color: var(--color-primary);
 }
 
-/* Enlace discreto al final de Servicios */
-.agents-media-link {
-  align-self: center;
+/* Entrada a los catálogos desde Servicios: una franja bajo el buscador, no un ítem del menú */
+.agents-media-entry {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--c-purple) 25%, var(--color-border));
+  background: color-mix(in srgb, var(--c-purple) 7%, white);
   font-family: var(--font-sans);
-  font-size: 13px;
-  color: var(--color-fg-muted);
+  font-size: 14px;
+  color: var(--color-fg);
+  text-decoration: none;
+  transition: background var(--dur-fast) var(--ease-out);
 }
 
-.agents-media-link a {
-  color: var(--color-fg-subtle);
+.agents-media-entry:hover {
+  background: color-mix(in srgb, var(--c-purple) 12%, white);
+}
+
+.agents-media-entry__icon {
+  display: inline-flex;
+  padding: 8px;
+  border-radius: 10px;
+  background: #fff;
+  color: var(--c-purple);
+}
+
+.agents-media-entry__text {
+  flex: 1;
+}
+
+.agents-media-entry__cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-weight: 600;
-  text-underline-offset: 3px;
+  color: var(--c-purple);
+  white-space: nowrap;
 }
 
-.agents-media-link a:hover {
-  color: var(--color-primary);
+@media (max-width: 720px) {
+  .agents-media-entry {
+    flex-wrap: wrap;
+  }
 }

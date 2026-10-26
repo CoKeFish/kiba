@@ -107,6 +107,8 @@ test('publicItem: el precio anunciado nunca baja del mínimo que se cobra (price
 test('búsqueda: etiquetas y título puntúan, filtro por tipo, vacío lista todo', async () => {
   assert.deepEqual((await source.search('atardecer bogota')).map((i) => i.id), ['atardecer']);
   assert.deepEqual((await source.search('lofi')).map((i) => i.id), ['lofi-01']);
+  // "lo-fi" se busca pegado y sus sílabas no cuentan como substring (antes "lo" traía la foto).
+  assert.deepEqual((await source.search('a lo-fi track')).map((i) => i.id), ['lofi-01']);
   assert.deepEqual((await source.search('', { type: 'audio' })).map((i) => i.id), ['lofi-01']);
   assert.equal((await source.search('')).length, 2);
   assert.equal((await source.search('zzz')).length, 0);

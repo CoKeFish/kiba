@@ -4,7 +4,6 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
-  max-width: 960px;
   padding-bottom: 16px;
 }
 
@@ -111,7 +110,8 @@
 /* ── Agent cards grid ── */
 .agents-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  /* Sin ancho máximo de página: las columnas se adaptan a la pantalla (2 en un portátil, 3–4 en un monitor grande). */
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 400px), 1fr));
   gap: 16px;
 }
 

@@ -16,7 +16,8 @@
  *
  * El catálogo vive donde el publisher quiera: `CatalogSource` son cuatro funciones (list, search,
  * get, deliver). `FolderSource` las implementa sobre una carpeta con un items.csv o items.json
- * (la vía de subida masiva). Para S3, una base de datos propia o un feed, implementa la interfaz;
+ * (la vía de subida masiva); `HttpCatalogSource` (catalog-http.ts), sobre la API HTTP que una
+ * empresa ya tiene. Para S3, una base de datos propia o un feed, implementa la interfaz;
  * Kiba nunca se conecta a la base de datos del publisher.
  */
 import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
@@ -276,16 +277,23 @@ function sendDelivery(res: Response, d: CatalogDelivery, cacheControl: string): 
     res.status(404).json({ error: 'not found' });
     return;
   }
-  res.setHeader('Content-Type', d.mimeType);
-  res.setHeader('Cache-Control', cacheControl);
-  res.setHeader('Content-Disposition', `inline; filename="${d.filename.replace(/["\\\r\n]/g, '_')}"`);
-  if (d.bytes != null) res.setHeader('Content-Length', String(d.bytes));
-  createReadStream(d.path)
-    .on('error', () => {
-      if (!res.headersSent) res.status(404).json({ error: 'not found' });
-      else res.end();
-    })
-    .pipe(res);
+  // sendFile pone Content-Length y atiende Range: sin eso el reproductor de audio del navegador
+  // mostraba 0:00 hasta bajar el archivo entero y no dejaba saltar dentro de la pista.
+  res.sendFile(
+    d.path,
+    {
+      cacheControl: false,
+      acceptRanges: true,
+      headers: {
+        'Content-Type': d.mimeType,
+        'Cache-Control': cacheControl,
+        'Content-Disposition': `inline; filename="${d.filename.replace(/["\\\r\n]/g, '_')}"`,
+      },
+    },
+    (err?: Error) => {
+      if (err && !res.headersSent) res.status(404).json({ error: 'not found' });
+    },
+  );
 }
 
 export async function sha256File(file: string): Promise<string> {
@@ -466,26 +474,7 @@ export class FolderSource implements CatalogSource {
 
   /** Búsqueda por palabras en título, descripción, etiquetas e id (ordenada por coincidencias). */
   async search(query: string, opts?: { type?: CatalogMediaType; limit?: number }): Promise<CatalogItem[]> {
-    const words = tokens(query);
-    const limit = Math.min(Math.max(opts?.limit ?? 20, 1), 100);
-    const scored: { item: FolderItem; score: number }[] = [];
-    for (const item of this.items.values()) {
-      if (opts?.type && item.type !== opts.type) continue;
-      if (words.length === 0) {
-        scored.push({ item, score: 0 });
-        continue;
-      }
-      const hay = `${item.title} ${item.description ?? ''} ${(item.tags ?? []).join(' ')} ${item.id}`.toLowerCase();
-      let score = 0;
-      for (const w of words) {
-        if ((item.tags ?? []).some((t) => t.toLowerCase() === w)) score += 3;
-        else if (item.title.toLowerCase().includes(w)) score += 2;
-        else if (hay.includes(w)) score += 1;
-      }
-      if (score > 0) scored.push({ item, score });
-    }
-    scored.sort((a, b) => b.score - a.score || a.item.title.localeCompare(b.item.title));
-    return scored.slice(0, limit).map((s) => this.strip(s.item));
+    return searchCatalogItems(this.items.values(), query, opts).map((i) => this.strip(i));
   }
 
   async get(id: string): Promise<CatalogItem | null> {
@@ -587,11 +576,50 @@ function parseTerms(row: CatalogRow): LicenseTerms | undefined {
   return terms;
 }
 
+/**
+ * Búsqueda en memoria que comparten las fuentes que cachean su catálogo (FolderSource,
+ * HttpCatalogSource): etiqueta exacta 3 puntos, título 2, descripción o id 1; ordena por
+ * puntuación y luego por título. Sin palabras, devuelve todo (filtrado por tipo).
+ */
+export function searchCatalogItems<T extends CatalogItem>(
+  items: Iterable<T>,
+  query: string,
+  opts?: { type?: CatalogMediaType; limit?: number },
+): T[] {
+  const words = tokens(query);
+  const limit = Math.min(Math.max(opts?.limit ?? 20, 1), 100);
+  const scored: { item: T; score: number }[] = [];
+  for (const item of items) {
+    if (opts?.type && item.type !== opts.type) continue;
+    if (words.length === 0) {
+      scored.push({ item, score: 0 });
+      continue;
+    }
+    const hay = `${item.title} ${item.description ?? ''} ${(item.tags ?? []).join(' ')} ${item.id}`.toLowerCase();
+    let score = 0;
+    for (const w of words) {
+      if ((item.tags ?? []).some((t) => t.toLowerCase() === w)) score += 3;
+      else if (item.title.toLowerCase().includes(w)) score += 2;
+      else if (hay.includes(w)) score += 1;
+    }
+    if (score > 0) scored.push({ item, score });
+  }
+  scored.sort((a, b) => b.score - a.score || a.item.title.localeCompare(b.item.title));
+  return scored.slice(0, limit).map((s) => s.item);
+}
+
+/**
+ * Palabras de la consulta. Lo que va con guion ("lo-fi", "hip-hop") se busca también pegado ("lofi"),
+ * que es como suele venir en etiquetas y títulos. Las sílabas de 1–2 letras ("lo", "fi", "a") no
+ * cuentan: como substring aparecen en casi cualquier descripción y "lo-fi" devolvía hasta fotos.
+ * Si no queda nada (consulta "3d", "ia"), se usan tal cual para no listar todo el catálogo.
+ */
 function tokens(q: string): string[] {
-  return q
-    .toLowerCase()
-    .split(/[^\p{L}\p{N}]+/u)
-    .filter((w) => w.length > 1);
+  const lower = q.toLowerCase();
+  const all = lower.split(/[^\p{L}\p{N}]+/u).filter((w) => w.length > 0);
+  const words = all.filter((w) => w.length > 2);
+  for (const m of lower.matchAll(/[\p{L}\p{N}]+(?:-[\p{L}\p{N}]+)+/gu)) words.push(m[0].replace(/-/g, ''));
+  return [...new Set(words.length > 0 ? words : all)];
 }
 
 function slug(s: string): string {

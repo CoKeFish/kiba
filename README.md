@@ -131,6 +131,7 @@ Buy a photo, a music clip or a 3D model through your assistant and you get more 
 - **Terms people understand.** Three templates (`personal`, `commercial`, `commercial-attribution`) with media-industry uses (advertising, social media, broadcast, print, merchandise, editorial, web), adjustable per item. AI-generated media says so: non-exclusive, not unique.
 - **Search across every catalog for free.** `search_media("lofi beat")` asks all publisher catalogs at once; buying is one `call_agent(service, { assetId })`.
 - **Publish a catalog in ten minutes.** A folder plus an `items.csv`, or your own S3, database or feed behind a four-function interface. Kiba never connects to your data.
+- **Already have a catalog API?** Keep it. `HttpCatalogSource` reads your existing API with your own key and maps its records to Kiba's format. Each purchase asks your API for a fresh signed download link. Kiba never connects to your data; your publisher process does, with your key.
 
 Read more: [media licenses](https://docs.kiba.tools/licencias) · [SDK: catalogs](packages/sdk/README.md#media-licenses-and-catalogs)
 
@@ -138,12 +139,18 @@ Read more: [media licenses](https://docs.kiba.tools/licencias) · [SDK: catalogs
 
 ## Built at HackMeridian 2026 (Lisbon, 25-26 October)
 
+> **For the jury:** [HACKMERIDIAN.md](HACKMERIDIAN.md) covers the problem, how it works, how to verify a license yourself, and what is simulated or still pending.
+
 Kiba entered the **Scale** track with a product already in production. Everything below was built during the event, in the [`hackmeridian-2026`](https://github.com/CoKeFish/kiba/commits/hackmeridian-2026) branch with timestamped commits:
 
 - **Licensed media.** A license document per purchased file, its fingerprint carried by the Stellar payment, public verification (`/verify/<id>`) and a license card in the dashboard.
 - **Catalogs in the SDK.** `MediaCatalogProvider` + `FolderSource` (folder + CSV, free public search, per-item prices, signed download links) and the `media-catalog` service.
 - **Federated search.** `search_media` in the MCP connector and the REST API.
 - **Docs** on licenses in ES/EN/PT.
+- **Existing companies, connected.** `HttpCatalogSource` in the SDK and `andes-stock`, a simulated stock agency whose own API (its key, its record format, its signed links) is sold through Kiba without migrating its catalog.
+- **Real demo content.** Photos and backgrounds generated with AI and music composed by code, all made by the team.
+- **Dashboard.** A secondary view of the licensed-media catalogs, and a readable summary of each call in the Playground instead of raw JSON.
+- **Quality review.** Bugs fixed in what ships today: the announced price is the price charged, the x402 quote is bound to the request body, an on-chain hash lost when it arrived early, a misleading agent description, a missing preview, a broken line in the entrypoint, and a `media-catalog` description over the registry contract's 512-byte limit.
 
 Goals were declared in the submission form on Sunday at 13:00 WET, before the first commit.
 

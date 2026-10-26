@@ -102,6 +102,8 @@
     "payload_label": "Payload (JSON)",
     "estimated_cost": "Estimated cost:",
     "amount_scales": "amount scales with payload",
+    "amount_fixed": "the item's price, fixed",
+    "tip_purchase": "You buy one catalog item by its assetId. Ids come from the Licensed media search; your assistant finds them with search_media.",
     "running": "Running…",
     "run_request": "Run request",
     "live_response": "Live response",
@@ -132,7 +134,8 @@
       "result_awaiting": "Awaiting result"
     },
     "summary": {
-      "purchased": "Purchased · the download link expires",
+      "purchased": "Purchased",
+      "purchased_expires": "Purchased · the download link expires {{when}}",
       "download": "Download",
       "license": "License issued · verify",
       "items_one": "{{count}} item",
@@ -871,7 +874,8 @@
     "templates": {
       "personal": "personal license",
       "commercial": "commercial license",
-      "commercial-attribution": "commercial with attribution"
+      "commercial-attribution": "commercial with attribution",
+      "commercial-extended": "extended commercial"
     }
   }
 }

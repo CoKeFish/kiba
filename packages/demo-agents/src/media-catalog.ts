@@ -9,9 +9,10 @@
  *   - POST /service { assetId }  compra: cobra el precio del ítem, devuelve el enlace firmado de
  *                                descarga y el bloque `license`; Kiba escribe el documento de licencia y el pago lleva su huella.
  *
- * Contenido: CATALOG_DIR (por defecto la carpeta catalog-sample del paquete: imágenes y clips
- * generados por código, sin derechos de terceros, hasta que el equipo ponga material propio).
+ * Contenido: CATALOG_DIR (por defecto la carpeta catalog-sample del paquete: imágenes generadas
+ * con IA y música compuesta por síntesis, todo propio del equipo; ver catalog-sample/README.md).
  */
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { FolderSource, MediaCatalogProvider, loadKeypairFromEnvOrFile } from 'kiba-sdk';
 
@@ -24,6 +25,19 @@ const CATALOG_DIR = process.env.CATALOG_DIR || path.resolve(process.cwd(), 'cata
 // Es el MÍNIMO que cobra el servicio (el SDK nunca cobra menos), así que debe ser <= que el ítem más
 // barato del CSV (0.02 en catalog-sample); si no, esos ítems se cobrarían a este precio.
 const PRICE_DEFAULT_USDC = Number(process.env.CATALOG_PRICE_USDC) || 0.02;
+// Secreto de los enlaces de descarga firmados: derivado de la wallet (o CATALOG_DOWNLOAD_SECRET) para
+// que los enlaces ya entregados sigan valiendo tras un reinicio o un redeploy.
+const DOWNLOAD_SECRET =
+  process.env.CATALOG_DOWNLOAD_SECRET || createHash('sha256').update(`catalog-links:${wallet.secret()}`).digest('hex');
+
+const DESCRIPTION =
+  'Catálogo de imágenes y clips de música con licencia, de un creador independiente. ' +
+  'Licensed stock photos, backgrounds and short music clips for videos, posts and apps. ' +
+  'Find items for free with the search_media tool (e.g. query "lofi beat", or "sunset background" with type "image"); ' +
+  'each item has a price and license terms. Buy with { assetId }: you get a download link plus a license ' +
+  'whose fingerprint travels in the Stellar payment. Stock images, royalty-free music, backgrounds, jingles, licensed media.';
+// El contrato de registro on-chain rechaza descripciones de más de 512 BYTES (UTF-8): mejor fallar al arrancar.
+if (Buffer.byteLength(DESCRIPTION, 'utf8') > 512) throw new Error(`description too long: ${Buffer.byteLength(DESCRIPTION, 'utf8')} bytes (max 512)`);
 
 (async () => {
   const source = await FolderSource.open({ dir: CATALOG_DIR, publicBaseUrl: PUBLIC_ENDPOINT });
@@ -34,14 +48,10 @@ const PRICE_DEFAULT_USDC = Number(process.env.CATALOG_PRICE_USDC) || 0.02;
     service: 'media-catalog',
     pricePerCall: PRICE_DEFAULT_USDC,
     pricingNote: `Precio por ítem (ver priceUsd en cada resultado de búsqueda); por defecto ${PRICE_DEFAULT_USDC} USDC`,
-    description:
-      'Catálogo de imágenes y clips de música con licencia, de un creador independiente. ' +
-      'Licensed stock photos, backgrounds and short music clips you can use in videos, posts and apps. ' +
-      'Find items for free with the search_media tool (e.g. query "lofi beat", or "sunset background" with type "image"); ' +
-      'each item has a price and license terms. Buy with { assetId }: you get a download link plus a license ' +
-      'whose fingerprint travels in the Stellar payment. Stock images, royalty-free music, backgrounds, jingles, licensed media.',
+    description: DESCRIPTION,
     endpoint: PUBLIC_ENDPOINT,
     publicBaseUrl: PUBLIC_ENDPOINT,
+    downloadSecret: DOWNLOAD_SECRET,
     source,
     license: {
       name: 'commercial',

@@ -14,6 +14,13 @@ import type { TFunction } from "i18next";
 import "./playground.css";
 
 const SAMPLE_PAYLOADS: Record<string, string> = {
+  // Catálogos de medios: se compra un ítem por su assetId (los ids salen de la búsqueda federada).
+  "media-catalog": `{
+  "assetId": "lofi-estudio"
+}`,
+  "andes-stock": `{
+  "assetId": "AS-0006"
+}`,
   "yield-hunter": `{
   "token": "USDC",
   "riskTolerance": "medium"
@@ -173,7 +180,29 @@ export default function Playground() {
     [agents, service],
   );
 
-  const estUsd = selected ? solToUsd(selected.pricePerCall) : 0;
+  // Con un catálogo el precio depende del ítem: si el payload trae { assetId }, se busca su precio
+  // real en la búsqueda federada (gratis). Si no, el precio base del servicio.
+  const assetId = useMemo(() => {
+    try {
+      const p = JSON.parse(payloadText) as { assetId?: unknown };
+      return typeof p?.assetId === "string" ? p.assetId : undefined;
+    } catch {
+      return undefined;
+    }
+  }, [payloadText]);
+  const { data: assetHit } = useQuery({
+    queryKey: ["playground-asset-price", service, assetId],
+    enabled: !!service && !!assetId,
+    staleTime: 60_000,
+    queryFn: async () =>
+      (await api.mediaSearch({ q: assetId, limit: 50 })).items.find(
+        (i) => i.service === service && i.assetId === assetId,
+      ) ?? null,
+  });
+  const estUsd = assetHit ? assetHit.priceUsd : selected ? solToUsd(selected.pricePerCall) : 0;
+  // Compra de un ítem de catálogo: los prompts de ejemplo (resumir, riesgos…) no aplican y el
+  // precio es el del ítem, no escala con el payload.
+  const isPurchase = !!assetId;
   const agentMascot = service ? mascotFor(service) : "/agents/circulo.png";
   const flowSteps = buildFlowSteps(t, latest?.trace, latest?.service ?? service, latest?.cost?.usd);
 
@@ -254,7 +283,8 @@ export default function Playground() {
 
             <div className="playground-tip">
               <p>
-                <strong>{t("playground.tip_label")}</strong> {t("playground.tip_text")}
+                <strong>{t("playground.tip_label")}</strong>{" "}
+                {isPurchase ? t("playground.tip_purchase") : t("playground.tip_text")}
               </p>
               <img
                 key={service}
@@ -265,6 +295,7 @@ export default function Playground() {
               />
             </div>
 
+            {!isPurchase && (
             <div className="playground-prompts">
               {QUICK_PROMPTS.map((p) => (
                 <button
@@ -277,6 +308,7 @@ export default function Playground() {
                 </button>
               ))}
             </div>
+            )}
 
             <label className="playground-label" htmlFor="pg-payload">
               {t("playground.payload_label")}
@@ -291,7 +323,10 @@ export default function Playground() {
 
             <div className="playground-cost">
               {t("playground.estimated_cost")} <strong>{formatUsd(estUsd, 4)}</strong>
-              <span style={{ color: "var(--color-fg-muted)" }}> · {t("playground.amount_scales")}</span>
+              <span style={{ color: "var(--color-fg-muted)" }}>
+                {" · "}
+                {isPurchase && assetHit ? t("playground.amount_fixed") : t("playground.amount_scales")}
+              </span>
             </div>
 
             <div className="playground-run-row">

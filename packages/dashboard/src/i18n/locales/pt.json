@@ -102,6 +102,8 @@
     "payload_label": "Payload (JSON)",
     "estimated_cost": "Custo estimado:",
     "amount_scales": "o valor varia conforme o payload",
+    "amount_fixed": "preço do item, fixo",
+    "tip_purchase": "Você compra um item do catálogo pelo seu assetId. Os ids vêm da busca em Mídia licenciada; seu assistente os encontra com search_media.",
     "running": "Executando…",
     "run_request": "Executar requisição",
     "live_response": "Resposta ao vivo",
@@ -132,7 +134,8 @@
       "result_awaiting": "Aguardando resultado"
     },
     "summary": {
-      "purchased": "Comprado · o link de download expira",
+      "purchased": "Comprado",
+      "purchased_expires": "Comprado · o link de download expira em {{when}}",
       "download": "Baixar",
       "license": "Licença emitida · verificar",
       "items_one": "{{count}} item",
@@ -871,7 +874,8 @@
     "templates": {
       "personal": "licença pessoal",
       "commercial": "licença comercial",
-      "commercial-attribution": "comercial com atribuição"
+      "commercial-attribution": "comercial com atribuição",
+      "commercial-extended": "comercial ampliada"
     }
   }
 }

@@ -43,7 +43,7 @@
     "build": "tsc -p tsconfig.build.json",
     "dev": "tsc -w -p tsconfig.build.json",
     "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
-    "test": "node --import tsx --test --test-reporter=spec test/fees.test.ts test/config.test.ts test/keypair-store.test.ts test/platform-auth.test.ts test/client.test.ts test/provider.test.ts test/trustless-work.test.ts test/events.test.ts test/integration.test.ts test/catalog.test.ts",
+    "test": "node --import tsx --test --test-reporter=spec test/fees.test.ts test/config.test.ts test/keypair-store.test.ts test/platform-auth.test.ts test/client.test.ts test/provider.test.ts test/trustless-work.test.ts test/events.test.ts test/integration.test.ts test/catalog.test.ts test/catalog-http.test.ts",
     "prepack": "npm run clean && npm run build && node scripts/pkg-dist.mjs apply",
     "postpack": "node scripts/pkg-dist.mjs restore"
   },
