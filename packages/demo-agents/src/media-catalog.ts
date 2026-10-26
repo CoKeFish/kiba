@@ -9,8 +9,8 @@
  *   - POST /service { assetId }  compra: cobra el precio del ítem, devuelve el enlace firmado de
  *                                descarga y el bloque `license`; Kiba escribe el documento de licencia y el pago lleva su huella.
  *
- * Contenido: CATALOG_DIR (por defecto la carpeta catalog-sample del paquete: imágenes y clips
- * generados por código, sin derechos de terceros, hasta que el equipo ponga material propio).
+ * Contenido: CATALOG_DIR (por defecto la carpeta catalog-sample del paquete: imágenes generadas
+ * con IA y música compuesta por síntesis, todo propio del equipo; ver catalog-sample/README.md).
  */
 import path from 'node:path';
 import { FolderSource, MediaCatalogProvider, loadKeypairFromEnvOrFile } from 'kiba-sdk';
