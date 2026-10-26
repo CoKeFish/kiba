@@ -8,7 +8,8 @@
 # code-reviewer -> CODE, firecrawl -> FIRECRAWL, world-clock -> WORLD,
 # randomizer -> RANDOMIZER, meshy -> MESHY (sirve el servicio on-chain 3d-generator),
 # lyria -> LYRIA (sirve el servicio on-chain music-generator),
-# catalog -> CATALOG (sirve el servicio on-chain media-catalog).
+# catalog -> CATALOG (sirve el servicio on-chain media-catalog),
+# andes-stock -> ANDES (sirve el servicio on-chain andes-stock).
 set -eu
 
 [ -n "${AGENT_NAME:-}" ] || { echo "FATAL: AGENT_NAME no definido" >&2; exit 1; }
@@ -26,6 +27,6 @@ unset AGENT_WALLET_SECRET_TRANSLATOR AGENT_WALLET_SECRET_YIELD \
       AGENT_WALLET_SECRET_CODE AGENT_WALLET_SECRET_FIRECRAWL \
       AGENT_WALLET_SECRET_WORLD AGENT_WALLET_SECRET_RANDOMIZER \
       AGENT_WALLET_SECRET_MESHY AGENT_WALLET_SECRET_LYRIA \
-      AGENT_WALLET_SECRET_CATALOG 2>/dev/null || true
+      AGENT_WALLET_SECRET_CATALOG AGENT_WALLET_SECRET_ANDES 2>/dev/null || true
 
 exec npm run "start:${short}"
