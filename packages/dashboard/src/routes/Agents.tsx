@@ -5,7 +5,7 @@ import { api, type Agent, type AgentSearchHit } from "@/lib/api";
 import { formatUsd } from "@/lib/format";
 import { chain } from "@/lib/chain";
 import { serviceToName, solToUsd } from "@/components/AgentManager";
-import { ArrowRight, BookOpen, Search } from "lucide-react";
+import { ArrowRight, BookOpen, Images, Search } from "lucide-react";
 import { DEMO_AGENTS, DEMO_AGENT_TAGS } from "@/lib/demoAgents";
 import { mascotFor } from "@/lib/agentMascots";
 import { useTranslation } from "react-i18next";
@@ -118,6 +118,18 @@ export default function Agents() {
         </div>
       </div>
 
+      {/* Fuera del menú a propósito (el asistente es quien compra), pero a la vista: es lo que se muestra en la demo. */}
+      <Link to="/app/agents/media" className="agents-media-entry">
+        <span className="agents-media-entry__icon">
+          <Images size={18} strokeWidth={2} />
+        </span>
+        <span className="agents-media-entry__text">{t("media.entry_text")}</span>
+        <span className="agents-media-entry__cta">
+          {t("media.entry_link")}
+          <ArrowRight size={15} />
+        </span>
+      </Link>
+
       {agents.length === 0 ? (
         <div className="agents-empty">
           {isFetching
@@ -184,10 +196,6 @@ export default function Agents() {
         <img src="/agents/corazon.png" alt="" aria-hidden className="agents-help__mascot" />
       </section>
 
-      {/* Discreto a propósito: el asistente es quien compra; esto es solo para mirar. */}
-      <p className="agents-media-link">
-        {t("media.entry_text")} <Link to="/app/agents/media">{t("media.entry_link")}</Link>
-      </p>
     </div>
   );
 }
