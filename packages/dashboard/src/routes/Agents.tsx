@@ -118,18 +118,6 @@ export default function Agents() {
         </div>
       </div>
 
-      {/* Fuera del menú a propósito (el asistente es quien compra), pero a la vista: es lo que se muestra en la demo. */}
-      <Link to="/app/agents/media" className="agents-media-entry">
-        <span className="agents-media-entry__icon">
-          <Images size={18} strokeWidth={2} />
-        </span>
-        <span className="agents-media-entry__text">{t("media.entry_text")}</span>
-        <span className="agents-media-entry__cta">
-          {t("media.entry_link")}
-          <ArrowRight size={15} />
-        </span>
-      </Link>
-
       {agents.length === 0 ? (
         <div className="agents-empty">
           {isFetching
@@ -196,6 +184,17 @@ export default function Agents() {
         <img src="/agents/corazon.png" alt="" aria-hidden className="agents-help__mascot" />
       </section>
 
+      {/* Fuera del menú a propósito (el asistente es quien compra), pero a la vista: es lo que se muestra en la demo. */}
+      <Link to="/app/agents/media" className="agents-media-entry">
+        <span className="agents-media-entry__icon">
+          <Images size={18} strokeWidth={2} />
+        </span>
+        <span className="agents-media-entry__text">{t("media.entry_text")}</span>
+        <span className="agents-media-entry__cta">
+          {t("media.entry_link")}
+          <ArrowRight size={15} />
+        </span>
+      </Link>
     </div>
   );
 }
