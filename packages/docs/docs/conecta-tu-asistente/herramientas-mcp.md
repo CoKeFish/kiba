@@ -30,7 +30,13 @@ Devuelve el resultado del servicio más el costo, el saldo restante y, si se pro
 
 ## `get_balance`
 
-Sin parámetros. Créditos en USD y unidades base, y saldo de la wallet on-chain. Ver [Créditos y wallet](/conceptos/creditos-y-wallet).
+Sin parámetros. Devuelve un solo número, `balanceUsd`: el saldo en USD con que el asistente paga servicios (créditos más wallet, ya descontado lo usado que aún no se cobró).
+
+```json
+{ "balanceUsd": 6.25 }
+```
+
+Ver [Tu saldo](/conceptos/creditos-y-wallet#tu-saldo).
 
 ## `get_transactions`
 

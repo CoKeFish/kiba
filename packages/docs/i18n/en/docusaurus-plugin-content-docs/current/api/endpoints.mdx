@@ -15,7 +15,7 @@ Every endpoint requires a [credential](/api/autenticacion) unless noted.
 | Endpoint | Description |
 |---|---|
 | `GET /v1/me` | Account: `id`, `email`, `custodial_wallet` (Stellar address), `is_publisher`, `publisher_name`, `created_at` and the balance fields. |
-| `GET /v1/balance` | `balance_*` = credits, `wallet_*` = on-chain wallet, `total_*` = sum. Includes `asset: "USDC"`, `base_unit_name: "stroops"`. |
+| `GET /v1/balance` | `balance_*` = credits, `wallet_*` = what's available in the on-chain wallet, minus usage not yet charged, `total_*` = sum (the [single balance](/conceptos/creditos-y-wallet#tu-saldo) the dashboard and `get_balance` show). Includes `asset: "USDC"`, `base_unit_name: "stroops"`. |
 | `GET /v1/wallet` | On-chain wallet state: `pubkey`, `asset`, `base_units`, `asset_amount` and the platform's `master_wallet`. |
 | `POST /v1/topup` | Body `{ "amount": 10 }` in USD, between 0 and 1,000 per request. Added credits are capped at 10,000 USD. Returns the new balance. |
 

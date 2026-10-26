@@ -30,7 +30,13 @@ Returns the service result plus the cost, the remaining balance and, if an on-ch
 
 ## `get_balance`
 
-No parameters. Credits in USD and base units, and the on-chain wallet balance. See [Credits and wallet](/conceptos/creditos-y-wallet).
+No parameters. Returns a single number, `balanceUsd`: the USD balance the assistant pays services with (credits plus wallet, minus usage not yet charged).
+
+```json
+{ "balanceUsd": 6.25 }
+```
+
+See [Your balance](/conceptos/creditos-y-wallet#tu-saldo).
 
 ## `get_transactions`
 
