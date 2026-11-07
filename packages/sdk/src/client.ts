@@ -388,9 +388,12 @@ export class AgentClient {
       });
       return resp.data as TRes;
     } catch (err) {
-      const ax = err as AxiosError;
+      const ax = err as AxiosError<{ error?: unknown }>;
+      // El agente responde 500 { error } con la causa real ("sitio bloqueado…", "página sin
+      // contenido…"): es lo que el usuario debe ver, no el "status code 500" de axios.
+      const detail = typeof ax.response?.data?.error === 'string' ? ax.response.data.error : undefined;
       throw new AgentCallError(
-        `platform-signed call to '${options.service}' failed: ${ax.message}`,
+        `platform-signed call to '${options.service}' failed: ${detail ?? ax.message}`,
         options.service,
         ax.response?.status,
       );

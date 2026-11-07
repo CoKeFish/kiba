@@ -54,8 +54,10 @@ const agent = new AgentProvider({
   pricePerCall: PRICE_SCRAPE_USDC,
   pricingNote: `Scrape de página ${PRICE_SCRAPE_USDC} USDC · extracción estructurada (precio/datos con prompt) ${PRICE_EXTRACT_USDC} USDC`,
   priceFn: (req: unknown) => priceFor(req),
+  // La descripción es lo único que el catálogo (registro on-chain → backend → list_agents) muestra
+  // del servicio, así que lleva el precio de cada modo: el registro solo guarda el precio base.
   description:
-    'Web scraper en vivo (Firecrawl). Carga contenido dinámico que requiere render de JavaScript y lo devuelve como markdown limpio, o extrae datos estructurados (precios, stock, especificaciones) de una URL con un prompt. Ideal para precios de productos en Amazon, MercadoLibre y tiendas online, artículos detrás de paywalls de render, y páginas que los asistentes no pueden leer solos. Web scraping, price scraping, product data extraction.',
+    `Web scraper en vivo (Firecrawl). Carga páginas que requieren JavaScript y devuelve markdown limpio, o extrae datos estructurados (precios, stock, especificaciones, listados) de una URL con un prompt; lo extraído se contrasta con la página. Precio: ${PRICE_SCRAPE_USDC} USDC por página en markdown, ${PRICE_EXTRACT_USDC} USDC con extracción por prompt. Ideal para precios en Amazon, MercadoLibre y tiendas online, y páginas que los asistentes no pueden leer solos. Web scraping, price scraping, product data extraction.`,
   endpoint: process.env.PUBLIC_ENDPOINT || 'http://demo-agents:5006',
   // Acepta llamadas firmadas por la plataforma (gateway), verificando con la clave PÚBLICA publicada.
   platform: process.env.KIBA_PLATFORM_PUBLIC_KEY
