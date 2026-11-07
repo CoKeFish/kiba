@@ -311,7 +311,7 @@ export function mapTask(raw: Record<string, unknown>, kind: MeshyKind): MeshyRes
     next =
       stage === 'preview'
         ? 'Mesh ready (no textures yet): download it from modelUrls (GLB) or call again with { refine: true, taskId } to add textures.'
-        : 'Model ready: download it from modelUrls (GLB/FBX/OBJ) and show thumbnailUrl to the user. Links expire, download soon.';
+        : 'Model ready: download it from modelUrls (GLB/FBX/OBJ) and show thumbnailUrl to the user.';
   } else if (done) {
     next = `Task ended with ${status}${error ? `: ${error}` : ''}. Create a new task if needed.`;
   } else {

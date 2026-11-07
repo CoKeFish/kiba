@@ -33,7 +33,10 @@ export interface LyriaResult {
   id: string;
   format: LyriaFormat;
   model: string;
-  /** Enlace de descarga del MP3 (caduca; ver expiresAt). */
+  /**
+   * Enlace de descarga del MP3. La copia que sirve este agente caduca (expiresAt, ttlMs); el
+   * gateway de Kiba la guarda en la cuenta del usuario y reescribe este enlace por uno permanente.
+   */
   audioUrl: string;
   mimeType: string;
   bytes: number;
@@ -271,6 +274,6 @@ export async function generate(config: LyriaConfig, req: unknown): Promise<Lyria
     },
     next:
       `Give the user the audioUrl link to listen or download (${extensionFor(mimeType).toUpperCase()}). ` +
-      `The link expires in ${Math.round(config.ttlMs / 3_600_000)} h. Lyrics are in \`lyrics\`.`,
+      `Lyrics are in \`lyrics\`.`,
   };
 }
