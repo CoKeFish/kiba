@@ -111,7 +111,14 @@ function ModelViewer({ src, poster }: { src: string; poster?: string }) {
         "auto-rotate": "",
         "shadow-intensity": "1",
         "touch-action": "pan-y",
-        style: { width: "100%", height: "380px", borderRadius: "0.5rem", background: "var(--color-bg-subtle, transparent)" },
+        // Fondo gris neutro: los modelos sin textura son blancos y sobre blanco no se leen.
+        style: {
+          width: "100%",
+          height: "380px",
+          borderRadius: "10px",
+          background: "#eceef1",
+          border: "1px solid var(--color-border, #e5e7eb)",
+        },
       })}
       <p className="rs-muted">{state === "loading" ? t("results.loading") : t("results.files.model_hint")}</p>
     </div>
