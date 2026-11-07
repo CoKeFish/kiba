@@ -716,6 +716,12 @@
     "input": "Request",
     "history": "Request history",
     "no_preview": "This result has no preview yet — see the full response below.",
+    "files": {
+      "download": "Download",
+      "model_hint": "Drag to rotate the model and scroll to zoom.",
+      "viewer_failed": "The 3D viewer could not load; download the file to view it.",
+      "kept": "These files are stored in your account and do not expire."
+    },
     "task": {
       "running": "The service is still generating…",
       "ended": "Task ended: {{status}}",

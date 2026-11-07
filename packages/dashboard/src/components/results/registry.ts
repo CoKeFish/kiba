@@ -1,5 +1,6 @@
 import type { ResultView, ResultViewProps } from "./types";
 import { mediaPurchaseView } from "./views/MediaPurchaseView";
+import { filesView } from "./views/FilesView";
 import { taskProgressView } from "./views/TaskProgressView";
 import { genericView } from "./views/GenericView";
 
@@ -13,6 +14,8 @@ import { genericView } from "./views/GenericView";
  */
 const VIEWS: ResultView[] = [
   mediaPurchaseView,
+  // Archivos guardados en la cuenta (modelo 3D, audio, imágenes): vista previa + descarga.
+  filesView,
   taskProgressView,
   // `genericView` acepta todo: siempre al final.
   genericView,

@@ -716,6 +716,12 @@
     "input": "Solicitud",
     "history": "Historial del pedido",
     "no_preview": "Este resultado aún no tiene vista previa; mira la respuesta completa abajo.",
+    "files": {
+      "download": "Descargar",
+      "model_hint": "Arrastra para girar el modelo y usa la rueda para acercar.",
+      "viewer_failed": "No se pudo cargar el visor 3D; descarga el archivo para verlo.",
+      "kept": "Estos archivos están guardados en tu cuenta y no caducan."
+    },
     "task": {
       "running": "El servicio sigue generando…",
       "ended": "Tarea terminada: {{status}}",

@@ -314,7 +314,9 @@ test('GET /v1/files/:id/:name sirve el archivo con su tipo y nombre; 404 si no e
   const file = kept.files[0];
 
   const app = express();
-  app.get('/v1/files/:id/:name?', (req, res) => void sendResultFile(req.params.id, res));
+  app.get('/v1/files/:id/:name?', (req, res) =>
+    void sendResultFile(req.params.id, res, { download: req.query.download === '1' }),
+  );
   const srv = await new Promise<http.Server>((r) => {
     const s = app.listen(0, '127.0.0.1', () => r(s));
   });
@@ -329,6 +331,11 @@ test('GET /v1/files/:id/:name sirve el archivo con su tipo y nombre; 404 si no e
 
     // Sin nombre también sirve (el nombre va en Content-Disposition).
     assert.equal((await fetch(`${base}/v1/files/${file.id}`)).status, 200);
+
+    // ?download=1 fuerza la descarga (el botón del dashboard, entre dominios).
+    const dl = await fetch(`${base}/v1/files/${file.id}/model.glb?download=1`);
+    assert.equal(dl.status, 200);
+    assert.match(dl.headers.get('content-disposition') ?? '', /^attachment; filename="model\.glb"/);
 
     const missing = await fetch(`${base}/v1/files/${'0'.repeat(32)}/x.glb`);
     assert.equal(missing.status, 404);

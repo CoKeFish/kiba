@@ -378,8 +378,12 @@ export function fileDto(row: ResultFileRow): Record<string, unknown> {
   };
 }
 
-/** GET /v1/files/:id/:name — sirve el archivo guardado (público con el id; ver cabecera). */
-export async function sendResultFile(id: string, res: Response): Promise<void> {
+/**
+ * GET /v1/files/:id/:name — sirve el archivo guardado (público con el id; ver cabecera).
+ * `download` fuerza la descarga (Content-Disposition: attachment): el botón del dashboard lo
+ * necesita porque el atributo `download` de un enlace no aplica entre dominios distintos.
+ */
+export async function sendResultFile(id: string, res: Response, opts: { download?: boolean } = {}): Promise<void> {
   const row = await getFile(id);
   if (!row) {
     res.status(404).json({ error: 'file not found' });
@@ -393,7 +397,7 @@ export async function sendResultFile(id: string, res: Response): Promise<void> {
   const ascii = row.name.replace(/[^\x20-\x7e]/g, '_').replace(/"/g, "'");
   res.set({
     'Content-Type': row.content_type,
-    'Content-Disposition': `inline; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(row.name)}`,
+    'Content-Disposition': `${opts.download ? 'attachment' : 'inline'}; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(row.name)}`,
     'Cache-Control': 'private, max-age=31536000, immutable',
     'X-Content-Type-Options': 'nosniff',
   });

@@ -716,6 +716,12 @@
     "input": "Solicitação",
     "history": "Histórico do pedido",
     "no_preview": "Este resultado ainda não tem pré-visualização; veja a resposta completa abaixo.",
+    "files": {
+      "download": "Baixar",
+      "model_hint": "Arraste para girar o modelo e use a roda para aproximar.",
+      "viewer_failed": "Não foi possível carregar o visualizador 3D; baixe o arquivo para vê-lo.",
+      "kept": "Estes arquivos estão guardados na sua conta e não expiram."
+    },
     "task": {
       "running": "O serviço ainda está gerando…",
       "ended": "Tarefa encerrada: {{status}}",

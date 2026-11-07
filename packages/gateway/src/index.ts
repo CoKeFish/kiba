@@ -1436,13 +1436,17 @@ app.get('/v1/results/:id', requireAuth, async (req, res) => {
     license: await licenseDtoForCall(row.id),
     // `files`: los archivos de la respuesta copiados a la cuenta (files.ts); `result` ya enlaza a ellos.
     files: (await filesForResult(row.id)).map(fileDto),
-    related: related.map((r) => resultDto(r)),
+    related: await Promise.all(
+      related.map(async (r) => ({ ...resultDto(r), files: (await filesForResult(r.id)).map(fileDto) })),
+    ),
   });
 });
 
 // Archivos de resultados (files.ts). Públicos con el id, como los enlaces firmados que sustituyen:
 // el asistente los pone en el chat y el usuario los abre sin iniciar sesión.
-app.get('/v1/files/:id/:name?', (req, res) => void sendResultFile(req.params.id, res));
+app.get('/v1/files/:id/:name?', (req, res) =>
+  void sendResultFile(req.params.id, res, { download: req.query.download === '1' }),
+);
 
 // ─── Licencias de medios (ver licenses.ts) ───────────────────────────
 // Las rutas de lectura de una licencia son PÚBLICAS a propósito: cualquiera con el id debe poder

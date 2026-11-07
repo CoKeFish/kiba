@@ -339,6 +339,18 @@ export type SpendStatus = {
   charges: { amount: number; status: "pending" | "settled" | "failed"; txHash: string | null; createdAt: number }[];
 };
 
+/** Un archivo de la respuesta copiado a la cuenta (gateway files.ts); `result` ya enlaza a él. */
+export type ResultFile = {
+  id: string;
+  name: string;
+  url: string;
+  contentType: string;
+  bytes: number;
+  sha256?: string;
+  keyPath?: string;
+  sourceUrl?: string;
+};
+
 export type CallResult = {
   resultId: string;
   service: string;
@@ -356,6 +368,8 @@ export type CallResult = {
   related?: CallResult[];
   /** Solo en el detalle: la licencia emitida por el archivo entregado, si la hay. */
   license?: LicenseSummary;
+  /** Solo en el detalle: los archivos de la respuesta guardados en la cuenta. */
+  files?: ResultFile[];
 };
 
 export type MediaType = "image" | "audio" | "video" | "model" | "document" | "font" | "other";
