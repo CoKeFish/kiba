@@ -247,6 +247,39 @@ test('error de gateway se propaga como isError + mensaje en content', async () =
   assert.match(result.content[0].text, /Network down/);
 });
 
+test('error HTTP del gateway: el content lleva el { error } del cuerpo, no "status code 500"', async () => {
+  // Así responde el gateway cuando el agente falla (p. ej. Firecrawl no pudo cargar la página):
+  // 500 { error: "platform-signed call to 'web-scraper' failed: sitio bloqueado o inaccesible: …" }.
+  postQueue.push(async () => {
+    throw Object.assign(new Error('Request failed with status code 500'), {
+      isAxiosError: true,
+      response: { status: 500, data: { error: 'sitio bloqueado o inaccesible: https://x.test no se pudo cargar' } },
+    });
+  });
+  const result = (await callHandler('tools/call', {
+    name: 'call_agent',
+    arguments: { service: 'web-scraper', payload: { url: 'https://x.test' } },
+  })) as { content: Array<{ text: string }>; isError?: boolean };
+  assert.equal(result.isError, true);
+  assert.match(result.content[0].text, /sitio bloqueado o inaccesible: https:\/\/x\.test/);
+  assert.doesNotMatch(result.content[0].text, /status code 500/);
+});
+
+test('error HTTP del gateway sin { error } en el cuerpo: se conserva el mensaje de axios', async () => {
+  postQueue.push(async () => {
+    throw Object.assign(new Error('Request failed with status code 502'), {
+      isAxiosError: true,
+      response: { status: 502, data: '<html>Bad Gateway</html>' },
+    });
+  });
+  const result = (await callHandler('tools/call', {
+    name: 'call_agent',
+    arguments: { service: 'web-scraper', payload: {} },
+  })) as { content: Array<{ text: string }>; isError?: boolean };
+  assert.equal(result.isError, true);
+  assert.match(result.content[0].text, /status code 502/);
+});
+
 // ─── list_agents con query (Fix #1) ────────────────────────────
 
 test('list_agents con query manda ?q=… URL-encoded al gateway', async () => {

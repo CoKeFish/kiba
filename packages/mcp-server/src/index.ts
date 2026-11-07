@@ -150,20 +150,39 @@ async function getValidToken(): Promise<string> {
 
 // ─── HTTP wrappers ─────────────────────────────────────────────
 
+// El gateway responde 4xx/5xx con { error } y la causa real ("sitio bloqueado o
+// inaccesible…", "página sin contenido…", saldo insuficiente…): eso es lo que el
+// modelo debe ver, no el "Request failed with status code 500" de axios.
+function gatewayError(err: unknown): Error {
+  if (axios.isAxiosError(err)) {
+    const detail = (err.response?.data as { error?: unknown } | undefined)?.error;
+    if (typeof detail === 'string' && detail) return new Error(detail);
+  }
+  return err instanceof Error ? err : new Error(String(err));
+}
+
 async function gatewayGet(path: string): Promise<unknown> {
   const token = await getValidToken();
-  const r = await axios.get(`${GATEWAY_URL}${path}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  return r.data;
+  try {
+    const r = await axios.get(`${GATEWAY_URL}${path}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return r.data;
+  } catch (err) {
+    throw gatewayError(err);
+  }
 }
 
 async function gatewayPost(path: string, body: unknown): Promise<unknown> {
   const token = await getValidToken();
-  const r = await axios.post(`${GATEWAY_URL}${path}`, body, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  return r.data;
+  try {
+    const r = await axios.post(`${GATEWAY_URL}${path}`, body, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return r.data;
+  } catch (err) {
+    throw gatewayError(err);
+  }
 }
 
 // ─── MCP server ────────────────────────────────────────────────
