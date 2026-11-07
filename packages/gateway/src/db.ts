@@ -288,6 +288,24 @@ async function runInit(): Promise<void> {
       FOREIGN KEY (user_id) REFERENCES users(id)
     );
 
+    -- Archivos de resultados (files.ts): copia en Kiba de los archivos que enlaza una respuesta
+    -- (modelo 3D, texturas, audio, medios comprados). El contenido vive en RESULT_FILES_DIR/<id>;
+    -- aquí, su nombre, tipo, tamaño, huella y de dónde salió.
+    CREATE TABLE IF NOT EXISTS result_files (
+      id TEXT PRIMARY KEY,
+      result_id TEXT NOT NULL,
+      user_id BIGINT NOT NULL,
+      key_path TEXT NOT NULL,
+      name TEXT NOT NULL,
+      content_type TEXT NOT NULL,
+      bytes BIGINT NOT NULL,
+      sha256 TEXT NOT NULL,
+      source_url TEXT NOT NULL,
+      created_at BIGINT NOT NULL,
+      FOREIGN KEY (result_id) REFERENCES call_results(id),
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    );
+
     -- Licencias de medios (licenses.ts): un documento por llamada pagada cuyo resultado trae
     -- license. doc = JSON canónico; doc_sha256 = su huella (los 8 primeros bytes viajan en el
     -- reference del pago por llamada). anchor_ok = la transacción leída lleva esa huella.
@@ -321,6 +339,7 @@ async function runInit(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_licenses_call ON licenses(call_id);
     CREATE INDEX IF NOT EXISTS idx_results_user ON call_results(user_id, created_at);
     CREATE INDEX IF NOT EXISTS idx_results_task ON call_results(user_id, task_key);
+    CREATE INDEX IF NOT EXISTS idx_result_files_result ON result_files(result_id);
     CREATE INDEX IF NOT EXISTS idx_tx_user ON transactions(user_id);
     CREATE INDEX IF NOT EXISTS idx_apikeys_user ON api_keys(user_id);
     CREATE INDEX IF NOT EXISTS idx_apikeys_hash ON api_keys(key_hash);

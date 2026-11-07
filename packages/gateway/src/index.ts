@@ -21,6 +21,7 @@ import {
   relatedResults,
   resultDto,
 } from './results';
+import { fileDto, filesForResult, initFilesDir, sendResultFile } from './files';
 import {
   authenticate,
   createUser,
@@ -1430,8 +1431,18 @@ app.get('/v1/results/:id', requireAuth, async (req, res) => {
   if (!row) return res.status(404).json({ error: 'result not found' });
   // `related`: las otras llamadas del mismo pedido (p.ej. las consultas de estado de un modelo 3D).
   const related = await relatedResults(row);
-  res.json({ ...resultDto(row), license: await licenseDtoForCall(row.id), related: related.map((r) => resultDto(r)) });
+  res.json({
+    ...resultDto(row),
+    license: await licenseDtoForCall(row.id),
+    // `files`: los archivos de la respuesta copiados a la cuenta (files.ts); `result` ya enlaza a ellos.
+    files: (await filesForResult(row.id)).map(fileDto),
+    related: related.map((r) => resultDto(r)),
+  });
 });
+
+// Archivos de resultados (files.ts). Públicos con el id, como los enlaces firmados que sustituyen:
+// el asistente los pone en el chat y el usuario los abre sin iniciar sesión.
+app.get('/v1/files/:id/:name?', (req, res) => void sendResultFile(req.params.id, res));
 
 // ─── Licencias de medios (ver licenses.ts) ───────────────────────────
 // Las rutas de lectura de una licencia son PÚBLICAS a propósito: cualquiera con el id debe poder
@@ -1544,6 +1555,7 @@ try {
 // Arranque: crea/asegura el schema Postgres ANTES de escuchar. Si initDb falla
 // (DATABASE_URL ausente/incorrecto, Postgres inalcanzable), no arrancamos.
 void initDb()
+  .then(initFilesDir)
   .then(failOrphanedResults)
   .then(() => {
     // Cobros del permiso de gasto que quedaron en vuelo al reiniciar: se resuelven por su hash.

@@ -23,6 +23,9 @@ process.env.CHAIN = 'stellar';
 process.env.XLM_USD_RATE = process.env.XLM_USD_RATE || '0.12';
 delete process.env.STELLAR_CONTRACT_ID;
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-secret-do-not-use';
+// La copia de archivos de resultados (files.ts) intentaría descargar los enlaces de ejemplo de
+// otros tests (DNS lento o inexistente); solo files.test.ts la enciende.
+process.env.RESULT_FILES = '0';
 
 // Master wallet por env (para que wallets.ts no toque el filesystem)
 const masterKp = Keypair.generate();
@@ -32,4 +35,4 @@ export const TEST_MASTER_KEYPAIR = masterKp;
 
 /** Tablas a truncar entre tests (con CASCADE + reinicio de identidades). */
 export const TRUNCATE_SQL =
-  'TRUNCATE licenses, spend_prepared, spend_charges, spend_reads, call_results, oauth_refresh_tokens, oauth_tokens, oauth_sessions, oauth_clients, api_keys, transactions, agent_earnings, settlements, payment_charges, user_agents, users RESTART IDENTITY CASCADE';
+  'TRUNCATE result_files, licenses, spend_prepared, spend_charges, spend_reads, call_results, oauth_refresh_tokens, oauth_tokens, oauth_sessions, oauth_clients, api_keys, transactions, agent_earnings, settlements, payment_charges, user_agents, users RESTART IDENTITY CASCADE';

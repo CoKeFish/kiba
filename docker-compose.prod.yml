@@ -93,6 +93,10 @@ services:
       - PUBLIC_DASHBOARD_URL=https://app.kiba.tools
       - BACKEND_URL=http://backend:4000
       - CORS_ORIGINS=https://app.kiba.tools,https://kiba.tools
+      - RESULT_FILES_DIR=/app/data/files
+    volumes:
+      # Archivos de resultados (modelos 3D, audio, medios comprados): packages/gateway/src/files.ts
+      - gateway-data:/app/data
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:8000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 30s
@@ -668,6 +672,7 @@ services:
 volumes:
   postgres-data:
   backend-data:
+  gateway-data:
   umami-db-data:
   agent-catalog-data:
   agent-andes-data:

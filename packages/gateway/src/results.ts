@@ -15,6 +15,7 @@ import { randomBytes } from 'node:crypto';
 import { db } from './db';
 import { callOnBehalf } from './proxy';
 import { attachSettlement, issueLicenseForCall, licenseDto, licenseForCall, referenceOf, type LicenseRow } from './licenses';
+import { fileDto, keepResultFiles, type ResultFileRow } from './files';
 
 export const CALL_WAIT_MS = Number(process.env.CALL_WAIT_MS) || 40_000;
 /** Tope del long-poll de get_result (el cliente MCP también tiene timeout). */
@@ -67,7 +68,14 @@ export async function callAndStore(
   args: { userId: number; service: string; payload: unknown; waitMs?: number },
   call: typeof callOnBehalf = callOnBehalf, // inyectable en tests
 ): Promise<
-  | (CallOutput & { status: 'done'; resultId: string; resultUrl: string; license?: Record<string, unknown> })
+  | (CallOutput & {
+      status: 'done';
+      resultId: string;
+      resultUrl: string;
+      license?: Record<string, unknown>;
+      /** Archivos de la respuesta copiados a la cuenta (files.ts); sus enlaces ya van reescritos en `result`. */
+      files?: Record<string, unknown>[];
+    })
   | { status: 'pending'; resultId: string; resultUrl: string; service: string; message: string }
 > {
   const id = `res_${randomBytes(12).toString('hex')}`;
@@ -89,6 +97,7 @@ export async function callAndStore(
   let output: CallOutput | undefined;
   let failure: Error | undefined;
   let license: LicenseRow | null = null;
+  let files: ResultFileRow[] = [];
   // Si el servicio entregó un archivo con licencia, el documento se escribe ANTES de pagar y su
   // huella viaja en el pago por llamada (modo crédito). Nunca falla la llamada.
   const issue = async (result: unknown, costLamports: number | null, payTo?: string, explorerUrl?: string) => {
@@ -117,6 +126,20 @@ export async function callAndStore(
   const task = call({ userId: args.userId, service: args.service, payload: args.payload, onExplorerUrl, onBeforePay })
     .then(async (out) => {
       output = out;
+      // Los archivos que trae la respuesta (modelo, texturas, audio, medios comprados) se copian a
+      // Kiba y sus enlaces se reescriben ANTES de guardar y de responder: lo guardado es lo que se
+      // entrega, y no caduca cuando el proveedor borre el original.
+      const kept = await keepResultFiles({ resultId: id, userId: args.userId, result: out.result }).catch(
+        (err: Error) => {
+          console.log(`[results] ${id}: no se copiaron los archivos:`, err.message);
+          return null;
+        },
+      );
+      if (kept && kept.files.length > 0) {
+        files = kept.files;
+        out = { ...out, result: kept.result };
+        output = out;
+      }
       await db
         .prepare(
           `UPDATE call_results SET status = 'done', result = ?, cost_lamports = ?,
@@ -168,6 +191,7 @@ export async function callAndStore(
       resultId: id,
       resultUrl: resultUrl(id),
       ...(license ? { license: licenseDto(license) } : {}),
+      ...(files.length > 0 ? { files: files.map(fileDto) } : {}),
     };
   }
   return {

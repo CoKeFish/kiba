@@ -166,6 +166,7 @@ services:
       - DATABASE_URL=${DATABASE_URL:-postgres://kiba:kiba@postgres:5432/kiba}
       - JWT_SECRET=${JWT_SECRET:-}
       - PUBLIC_URL=${PUBLIC_URL:-http://localhost:8000}
+      - RESULT_FILES_DIR=/app/data/files
       # Cadena: con CHAIN=stellar las custodiales y el proxy x402 operan en Soroban.
       - CHAIN=${CHAIN:-stellar}
       - STELLAR_CONTRACT_ID=${STELLAR_CONTRACT_ID:-CDYLMRS2UTBHNTWS67NC2OPQIH2HXGS36WZYC4JUMLKZWT7XXVUUX7XF}
