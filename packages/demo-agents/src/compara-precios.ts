@@ -24,7 +24,7 @@ const wallet = loadKeypairFromEnvOrFile('AGENT_WALLET_SECRET', KEYPAIR_PATH);
 /** Precio plano por comparación. Cubre tres extracciones de web-scraper (0.005 cada una) y el margen. */
 const PRICE_USDC = 0.03;
 /** Plazo por tienda; pasado este tiempo se usa el precio de referencia. */
-const STORE_TIMEOUT_MS = Number(process.env.COMPARA_STORE_TIMEOUT_MS) || 24_000;
+const STORE_TIMEOUT_MS = Number(process.env.COMPARA_STORE_TIMEOUT_MS) || 30_000;
 
 interface CompareRequest {
   product?: string;
@@ -72,6 +72,7 @@ const slug = (q: string) =>
   q
     .trim()
     .toLowerCase()
+    .replace(/(\d)\s+(gb|tb)/g, '$1$2')
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
     .replace(/[^a-z0-9]+/g, '-')
@@ -101,9 +102,9 @@ const REFERENCE: Array<{ match: string[]; label: string; prices: Record<string, 
     match: ['iphone', '16'],
     label: 'iPhone 16 128 GB',
     prices: {
-      mercadolibre: { price: 3_449_900, url: 'https://listado.mercadolibre.com.co/iphone-16-128gb', title: 'Apple iPhone 16 (128 GB)' },
-      falabella: { price: 3_599_900, url: 'https://www.falabella.com.co/falabella-co/search?Ntt=iphone%2016%20128', title: 'iPhone 16 128GB' },
-      alkosto: { price: 3_499_900, url: 'https://www.alkosto.com/search?text=iphone%2016%20128', title: 'iPhone 16 128GB' },
+      mercadolibre: { price: 3_699_900, url: 'https://listado.mercadolibre.com.co/iphone-16-128gb', title: 'Apple iPhone 16 (128 GB)' },
+      falabella: { price: 3_749_900, url: 'https://www.falabella.com.co/falabella-co/search?Ntt=iphone%2016%20128', title: 'Celular iPhone 16 5G | 128 GB' },
+      alkosto: { price: 3_749_010, url: 'https://www.alkosto.com/search?text=iphone%2016%20128', title: 'iPhone 16 128GB 5G' },
     },
   },
   {
