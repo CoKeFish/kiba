@@ -125,6 +125,10 @@ services:
       - FIRECRAWL_API_KEY=${FIRECRAWL_API_KEY:-}
       # Vía de confianza ASIMÉTRICA: clave PÚBLICA de la plataforma que cada agente verifica.
       - KIBA_PLATFORM_PUBLIC_KEY=${KIBA_PLATFORM_PUBLIC_KEY:-}
+      # x402 estándar (lado vendedor): URL del facilitador o 'self' (el agente liquida él mismo).
+      # Vacío = apagado. Default sugerido en testnet: https://x402.org/facilitator
+      - KIBA_X402_FACILITATOR=${KIBA_X402_FACILITATOR:-}
+      - KIBA_X402_FACILITATOR_API_KEY=${KIBA_X402_FACILITATOR_API_KEY:-}
     depends_on:
       - backend
 

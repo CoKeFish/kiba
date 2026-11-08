@@ -36,7 +36,9 @@
   "dependencies": {
     "kiba-sdk": "*",
     "express": "^4.19.0",
-    "dotenv": "^16.4.5"
+    "dotenv": "^16.4.5",
+    "@x402/core": "^2.30.0",
+    "@x402/stellar": "^2.30.0"
   },
   "devDependencies": {
     "@types/express": "^4.17.21",
