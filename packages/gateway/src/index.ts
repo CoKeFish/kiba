@@ -50,6 +50,7 @@ import {
   protectedResourceMetadataUrl,
 } from './mcp-oauth';
 import { handleMcpRequest } from './mcp';
+import { callX402Url, x402PayerAddress, X402_NETWORK } from './x402';
 import { getBalance, getTransactions, lamportsToUsd, topup } from './billing';
 import {
   getPaymentProvider,
@@ -1310,6 +1311,39 @@ app.post('/v1/call', requireAuth, async (req, res) => {
     const msg = err instanceof Error ? err.message : 'unknown error';
     res.status(500).json({ error: msg });
   }
+});
+
+/**
+ * x402 estándar hacia fuera: paga una API externa que cobra con x402 en Stellar (x402.ts).
+ * Mismo cuerpo que la tool `call_url` del MCP.
+ */
+app.post('/v1/x402/call', requireAuth, async (req, res) => {
+  const body = (req.body ?? {}) as Record<string, unknown>;
+  const allowed = new Set(['url', 'method', 'body', 'headers', 'maxUsd']);
+  const unknownFields = Object.keys(body).filter((k) => !allowed.has(k));
+  if (unknownFields.length > 0) {
+    return res.status(400).json({ error: `campo(s) no reconocido(s): ${unknownFields.join(', ')}` });
+  }
+  if (typeof body.url !== 'string' || !body.url) return res.status(400).json({ error: 'url required' });
+  try {
+    const out = await callX402Url({
+      userId: req.bearerUser!.id,
+      url: body.url,
+      method: typeof body.method === 'string' ? body.method : undefined,
+      body: body.body,
+      headers: body.headers && typeof body.headers === 'object' ? (body.headers as Record<string, string>) : undefined,
+      maxUsd: typeof body.maxUsd === 'number' ? body.maxUsd : undefined,
+    });
+    res.json(out);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'unknown error';
+    res.status(502).json({ error: msg });
+  }
+});
+
+/** Con qué cuenta y en qué red paga Kiba las APIs x402 (para mostrarlo en el dashboard). */
+app.get('/v1/x402/info', requireAuth, (_req, res) => {
+  res.json({ network: X402_NETWORK, payer: x402PayerAddress(), maxUsdPerCall: Number(process.env.X402_MAX_USD_PER_CALL) || 1 });
 });
 
 app.get('/v1/transactions', requireAuth, async (req, res) => {

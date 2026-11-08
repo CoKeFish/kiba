@@ -24,6 +24,7 @@ import { getUserBalances } from './wallets';
 import { getTransactions } from './billing';
 import { explorerTxUrl } from './chain';
 import { searchMedia } from './media';
+import { callX402Url } from './x402';
 
 type ToolResult = { content: Array<{ type: 'text'; text: string }>; isError?: boolean };
 
@@ -72,6 +73,38 @@ const TOOLS = [
         },
       },
       required: ['service'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'call_url',
+    annotations: {
+      title: 'Pay an x402 API',
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: true,
+    },
+    description:
+      'Llama una API externa que cobra con x402 (HTTP 402) en Stellar, aunque no esté en el catálogo de Kiba. Kiba lee la cotización del 402, paga en USDC desde el saldo del usuario y devuelve la respuesta de la API más el costo, el saldo restante y el enlace a la transacción en stellar.expert. Si la URL no cobra, devuelve la respuesta sin cobrar. Rechaza precios mayores a 1 USD salvo que el usuario autorice más con `maxUsd`. Úsala cuando el usuario te dé una URL que cobra por consulta; para los servicios del catálogo usa call_agent.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        url: { type: 'string', description: 'URL https de la API (p.ej. https://api.ejemplo.com/weather?city=Bogota).' },
+        method: {
+          type: 'string',
+          enum: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+          description: 'Método HTTP. Por defecto GET, o POST si mandas body.',
+        },
+        body: { type: 'object', description: 'Cuerpo JSON para POST/PUT/PATCH.' },
+        headers: {
+          type: 'object',
+          additionalProperties: { type: 'string' },
+          description: 'Cabeceras extra (p.ej. Accept). Las de pago las pone Kiba.',
+        },
+        maxUsd: { type: 'number', description: 'Precio máximo autorizado para esta llamada, en USD (default 1).' },
+      },
+      required: ['url'],
       additionalProperties: false,
     },
   },
@@ -187,6 +220,26 @@ export function buildMcpServer(userId: number): Server {
             clean.newBalance = { baseUnits: out.newBalance.lamports, usd: out.newBalance.usd };
           }
           return jsonResult(clean);
+        }
+        case 'call_url': {
+          const a = (args ?? {}) as Record<string, unknown>;
+          const allowed = new Set(['url', 'method', 'body', 'headers', 'maxUsd']);
+          const unknown = Object.keys(a).filter((k) => !allowed.has(k));
+          if (unknown.length > 0) throw new Error(`campo(s) no reconocido(s): ${unknown.join(', ')}`);
+          if (typeof a.url !== 'string' || !a.url) throw new Error('url required');
+          const out = await callX402Url({
+            userId,
+            url: a.url,
+            method: typeof a.method === 'string' ? a.method : undefined,
+            body: a.body,
+            headers: a.headers && typeof a.headers === 'object' ? (a.headers as Record<string, string>) : undefined,
+            maxUsd: typeof a.maxUsd === 'number' ? a.maxUsd : undefined,
+          });
+          return jsonResult({
+            ...out,
+            cost: { baseUnits: out.cost.lamports, usd: out.cost.usd },
+            newBalance: out.newBalance ? { baseUnits: out.newBalance.lamports, usd: out.newBalance.usd } : undefined,
+          });
         }
         case 'search_media': {
           const { query, type, maxPriceUsd, limit } = (args ?? {}) as {
