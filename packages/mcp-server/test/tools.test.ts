@@ -74,14 +74,15 @@ async function callHandler(method: string, params: unknown): Promise<unknown> {
 
 // ─── tools/list ────────────────────────────────────────────────
 
-test('tools/list devuelve los 7 tools del marketplace', async () => {
+test('tools/list devuelve los 8 tools del marketplace', async () => {
   const result = (await callHandler('tools/list', {})) as {
     tools: Array<{ name: string; description: string; inputSchema: unknown }>;
   };
-  assert.equal(result.tools.length, 7);
+  assert.equal(result.tools.length, 8);
   const names = result.tools.map((t) => t.name).sort();
   assert.deepEqual(names, [
     'call_agent',
+    'call_url',
     'get_balance',
     'get_result',
     'get_transactions',

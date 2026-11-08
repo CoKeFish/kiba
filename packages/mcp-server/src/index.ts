@@ -230,6 +230,30 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         },
       },
       {
+        name: 'call_url',
+        description:
+          'Llama una API externa que cobra con x402 (HTTP 402) en Stellar, aunque no esté en el catálogo de Kiba. Kiba lee la cotización del 402, paga en USDC desde el saldo del usuario y devuelve la respuesta de la API más el costo, el saldo restante y el enlace a la transacción en stellar.expert. Si la URL no cobra, devuelve la respuesta sin cobrar. Rechaza precios mayores a 1 USD salvo que el usuario autorice más con `maxUsd`. Úsala cuando el usuario te dé una URL que cobra por consulta; para los servicios del catálogo usa call_agent.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            url: { type: 'string', description: 'URL https de la API.' },
+            method: {
+              type: 'string',
+              enum: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+              description: 'Método HTTP. Por defecto GET, o POST si mandas body.',
+            },
+            body: { type: 'object', description: 'Cuerpo JSON para POST/PUT/PATCH.' },
+            headers: {
+              type: 'object',
+              additionalProperties: { type: 'string' },
+              description: 'Cabeceras extra. Las de pago las pone Kiba.',
+            },
+            maxUsd: { type: 'number', description: 'Precio máximo autorizado para esta llamada, en USD (default 1).' },
+          },
+          required: ['url'],
+        },
+      },
+      {
         name: 'get_result',
         description:
           'Recupera un resultado guardado de call_agent por su `resultId` (status pending | done | error). Si sigue pending, espera hasta ~25 s antes de responder; vuelve a consultar si aún no termina. Incluye resultUrl para verlo en la web de Kiba.',
@@ -301,6 +325,18 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
         if (!service) throw new Error('service required');
         // waitMs: el gateway devuelve `pending` + resultId antes de que el cliente MCP corte.
         const data = await gatewayPost('/v1/call', { service, payload: payload ?? {}, waitMs: 40_000 });
+        return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
+      }
+      case 'call_url': {
+        const { url, method, body, headers, maxUsd } = (args ?? {}) as {
+          url?: string;
+          method?: string;
+          body?: unknown;
+          headers?: Record<string, string>;
+          maxUsd?: number;
+        };
+        if (!url) throw new Error('url required');
+        const data = await gatewayPost('/v1/x402/call', { url, method, body, headers, maxUsd });
         return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
       }
       case 'get_result': {
