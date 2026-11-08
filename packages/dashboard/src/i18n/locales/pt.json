@@ -715,6 +715,11 @@
     "output": "Resposta",
     "input": "Solicitação",
     "history": "Histórico do pedido",
+    "subcalls": {
+      "title": "Pagamentos do serviço",
+      "hint": "Para atender ao seu pedido, {{service}} contratou e pagou outros serviços com o próprio saldo. Cada pagamento tem a sua transação na Stellar.",
+      "total": "{{count}} pagamentos, {{amount}} {{label}} no total."
+    },
     "no_preview": "Este resultado ainda não tem pré-visualização; veja a resposta completa abaixo.",
     "files": {
       "download": "Baixar",

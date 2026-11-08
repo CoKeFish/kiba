@@ -370,6 +370,20 @@ export type CallResult = {
   license?: LicenseSummary;
   /** Solo en el detalle: los archivos de la respuesta guardados en la cuenta. */
   files?: ResultFile[];
+  /** Solo en el detalle: lo que el servicio pagó a otros servicios o APIs mientras servía esta llamada. */
+  subCalls?: SubCall[];
+};
+
+/** Un pago que un servicio hizo a otro (o a una API x402) mientras servía una llamada del usuario. */
+export type SubCall = {
+  resultId: string;
+  service: string;
+  status: "pending" | "done" | "error";
+  costBaseUnits?: number;
+  costUsd?: number;
+  explorerUrl?: string;
+  createdAt: number;
+  completedAt?: number;
 };
 
 export type MediaType = "image" | "audio" | "video" | "model" | "document" | "font" | "other";

@@ -715,6 +715,11 @@
     "output": "Output",
     "input": "Request",
     "history": "Request history",
+    "subcalls": {
+      "title": "Payments made by the service",
+      "hint": "To fulfil your request, {{service}} hired and paid other services with its own balance. Each payment has its transaction on Stellar.",
+      "total": "{{count}} payments, {{amount}} {{label}} in total."
+    },
     "no_preview": "This result has no preview yet — see the full response below.",
     "files": {
       "download": "Download",

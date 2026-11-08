@@ -89,6 +89,54 @@ export default function ResultDetail() {
 
           {r.license && <LicenseCard license={r.license} />}
 
+          {r.subCalls && r.subCalls.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>{t("results.subcalls.title")}</CardTitle>
+              </CardHeader>
+              <CardBody className="space-y-3">
+                <p className="text-sm text-[var(--color-fg-muted)]">
+                  {t("results.subcalls.hint", { service: r.service })}
+                </p>
+                <ol className="space-y-2">
+                  {r.subCalls.map((s) => (
+                    <li key={s.resultId} className="flex items-center gap-3 text-sm flex-wrap">
+                      <span className="font-mono text-xs text-[var(--color-fg-muted)] whitespace-nowrap">
+                        {format(new Date(s.createdAt * 1000), "HH:mm:ss")}
+                      </span>
+                      <span className="font-medium">{s.service}</span>
+                      <Badge tone={statusTone(s.status)}>{t(`results.status.${s.status}`)}</Badge>
+                      {s.costBaseUnits != null && (
+                        <span className="text-[var(--color-fg-muted)]">
+                          {formatKibix(baseUnitsToKibix(s.costBaseUnits))} {KIBIX_LABEL}
+                        </span>
+                      )}
+                      {s.explorerUrl && (
+                        <a
+                          href={s.explorerUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="ml-auto text-xs text-[var(--color-primary)] hover:underline inline-flex items-center gap-1"
+                        >
+                          {t("results.onchain")} <ExternalLink className="w-3 h-3" />
+                        </a>
+                      )}
+                    </li>
+                  ))}
+                </ol>
+                <p className="text-sm">
+                  {t("results.subcalls.total", {
+                    amount: formatKibix(
+                      baseUnitsToKibix(r.subCalls.reduce((sum, s) => sum + (s.costBaseUnits ?? 0), 0)),
+                    ),
+                    label: KIBIX_LABEL,
+                    count: r.subCalls.length,
+                  })}
+                </p>
+              </CardBody>
+            </Card>
+          )}
+
           {history.length > 0 && (
             <Card>
               <CardHeader>
