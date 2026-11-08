@@ -19,7 +19,8 @@
  * adapts to it; `listen()` is optional — mount `verifyAndServe` in any framework.
  */
 import type { Express, Request, Response } from 'express';
-import type { AgentConfig, ProviderHandler } from './types';
+import type { AgentConfig, CallContext, ProviderHandler } from './types';
+import { CALL_ID_HEADER, KibaGateway } from './gateway-client';
 import { createChainClient, walletToSigner, type ChainClient } from './chain';
 import { Keypair as StellarKeypair } from '@stellar/stellar-sdk';
 import { BASE_UNITS_PER_TOKEN, DEFAULT_ASSET } from './config';
@@ -81,6 +82,8 @@ export class AgentProvider {
   readonly x402: X402Standard | null;
   /** Pagos x402 estándar en curso (hash de la cabecera), para no servir dos veces el mismo. */
   private readonly inFlightX402 = new Set<string>();
+  /** Gateway de Kiba con el que este servicio paga a otros (`ctx.kiba` en el handler). */
+  readonly gateway: KibaGateway;
 
   constructor(config: AgentConfig) {
     this.config = config;
@@ -103,6 +106,17 @@ export class AgentProvider {
     this.platformPublicKey = config.platform?.publicKey;
     this.platformMaxSkewSec = config.platform?.maxClockSkewSec;
     this.x402 = X402Standard.from(config, this.ownerAddress);
+    this.gateway = new KibaGateway(config.gateway);
+  }
+
+  /**
+   * Context the handler gets with the payload. The call id (`X-Kiba-Call-Id`) is honored only on
+   * the platform-signed path: the Kiba gateway is the one who sets it, and it is what lets the
+   * gateway link whatever this service pays through `ctx.kiba` to the user's request.
+   */
+  private contextFor(input: ServeInput, via: CallContext['via']): CallContext {
+    const callId = via === 'platform' ? headerValue(input.headers, CALL_ID_HEADER) || undefined : undefined;
+    return { callId, kiba: this.gateway.forCall(callId), via };
   }
 
   /**
@@ -297,7 +311,7 @@ export class AgentProvider {
       // handler falla no se liquida nada: el cliente no paga por un error nuestro.
       let result: unknown;
       try {
-        result = await this.handler!(input.body);
+        result = await this.handler!(input.body, this.contextFor(input, 'x402'));
       } catch (err) {
         return { status: 500, body: { error: err instanceof Error ? err.message : 'unknown error' } };
       }
@@ -348,7 +362,7 @@ export class AgentProvider {
     if (!verdict.ok) {
       return { status: 401, body: { error: verdict.error.message, reason: verdict.error.reason } };
     }
-    return this.runHandler(input.body, { trusted: true, claimed: false });
+    return this.runHandler(input.body, { trusted: true, claimed: false }, this.contextFor(input, 'platform'));
   }
 
   // ── path 2: x402 escrow (trustless, on-chain) ───────────────
@@ -374,7 +388,11 @@ export class AgentProvider {
           },
         };
       }
-      return this.runHandler(input.body, { claimed: false, mode: 'degraded-no-onchain-verification' });
+      return this.runHandler(
+        input.body,
+        { claimed: false, mode: 'degraded-no-onchain-verification' },
+        this.contextFor(input, 'unverified'),
+      );
     }
 
     const escrowId = parsed.escrowId;
@@ -433,7 +451,7 @@ export class AgentProvider {
     this.inFlightEscrows.add(escrowId);
     let result: unknown;
     try {
-      result = await this.handler!(input.body);
+      result = await this.handler!(input.body, this.contextFor(input, 'escrow'));
     } catch (err) {
       this.inFlightEscrows.delete(escrowId); // serving failed → allow a retry
       return { status: 500, body: { error: err instanceof Error ? err.message : 'unknown error' } };
@@ -501,9 +519,13 @@ export class AgentProvider {
 
   // ─── helpers ────────────────────────────────────────────────
 
-  private async runHandler(body: unknown, payment: Record<string, unknown>): Promise<ServeResult> {
+  private async runHandler(
+    body: unknown,
+    payment: Record<string, unknown>,
+    ctx: CallContext,
+  ): Promise<ServeResult> {
     try {
-      const result = await this.handler!(body);
+      const result = await this.handler!(body, ctx);
       return { status: 200, body: withPayment(normalizeLicense(result, this.config.license), payment) };
     } catch (err) {
       return { status: 500, body: { error: err instanceof Error ? err.message : 'unknown error' } };

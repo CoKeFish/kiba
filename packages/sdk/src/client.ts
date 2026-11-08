@@ -327,7 +327,7 @@ export class AgentClient {
     let final: AxiosResponse;
     try {
       final = await axios.post(`${manifest.endpoint}/service`, payload, {
-        headers: { 'X-PAYMENT': paymentHeader },
+        headers: { 'X-PAYMENT': paymentHeader, ...(options.callId ? { 'X-Kiba-Call-Id': options.callId } : {}) },
         timeout: options.timeoutMs ?? 30_000,
       });
     } catch (err) {
@@ -374,7 +374,7 @@ export class AgentClient {
   async callSigned<TRes = unknown>(
     endpoint: string,
     payload: unknown,
-    options: { signer: PlatformCallSigner; service: string; timeoutMs?: number },
+    options: { signer: PlatformCallSigner; service: string; timeoutMs?: number; callId?: string },
   ): Promise<TRes> {
     const { headers, body } = await buildPlatformCallHeaders({
       signer: options.signer,
@@ -383,7 +383,12 @@ export class AgentClient {
     });
     try {
       const resp = await axios.post(`${endpoint}/service`, body, {
-        headers: { ...headers, 'Content-Type': 'application/json' },
+        headers: {
+          ...headers,
+          'Content-Type': 'application/json',
+          // El id de la llamada en Kiba: el servicio liga a él lo que pague a otros (ctx.kiba).
+          ...(options.callId ? { 'X-Kiba-Call-Id': options.callId } : {}),
+        },
         timeout: options.timeoutMs ?? 120_000,
       });
       return resp.data as TRes;

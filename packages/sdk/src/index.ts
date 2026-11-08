@@ -143,3 +143,14 @@ export type {
   StellarSigner,
 } from './chain';
 export type { ChainClientConfig } from './chain/index';
+
+// Servicios que pagan servicios: cliente del gateway que el handler recibe como `ctx.kiba`.
+export { KibaGateway, GatewayError, DEFAULT_GATEWAY_URL, PARENT_CALL_HEADER, CALL_ID_HEADER } from './gateway-client';
+export type {
+  KibaGatewayConfig,
+  GatewayCost,
+  GatewayCallResult,
+  GatewayUrlOptions,
+  GatewayUrlResult,
+} from './gateway-client';
+export type { CallContext } from './types';

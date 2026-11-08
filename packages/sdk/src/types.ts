@@ -3,6 +3,7 @@ import type { StellarSigner } from './chain/signer';
 import type { ChainClient, WalletLike } from './chain';
 import type { LicenseTerms } from './license';
 import type { X402StandardConfig } from './x402-standard';
+import type { KibaGateway, KibaGatewayConfig } from './gateway-client';
 
 /**
  * Configuration for an {@link AgentProvider}. Extends {@link ChainOptions}, so all
@@ -79,6 +80,12 @@ export interface AgentConfig extends ChainOptions {
    * Fallback: KIBA_X402_FACILITATOR env (URL or 'self').
    */
   x402?: X402StandardConfig;
+  /**
+   * Kiba gateway this service pays OTHER services and x402 APIs through (`ctx.kiba` in the
+   * handler), with its publisher's balance. Fallback: `KIBA_URL` / `KIBA_API_KEY` env. Without an
+   * API key the handler still runs; `ctx.kiba.call` then throws a ConfigError.
+   */
+  gateway?: Pick<KibaGatewayConfig, 'url' | 'apiKey' | 'timeoutMs'>;
   /** How many times to re-poll the escrow while waiting for funding to confirm. Default 12. */
   escrowPollAttempts?: number;
   /** Delay between escrow funding polls, in ms. Default 2500. */
@@ -138,8 +145,25 @@ export interface X402Quote {
   paymentsContract?: string;
 }
 
+/**
+ * What the handler knows about the call it is serving, beyond the payload.
+ *
+ * `kiba` is a gateway client bound to this call: whatever the service pays through it (other
+ * Kiba services with `call`, x402 APIs with `callUrl`) is paid with its publisher's balance and
+ * linked to the user's request, so the user sees the whole payment cascade.
+ */
+export interface CallContext {
+  /** Id of the user's call in Kiba (`res_…`), when the request comes through the Kiba gateway. */
+  callId?: string;
+  /** Gateway client bound to this call. Needs `gateway.apiKey` / `KIBA_API_KEY` to pay. */
+  kiba: KibaGateway;
+  /** How this call was paid (`unverified` only with `allowUnverified`). */
+  via: 'platform' | 'x402' | 'escrow' | 'unverified';
+}
+
 export type ProviderHandler<TRequest = unknown, TResponse = unknown> = (
   request: TRequest,
+  ctx: CallContext,
 ) => Promise<TResponse>;
 
 export interface CallOptions {
@@ -149,4 +173,6 @@ export interface CallOptions {
   allowlist?: string[];
   /** Timeout in ms for the whole cycle. */
   timeoutMs?: number;
+  /** Kiba call id to hand the service (header `X-Kiba-Call-Id`), so it can link what it pays to this call. */
+  callId?: string;
 }
