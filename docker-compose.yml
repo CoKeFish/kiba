@@ -106,6 +106,7 @@ services:
       - "5012:5012"  # andes-stock (empresa existente con su propia API)
       - "5013:5013"  # tipos-del-sur (fundición tipográfica simulada)
       - "5014:5014"  # web-brief (paga a web-scraper y translator-pro)
+      - "5015:5015"  # compara-precios (paga a web-scraper por tienda)
     environment:
       - NODE_ENV=development
       - BACKEND_URL=http://backend:4000
