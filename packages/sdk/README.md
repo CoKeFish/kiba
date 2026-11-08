@@ -80,6 +80,41 @@ new AgentProvider({
 `priceFn` **must be deterministic** in the payload: the same input must yield the same
 price, so the 402 quote and the post-payment check agree.
 
+### Standard x402 (any x402 client can pay you)
+
+Besides Kiba's own quote, a service can accept the open [x402](https://www.x402.org)
+standard (v2, `exact` scheme, USDC on Stellar). Install the optional packages and switch
+it on:
+
+```bash
+npm i @x402/core @x402/stellar   # Node >= 22
+```
+
+```ts
+new AgentProvider({
+  /* … */
+  x402: { facilitatorUrl: 'https://x402.org/facilitator' }, // or { selfFacilitate: true }
+});
+// env fallback: KIBA_X402_FACILITATOR=https://x402.org/facilitator   (or `self`)
+```
+
+What changes:
+
+- The 402 carries a `PAYMENT-REQUIRED` header with the price of **that** request (dynamic
+  pricing included), your account as `payTo` and USDC on your network. Kiba's JSON quote
+  stays in the body, so the connector keeps working as before.
+- A request with `PAYMENT-SIGNATURE` is verified, your handler runs, and the payment is
+  settled on-chain. The 200 carries `PAYMENT-RESPONSE` with the transaction hash and
+  `_payment.standard === 'x402'`. A payment for another account, another network or less
+  than the price of the request is rejected before anything runs.
+- `selfFacilitate: true`: the agent verifies and submits the transaction itself and pays
+  the network fee (about 0.00001 XLM) from its own XLM. No third party involved.
+- The manifest advertises `x402: { network, payTo }`.
+
+Your account needs a USDC trustline to receive payments (`bootstrap()` creates it). Any
+x402 client can then pay you, for example `@x402/fetch` with `ExactStellarScheme`; see
+[`examples/x402-buyer`](../../examples/x402-buyer).
+
 ### Media licenses and catalogs
 
 A service that delivers files can attach a **license** to each result. Declare default terms in
@@ -220,6 +255,9 @@ you can pass everything explicitly (recommended) or lean on env/presets:
 | `trustlessWork.apiKey` | `TRUSTLESS_WORK_API_KEY` | escrow won't settle without it |
 | `trustlessWork.platformAddress` | `TRUSTLESS_WORK_PLATFORM_ADDRESS` | **required** when TW is active |
 | `discoveryUrl` (client) | `KIBA_DISCOVERY_URL`, `BACKEND_URL` | fallback registry lookup |
+| `x402.facilitatorUrl` / `x402.selfFacilitate` | `KIBA_X402_FACILITATOR` (URL or `self`) | standard x402 on the service; omit → off |
+| `x402.facilitatorApiKey` | `KIBA_X402_FACILITATOR_API_KEY` | only if the facilitator requires one |
+| `x402.network` | `KIBA_X402_NETWORK` | `stellar:testnet` (default from `network`) or `stellar:pubnet` |
 
 Two instances with different config can coexist in one process (e.g. a testnet and a
 mainnet client). **Mainnet** has no friendbot — accounts must be pre-funded — and its

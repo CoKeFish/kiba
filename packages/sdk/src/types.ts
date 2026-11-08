@@ -2,6 +2,7 @@ import type { ChainOptions } from './config';
 import type { StellarSigner } from './chain/signer';
 import type { ChainClient, WalletLike } from './chain';
 import type { LicenseTerms } from './license';
+import type { X402StandardConfig } from './x402-standard';
 
 /**
  * Configuration for an {@link AgentProvider}. Extends {@link ChainOptions}, so all
@@ -70,6 +71,14 @@ export interface AgentConfig extends ChainOptions {
   bodyLimit?: string;
   /** Max unpaid (402) requests per IP per minute — caps priceFn compute cost. Default 60; 0 disables. */
   rateLimitPerMinute?: number;
+  /**
+   * Also accept standard x402 payments (v2, `exact`, USDC on Stellar): the 402 carries a
+   * PAYMENT-REQUIRED header and a request with PAYMENT-SIGNATURE is verified and settled through
+   * a facilitator (hosted, or the agent itself with `selfFacilitate`). Any x402 client can then
+   * pay this service without Kiba's connector. Needs `@x402/core` + `@x402/stellar` installed.
+   * Fallback: KIBA_X402_FACILITATOR env (URL or 'self').
+   */
+  x402?: X402StandardConfig;
   /** How many times to re-poll the escrow while waiting for funding to confirm. Default 12. */
   escrowPollAttempts?: number;
   /** Delay between escrow funding polls, in ms. Default 2500. */

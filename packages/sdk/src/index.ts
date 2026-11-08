@@ -14,6 +14,23 @@
 
 export { AgentProvider } from './provider';
 export type { ServeInput, ServeResult } from './provider';
+export {
+  X402Standard,
+  x402ConfigFromEnv,
+  DEFAULT_TESTNET_FACILITATOR,
+  PAYMENT_REQUIRED_HEADER,
+  PAYMENT_RESPONSE_HEADER,
+  PAYMENT_SIGNATURE_HEADER,
+} from './x402-standard';
+export type {
+  X402FacilitatorClient,
+  X402Network,
+  X402Payload,
+  X402Requirements,
+  X402SettleResponse,
+  X402StandardConfig,
+  X402VerifyResponse,
+} from './x402-standard';
 export { AgentClient } from './client';
 export type { X402Step, X402Trace } from './client';
 

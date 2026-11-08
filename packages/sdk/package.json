@@ -23,7 +23,8 @@
     "usdc",
     "escrow",
     "trustless-work",
-    "marketplace"
+    "marketplace",
+    "stellar-x402"
   ],
   "engines": {
     "node": ">=18"
@@ -43,7 +44,7 @@
     "build": "tsc -p tsconfig.build.json",
     "dev": "tsc -w -p tsconfig.build.json",
     "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
-    "test": "node --import tsx --test --test-reporter=spec test/fees.test.ts test/config.test.ts test/keypair-store.test.ts test/platform-auth.test.ts test/client.test.ts test/provider.test.ts test/trustless-work.test.ts test/events.test.ts test/integration.test.ts test/catalog.test.ts test/catalog-http.test.ts",
+    "test": "node --import tsx --test --test-reporter=spec test/fees.test.ts test/config.test.ts test/keypair-store.test.ts test/platform-auth.test.ts test/client.test.ts test/provider.test.ts test/trustless-work.test.ts test/events.test.ts test/integration.test.ts test/catalog.test.ts test/catalog-http.test.ts test/x402-standard.test.ts",
     "prepack": "npm run clean && npm run build && node scripts/pkg-dist.mjs apply",
     "postpack": "node scripts/pkg-dist.mjs restore"
   },
@@ -52,10 +53,18 @@
     "axios": "^1.7.0"
   },
   "peerDependencies": {
-    "express": "^4.19.0 || ^5.0.0"
+    "express": "^4.19.0 || ^5.0.0",
+    "@x402/core": "^2.30.0",
+    "@x402/stellar": "^2.30.0"
   },
   "peerDependenciesMeta": {
     "express": {
+      "optional": true
+    },
+    "@x402/core": {
+      "optional": true
+    },
+    "@x402/stellar": {
       "optional": true
     }
   },
@@ -64,6 +73,8 @@
     "@types/node": "^20.12.0",
     "express": "^4.19.0",
     "tsx": "^4.7.0",
-    "typescript": "^5.4.0"
+    "typescript": "^5.4.0",
+    "@x402/core": "^2.30.0",
+    "@x402/stellar": "^2.30.0"
   }
 }

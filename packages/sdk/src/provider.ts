@@ -33,11 +33,14 @@ import {
   PLATFORM_QUOTE_CERT_HEADER,
 } from './platform-auth';
 import { normalizeLicense, sha256Hex } from './license';
+import { PAYMENT_SIGNATURE_HEADER, X402Standard, type X402Payload, type X402SettleResponse } from './x402-standard';
 
 /** Result of the framework-agnostic verify+serve entry point. */
 export interface ServeResult {
   status: number;
   body: unknown;
+  /** Response headers to set (x402 estándar: PAYMENT-REQUIRED en el 402, PAYMENT-RESPONSE en el 200). */
+  headers?: Record<string, string>;
 }
 
 /** Input to {@link AgentProvider.verifyAndServe}. */
@@ -74,6 +77,10 @@ export class AgentProvider {
   private readonly consumedEscrows = new Map<string, number>();
   /** escrowIds currently being served (between funding check and response). */
   private readonly inFlightEscrows = new Set<string>();
+  /** x402 estándar (lado vendedor), o null si el agente no lo activa. */
+  readonly x402: X402Standard | null;
+  /** Pagos x402 estándar en curso (hash de la cabecera), para no servir dos veces el mismo. */
+  private readonly inFlightX402 = new Set<string>();
 
   constructor(config: AgentConfig) {
     this.config = config;
@@ -95,6 +102,7 @@ export class AgentProvider {
     this.ownerAddress = this.resolveOwnerAddress();
     this.platformPublicKey = config.platform?.publicKey;
     this.platformMaxSkewSec = config.platform?.maxClockSkewSec;
+    this.x402 = X402Standard.from(config, this.ownerAddress);
   }
 
   /**
@@ -183,6 +191,7 @@ export class AgentProvider {
       platformAuth: !!this.platformPublicKey,
       ...(this.config.license ? { license: this.config.license } : {}),
       ...(this.config.catalog ? { catalog: true } : {}),
+      ...(this.x402 ? { x402: this.x402.manifestEntry() } : {}),
     };
   }
 
@@ -194,6 +203,7 @@ export class AgentProvider {
       rawBody,
       ip: req.ip,
     });
+    if (result.headers) res.set(result.headers);
     res.status(result.status).json(result.body);
   }
 
@@ -231,11 +241,91 @@ export class AgentProvider {
       return this.servePlatformSigned(input);
     }
 
+    // x402 estándar: el cliente trae la firma del pago en PAYMENT-SIGNATURE.
+    const standardHeader = headerValue(input.headers, PAYMENT_SIGNATURE_HEADER);
+    if (standardHeader && this.x402) {
+      return this.serveStandardX402(input, standardHeader);
+    }
+
     const paymentHeader = headerValue(input.headers, 'X-PAYMENT');
     if (!paymentHeader) {
       return this.quote402(input);
     }
     return this.serveEscrow(input, paymentHeader);
+  }
+
+  // ── path 2b: x402 estándar (verifica y liquida vía facilitador) ──
+
+  private async serveStandardX402(input: ServeInput, header: string): Promise<ServeResult> {
+    const x402 = this.x402!;
+    let payload: X402Payload;
+    try {
+      payload = await x402.decodePayload(header);
+    } catch (err) {
+      return { status: 400, body: { error: `PAYMENT-SIGNATURE inválida: ${(err as Error).message}` } };
+    }
+    const expected = await this.computeAmountBaseUnits(input.body);
+
+    // Rechazo con re-cotización: el cliente puede reintentar con los requisitos correctos.
+    const reject = async (status: number, error: string): Promise<ServeResult> => {
+      let headers: Record<string, string> | undefined;
+      try {
+        headers = await x402.paymentRequiredHeader(await x402.requirements(expected), error);
+      } catch {
+        headers = undefined;
+      }
+      return {
+        status,
+        headers,
+        body: { error, amount: expected.toString(), payTo: this.ownerAddress, asset: this.asset, service: this.config.service },
+      };
+    };
+
+    const reason = x402.checkAccepted(payload.accepted, expected);
+    if (reason) return reject(402, `pago no válido para este servicio: ${reason}`);
+
+    const key = sha256Hex(header);
+    if (this.inFlightX402.has(key)) return { status: 409, body: { error: 'ese pago ya se está procesando' } };
+    this.inFlightX402.add(key);
+    try {
+      const verdict = await x402.verify(payload, payload.accepted);
+      if (!verdict.isValid) {
+        const detail = verdict.invalidMessage ? ` (${verdict.invalidMessage})` : '';
+        return reject(402, `el facilitador rechazó el pago: ${verdict.invalidReason ?? 'invalid'}${detail}`);
+      }
+      // Pago válido: se sirve y después se liquida (flujo "authorization" del estándar). Si el
+      // handler falla no se liquida nada: el cliente no paga por un error nuestro.
+      let result: unknown;
+      try {
+        result = await this.handler!(input.body);
+      } catch (err) {
+        return { status: 500, body: { error: err instanceof Error ? err.message : 'unknown error' } };
+      }
+      const settled = await x402.settle(payload, payload.accepted).catch(
+        (err): X402SettleResponse => ({
+          success: false,
+          errorReason: 'settle_failed',
+          errorMessage: (err as Error).message,
+          transaction: '',
+          network: payload.accepted.network,
+        }),
+      );
+      if (!settled.success) {
+        const detail = settled.errorMessage ? ` (${settled.errorMessage})` : '';
+        return reject(402, `no se pudo liquidar el pago: ${settled.errorReason ?? 'settle_failed'}${detail}`);
+      }
+      const body = withPayment(normalizeLicense(result, this.config.license), {
+        claimed: true,
+        standard: 'x402',
+        transaction: settled.transaction,
+        network: settled.network,
+        payer: settled.payer,
+        amount: payload.accepted.amount,
+      });
+      return { status: 200, headers: x402.settlementHeader(settled), body };
+    } finally {
+      this.inFlightX402.delete(key);
+    }
   }
 
   // ── path 1: platform-signed (trusted, fast off-chain) ───────
@@ -383,8 +473,19 @@ export class AgentProvider {
     // non-deterministic priceFn can't strand funds by quoting a different number).
     this.quoteCache.set(nonce, { amount, exp: Math.floor(Date.now() / 1000) + 120, bodyHash: bodyHash(input.body) });
     this.pruneQuotes();
+    // x402 estándar: los mismos requisitos (precio de ESTA petición) en PAYMENT-REQUIRED, para
+    // clientes x402 que no conocen la cotización de Kiba. Si falla, el 402 de Kiba sale igual.
+    let headers: Record<string, string> | undefined;
+    if (this.x402) {
+      try {
+        headers = await this.x402.paymentRequiredHeader(await this.x402.requirements(amount));
+      } catch (err) {
+        console.warn(`[${this.config.service}] x402 estándar no disponible: ${(err as Error).message}`);
+      }
+    }
     return {
       status: 402,
+      headers,
       body: {
         amount: amount.toString(),
         payTo: this.ownerAddress,
