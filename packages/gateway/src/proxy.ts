@@ -238,6 +238,9 @@ export async function callOnBehalf(args: {
   /** Modo crédito: se llama con el resultado ANTES de enviar el pago por llamada. Lo que devuelva
    *  (u64) viaja en el `reference` del pago: la huella del documento de licencia (licenses.ts). */
   onBeforePay?: (result: unknown, info: { lamports: number; payTo: string }) => Promise<bigint | undefined>;
+  /** Id de la llamada (call_results). Viaja al servicio en `X-Kiba-Call-Id`: lo que el servicio
+   *  pague a otros mientras la sirve (ctx.kiba) queda ligado a ella como llamada hija. */
+  callId?: string;
 }): Promise<{
   result: unknown;
   cost: { lamports: number; usd: number };
@@ -308,6 +311,7 @@ export async function callOnBehalf(args: {
         signer: platformSigner,
         service: args.service,
         timeoutMs: 120_000,
+        callId: args.callId,
       });
     } catch (err) {
       // El agente no entregó (o rechazó la firma de la plataforma) → reembolsa el crédito.
@@ -387,6 +391,7 @@ export async function callOnBehalf(args: {
         signer: getPlatformSigner(),
         service: args.service,
         timeoutMs: 120_000,
+        callId: args.callId,
       });
     } catch (err) {
       manifests.delete(args.service);
@@ -431,6 +436,7 @@ export async function callOnBehalf(args: {
     // maxPrice circuit breaker — 2x del cotizado por seguridad (en unidades del token)
     maxPrice: (lamports / BASE_UNITS_PER_TOKEN) * 2,
     timeoutMs: 120_000,
+    callId: args.callId,
   });
   const onChainSig = pickOnChainSignature(traced.trace);
   await recordWalletDirectCall({

@@ -19,7 +19,9 @@ import {
   licenseDtoForCall,
   listResults,
   relatedResults,
+  resolveParentCall,
   resultDto,
+  subCallsField,
 } from './results';
 import { fileDto, filesForResult, initFilesDir, sendResultFile } from './files';
 import {
@@ -1305,6 +1307,8 @@ app.post('/v1/call', requireAuth, async (req, res) => {
       service,
       payload: payload ?? {},
       waitMs: waitMs > 0 ? waitMs : 600_000,
+      // Un servicio que paga a otro mientras sirve una llamada (ctx.kiba del SDK) la señala aquí.
+      parentId: await resolveParentCall(req.get('x-kiba-parent-call')),
     });
     res.json(result);
   } catch (err) {
@@ -1333,6 +1337,7 @@ app.post('/v1/x402/call', requireAuth, async (req, res) => {
       body: body.body,
       headers: body.headers && typeof body.headers === 'object' ? (body.headers as Record<string, string>) : undefined,
       maxUsd: typeof body.maxUsd === 'number' ? body.maxUsd : undefined,
+      parentId: await resolveParentCall(req.get('x-kiba-parent-call')),
     });
     res.json(out);
   } catch (err) {
@@ -1468,6 +1473,8 @@ app.get('/v1/results/:id', requireAuth, async (req, res) => {
   res.json({
     ...resultDto(row),
     license: await licenseDtoForCall(row.id),
+    // `subCalls`: lo que el servicio pagó a otros servicios o APIs mientras servía esta llamada.
+    ...(await subCallsField(row.id)),
     // `files`: los archivos de la respuesta copiados a la cuenta (files.ts); `result` ya enlaza a ellos.
     files: (await filesForResult(row.id)).map(fileDto),
     related: await Promise.all(

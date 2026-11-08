@@ -69,6 +69,8 @@ export interface X402CallArgs {
   headers?: Record<string, string>;
   /** Precio máximo que el usuario autoriza para ESTA llamada (USD). */
   maxUsd?: number;
+  /** Llamada padre ya validada (results.resolveParentCall): un servicio paga esta API mientras sirve esa llamada. */
+  parentId?: string | null;
 }
 
 export interface X402CallResult {
@@ -215,14 +217,19 @@ async function recordSpendCall(userId: number, lamports: number, service: string
     .run(userId, -lamports, service, JSON.stringify({ ...meta, settlement: 'deferred' }), Math.floor(Date.now() / 1000));
 }
 
-async function openResult(userId: number, service: string, payload: unknown): Promise<string> {
+async function openResult(
+  userId: number,
+  service: string,
+  payload: unknown,
+  parentId?: string | null,
+): Promise<string> {
   const id = `res_${randomBytes(12).toString('hex')}`;
   await db
     .prepare(
-      `INSERT INTO call_results (id, user_id, service, payload, status, created_at)
-       VALUES (?, ?, ?, ?, 'pending', ?)`,
+      `INSERT INTO call_results (id, user_id, service, payload, status, parent_id, created_at)
+       VALUES (?, ?, ?, ?, 'pending', ?, ?)`,
     )
-    .run(id, userId, service, JSON.stringify(payload ?? {}), Math.floor(Date.now() / 1000));
+    .run(id, userId, service, JSON.stringify(payload ?? {}), parentId ?? null, Math.floor(Date.now() / 1000));
   return id;
 }
 
@@ -261,7 +268,12 @@ export async function callX402Url(args: X402CallArgs): Promise<X402CallResult> {
   const maxUsd = Math.min(args.maxUsd ?? MAX_USD_DEFAULT, MAX_USD_HARD);
 
   const service = `x402:${u.host}`;
-  const resultId = await openResult(args.userId, service, { url: u.href, method, body: args.body ?? undefined });
+  const resultId = await openResult(
+    args.userId,
+    service,
+    { url: u.href, method, body: args.body ?? undefined },
+    args.parentId,
+  );
   const base = { resultId, resultUrl: resultUrl(resultId), url: u.href };
 
   // 1. Sin pago: ¿cobra?

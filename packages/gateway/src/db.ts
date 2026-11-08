@@ -363,6 +363,10 @@ async function runInit(): Promise<void> {
   await pool.query(`ALTER TABLE oauth_sessions ADD COLUMN IF NOT EXISTS client_id TEXT`);
   await pool.query(`ALTER TABLE oauth_sessions ADD COLUMN IF NOT EXISTS resource TEXT`);
   await pool.query(`ALTER TABLE oauth_tokens ADD COLUMN IF NOT EXISTS resource TEXT`);
+  // Servicios que pagan servicios: la llamada que un servicio hace a otro (o a una API x402)
+  // mientras sirve una llamada del usuario apunta a esa llamada padre.
+  await pool.query(`ALTER TABLE call_results ADD COLUMN IF NOT EXISTS parent_id TEXT`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_call_results_parent ON call_results(parent_id)`);
   await pool.query(
     `ALTER TABLE users ADD COLUMN IF NOT EXISTS is_publisher INTEGER NOT NULL DEFAULT 0`,
   );
