@@ -61,6 +61,10 @@ const LANG_NAMES: Record<string, string> = {
 };
 
 /** Traduce con Gemini; null si no hay clave o la API falla (el llamador cae al diccionario). */
+const GEMINI_FALLBACK_MODEL = process.env.GEMINI_TRANSLATE_FALLBACK_MODEL || 'gemini-3-flash-preview';
+const GEMINI_ATTEMPT_TIMEOUT_MS = 12_000;
+const GEMINI_ATTEMPTS = 3;
+
 async function translateWithGemini(text: string, target: string, from: string): Promise<string | null> {
   if (!GEMINI_API_KEY) return null;
   const to = LANG_NAMES[target] ?? target;
@@ -70,10 +74,28 @@ async function translateWithGemini(text: string, target: string, from: string): 
     `Reply with the translation only, without preamble or notes.
 
 ${text}`;
+  // Gemini a veces se cuelga o responde 429/5xx de forma transitoria: reintentamos con una espera
+  // corta y, en el último intento, con el modelo de respaldo. Cada intento tiene su propio límite de
+  // tiempo para que la llamada completa quepa dentro de la espera del gateway.
+  for (let attempt = 1; attempt <= GEMINI_ATTEMPTS; attempt++) {
+    const model = attempt === GEMINI_ATTEMPTS ? GEMINI_FALLBACK_MODEL : GEMINI_MODEL;
+    const out = await geminiAttempt(model, prompt);
+    if (out.ok) return out.text;
+    if (!out.retry) return null;
+    console.warn(`[translator] Gemini (${model}) intento ${attempt}/${GEMINI_ATTEMPTS} falló: ${out.reason}`);
+    if (attempt < GEMINI_ATTEMPTS) await new Promise((r) => setTimeout(r, attempt * 800));
+  }
+  return null;
+}
+
+async function geminiAttempt(
+  model: string,
+  prompt: string,
+): Promise<{ ok: true; text: string } | { ok: false; retry: boolean; reason: string }> {
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 25_000);
+  const timer = setTimeout(() => ctrl.abort(), GEMINI_ATTEMPT_TIMEOUT_MS);
   try {
-    const res = await fetch(`${GEMINI_API_URL}/v1beta/models/${encodeURIComponent(GEMINI_MODEL)}:generateContent`, {
+    const res = await fetch(`${GEMINI_API_URL}/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
       method: 'POST',
       signal: ctrl.signal,
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_API_KEY },
@@ -83,15 +105,16 @@ ${text}`;
       }),
     });
     if (!res.ok) {
-      console.warn(`[translator] Gemini respondió ${res.status}: ${(await res.text()).slice(0, 200)}`);
-      return null;
+      const body = (await res.text()).slice(0, 200);
+      // 4xx (salvo 429) es un problema de la petición: no tiene sentido repetirla.
+      const retry = res.status === 429 || res.status >= 500;
+      return { ok: false, retry, reason: `HTTP ${res.status}: ${body}` };
     }
     const data = (await res.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
     const out = data.candidates?.[0]?.content?.parts?.map((p) => p.text ?? '').join('').trim();
-    return out || null;
+    return out ? { ok: true, text: out } : { ok: false, retry: true, reason: 'respuesta vacía' };
   } catch (err) {
-    console.warn('[translator] Gemini falló:', (err as Error).message);
-    return null;
+    return { ok: false, retry: true, reason: (err as Error).message };
   } finally {
     clearTimeout(timer);
   }
