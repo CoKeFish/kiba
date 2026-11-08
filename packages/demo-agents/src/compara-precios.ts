@@ -79,7 +79,7 @@ const slug = (q: string) =>
     .replace(/^-+|-+$/g, '');
 
 const STORES: Store[] = [
-  { id: 'mercadolibre', name: 'Mercado Libre', searchUrl: (q) => `https://listado.mercadolibre.com.co/${slug(q)}`, waitFor: 2500 },
+  { id: 'exito', name: 'Éxito', searchUrl: (q) => `https://www.exito.com/s?q=${enc(q)}`, waitFor: 4000 },
   { id: 'falabella', name: 'Falabella', searchUrl: (q) => `https://www.falabella.com.co/falabella-co/search?Ntt=${enc(q)}`, waitFor: 4000 },
   { id: 'alkosto', name: 'Alkosto', searchUrl: (q) => `https://www.alkosto.com/search?text=${enc(q)}`, waitFor: 4000 },
 ];
@@ -93,7 +93,7 @@ const REFERENCE: Array<{ match: string[]; label: string; prices: Record<string, 
     match: ['iphone', '16', 'pro'],
     label: 'iPhone 16 Pro 128 GB',
     prices: {
-      mercadolibre: { price: 4_899_900, url: 'https://listado.mercadolibre.com.co/iphone-16-pro-128gb', title: 'Apple iPhone 16 Pro (128 GB)' },
+      exito: { price: 4_799_900, url: 'https://www.exito.com/s?q=iphone%2016%20pro%20128', title: 'iPhone 16 Pro 128GB' },
       falabella: { price: 5_199_900, url: 'https://www.falabella.com.co/falabella-co/search?Ntt=iphone%2016%20pro%20128', title: 'iPhone 16 Pro 128GB' },
       alkosto: { price: 4_999_900, url: 'https://www.alkosto.com/search?text=iphone%2016%20pro%20128', title: 'iPhone 16 Pro 128GB' },
     },
@@ -102,7 +102,7 @@ const REFERENCE: Array<{ match: string[]; label: string; prices: Record<string, 
     match: ['iphone', '16'],
     label: 'iPhone 16 128 GB',
     prices: {
-      mercadolibre: { price: 3_699_900, url: 'https://listado.mercadolibre.com.co/iphone-16-128gb', title: 'Apple iPhone 16 (128 GB)' },
+      exito: { price: 2_656_830, url: 'https://www.exito.com/iphone-16-128gb-5g-esim-negro-103747083-mp/p', title: 'Iphone 16 128Gb Negro' },
       falabella: { price: 3_749_900, url: 'https://www.falabella.com.co/falabella-co/search?Ntt=iphone%2016%20128', title: 'Celular iPhone 16 5G | 128 GB' },
       alkosto: { price: 3_749_010, url: 'https://www.alkosto.com/search?text=iphone%2016%20128', title: 'iPhone 16 128GB 5G' },
     },
@@ -111,7 +111,7 @@ const REFERENCE: Array<{ match: string[]; label: string; prices: Record<string, 
     match: ['galaxy', 's25'],
     label: 'Samsung Galaxy S25 256 GB',
     prices: {
-      mercadolibre: { price: 3_299_900, url: 'https://listado.mercadolibre.com.co/samsung-galaxy-s25-256gb', title: 'Samsung Galaxy S25 256 GB' },
+      exito: { price: 3_199_900, url: 'https://www.exito.com/s?q=galaxy%20s25%20256', title: 'Samsung Galaxy S25 256 GB' },
       falabella: { price: 3_499_900, url: 'https://www.falabella.com.co/falabella-co/search?Ntt=galaxy%20s25%20256', title: 'Galaxy S25 256GB' },
       alkosto: { price: 3_399_900, url: 'https://www.alkosto.com/search?text=galaxy%20s25%20256', title: 'Galaxy S25 256GB' },
     },
@@ -120,7 +120,7 @@ const REFERENCE: Array<{ match: string[]; label: string; prices: Record<string, 
     match: ['airpods', 'pro'],
     label: 'Apple AirPods Pro 2',
     prices: {
-      mercadolibre: { price: 999_900, url: 'https://listado.mercadolibre.com.co/airpods-pro-2', title: 'Apple AirPods Pro 2' },
+      exito: { price: 949_900, url: 'https://www.exito.com/s?q=airpods%20pro%202', title: 'Apple AirPods Pro 2' },
       falabella: { price: 1_099_900, url: 'https://www.falabella.com.co/falabella-co/search?Ntt=airpods%20pro%202', title: 'AirPods Pro 2' },
       alkosto: { price: 1_049_900, url: 'https://www.alkosto.com/search?text=airpods%20pro%202', title: 'AirPods Pro 2' },
     },
@@ -129,7 +129,7 @@ const REFERENCE: Array<{ match: string[]; label: string; prices: Record<string, 
     match: ['playstation', '5'],
     label: 'PlayStation 5 Slim',
     prices: {
-      mercadolibre: { price: 2_399_900, url: 'https://listado.mercadolibre.com.co/playstation-5-slim', title: 'Sony PlayStation 5 Slim' },
+      exito: { price: 2_299_900, url: 'https://www.exito.com/s?q=playstation%205%20slim', title: 'Sony PlayStation 5 Slim' },
       falabella: { price: 2_599_900, url: 'https://www.falabella.com.co/falabella-co/search?Ntt=playstation%205%20slim', title: 'PlayStation 5 Slim' },
       alkosto: { price: 2_499_900, url: 'https://www.alkosto.com/search?text=playstation%205%20slim', title: 'PlayStation 5 Slim' },
     },
@@ -138,7 +138,7 @@ const REFERENCE: Array<{ match: string[]; label: string; prices: Record<string, 
     match: ['switch', '2'],
     label: 'Nintendo Switch 2',
     prices: {
-      mercadolibre: { price: 2_299_900, url: 'https://listado.mercadolibre.com.co/nintendo-switch-2', title: 'Nintendo Switch 2' },
+      exito: { price: 2_249_900, url: 'https://www.exito.com/s?q=nintendo%20switch%202', title: 'Nintendo Switch 2' },
       falabella: { price: 2_399_900, url: 'https://www.falabella.com.co/falabella-co/search?Ntt=nintendo%20switch%202', title: 'Nintendo Switch 2' },
       alkosto: { price: 2_349_900, url: 'https://www.alkosto.com/search?text=nintendo%20switch%202', title: 'Nintendo Switch 2' },
     },
@@ -227,7 +227,7 @@ const agent = new AgentProvider({
   pricePerCall: PRICE_USDC,
   pricingNote: `${PRICE_USDC} USDC por comparación; incluye lo que el servicio paga a web-scraper por cada tienda`,
   description:
-    'Compara el precio de un producto en tiendas de Colombia (Mercado Libre, Falabella y Alkosto) y te dice dónde está más barato, con el precio y el enlace de cada una. Este servicio no lee tiendas por sí mismo: contrata y paga a web-scraper por cada tienda con su propio saldo, y tu pedido muestra cada pago con su transacción en Stellar. Price comparison across Colombian stores: cheapest price, links, built by a service that pays other services.',
+    'Compara el precio de un producto en tiendas de Colombia (Éxito, Falabella y Alkosto) y te dice dónde está más barato, con el precio y el enlace de cada una. Este servicio no lee tiendas por sí mismo: contrata y paga a web-scraper por cada tienda con su propio saldo, y tu pedido muestra cada pago con su transacción en Stellar. Price comparison across Colombian stores: cheapest price, links, built by a service that pays other services.',
   endpoint: process.env.PUBLIC_ENDPOINT || 'http://demo-agents:5015',
   // Acepta llamadas firmadas por la plataforma (gateway), verificando con la clave PÚBLICA publicada.
   platform: process.env.KIBA_PLATFORM_PUBLIC_KEY
