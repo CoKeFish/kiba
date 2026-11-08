@@ -1,0 +1,10 @@
+# Gitleaks (CI, gate de los deploys): reglas por defecto más una lista blanca para lo que no es
+# un secreto pero la regla generic-api-key confunde: referencias a variables de entorno.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Referencias a variables de entorno (process.env.X) no son secretos"
+regexes = [
+  '''process\.env\.[A-Z0-9_]+''',
+]
