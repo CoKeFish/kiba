@@ -525,6 +525,33 @@ services:
     depends_on:
       - backend
 
+  agent-web:
+    build:
+      context: .
+      dockerfile: packages/demo-agents/Dockerfile.coolify
+    environment:
+      - DOPPLER_TOKEN=${DOPPLER_TOKEN}
+      - NODE_ENV=production
+      - AGENT_NAME=web-brief
+      - PORT=5014
+      - PUBLIC_ENDPOINT=https://agent-web.kiba.tools
+      - BACKEND_URL=http://backend:4000
+      # Servicios que pagan servicios: paga a web-scraper y translator-pro por el gateway público
+      # con la cuenta KIBA_API_KEY_WEB (Doppler; el entrypoint la mapea a KIBA_API_KEY).
+      - KIBA_URL=https://api.kiba.tools
+      # Keypair persistido en el volumen si AGENT_WALLET_SECRET_<KEY> no está en Doppler.
+      - AGENT_WALLET_FILE_FALLBACK=1
+    volumes:
+      - agent-web-data:/app/data
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:5014/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+    depends_on:
+      - backend
+
   # ── Documentación (docs.kiba.tools) ────────────────────────────────────────
   # Sitio estático (Astro + Starlight) servido con `serve`; no usa Doppler ni
   # secretos. Dominio en Coolify: docs → https://docs.kiba.tools:4321.
@@ -677,3 +704,4 @@ volumes:
   agent-catalog-data:
   agent-andes-data:
   agent-tipos-data:
+  agent-web-data:

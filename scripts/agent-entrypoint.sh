@@ -12,7 +12,8 @@
 # lyria -> LYRIA (sirve el servicio on-chain music-generator),
 # catalog -> CATALOG (sirve el servicio on-chain media-catalog),
 # andes-stock -> ANDES (sirve el servicio on-chain andes-stock),
-# tipos-del-sur -> TIPOS (sirve el servicio on-chain tipos-del-sur).
+# tipos-del-sur -> TIPOS (sirve el servicio on-chain tipos-del-sur),
+# web-brief -> WEB (sirve el servicio on-chain web-brief; paga a otros con KIBA_API_KEY_WEB).
 set -eu
 
 [ -n "${AGENT_NAME:-}" ] || { echo "FATAL: AGENT_NAME no definido" >&2; exit 1; }
@@ -33,12 +34,22 @@ else
 fi
 
 unset secret
+
+# Servicios que pagan servicios: la cuenta de Kiba con la que ESTE agente paga a otros
+# (KIBA_API_KEY_<KEY> en Doppler -> KIBA_API_KEY). Los demás agentes no la ven.
+eval "apikey=\${KIBA_API_KEY_${key}:-}"
+if [ -n "$apikey" ]; then
+  export KIBA_API_KEY="$apikey"
+fi
+unset apikey
+unset KIBA_API_KEY_WEB 2>/dev/null || true
+
 unset AGENT_WALLET_SECRET_TRANSLATOR AGENT_WALLET_SECRET_YIELD \
       AGENT_WALLET_SECRET_RISK AGENT_WALLET_SECRET_PRICE \
       AGENT_WALLET_SECRET_CODE AGENT_WALLET_SECRET_FIRECRAWL \
       AGENT_WALLET_SECRET_WORLD AGENT_WALLET_SECRET_RANDOMIZER \
       AGENT_WALLET_SECRET_MESHY AGENT_WALLET_SECRET_LYRIA \
       AGENT_WALLET_SECRET_CATALOG AGENT_WALLET_SECRET_ANDES \
-      AGENT_WALLET_SECRET_TIPOS 2>/dev/null || true
+      AGENT_WALLET_SECRET_TIPOS AGENT_WALLET_SECRET_WEB 2>/dev/null || true
 
 exec npm run "start:${short}"

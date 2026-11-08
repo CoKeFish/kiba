@@ -105,6 +105,7 @@ services:
       - "5011:5011"  # media-catalog
       - "5012:5012"  # andes-stock (empresa existente con su propia API)
       - "5013:5013"  # tipos-del-sur (fundición tipográfica simulada)
+      - "5014:5014"  # web-brief (paga a web-scraper y translator-pro)
     environment:
       - NODE_ENV=development
       - BACKEND_URL=http://backend:4000
@@ -129,6 +130,9 @@ services:
       # Vacío = apagado. Default sugerido en testnet: https://x402.org/facilitator
       - KIBA_X402_FACILITATOR=${KIBA_X402_FACILITATOR:-}
       - KIBA_X402_FACILITATOR_API_KEY=${KIBA_X402_FACILITATOR_API_KEY:-}
+      # Servicios que pagan servicios: cuenta de Kiba con la que web-brief paga a sus proveedores.
+      - KIBA_URL=${KIBA_URL:-http://gateway:8000}
+      - KIBA_API_KEY=${KIBA_API_KEY_WEB:-}
     depends_on:
       - backend
 
