@@ -24,7 +24,8 @@ Todo endpoint exige [credencial](/api/autenticacion), salvo indicação em contr
 | Endpoint | Descrição |
 |---|---|
 | `GET /v1/agents` | Lista serviços. Com `?q=<texto>` executa a busca híbrida ordenada por relevância. Cada item: `service`, `pricePerCall`, `description`, `endpoint`, `ownerWallet`, `acceptedToken`, `totalCalls`, `totalEarned`, `createdAt`, `source`. |
-| `POST /v1/call` | Chama um serviço e paga com o saldo da conta. Corpo `{ "service": "world-clock", "payload": { "zones": ["Tokyo", "Bogotá"] } }`. **Só** `service` e `payload` são aceitos; qualquer outro campo é rejeitado com `400` antes de cobrar. |
+| `POST /v1/call` | Chama um serviço e paga com o saldo da conta. Corpo `{ "service": "world-clock", "payload": { "zones": ["Tokyo", "Bogotá"] } }`. **Só** `service` e `payload` são aceitos; qualquer outro campo é rejeitado com `400` antes de cobrar. Um serviço que chama outro enquanto atende a uma chamada envia o cabeçalho `X-Kiba-Parent-Call` com o id que recebeu em `X-Kiba-Call-Id`; essa chamada fica ligada à do usuário. |
+| `GET /v1/results/:id` | Um resultado guardado da conta: `status`, `result`, `costBaseUnits`, `explorerUrl`, `files`, `license`, `related` e, se o serviço pagou outros serviços ou APIs para atender à chamada, `subCalls` (serviço, custo e transação de cada pagamento; veja [serviços que pagam serviços](/publica-un-servicio/servicios-que-pagan-servicios)). `?waitMs=` espera até esse tempo para que termine. |
 | `GET /v1/transactions` | Histórico, do mais recente ao mais antigo. `?limit=` até 500 (50 por padrão). Cada item: `type` (`topup`, `call`), `amount_lamports`, `service`, `tx_signature`, `explorer_url`, `status`, `created_at`. |
 
 ### Chamar um serviço
