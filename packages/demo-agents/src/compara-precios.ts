@@ -24,7 +24,7 @@ const wallet = loadKeypairFromEnvOrFile('AGENT_WALLET_SECRET', KEYPAIR_PATH);
 /** Precio plano por comparación. Cubre tres extracciones de web-scraper (0.005 cada una) y el margen. */
 const PRICE_USDC = 0.03;
 /** Plazo por tienda; pasado este tiempo se usa el precio de referencia. */
-const STORE_TIMEOUT_MS = Number(process.env.COMPARA_STORE_TIMEOUT_MS) || 30_000;
+const STORE_TIMEOUT_MS = Number(process.env.COMPARA_STORE_TIMEOUT_MS) || 28_000;
 
 interface CompareRequest {
   product?: string;
@@ -172,6 +172,18 @@ function normalizeQuery(raw: unknown): string {
     .trim();
 }
 
+/**
+ * Forma canónica de la búsqueda para las URLs de las tiendas: un espacio entre la cifra y la
+ * unidad ("128GB" → "128 GB") y la unidad en mayúsculas. Así dos pedidos equivalentes consultan
+ * la misma URL y la segunda lectura sale de la caché del scraper.
+ */
+function canonicalQuery(product: string): string {
+  return product
+    .replace(/(\d)\s*(gb|tb)(?![a-z])/gi, (_m, n: string, u: string) => `${n} ${u.toUpperCase()}`)
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function referenceFor(product: string) {
   const tokens = product
     .toLowerCase()
@@ -193,7 +205,7 @@ function offerFromScrape(store: Store, product: string, scraped: ScraperResult |
   // Si hay referencia, descartamos lecturas que no pueden ser el producto pedido
   // (un accesorio a una décima del precio, o un combo al triple).
   if (ref && (price < ref.price * 0.5 || price > ref.price * 2.5)) return null;
-  const url = typeof ex.url === 'string' && /^https?:\/\//.test(ex.url) ? ex.url : store.searchUrl(product);
+  const url = typeof ex.url === 'string' && /^https?:\/\//.test(ex.url) ? ex.url : store.searchUrl(canonicalQuery(product));
   return {
     store: store.name,
     storeId: store.id,
@@ -241,6 +253,9 @@ agent.serve<CompareRequest, unknown>(async (req, ctx: CallContext) => {
   const product = normalizeQuery(req?.product ?? req?.producto ?? req?.query ?? req?.item ?? req?.q);
   if (product.length < 3) throw new Error('product requerido, por ejemplo { "product": "iPhone 16 128 GB" }');
   const ref = referenceFor(product);
+  // Para los productos conocidos se consulta siempre con el mismo nombre, así la URL es idéntica
+  // entre pedidos y la tienda responde desde la caché del scraper.
+  const q = ref ? ref.label : canonicalQuery(product);
   const wanted = Array.isArray(req?.stores) && req.stores.length > 0 ? req.stores.map((s) => String(s).toLowerCase()) : null;
   const stores = STORES.filter((s) => !wanted || wanted.some((w) => s.id.includes(w) || s.name.toLowerCase().includes(w)));
   if (stores.length === 0) throw new Error(`tiendas disponibles: ${STORES.map((s) => s.id).join(', ')}`);
@@ -255,7 +270,7 @@ agent.serve<CompareRequest, unknown>(async (req, ctx: CallContext) => {
       try {
         const scraped = await withTimeout(
           ctx.kiba.call<ScraperResult>('web-scraper', {
-            url: store.searchUrl(product),
+            url: store.searchUrl(q),
             prompt: extractionPrompt(product),
             schema: EXTRACTION_SCHEMA,
             country: 'CO',
@@ -305,7 +320,7 @@ agent.serve<CompareRequest, unknown>(async (req, ctx: CallContext) => {
     currency: 'COP',
     summary,
     cheapest: { store: cheapest.store, price: cheapest.price, url: cheapest.url },
-    offers: found,
+    offers: found.map(({ source: _source, ...offer }) => offer),
     savings,
     checkedAt,
     // Lo que este servicio pagó a sus proveedores para atender el pedido (también lo lista Kiba en subCalls).
