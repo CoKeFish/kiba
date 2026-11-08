@@ -1,10 +1,16 @@
 /**
- * Translator Pro — agente DEMO mockeado.
+ * Translator Pro — traducción con un LLM (Gemini) cuando hay GEMINI_API_KEY.
  *
- * Traducción mock entre ES/EN/DE/FR/JA. Para hackathon usa un diccionario
- * pequeño de frases comunes; en producción sería DeepL o un LLM.
+ * Sin clave, cae a un diccionario pequeño de frases comunes (demo). Lo contrata, por ejemplo,
+ * el servicio `web-brief` para entregar informes en el idioma del usuario.
  */
 import { AgentProvider, loadKeypairFromEnvOrFile } from 'kiba-sdk';
+
+// Gemini (misma clave que usa music-generator). Modelo configurable; sin clave → diccionario.
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
+const GEMINI_MODEL = process.env.GEMINI_TRANSLATE_MODEL || 'gemini-2.5-flash';
+const GEMINI_API_URL = (process.env.GEMINI_API_URL || 'https://generativelanguage.googleapis.com').replace(/\/+$/, '');
+const MAX_CHARS = 20_000;
 
 const KEYPAIR_PATH = process.env.KEYPAIR_PATH || '/app/data/translator.json';
 const wallet = loadKeypairFromEnvOrFile('AGENT_WALLET_SECRET', KEYPAIR_PATH);
@@ -26,7 +32,7 @@ const agent = new AgentProvider({
     return PRICE_FLOOR_USDC + text.length * PRICE_PER_CHAR_USDC;
   },
   description:
-    'Professional translation across English, Spanish, French, German, Japanese and Chinese. Charges by character count.',
+    'Professional translation across English, Spanish, Portuguese, French, German, Japanese and Chinese, powered by an LLM. Keeps names, numbers and line breaks. Charges by character count.',
   endpoint: process.env.PUBLIC_ENDPOINT || 'http://demo-agents:5003',
   // Acepta llamadas firmadas por la plataforma (gateway), verificando con la clave PÚBLICA publicada.
   platform: process.env.KIBA_PLATFORM_PUBLIC_KEY
@@ -46,6 +52,49 @@ interface TranslateResponse {
   from: string;
   to: string;
   confidence: number;
+  /** Con qué se tradujo: el LLM, el diccionario de frases, o nada (texto tal cual, marcado). */
+  engine: 'gemini' | 'dictionary' | 'passthrough';
+}
+
+const LANG_NAMES: Record<string, string> = {
+  es: 'Spanish', en: 'English', pt: 'Portuguese', fr: 'French', de: 'German', it: 'Italian', ja: 'Japanese', zh: 'Chinese',
+};
+
+/** Traduce con Gemini; null si no hay clave o la API falla (el llamador cae al diccionario). */
+async function translateWithGemini(text: string, target: string, from: string): Promise<string | null> {
+  if (!GEMINI_API_KEY) return null;
+  const to = LANG_NAMES[target] ?? target;
+  const src = from && from !== 'auto' ? ` from ${LANG_NAMES[from] ?? from}` : '';
+  const prompt =
+    `Translate the following text${src} into ${to}. Keep line breaks, names, numbers and formatting. ` +
+    `Reply with the translation only, without preamble or notes.
+
+${text}`;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 25_000);
+  try {
+    const res = await fetch(`${GEMINI_API_URL}/v1beta/models/${encodeURIComponent(GEMINI_MODEL)}:generateContent`, {
+      method: 'POST',
+      signal: ctrl.signal,
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_API_KEY },
+      body: JSON.stringify({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.2 },
+      }),
+    });
+    if (!res.ok) {
+      console.warn(`[translator] Gemini respondió ${res.status}: ${(await res.text()).slice(0, 200)}`);
+      return null;
+    }
+    const data = (await res.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
+    const out = data.candidates?.[0]?.content?.parts?.map((p) => p.text ?? '').join('').trim();
+    return out || null;
+  } catch (err) {
+    console.warn('[translator] Gemini falló:', (err as Error).message);
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 // Diccionario tiny de frases comunes — suficiente para demo
@@ -77,15 +126,26 @@ agent.serve<TranslateRequest, TranslateResponse>(async (req) => {
   ).toLowerCase().trim();
   const fromRaw = String(r.from ?? r.source ?? r.source_language ?? r.sourceLang ?? 'auto');
   const target = (LANG_ALIASES[toRaw] ?? toRaw).slice(0, 2);
+  if (text.length > MAX_CHARS) throw new Error(`texto demasiado largo (máximo ${MAX_CHARS} caracteres)`);
   const lower = text.toLowerCase().trim();
   const dict = PHRASES[lower];
-  const translated = dict?.[target] ?? `[${target.toUpperCase()}] ${text}`;
+  let translated = dict?.[target];
+  let engine: TranslateResponse['engine'] = translated ? 'dictionary' : 'passthrough';
+  if (!translated && text.trim()) {
+    const llm = await translateWithGemini(text, target, fromRaw);
+    if (llm) {
+      translated = llm;
+      engine = 'gemini';
+    }
+  }
+  translated ??= `[${target.toUpperCase()}] ${text}`;
   return {
     original: text,
     translated,
     from: fromRaw,
     to: target,
-    confidence: dict ? 0.97 : 0.42,
+    confidence: engine === 'passthrough' ? 0.42 : 0.95,
+    engine,
   };
 });
 
