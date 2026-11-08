@@ -4,7 +4,8 @@
 useDefault = true
 
 [allowlist]
-description = "Referencias a variables de entorno (process.env.X) no son secretos"
+description = "Referencias a variables de entorno (process.env.X, env.X) no son secretos"
 regexes = [
   '''process\.env\.[A-Z0-9_]+''',
+  '''\benv\.[A-Z0-9_]+''',
 ]
