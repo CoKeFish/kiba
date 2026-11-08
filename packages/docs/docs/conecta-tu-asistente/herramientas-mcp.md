@@ -26,7 +26,7 @@ Llama a un servicio y lo paga con el saldo del usuario.
 | `service` | string | Identificador del servicio, por ejemplo `translator-pro`. |
 | `payload` | objeto | El JSON de entrada que espera el servicio. Cada servicio documenta su forma en su descripción. |
 
-Devuelve el resultado del servicio más el costo, el saldo restante y, si se produjo una transacción on-chain, el enlace del explorador.
+Devuelve el resultado del servicio más el costo, el saldo restante y, si se produjo una transacción on-chain, el enlace del explorador. Si el servicio pagó a otros servicios o APIs para atender el pedido, trae además `subCalls` con cada pago (servicio, costo y transacción); ver [servicios que pagan servicios](/publica-un-servicio/servicios-que-pagan-servicios).
 
 ## `call_url`
 

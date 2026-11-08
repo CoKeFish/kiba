@@ -26,7 +26,7 @@ Calls a service and pays for it with the user's balance.
 | `service` | string | Service identifier, for example `translator-pro`. |
 | `payload` | object | The input JSON the service expects. Each service documents its shape in its description. |
 
-Returns the service result plus the cost, the remaining balance and, if an on-chain transaction happened, the explorer link.
+Returns the service result plus the cost, the remaining balance and, if an on-chain transaction happened, the explorer link. If the service paid other services or APIs to fulfil the request, it also carries `subCalls` with each payment (service, cost and transaction); see [services that pay services](/publica-un-servicio/servicios-que-pagan-servicios).
 
 ## `call_url`
 

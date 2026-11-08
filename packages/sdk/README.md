@@ -80,6 +80,41 @@ new AgentProvider({
 `priceFn` **must be deterministic** in the payload: the same input must yield the same
 price, so the 402 quote and the post-payment check agree.
 
+### Paying other services from your handler
+
+A service can hire other services to do its job and pay them from its own code, with its
+publisher's Kiba balance. The handler receives a second argument, the call context, whose
+`kiba` client is bound to the call being served:
+
+```ts
+provider.serve(async (req: { url: string; lang: string }, ctx) => {
+  const page = await ctx.kiba.call<{ markdown: string }>('web-scraper', { url: req.url });
+  const text = await ctx.kiba.call<{ translated: string }>('translator-pro', {
+    text: page.result.markdown.slice(0, 2000),
+    to: req.lang,
+  });
+  const extra = await ctx.kiba.callUrl('https://api.example.com/context', { maxUsd: 0.05 });
+  return {
+    brief: text.result.translated,
+    paid: [page.cost.usd, text.cost.usd, extra.cost.usd],   // what this service paid
+    tx: [page.explorerUrl, text.explorerUrl, extra.explorerUrl],
+  };
+});
+```
+
+- `ctx.kiba.call(service, payload)` pays any service in the catalog and returns `{ result, cost,
+  resultId, explorerUrl }`; a slow service is awaited until it finishes (up to `gateway.timeoutMs`,
+  10 minutes by default).
+- `ctx.kiba.callUrl(url, { method, body, headers, maxUsd })` pays any API that charges with
+  standard x402 on Stellar, or calls it for free if it does not charge.
+- `ctx.kiba.balanceUsd()` is the balance the service pays with.
+
+The account that pays is `gateway: { url, apiKey }` in the config, or `KIBA_URL` /
+`KIBA_API_KEY` in the environment (the same variables as the `kiba-mcp` connector). When the
+call comes through the Kiba gateway, `ctx.callId` is the user's call and everything paid with
+`ctx.kiba` is linked to it: the user sees each payment, with its Stellar transaction, as
+`subCalls` of their request. Handlers that take one argument keep working.
+
 ### Standard x402 (any x402 client can pay you)
 
 Besides Kiba's own quote, a service can accept the open [x402](https://www.x402.org)

@@ -145,6 +145,20 @@ Further reading: [media licenses](https://docs.kiba.tools/licencias) · [SDK: ca
 
 ---
 
+## Services that pay services
+
+A Kiba service can hire other services to do its job and pay them from its own code, with its publisher's balance. The user asks for one thing and pays once; Kiba links every payment the service makes to that request and shows the whole cascade, each payment with its transaction on Stellar.
+
+- **In the handler.** The SDK hands every call a context: `ctx.kiba.call(service, payload)` pays any service in the catalog, `ctx.kiba.callUrl(url)` pays any API that charges with standard x402. Both use the publisher's account (`KIBA_URL`, `KIBA_API_KEY`).
+- **Linked to the request.** The gateway tells the service which call it is serving (`X-Kiba-Call-Id`); what the service pays while serving it carries `X-Kiba-Parent-Call` and comes back to the user as `subCalls` in `call_agent`, `get_result`, the API and the dashboard: service, cost, transaction. Never the bodies, which belong to the service's account.
+- **Priced like any service.** The composite service sets its own price (flat or dynamic) and keeps the difference.
+
+The demo service `web-brief` turns a URL into a brief in the user's language by paying `web-scraper` (reads and summarises the page) and `translator-pro` (translates it). One request, three payments, zero humans.
+
+Further reading: [services that pay services](https://docs.kiba.tools/publica-un-servicio/servicios-que-pagan-servicios) · [SDK: paying other services](packages/sdk/README.md#paying-other-services-from-your-handler).
+
+---
+
 ## Standard x402
 
 Kiba speaks the open [x402](https://www.x402.org) standard on Stellar in both directions, built on the official `@x402/stellar` packages.
@@ -188,7 +202,7 @@ Examples: [`examples/x402-seller`](examples/x402-seller) (a third-party API that
 
 **Starting point (kickoff, 6 November 2026, 10:20 Bogotá).** Commit [`70fe1d2`](https://github.com/CoKeFish/kiba/commit/70fe1d2): everything described above, except standard x402, was already in production on Stellar testnet.
 
-**New work during the event (6 to 8 November): standard x402, both ways.**
+**New work during the event (6 to 8 November): standard x402 both ways, and services that pay services.**
 
 **Problem.** Agent payments on Stellar are converging on the x402 standard: Stellar's official docs, the `@x402/stellar` packages and the facilitators that sponsor fees. Kiba had its own 402 handshake. No x402 agent could pay a Kiba service, and an assistant using Kiba could not pay any API outside Kiba's catalog.
 
@@ -197,11 +211,12 @@ Examples: [`examples/x402-seller`](examples/x402-seller) (a third-party API that
 - `call_url` in the connector (remote MCP and stdio) and `POST /v1/x402/call` in the API: Kiba pays any x402 API on Stellar from the user's balance, with a per-call cap, refunds when the API fails, the transaction recorded against the user and the result saved in the account.
 - Standard x402 in the SDK, for every service: `PAYMENT-REQUIRED` with the dynamic price of each request, verification and settlement through a hosted facilitator or self-facilitation, `PAYMENT-RESPONSE` with the transaction hash. One environment variable turns it on.
 - Two runnable examples: a third-party API that charges with x402 and a generic x402 client that pays a Kiba service. Node 22 images for the gateway and the services.
+- Services that pay services (8 November): the SDK hands every handler `ctx.kiba` to hire and pay other Kiba services and x402 APIs with the publisher's balance; the gateway links those payments to the user's request and returns them as `subCalls` in the connector, the API and the dashboard. New demo service `web-brief` (web-scraper + translator-pro).
 - Fixes shipped on 7 November: the web-scraper service no longer invents data, handles YouTube and reports clear errors; the connector shows the real cause of a failed call.
 
 **Verified on testnet.** Kiba paid a third-party x402 API: [`d6dab3eb…`](https://stellar.expert/explorer/testnet/tx/d6dab3ebd3c708562255c7df93737c847b5a48a4a661705089d54ceb4da54398) (0.01 USDC) and [`c7c009f4…`](https://stellar.expert/explorer/testnet/tx/c7c009f4cbf985359fb57f9a12ed4df021f1554f3ef64b30f2789665697920b0) (0.02 USDC). A generic x402 client paid a Kiba service: [`2cc3d750…`](https://stellar.expert/explorer/testnet/tx/2cc3d750b2c9e4826f98c72ca05a24e6c99e3c005ba6b0f92f38d834dec0ec2a) through the x402.org facilitator and [`a0e23d16…`](https://stellar.expert/explorer/testnet/tx/a0e23d1612afca58d0a217c14e59c5d79b07a19df858158ed6e1df3843972f9d) with the service as its own facilitator. Kiba paid a Kiba service over standard x402: [`f15f7352…`](https://stellar.expert/explorer/testnet/tx/f15f7352c80f4e4a8a52f89d23c9594e89cc35b6d0b30141ca38c7cf8fb14b36).
 
-**Next steps.** MPP Session as the standard form of Kiba's voucher channel (one deposit, many off-chain commitments, one settlement). Mainnet through the OpenZeppelin facilitator or self-facilitation. Listing Kiba services in x402 discovery.
+**Next steps.** Top-ups with any Stellar asset (path payments: the user pays in XLM or EURC, Kiba receives USDC in the same transaction). MPP Session as the standard form of Kiba's voucher channel (one deposit, many off-chain commitments, one settlement). Mainnet through the OpenZeppelin facilitator or self-facilitation. Listing Kiba services in x402 discovery.
 
 ---
 
