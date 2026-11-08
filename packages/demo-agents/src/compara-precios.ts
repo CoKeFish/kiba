@@ -72,7 +72,7 @@ const slug = (q: string) =>
   q
     .trim()
     .toLowerCase()
-    .replace(/(\d)\s+(gb|tb)/g, '$1$2')
+    .replace(/(\d)\s+(gb|tb)\b/g, '$1$2')
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
     .replace(/[^a-z0-9]+/g, '-')
