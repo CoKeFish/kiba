@@ -103,20 +103,26 @@ test('la llamada hija queda ligada a la padre y el usuario la ve como subCall', 
 
   const subs = await subCallsDto(parent.resultId);
   assert.equal(subs.length, 2);
+  // Las dos hijas nacen en el mismo segundo: el orden entre ellas no importa aquí.
+  const byService = [...subs].sort((x, y) => x.service.localeCompare(y.service));
   assert.deepEqual(
-    subs.map((s) => [s.service, s.costBaseUnits, s.explorerUrl]),
+    byService.map((s) => [s.service, s.costBaseUnits, s.explorerUrl]),
     [
-      ['web-scraper', 100_000, 'https://stellar.expert/tx/100000'],
       ['translator-pro', 20_000, 'https://stellar.expert/tx/20000'],
+      ['web-scraper', 100_000, 'https://stellar.expert/tx/100000'],
     ],
   );
-  assert.equal(subs[0].costUsd, 0.01);
+  assert.equal(byService[1].costUsd, 0.01);
   // Sin cuerpos: los payloads y resultados son de la cuenta del servicio, no del usuario.
   assert.equal('payload' in subs[0], false);
   assert.equal('result' in subs[0], false);
 
   // Una llamada sin hijas no lleva el campo.
   assert.deepEqual(await subCallsField(a.resultId), {});
+
+  // El padre termina antes de cerrar la suite (su tarea sigue en vuelo).
+  const finished = await getResult(user, parent.resultId, 2000);
+  assert.equal(finished?.status, 'done');
 });
 
 test('la respuesta done del padre trae subCalls cuando el servicio pagó a otros', async () => {
