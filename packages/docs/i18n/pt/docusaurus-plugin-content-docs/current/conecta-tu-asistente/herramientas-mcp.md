@@ -28,6 +28,20 @@ Chama um serviço e paga com o saldo do usuário.
 
 Devolve o resultado do serviço mais o custo, o saldo restante e, se houve transação on-chain, o link do explorador.
 
+## `call_url`
+
+Paga uma API externa que cobra com o padrão [x402](/stellar/x402) na Stellar, mesmo que não esteja no catálogo da Kiba. Se a URL não cobrar, devolve a resposta sem cobrar.
+
+| Parâmetro | Tipo | Observações |
+|---|---|---|
+| `url` | string | URL `https` da API. |
+| `method` | string, opcional | GET (padrão), POST, PUT, PATCH ou DELETE. Com `body`, assume POST. |
+| `body` | objeto, opcional | Corpo JSON da requisição. |
+| `headers` | objeto, opcional | Cabeçalhos extras. Os de pagamento são colocados pela Kiba. |
+| `maxUsd` | número, opcional | Preço máximo autorizado para esta chamada. 1 USD por padrão. |
+
+Devolve a resposta da API mais `cost`, `newBalance`, `payTo`, `txHash` e `explorerUrl` (a transação no stellar.expert).
+
 ## `get_balance`
 
 Sem parâmetros. Devolve um único número, `balanceUsd`: o saldo em USD com que o assistente paga serviços (créditos mais wallet, já descontado o uso ainda não cobrado).

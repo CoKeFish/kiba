@@ -77,6 +77,7 @@ const sidebars: SidebarsConfig = {
       doc('stellar/testnet', 'cloud'),
       doc('stellar/usdc-y-trustlines', 'coin'),
       doc('stellar/contrato-de-registro', 'cube'),
+      doc('stellar/x402', 'link'),
       doc('stellar/trustless-work', 'shield'),
     ]),
     section('Proyecto', [
