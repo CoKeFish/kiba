@@ -8,7 +8,7 @@ import { AgentProvider, loadKeypairFromEnvOrFile } from 'kiba-sdk';
 
 // Gemini (misma clave que usa music-generator). Modelo configurable; sin clave → diccionario.
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
-const GEMINI_MODEL = process.env.GEMINI_TRANSLATE_MODEL || 'gemini-2.5-flash';
+const GEMINI_MODEL = process.env.GEMINI_TRANSLATE_MODEL || 'gemini-3.1-flash-lite';
 const GEMINI_API_URL = (process.env.GEMINI_API_URL || 'https://generativelanguage.googleapis.com').replace(/\/+$/, '');
 const MAX_CHARS = 20_000;
 
