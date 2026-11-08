@@ -2,7 +2,7 @@
 # Añade el CLI de Doppler y arranca vía el shim
 # scripts/agent-entrypoint.sh dentro de `doppler run` — el shim mapea el secreto
 # namespaced AGENT_WALLET_SECRET_<KEY> -> AGENT_WALLET_SECRET del agente.
-FROM node:20-alpine
+FROM node:22-alpine
 
 # CLI de Doppler (capa explícita).
 RUN wget -q -t3 'https://packages.doppler.com/public/cli/rsa.8004D9FF50437357.key' -O /etc/apk/keys/cli@doppler-8004D9FF50437357.rsa.pub && \
