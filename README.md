@@ -24,13 +24,125 @@ No accounts, API keys or subscriptions are required.
 
 ---
 
+## Código Cordillera 2026 · track Scale
+
+> Sección para el jurado, en español. El resto del documento describe el producto en inglés.
+
+**En cinco líneas.** Los asistentes de IA no pueden pagar: cada servicio especializado exige cuenta, clave y suscripción, y el asistente se queda en respuestas genéricas. Kiba es el marketplace donde el asistente encuentra un servicio y lo paga por uso, en USDC sobre Stellar, dentro de la conversación. Llegamos al kickoff con el producto en testnet: gateway, conector MCP, SDK, contrato de pagos en Soroban, dashboard y catálogo. En las 48 horas del evento construimos **x402 estándar en ambos sentidos** y **servicios que pagan servicios**: un servicio de Kiba ahora contrata a otros y les paga desde su código, y el usuario ve toda la cascada con sus transacciones en Stellar. Lo siguiente es mainnet.
+
+### Qué existe hoy que no existía al kickoff
+
+Punto de partida: tag [`kickoff`](https://github.com/CoKeFish/kiba/releases/tag/kickoff) = commit [`70fe1d2`](https://github.com/CoKeFish/kiba/commit/70fe1d2), el último antes del evento (26 de octubre). El kickoff fue el 6 de noviembre a las 10:20 (Bogotá). Todo lo de abajo está en `main`, y [GitHub Actions](https://github.com/CoKeFish/kiba/actions/workflows/deploy.yml) lo despliega en producción (testnet) en cada push ([última ejecución](https://github.com/CoKeFish/kiba/actions/runs/42529718591), 8 de noviembre, 17:20 Bogotá).
+
+**[Comparar kickoff → main](https://github.com/CoKeFish/kiba/compare/kickoff...main): 34 commits entre el 7 y el 8 de noviembre (12 de funciones, 10 de arreglos, 2 de pruebas, 5 de documentación, 4 de CI y versiones, 1 merge; 80 archivos, +6.058 / −134 líneas), más la documentación de esta entrega.**
+
+| | Al kickoff (6 nov) | Hoy (8 nov) |
+|---|---|---|
+| **Pagar APIs fuera de Kiba** | Solo servicios del catálogo de Kiba | `call_url`: el asistente paga **cualquier API x402 estándar en Stellar** con su saldo de Kiba. Tope por llamada, reembolso si la API falla, transacción en la cuenta. |
+| **Cobrar a clientes fuera de Kiba** | Handshake 402 propio de Kiba | Cada servicio del SDK acepta **x402 estándar** (`PAYMENT-REQUIRED` con precio dinámico, `PAYMENT-SIGNATURE`, `PAYMENT-RESPONSE` con el hash), con facilitador o liquidando por sí mismo. Una variable de entorno lo activa. |
+| **Servicios que pagan servicios** | No existía | El handler recibe `ctx.kiba` para contratar y pagar a otros servicios y APIs x402 con el saldo del publicador. El gateway liga esos pagos al pedido del usuario y los devuelve como `subCalls` en el conector, la API y el dashboard. |
+| **Servicios nuevos** | 13 servicios | 15: **web-brief** (paga a web-scraper y translator-pro) y **compara-precios** (paga a web-scraper por cada tienda colombiana y dice dónde está más barato). |
+| **Resultados** | Enlaces que caducaban | El almacén de resultados guarda los archivos que generan los servicios (modelos 3D, canciones, licencias) y los sirve desde `api.kiba.tools` sin caducidad; el dashboard los previsualiza y descarga. |
+| **Arreglos (no cuentan como funciones)** | | translator-pro traduce con Gemini; web-scraper no inventa datos, lee YouTube y da errores claros; el conector muestra la causa real de un fallo. [`kiba-mcp` 0.1.9](https://www.npmjs.com/package/kiba-mcp/v/0.1.9) publicado el 8 de noviembre con `call_url`. |
+
+Commits por función: x402 comprador `123be1f` `8c79d6a`; x402 vendedor `828f1fa` `d01f8f0`; servicios que pagan servicios `2a53e5a` `b647705` `3f5fe3f` `2c221e0`; archivos en los resultados `a3fe6c1` `ea4f0d6`; compara-precios `cb67bb1`; traductor real `507010c`. Pruebas automáticas nuevas: `packages/gateway/test/x402.test.ts`, `cascade.test.ts`, `files.test.ts`, `packages/sdk/test/gateway-client.test.ts`, `call-context.test.ts`. Ejemplos ejecutables: [`examples/x402-seller`](examples/x402-seller) y [`examples/x402-buyer`](examples/x402-buyer).
+
+### La demo, con sus transacciones
+
+Un usuario le pide a Claude dónde está más barato el iPhone 16 en Colombia. Claude encuentra `compara-precios` en Kiba y pide permiso antes de llamarlo; la llamada cuesta 0,03 USDC, que aparecen en la respuesta y en la cuenta. El servicio contrata a `web-scraper` tres veces, una por tienda, y le paga con su propio saldo. Quince segundos después el usuario tiene la tabla, y en su cuenta ve el pedido con los tres pagos del servicio, cada uno con su transacción en Stellar.
+
+<p align="center">
+<img src="docs/img/cordillera/claude-permiso.png" alt="Claude pide permiso para usar compara-precios" width="46%" />
+<img src="docs/img/cordillera/claude-respuesta.png" alt="Respuesta de Claude con la tabla de precios" width="46%" />
+</p>
+
+<p align="center">
+<img src="docs/img/cordillera/dashboard-pagos-del-servicio.png" alt="Dashboard: pagos que compara-precios hizo a web-scraper" width="92%" />
+</p>
+
+| Pago | Transacción en Stellar (testnet) |
+|---|---|
+| Usuario → compara-precios, 0,03 USDC | [`6b89ad33…`](https://stellar.expert/explorer/testnet/tx/6b89ad33ecccfa7626db5bfd902fa9f3c23ec39e20177960623b83a87cb80374) |
+| compara-precios → web-scraper (Éxito), 0,005 USDC | [`7e67efb8…`](https://stellar.expert/explorer/testnet/tx/7e67efb84df0f671fb900c3787a8aadd67486f8a93da0f638df4034e66c00e9e) |
+| compara-precios → web-scraper (Falabella), 0,005 USDC | [`504c7f85…`](https://stellar.expert/explorer/testnet/tx/504c7f85cdddbdc6da0f11fee5c027de8c348279fddd46d74ed0c9a56d702674) |
+| compara-precios → web-scraper (Alkosto), 0,005 USDC | [`21da6d59…`](https://stellar.expert/explorer/testnet/tx/21da6d595fcb8366cf1abb36e5f3951c9c163a3dd250efb7a330b0fffdfe6dfb) |
+| Usuario → web-brief, 0,02 USDC; web-brief → web-scraper y translator-pro | [`d6d104d7…`](https://stellar.expert/explorer/testnet/tx/d6d104d72b7f910e7d64d1931db87a208301dfbb5239a1ae1dbc4b0b9377b852) · [`7f549278…`](https://stellar.expert/explorer/testnet/tx/7f5492786e42940d082678139e4b725eaf8804e9b18e90272e759f26eb40e84d) · [`3040218a…`](https://stellar.expert/explorer/testnet/tx/3040218abdcaeb2b1536981885e4168a8712ff3e34db1974c913bec6378dcb1e) |
+| Kiba paga una API x402 ajena · un cliente x402 genérico paga un servicio de Kiba | [`d6dab3eb…`](https://stellar.expert/explorer/testnet/tx/d6dab3ebd3c708562255c7df93737c847b5a48a4a661705089d54ceb4da54398) · [`2cc3d750…`](https://stellar.expert/explorer/testnet/tx/2cc3d750b2c9e4826f98c72ca05a24e6c99e3c005ba6b0f92f38d834dec0ec2a) · [`a0e23d16…`](https://stellar.expert/explorer/testnet/tx/a0e23d1612afca58d0a217c14e59c5d79b07a19df858158ed6e1df3843972f9d) |
+
+Los pagos por el riel de Kiba (usuario → servicio y servicio → servicio) son invocaciones a `pay()` del [contrato de pagos](https://stellar.expert/explorer/testnet/contract/CBARSI2VGH7SDUA2WD3CUEGWFY6GYGC2WRW5JYGYMR4BR2Q3WZHKDWL7) de Kiba en Soroban, que entrega el 95 % al publicador y el 5 % a Kiba en la misma transacción (en la del usuario de arriba: 285.000 y 15.000 de 300.000). Los pagos x402 estándar de la última fila se liquidan como transferencias de USDC a través del facilitador, como manda el estándar.
+
+Cualquiera puede comprobar que los servicios hablan x402 en producción: una llamada sin pago devuelve el 402 estándar con la cabecera `Payment-Required` (versión 2 del protocolo, USDC en Stellar, 0,02 USDC para web-brief).
+
+```bash
+curl -si -X POST https://agent-web.kiba.tools/service -H 'content-type: application/json' -d '{"url":"https://stellar.org","lang":"es"}' | grep -iE '^HTTP|^Payment-Required'
+# HTTP/1.1 402 Payment Required
+# Payment-Required: eyJ4NDAyVmVyc2lvbiI6MiwiZXJyb3IiOiJQYXltZW50IHJlcXVpcmVkIiwicmVzb3VyY2UiOnsidXJsIjoiaHR0cHM6Ly9hZ2VudC13ZWIua2liYS50b29scyIs...
+```
+
+### Pruébalo tú mismo (gratis, testnet)
+
+1. Entra en [app.kiba.tools](https://app.kiba.tools), crea tu cuenta con tu correo y recarga saldo de prueba en Facturación (Bre-B en modo de prueba, sin dinero real).
+2. En Playground elige `compara-precios` y escribe un producto, o `web-brief` con una URL. Verás la respuesta y, en Resultados, los pagos que el servicio hizo a otros, cada uno con su transacción.
+3. Con tu asistente: en Claude agrega el conector `https://api.kiba.tools/mcp` en Ajustes › Conectores, o instala [`kiba-mcp`](https://www.npmjs.com/package/kiba-mcp) en cualquier cliente MCP ([guía](https://docs.kiba.tools/conecta-tu-asistente/claude)), y pregunta: *"¿Dónde está más barato el iPhone 16 de 128 GB en Colombia? Usa el servicio compara-precios de Kiba"*.
+
+### Experiencia de producto
+
+- **Sin wallet que gestionar.** El usuario crea su cuenta con su correo, recarga y pide. No instala una wallet, no guarda semillas ni compra XLM: Kiba abre su cuenta en Stellar y paga las comisiones de red de sus transacciones. El saldo se muestra en dólares; los precios por llamada, en Kibix (1 Kibix = 0,0001 USD), y cada pago trae su enlace on-chain para quien quiera verificarlo.
+- **Un permiso, cero interrupciones.** El usuario autoriza una vez un permiso de gasto sobre su wallet de pagos y el asistente paga sin pedir firma por llamada. El permiso lo impone el contrato de USDC en Stellar: Kiba no puede mover más de lo autorizado ni después del vencimiento, y el usuario recarga, retira o revoca cuando quiera.
+- **Un solo saldo.** Todas las llamadas y sus precios aparecen en la cuenta, con el enlace a la transacción.
+- **Recargas.** En pesos por Bre-B (modo de prueba en testnet) o enviando USDC desde cualquier wallet de Stellar. Wompi (PSE, Nequi, tarjeta) está programado en el gateway y el dashboard y se activa con las llaves del comercio al salir a mainnet.
+- **Funciona en los asistentes que ya usas:** Claude, ChatGPT, Cursor y cualquier cliente MCP; instalador de un clic en Windows.
+
+### Tracción (con fuente)
+
+Kiba está en testnet y todavía no tiene usuarios ni publicadores externos: estas cifras son uso de prueba del equipo y de quienes lo han conectado, y las damos como señal temprana, no como ingresos. Los datos están en el repositorio, con el hash de cada pago, para que cualquiera los compruebe.
+
+| Métrica | Valor | Fuente |
+|---|---|---|
+| Pagos liquidados por llamada en el contrato de pagos de Soroban (desde el 19 de octubre) | 102 invocaciones | Contador público del contrato en [stellar.expert](https://stellar.expert/explorer/testnet/contract/CBARSI2VGH7SDUA2WD3CUEGWFY6GYGC2WRW5JYGYMR4BR2Q3WZHKDWL7) |
+| Pedidos a través del gateway (desde el 16 de octubre, cuando nació el almacén de resultados) | 277 de 5 cuentas: 266 completados y 11 con error. 180 de ellos son una prueba de carga de `world-clock` el 19 de octubre; sin esa prueba quedan 97 pedidos reales (86 completados). Durante el evento: 83 pedidos (73 completados), 33 de ellos pagos entre servicios | [`docs/metrics/pedidos-2026-11-08.csv`](docs/metrics/pedidos-2026-11-08.csv): fecha, cuenta anonimizada, servicio, estado, costo y, en los 105 pedidos liquidados por llamada, el enlace a su transacción |
+| Liquidaciones a publicadores (desde julio de 2026) | 97 liquidadas y 1 fallida | [`docs/metrics/liquidaciones-2026-11-08.csv`](docs/metrics/liquidaciones-2026-11-08.csv): fecha, servicio, monto y referencia on-chain (hash de la transacción o, en las de julio, el escrow que la liquidó) |
+| Servicios publicados en el catálogo | 15, publicados por el equipo como demostración | [Catálogo](https://app.kiba.tools) |
+| Participaciones | Stellar PULSO 2026 ([DoraHacks](https://dorahacks.io/buidl/46218), sin premio) y Código Cordillera 2026; las licencias de medios se construyeron durante HackMeridian 2026 ([rama](https://github.com/CoKeFish/kiba/commits/hackmeridian-2026)) | DoraHacks, GitHub, Stellar Apex |
+
+Las tres primeras filas describen los mismos pagos desde tres ángulos (el contrato, el pedido y la liquidación), no tres volúmenes distintos.
+
+Distribución, que no es uso: 680 descargas de `kiba-mcp` en [npm](https://www.npmjs.com/package/kiba-mcp) en los últimos 30 días y 51 del [instalador de Windows 0.1.6](https://github.com/CoKeFish/kiba/releases). Todavía no hay publicadores externos ni pagos en mainnet: ese es el siguiente hito.
+
+### Stellar: esencial, y la ruta a mainnet
+
+Stellar no es un detalle de Kiba: es el riel. Cada llamada pagada termina en `pay()` del contrato de pagos en Soroban, en USDC, con el reparto 95/5 fijado en el contrato y visible en cada transacción; el registro de servicios es un contrato; la wallet de pagos del usuario es una cuenta Stellar con un permiso `approve` sobre el contrato de USDC (SEP-41) y comisiones pagadas por Kiba con fee-bump; y la interoperabilidad es x402 sobre Stellar con los paquetes oficiales `@x402/stellar`. Sin Stellar no hay producto.
+
+Lo que ya está listo para mainnet: el SDK trae el preset `mainnet` con el USDC de Circle (`packages/sdk/src/config.ts`), el contrato de pagos tiene su batería de pruebas (`packages/contracts-payments/src/test.rs`) y la documentación ya describe [qué cambia para un publicador en mainnet](https://docs.kiba.tools/publica-un-servicio/mainnet). Lo que falta son los pasos de la tabla.
+
+| Hito | Fecha | Qué cambia |
+|---|---|---|
+| Contratos de pagos y registro desplegados en mainnet; facilitador [OpenZeppelin](https://channels.openzeppelin.com/x402) con USDC de Circle; revisión de seguridad de la autenticación y cifrado en reposo; primer pago real | Diciembre de 2026 | Los publicadores cobran dinero real |
+| Recargas con cualquier activo de Stellar (path payments: el usuario paga en XLM o EURC, Kiba recibe USDC) y recarga en pesos con Wompi | Enero de 2027 | Recargar sin saber qué es USDC |
+| MPP Session como forma estándar del canal de vales (un depósito, muchos compromisos off-chain, una liquidación); listado en x402 discovery | Febrero de 2027 | Cualquier agente x402 encuentra y paga servicios de Kiba |
+
+### Financiamiento y lanzamiento
+
+- **Instaward de BAF (Colombia):** propuesta de USD 5.000 para el ciclo de noviembre de 2026, en preparación con el chapter según las [reglas de Instawards](https://stellar.gitbook.io/scf-handbook/scf-awards/instawards/official-rules): reputación on-chain de servicios, instaladores macOS y Linux, interfaz.
+- **SCF Build:** postulación en la ronda siguiente a la 46 (noviembre de 2026), en el primer trimestre de 2027, con mainnet ya desplegada. [communityfund.stellar.org](https://communityfund.stellar.org/)
+- **Primeros publicadores externos:** creadores y dueños de APIs que cobren por Kiba en mainnet durante el primer trimestre de 2027.
+
+### Equipo
+
+Bogotá, Colombia. [Rodion Tabares](https://github.com/CoKeFish), ingeniería. [André Landinez](https://github.com/andreMD287), ingeniería y documentación. [Lizeth Rico](https://github.com/ricoththth), diseño. [Angie Alpízar Porras](https://github.com/Ansllxs), diseño y front end. Los 34 commits del evento son de Rodion (autor git `Romanovich`).
+
+---
+
+<details>
+<summary><b>Product documentation (English)</b></summary>
+
 ## Overview
 
 > **User:** I need a font for our new logo. It will be used on the website, on packaging and in ads.
 >
-> **Assistant:** Found *Marlow Sans* in a type foundry's catalog on Kiba: $40, commercial license covering web, print, merchandise and advertising. Paid. Here are the font files and the license document. The payment transaction carries the license fingerprint.
+> **Assistant:** Found *Marlow Sans* in Tipos del Sur's catalog on Kiba: $40, commercial license covering web, print, merchandise and advertising. Paid. Here are the font files and the license document. The payment transaction carries the license fingerprint.
 
-A font is bought, not generated, and a logo needs one with a license that covers every place it will appear. The assistant searches the catalogs, obtains a price and the terms, pays the foundry and returns the files with a license that can be verified. None of this is possible for an assistant on its own: it cannot open an account with the foundry, pay it or prove the rights it acquired.
+A font is bought, not generated, and a logo needs one with a license that covers every place it will appear. The assistant searches the catalogs, obtains a price and the terms, pays the foundry and returns the files with a license that can be verified. None of this is possible for an assistant on its own: it cannot open an account with the foundry, pay it or prove the rights it acquired. (Tipos del Sur is a demo foundry published by the team to exercise the flow.)
 
 Kiba is a payments layer for AI assistants. It consists of a connector for assistants (MCP), a gateway that discovers services and charges per call, an SDK for publishing services, and a Soroban contract that settles every payment in USDC on Stellar.
 
@@ -48,10 +160,11 @@ The best results rarely come from a general-purpose model alone. They come from 
 
 ## For users
 
+- **Nothing crypto to learn.** Sign up with an email, top up, ask. No addresses, seed phrases or network fees: Kiba opens the user's Stellar account and pays the fees of their transactions.
 - **Works with existing assistants.** Claude, ChatGPT, Cursor and any MCP-compatible client. One-click installer on Windows; one command on other systems.
-- **One balance.** Top up once; every call and its price appear in the account history.
-- **A wallet controlled by the user.** The payments wallet belongs to the user, not to Kiba. One spending permission lets the assistant pay without interruptions. Funds can be added, withdrawn or the permission revoked at any time.
-- **Fast.** Paid calls respond in under a second; settlement on Stellar follows within seconds.
+- **One balance.** Top up once; every call and its price appear in the account history, each with its transaction.
+- **One permission, no interruptions.** The user authorizes a spending permission on a dedicated payments wallet once; the assistant then pays without a signature per call. The USDC contract on Stellar enforces the permission: Kiba cannot move more than authorized or after it expires, and the user can top up, withdraw or revoke at any time.
+- **Fast.** Paid calls are credited off-chain in well under a second; settlement on Stellar follows within seconds.
 
 ## For publishers
 
@@ -72,76 +185,41 @@ The best results rarely come from a general-purpose model alone. They come from 
 
 ## Services
 
+Fifteen services, published by the team to exercise every kind of pricing and payment. The catalog is open: see [publishing a service](packages/sdk/README.md).
+
 | Service | Description |
 |---|---|
-| **web-scraper** | Reads any web page, including JavaScript-heavy sites. Powered by Firecrawl. |
-| **3d-generator** | Produces a downloadable 3D model from a text description. Powered by Meshy. |
-| **music-generator** | Composes songs and clips from a prompt. Powered by Google Lyria. |
-| **media-catalog** | Licensed photos and music clips from an independent creator. Every download includes a license whose fingerprint travels in the Stellar payment. |
-| **world-clock** | Current time and time zones for any city. |
-| **randomizer** | Cryptographically secure random numbers, dice, draws and shuffles. |
-
-The catalog is open. See [publishing a service](packages/sdk/README.md).
+| **web-scraper** | Reads any web page, including JavaScript-heavy sites, or extracts structured data from it. Powered by Firecrawl. |
+| **compara-precios** | Finds where a product is cheapest across Colombian stores. Pays web-scraper once per store. |
+| **web-brief** | Turns a URL into a brief in the user's language. Pays web-scraper and translator-pro. |
+| **translator-pro** | Translation across seven languages, priced per character. |
+| **3d-generator** | Downloadable 3D model from a text description or an image. Powered by Meshy. |
+| **music-generator** | Songs and clips from a prompt. Powered by Google Lyria. |
+| **media-catalog**, **andes-stock**, **tipos-del-sur** | Licensed photos, music clips and fonts from demo catalogs. Every download includes a license whose fingerprint travels in the Stellar payment. |
+| **price-oracle**, **yield-hunter**, **risk-auditor**, **code-reviewer** | Market data and analysis, priced per symbol, protocol or line of code. |
+| **world-clock**, **randomizer** | Time zones and meeting slots; cryptographically secure random numbers and draws. |
 
 ---
 
 ## How it works
-
-```mermaid
-sequenceDiagram
-    participant U as User
-    participant AI as Assistant
-    participant K as Kiba
-    participant S as Service
-
-    U->>AI: "Scrape this page and summarize it"
-    AI->>K: Find the right service
-    K-->>AI: web-scraper · price for this request
-    AI->>K: Call it
-    K->>S: Signed, paid request
-    S-->>K: Result
-    K-->>AI: Result + receipt
-    AI-->>U: Answer
-    Note over K,S: Publishers are paid in USDC on Stellar
-```
 
 1. **Discovery.** Every service is listed in an open on-chain registry. Publishing a service adds it to the catalog.
 2. **Quote.** The service prices the specific request.
 3. **Payment.** Charged to the user's credits or payments wallet.
 4. **Settlement.** Kiba's Soroban payments contract pays the publisher in USDC and enforces the split on-chain: 95% to the publisher, 5% to Kiba.
 
-Further reading: [architecture](docs/architecture.md).
+Further reading: [architecture](https://docs.kiba.tools/conceptos/arquitectura) · [payments and settlement](https://docs.kiba.tools/conceptos/pagos-y-liquidacion).
 
 ## Contracts
 
-Both contracts run on **Stellar testnet** and are open source in this repository.
+Both contracts run on **Stellar testnet** and are open source in this repository. Mainnet deployment is scheduled for December 2026 (see the roadmap above).
 
 | Contract | Role | Source | Address |
 |---|---|---|---|
 | **Payments** | `pay()` per call with the 95/5 split, x402 escrow and the voucher channel; the `reference` argument carries the license fingerprint | [`packages/contracts-payments`](packages/contracts-payments) | [`CBARSI2VGH7SDUA2WD3CUEGWFY6GYGC2WRW5JYGYMR4BR2Q3WZHKDWL7`](https://stellar.expert/explorer/testnet/contract/CBARSI2VGH7SDUA2WD3CUEGWFY6GYGC2WRW5JYGYMR4BR2Q3WZHKDWL7) |
 | **Registry** | Open on-chain catalog of services: name, endpoint, owner and price | [`packages/contracts-soroban`](packages/contracts-soroban) | [`CDYLMRS2UTBHNTWS67NC2OPQIH2HXGS36WZYC4JUMLKZWT7XXVUUX7XF`](https://stellar.expert/explorer/testnet/contract/CDYLMRS2UTBHNTWS67NC2OPQIH2HXGS36WZYC4JUMLKZWT7XXVUUX7XF) |
 
-Example of a per-call payment settled by the payments contract: [transaction `11dbb1c7…`](https://stellar.expert/explorer/testnet/tx/11dbb1c76720208284c713d7277e77f3b0a724c5ad69174194a3ae433f340d57) (0.005 USDC, 95% to the publisher).
-
-## Security
-
-- **Spending limits.** Pending usage on the payments wallet is capped and collected automatically.
-- **No double charges.** Every collection is recorded, reconciled and verifiable.
-- **Exit at any time.** The full balance can be withdrawn, or the permission revoked, in one step.
-- **Auditable.** Every payout is a public transaction on [stellar.expert](https://stellar.expert/explorer/testnet).
-
----
-
-## Licensed media
-
-A photo, a music clip or a 3D model bought through an assistant comes with a **license that can be proven**.
-
-- **The payment is the proof.** Each purchase writes a plain license document: buyer, seller, SHA-256 of the file, terms and price. The Stellar transaction that pays for the call carries the document's fingerprint in the `reference` argument of the payments contract. Anyone can download the document, hash it and compare it with the transaction. There is no certificate, token or signature to trust.
-- **Clear terms.** Three templates (`personal`, `commercial`, `commercial-attribution`) with media-industry uses (advertising, social media, broadcast, print, merchandise, editorial, web), adjustable per item. AI-generated media is labelled as non-exclusive and not unique.
-- **Free search across every catalog.** `search_media("lofi beat")` queries all publisher catalogs at once. Buying is one `call_agent(service, { assetId })`.
-- **Catalogs in minutes.** A folder plus an `items.csv`, or an existing S3 bucket, database or feed behind a four-function interface. Kiba never connects to the publisher's data.
-
-Further reading: [media licenses](https://docs.kiba.tools/licencias) · [SDK: catalogs](packages/sdk/README.md#media-licenses-and-catalogs).
+Every payout is a public transaction on [stellar.expert](https://stellar.expert/explorer/testnet); pending usage on the payments wallet is capped and every collection is recorded and reconciled. See [security](https://docs.kiba.tools/recursos/seguridad).
 
 ---
 
@@ -149,89 +227,31 @@ Further reading: [media licenses](https://docs.kiba.tools/licencias) · [SDK: ca
 
 A Kiba service can hire other services to do its job and pay them from its own code, with its publisher's balance. The user asks for one thing and pays once; Kiba links every payment the service makes to that request and shows the whole cascade, each payment with its transaction on Stellar.
 
-- **In the handler.** The SDK hands every call a context: `ctx.kiba.call(service, payload)` pays any service in the catalog, `ctx.kiba.callUrl(url)` pays any API that charges with standard x402. Both use the publisher's account (`KIBA_URL`, `KIBA_API_KEY`).
-- **Linked to the request.** The gateway tells the service which call it is serving (`X-Kiba-Call-Id`); what the service pays while serving it carries `X-Kiba-Parent-Call` and comes back to the user as `subCalls` in `call_agent`, `get_result`, the API and the dashboard: service, cost, transaction. Never the bodies, which belong to the service's account.
+- **In the handler.** The SDK hands every call a context: `ctx.kiba.call(service, payload)` pays any service in the catalog, `ctx.kiba.callUrl(url)` pays any API that charges with standard x402. Both use the publisher's account.
+- **Linked to the request.** The gateway tells the service which call it is serving; what the service pays while serving it comes back to the user as `subCalls` in the connector, the API and the dashboard: service, cost, transaction. Never the bodies, which belong to the service's account.
 - **Priced like any service.** The composite service sets its own price (flat or dynamic) and keeps the difference.
 
-The demo service `web-brief` turns a URL into a brief in the user's language by paying `web-scraper` (reads and summarises the page) and `translator-pro` (translates it). One request, three payments, zero humans.
-
 Further reading: [services that pay services](https://docs.kiba.tools/publica-un-servicio/servicios-que-pagan-servicios) · [SDK: paying other services](packages/sdk/README.md#paying-other-services-from-your-handler).
-
----
 
 ## Standard x402
 
 Kiba speaks the open [x402](https://www.x402.org) standard on Stellar in both directions, built on the official `@x402/stellar` packages.
 
-- **Pay any x402 API from the chat.** `call_url(url)` in the connector. Kiba reads the 402, picks the USDC-on-Stellar option, charges the user's balance and signs the payment with its treasury. The seller's facilitator settles on-chain and the answer comes back with the transaction hash. The API only has to accept x402 on Stellar: nothing to install, no wallet to fund. Prices above 1 USD need an explicit `maxUsd`.
-- **Every Kiba service accepts x402.** With `x402` switched on in the SDK (one environment variable), a service answers its 402 with the standard `PAYMENT-REQUIRED` header priced for that exact request, and settles `PAYMENT-SIGNATURE` payments through a facilitator or by itself (`self`: the agent submits the transaction, no third party). Any x402 client pays it without Kiba's connector.
+- **Pay any x402 API from the chat.** `call_url(url)` in the connector. Kiba reads the 402, picks the USDC-on-Stellar option, charges the user's balance and signs the payment with its treasury. The seller's facilitator settles on-chain and the answer comes back with the transaction hash. Prices above 1 USD need an explicit `maxUsd`.
+- **Every Kiba service accepts x402.** With `x402` switched on in the SDK, a service answers its 402 with the standard `PAYMENT-REQUIRED` header priced for that exact request, and settles `PAYMENT-SIGNATURE` payments through a facilitator or by itself. Any x402 client pays it without Kiba's connector.
 - **Kiba's own rail is unchanged.** Credits, signed calls, batched settlement and licenses keep working as before; x402 is the interoperability lane.
 
-Examples: [`examples/x402-seller`](examples/x402-seller) (a third-party API that charges with x402) and [`examples/x402-buyer`](examples/x402-buyer) (a generic x402 client paying a Kiba service). Further reading: [x402 in the docs](https://docs.kiba.tools/stellar/x402) · [SDK: standard x402](packages/sdk/README.md#standard-x402-any-x402-client-can-pay-you).
+Examples: [`examples/x402-seller`](examples/x402-seller) and [`examples/x402-buyer`](examples/x402-buyer). Further reading: [x402 in the docs](https://docs.kiba.tools/stellar/x402) · [SDK: standard x402](packages/sdk/README.md#standard-x402-any-x402-client-can-pay-you).
 
----
+## Licensed media
 
-## HackMeridian 2026
+A photo, a music clip, a font or a 3D model bought through an assistant comes with a **license that can be proven**. Each purchase writes a plain license document (buyer, seller, SHA-256 of the file, terms, price) and the Stellar transaction that pays for the call carries the document's fingerprint in the `reference` argument of the payments contract. Anyone can download the document, hash it and compare it with the transaction. `search_media` queries every catalog at once; a catalog is a folder plus a CSV, or an existing API behind a four-function interface. Built during HackMeridian 2026 (25 and 26 October).
 
-**Starting point.** Before 25 October 2026, Kiba was in production: the gateway and the MCP connector, the SDK, the Soroban payments contract, the user's payments wallet, the dashboard, documentation in three languages and ten published services.
-
-**New work during the event (25 and 26 October): licensed media.** All of it is in the [`hackmeridian-2026`](https://github.com/CoKeFish/kiba/commits/hackmeridian-2026) branch, with timestamped commits.
-
-**Problem.** When an assistant buys a photo or a music clip on behalf of a user, the user receives a file and nothing else. There is no answer to the question of whether the file may be used in an advertisement. Stock sites solve this with accounts and invoices; assistants have neither.
-
-**Target users.** People who ask an assistant for media they intend to publish, and creators who want to sell their files to every assistant without building a store.
-
-**Delivered.**
-
-- A license document for every purchased file: buyer, seller, file hash, terms and price. Its fingerprint travels in the Stellar payment, in the `reference` argument of the payments contract.
-- A public verification page that recomputes the document's hash, reads the transaction and checks the fingerprint.
-- License terms in plain language: three templates with media-industry uses, adjustable per item.
-- Catalogs in the SDK: a folder plus a CSV becomes a service with free search, per-item prices and signed download links.
-- `search_media` in the connector and the API: one query, every catalog.
-- A catalog browser and a license card in the dashboard. Documentation in Spanish, English and Portuguese.
-
-**Architecture.** Purchase → Kiba writes the license document and computes its SHA-256 → the payment transaction carries the first 8 bytes of the hash → the file is delivered together with the document → any party verifies by hashing the document and comparing it with the transaction.
-
-**Business model.** The same as every Kiba call: the creator keeps 95% of each sale in USDC and Kiba keeps 5%. There are no listing fees.
-
-**Next steps.** Orders with several files under one license and a minimum amount per order. Verification on mainnet. External creators publishing their own catalogs.
-
----
-
-## Código Cordillera 2026
-
-**Starting point (kickoff, 6 November 2026, 10:20 Bogotá).** Commit [`70fe1d2`](https://github.com/CoKeFish/kiba/commit/70fe1d2): everything described above, except standard x402, was already in production on Stellar testnet.
-
-**New work during the event (6 to 8 November): standard x402 both ways, and services that pay services.**
-
-**Problem.** Agent payments on Stellar are converging on the x402 standard: Stellar's official docs, the `@x402/stellar` packages and the facilitators that sponsor fees. Kiba had its own 402 handshake. No x402 agent could pay a Kiba service, and an assistant using Kiba could not pay any API outside Kiba's catalog.
-
-**Delivered.**
-
-- `call_url` in the connector (remote MCP and stdio) and `POST /v1/x402/call` in the API: Kiba pays any x402 API on Stellar from the user's balance, with a per-call cap, refunds when the API fails, the transaction recorded against the user and the result saved in the account.
-- Standard x402 in the SDK, for every service: `PAYMENT-REQUIRED` with the dynamic price of each request, verification and settlement through a hosted facilitator or self-facilitation, `PAYMENT-RESPONSE` with the transaction hash. One environment variable turns it on.
-- Two runnable examples: a third-party API that charges with x402 and a generic x402 client that pays a Kiba service. Node 22 images for the gateway and the services.
-- Services that pay services (8 November): the SDK hands every handler `ctx.kiba` to hire and pay other Kiba services and x402 APIs with the publisher's balance; the gateway links those payments to the user's request and returns them as `subCalls` in the connector, the API and the dashboard. New demo services `web-brief` (web-scraper + translator-pro) and `compara-precios`, which pays web-scraper once per Colombian store and tells you where a product is cheapest.
-- Fixes shipped on 7 November: the web-scraper service no longer invents data, handles YouTube and reports clear errors; the connector shows the real cause of a failed call.
-
-**Verified on testnet.** Kiba paid a third-party x402 API: [`d6dab3eb…`](https://stellar.expert/explorer/testnet/tx/d6dab3ebd3c708562255c7df93737c847b5a48a4a661705089d54ceb4da54398) (0.01 USDC) and [`c7c009f4…`](https://stellar.expert/explorer/testnet/tx/c7c009f4cbf985359fb57f9a12ed4df021f1554f3ef64b30f2789665697920b0) (0.02 USDC). A generic x402 client paid a Kiba service: [`2cc3d750…`](https://stellar.expert/explorer/testnet/tx/2cc3d750b2c9e4826f98c72ca05a24e6c99e3c005ba6b0f92f38d834dec0ec2a) through the x402.org facilitator and [`a0e23d16…`](https://stellar.expert/explorer/testnet/tx/a0e23d1612afca58d0a217c14e59c5d79b07a19df858158ed6e1df3843972f9d) with the service as its own facilitator. Kiba paid a Kiba service over standard x402: [`f15f7352…`](https://stellar.expert/explorer/testnet/tx/f15f7352c80f4e4a8a52f89d23c9594e89cc35b6d0b30141ca38c7cf8fb14b36).
-
-**Verified in production (testnet), 8 November.** One request to `web-brief`, three payments: the user paid the service ([`d6d104d7…`](https://stellar.expert/explorer/testnet/tx/d6d104d72b7f910e7d64d1931db87a208301dfbb5239a1ae1dbc4b0b9377b852), 0.02 USDC), and the service paid `web-scraper` ([`7f549278…`](https://stellar.expert/explorer/testnet/tx/7f5492786e42940d082678139e4b725eaf8804e9b18e90272e759f26eb40e84d), 0.005 USDC) and `translator-pro` ([`3040218a…`](https://stellar.expert/explorer/testnet/tx/3040218abdcaeb2b1536981885e4168a8712ff3e34db1974c913bec6378dcb1e), 0.00506 USDC) from its own balance, in 26 seconds end to end. The user's result lists both payments as `subCalls`.
-
-**Next steps.** Top-ups with any Stellar asset (path payments: the user pays in XLM or EURC, Kiba receives USDC in the same transaction). MPP Session as the standard form of Kiba's voucher channel (one deposit, many off-chain commitments, one settlement). Mainnet through the OpenZeppelin facilitator or self-facilitation. Listing Kiba services in x402 discovery.
-
----
-
-## Team
-
-Bogotá, Colombia.
-
-- **Rodion Tabares**, engineering ([GitHub](https://github.com/CoKeFish))
-- **André Landinez**, engineering ([GitHub](https://github.com/andreMD287))
-- **Lizeth Rico**, design ([GitHub](https://github.com/ricoththth))
-- **Angie Alpízar Porras**, design and front end ([GitHub](https://github.com/Ansllxs))
+Further reading: [media licenses](https://docs.kiba.tools/licencias) · [SDK: catalogs](packages/sdk/README.md#media-licenses-and-catalogs).
 
 Built on the [Model Context Protocol](https://modelcontextprotocol.io/) and [Stellar](https://stellar.org).
+
+</details>
 
 ## License
 

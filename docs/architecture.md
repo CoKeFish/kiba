@@ -1,3 +1,5 @@
+> **Documento histórico (mayo de 2026).** Describe la primera versión de Kiba. La arquitectura vigente está en https://docs.kiba.tools/conceptos/arquitectura y el estado actual en el README del repositorio.
+
 # Arquitectura — Kiba
 
 > **Marketplace descentralizado de servicios con pagos x402 sobre Stellar (Soroban).**
