@@ -26,13 +26,13 @@ No accounts, API keys or subscriptions are required.
 
 ## Código Cordillera 2026 · track Scale
 
-> Sección para el jurado, en español. El resto del documento describe el producto en inglés.
+> Sección para el jurado, en español. El resto del documento describe el producto en inglés. Proyecto en [Stellar Apex](https://stellarapex.org/projects/3bce6a11-3bee-4825-bc07-a44828d45f63); el video pitch está en su campo "demo url".
 
 **En cinco líneas.** Los asistentes de IA no pueden pagar: cada servicio especializado exige cuenta, clave y suscripción, y el asistente se queda en respuestas genéricas. Kiba es el marketplace donde el asistente encuentra un servicio y lo paga por uso, en USDC sobre Stellar, dentro de la conversación. Llegamos al kickoff con el producto en testnet: gateway, conector MCP, SDK, contrato de pagos en Soroban, dashboard y catálogo. En las 48 horas del evento construimos **x402 estándar en ambos sentidos** y **servicios que pagan servicios**: un servicio de Kiba ahora contrata a otros y les paga desde su código, y el usuario ve toda la cascada con sus transacciones en Stellar. Lo siguiente es mainnet.
 
 ### Qué existe hoy que no existía al kickoff
 
-Punto de partida: tag [`kickoff`](https://github.com/CoKeFish/kiba/releases/tag/kickoff) = commit [`70fe1d2`](https://github.com/CoKeFish/kiba/commit/70fe1d2), el último antes del evento (26 de octubre). El kickoff fue el 6 de noviembre a las 10:20 (Bogotá). Todo lo de abajo está en `main`, y [GitHub Actions](https://github.com/CoKeFish/kiba/actions/workflows/deploy.yml) lo despliega en producción (testnet) en cada push ([última ejecución](https://github.com/CoKeFish/kiba/actions/runs/42529718591), 8 de noviembre, 17:20 Bogotá).
+Punto de partida: tag [`kickoff`](https://github.com/CoKeFish/kiba/releases/tag/kickoff) = commit [`70fe1d2`](https://github.com/CoKeFish/kiba/commit/70fe1d2), el último antes del evento (26 de octubre). El kickoff fue el 6 de noviembre a las 10:20 (Bogotá). Todo lo de abajo está en `main`, y [GitHub Actions](https://github.com/CoKeFish/kiba/actions/workflows/deploy.yml) lo despliega en producción (testnet) en cada push a `main` que toca el stack ([última ejecución](https://github.com/CoKeFish/kiba/actions/runs/42529718591), 8 de noviembre, 17:20 Bogotá).
 
 **[Comparar kickoff → main](https://github.com/CoKeFish/kiba/compare/kickoff...main): 34 commits entre el 7 y el 8 de noviembre (12 de funciones, 10 de arreglos, 2 de pruebas, 5 de documentación, 4 de CI y versiones, 1 merge; 80 archivos, +6.058 / −134 líneas), más la documentación de esta entrega.**
 
@@ -42,14 +42,14 @@ Punto de partida: tag [`kickoff`](https://github.com/CoKeFish/kiba/releases/tag/
 | **Cobrar a clientes fuera de Kiba** | Handshake 402 propio de Kiba | Cada servicio del SDK acepta **x402 estándar** (`PAYMENT-REQUIRED` con precio dinámico, `PAYMENT-SIGNATURE`, `PAYMENT-RESPONSE` con el hash), con facilitador o liquidando por sí mismo. Una variable de entorno lo activa. |
 | **Servicios que pagan servicios** | No existía | El handler recibe `ctx.kiba` para contratar y pagar a otros servicios y APIs x402 con el saldo del publicador. El gateway liga esos pagos al pedido del usuario y los devuelve como `subCalls` en el conector, la API y el dashboard. |
 | **Servicios nuevos** | 13 servicios | 15: **web-brief** (paga a web-scraper y translator-pro) y **compara-precios** (paga a web-scraper por cada tienda colombiana y dice dónde está más barato). |
-| **Resultados** | Enlaces que caducaban | El almacén de resultados guarda los archivos que generan los servicios (modelos 3D, canciones, licencias) y los sirve desde `api.kiba.tools` sin caducidad; el dashboard los previsualiza y descarga. |
+| **Resultados** | Enlaces que caducaban | El almacén de resultados guarda los archivos que generan los servicios (modelos 3D, canciones, licencias) y los sirve desde `api.kiba.tools`; el dashboard los previsualiza y descarga. |
 | **Arreglos (no cuentan como funciones)** | | translator-pro traduce con Gemini; web-scraper no inventa datos, lee YouTube y da errores claros; el conector muestra la causa real de un fallo. [`kiba-mcp` 0.1.9](https://www.npmjs.com/package/kiba-mcp/v/0.1.9) publicado el 8 de noviembre con `call_url`. |
 
-Commits por función: x402 comprador `123be1f` `8c79d6a`; x402 vendedor `828f1fa` `d01f8f0`; servicios que pagan servicios `2a53e5a` `b647705` `3f5fe3f` `2c221e0`; archivos en los resultados `a3fe6c1` `ea4f0d6`; compara-precios `cb67bb1`; traductor real `507010c`. Pruebas automáticas nuevas: `packages/gateway/test/x402.test.ts`, `cascade.test.ts`, `files.test.ts`, `packages/sdk/test/gateway-client.test.ts`, `call-context.test.ts`. Ejemplos ejecutables: [`examples/x402-seller`](examples/x402-seller) y [`examples/x402-buyer`](examples/x402-buyer).
+Commits por función: x402 comprador `123be1f` `8c79d6a`; x402 vendedor `828f1fa` `d01f8f0`; servicios que pagan servicios `2a53e5a` `b647705` `3f5fe3f` `2c221e0`; archivos en los resultados `a3fe6c1` `ea4f0d6`; compara-precios `cb67bb1`; traductor real `507010c`. El trabajo de x402 se hizo el 7 de noviembre y se publicó en `main` el 8 a las 12:24 en una sola tanda, por eso varios commits comparten la hora. Los contratos de Soroban no cambiaron durante el evento. El estado final de la entrega lleva el tag `cordillera-final`. Pruebas automáticas nuevas: `packages/gateway/test/x402.test.ts`, `cascade.test.ts`, `files.test.ts`, `packages/sdk/test/gateway-client.test.ts`, `call-context.test.ts`. Ejemplos ejecutables: [`examples/x402-seller`](examples/x402-seller) y [`examples/x402-buyer`](examples/x402-buyer).
 
 ### La demo, con sus transacciones
 
-Un usuario le pide a Claude dónde está más barato el iPhone 16 en Colombia. Claude encuentra `compara-precios` en Kiba y pide permiso antes de llamarlo; la llamada cuesta 0,03 USDC, que aparecen en la respuesta y en la cuenta. El servicio contrata a `web-scraper` tres veces, una por tienda, y le paga con su propio saldo. Quince segundos después el usuario tiene la tabla, y en su cuenta ve el pedido con los tres pagos del servicio, cada uno con su transacción en Stellar.
+Un usuario le pide a Claude dónde está más barato el iPhone 16 en Colombia usando `compara-precios` de Kiba. Claude pide permiso antes de llamarlo; la llamada cuesta 0,03 USDC, que aparecen en la respuesta y en la cuenta. El servicio contrata a `web-scraper` tres veces, una por tienda, y le paga con su propio saldo. El usuario recibe la tabla y en su cuenta ve el pedido con los tres pagos del servicio, cada uno con su transacción en Stellar.
 
 <p align="center">
 <img src="docs/img/cordillera/claude-permiso.png" alt="Claude pide permiso para usar compara-precios" width="46%" />
@@ -67,9 +67,9 @@ Un usuario le pide a Claude dónde está más barato el iPhone 16 en Colombia. C
 | compara-precios → web-scraper (Falabella), 0,005 USDC | [`504c7f85…`](https://stellar.expert/explorer/testnet/tx/504c7f85cdddbdc6da0f11fee5c027de8c348279fddd46d74ed0c9a56d702674) |
 | compara-precios → web-scraper (Alkosto), 0,005 USDC | [`21da6d59…`](https://stellar.expert/explorer/testnet/tx/21da6d595fcb8366cf1abb36e5f3951c9c163a3dd250efb7a330b0fffdfe6dfb) |
 | Usuario → web-brief, 0,02 USDC; web-brief → web-scraper y translator-pro | [`d6d104d7…`](https://stellar.expert/explorer/testnet/tx/d6d104d72b7f910e7d64d1931db87a208301dfbb5239a1ae1dbc4b0b9377b852) · [`7f549278…`](https://stellar.expert/explorer/testnet/tx/7f5492786e42940d082678139e4b725eaf8804e9b18e90272e759f26eb40e84d) · [`3040218a…`](https://stellar.expert/explorer/testnet/tx/3040218abdcaeb2b1536981885e4168a8712ff3e34db1974c913bec6378dcb1e) |
-| Kiba paga una API x402 ajena · un cliente x402 genérico paga un servicio de Kiba | [`d6dab3eb…`](https://stellar.expert/explorer/testnet/tx/d6dab3ebd3c708562255c7df93737c847b5a48a4a661705089d54ceb4da54398) · [`2cc3d750…`](https://stellar.expert/explorer/testnet/tx/2cc3d750b2c9e4826f98c72ca05a24e6c99e3c005ba6b0f92f38d834dec0ec2a) · [`a0e23d16…`](https://stellar.expert/explorer/testnet/tx/a0e23d1612afca58d0a217c14e59c5d79b07a19df858158ed6e1df3843972f9d) |
+| x402 estándar, pruebas del 7 de noviembre en testnet: Kiba paga la API ajena de `examples/x402-seller` · el cliente genérico de `examples/x402-buyer` paga un servicio de Kiba por el facilitador de x402.org y por liquidación propia | [`d6dab3eb…`](https://stellar.expert/explorer/testnet/tx/d6dab3ebd3c708562255c7df93737c847b5a48a4a661705089d54ceb4da54398) · [`2cc3d750…`](https://stellar.expert/explorer/testnet/tx/2cc3d750b2c9e4826f98c72ca05a24e6c99e3c005ba6b0f92f38d834dec0ec2a) · [`a0e23d16…`](https://stellar.expert/explorer/testnet/tx/a0e23d1612afca58d0a217c14e59c5d79b07a19df858158ed6e1df3843972f9d) |
 
-Los pagos por el riel de Kiba (usuario → servicio y servicio → servicio) son invocaciones a `pay()` del [contrato de pagos](https://stellar.expert/explorer/testnet/contract/CBARSI2VGH7SDUA2WD3CUEGWFY6GYGC2WRW5JYGYMR4BR2Q3WZHKDWL7) de Kiba en Soroban, que entrega el 95 % al publicador y el 5 % a Kiba en la misma transacción (en la del usuario de arriba: 285.000 y 15.000 de 300.000). Los pagos x402 estándar de la última fila se liquidan como transferencias de USDC a través del facilitador, como manda el estándar.
+Los pagos por el riel de Kiba (usuario → servicio y servicio → servicio) son invocaciones a `pay()` del [contrato de pagos](https://stellar.expert/explorer/testnet/contract/CBARSI2VGH7SDUA2WD3CUEGWFY6GYGC2WRW5JYGYMR4BR2Q3WZHKDWL7) de Kiba en Soroban, que entrega el 95 % al publicador y el 5 % a Kiba en la misma transacción (la comisión se fija al desplegar el contrato; en la transacción del usuario de arriba: 285.000 y 15.000 de 300.000). Los pagos x402 estándar de la última fila se liquidan como transferencias de USDC a través del facilitador, como manda el estándar.
 
 Cualquiera puede comprobar que los servicios hablan x402 en producción: una llamada sin pago devuelve el 402 estándar con la cabecera `Payment-Required` (versión 2 del protocolo, USDC en Stellar, 0,02 USDC para web-brief).
 
@@ -87,7 +87,7 @@ curl -si -X POST https://agent-web.kiba.tools/service -H 'content-type: applicat
 
 ### Experiencia de producto
 
-- **Sin wallet que gestionar.** El usuario crea su cuenta con su correo, recarga y pide. No instala una wallet, no guarda semillas ni compra XLM: Kiba abre su cuenta en Stellar y paga las comisiones de red de sus transacciones. El saldo se muestra en dólares; los precios por llamada, en Kibix (1 Kibix = 0,0001 USD), y cada pago trae su enlace on-chain para quien quiera verificarlo.
+- **Nada de wallets que instalar.** El usuario crea su cuenta con su correo, recarga y pide. No instala una wallet, no guarda semillas ni compra XLM: Kiba abre su cuenta en Stellar y paga las comisiones de red de sus transacciones. El saldo se muestra en dólares; los precios por llamada, en Kibix (1 Kibix = 0,0001 USD), y cada pago trae su enlace on-chain para quien quiera verificarlo.
 - **Un permiso, cero interrupciones.** El usuario autoriza una vez un permiso de gasto sobre su wallet de pagos y el asistente paga sin pedir firma por llamada. El permiso lo impone el contrato de USDC en Stellar: Kiba no puede mover más de lo autorizado ni después del vencimiento, y el usuario recarga, retira o revoca cuando quiera.
 - **Un solo saldo.** Todas las llamadas y sus precios aparecen en la cuenta, con el enlace a la transacción.
 - **Recargas.** En pesos por Bre-B (modo de prueba en testnet) o enviando USDC desde cualquier wallet de Stellar. Wompi (PSE, Nequi, tarjeta) está programado en el gateway y el dashboard y se activa con las llaves del comercio al salir a mainnet.
@@ -101,11 +101,11 @@ Kiba está en testnet y todavía no tiene usuarios ni publicadores externos: est
 |---|---|---|
 | Pagos liquidados por llamada en el contrato de pagos de Soroban (desde el 19 de octubre) | 102 invocaciones | Contador público del contrato en [stellar.expert](https://stellar.expert/explorer/testnet/contract/CBARSI2VGH7SDUA2WD3CUEGWFY6GYGC2WRW5JYGYMR4BR2Q3WZHKDWL7) |
 | Pedidos a través del gateway (desde el 16 de octubre, cuando nació el almacén de resultados) | 277 de 5 cuentas: 266 completados y 11 con error. 180 de ellos son una prueba de carga de `world-clock` el 19 de octubre; sin esa prueba quedan 97 pedidos reales (86 completados). Durante el evento: 83 pedidos (73 completados), 33 de ellos pagos entre servicios | [`docs/metrics/pedidos-2026-11-08.csv`](docs/metrics/pedidos-2026-11-08.csv): fecha, cuenta anonimizada, servicio, estado, costo y, en los 105 pedidos liquidados por llamada, el enlace a su transacción |
-| Liquidaciones a publicadores (desde julio de 2026) | 97 liquidadas y 1 fallida | [`docs/metrics/liquidaciones-2026-11-08.csv`](docs/metrics/liquidaciones-2026-11-08.csv): fecha, servicio, monto y referencia on-chain (hash de la transacción o, en las de julio, el escrow que la liquidó) |
+| Liquidaciones a publicadores (desde julio de 2026) | 97 liquidadas y 1 fallida | [`docs/metrics/liquidaciones-2026-11-08.csv`](docs/metrics/liquidaciones-2026-11-08.csv): fecha, servicio, monto y referencia on-chain (hash de la transacción o, en la primera, el escrow que la liquidó) |
 | Servicios publicados en el catálogo | 15, publicados por el equipo como demostración | [Catálogo](https://app.kiba.tools) |
 | Participaciones | Stellar PULSO 2026 ([DoraHacks](https://dorahacks.io/buidl/46218), sin premio) y Código Cordillera 2026; las licencias de medios se construyeron durante HackMeridian 2026 ([rama](https://github.com/CoKeFish/kiba/commits/hackmeridian-2026)) | DoraHacks, GitHub, Stellar Apex |
 
-Las tres primeras filas describen los mismos pagos desde tres ángulos (el contrato, el pedido y la liquidación), no tres volúmenes distintos.
+Las tres primeras filas se solapan: desde el 19 de octubre cada pago por llamada pasa por el contrato, queda en el pedido y genera su liquidación, así que no son volúmenes que se sumen. Las diferencias son los pagos anteriores al contrato (julio y 16 a 17 de octubre) y las liquidaciones por lotes.
 
 Distribución, que no es uso: 680 descargas de `kiba-mcp` en [npm](https://www.npmjs.com/package/kiba-mcp) en los últimos 30 días y 51 del [instalador de Windows 0.1.6](https://github.com/CoKeFish/kiba/releases). Todavía no hay publicadores externos ni pagos en mainnet: ese es el siguiente hito.
 
@@ -123,7 +123,7 @@ Lo que ya está listo para mainnet: el SDK trae el preset `mainnet` con el USDC 
 
 ### Financiamiento y lanzamiento
 
-- **Instaward de BAF (Colombia):** propuesta de USD 5.000 para el ciclo de noviembre de 2026, en preparación con el chapter según las [reglas de Instawards](https://stellar.gitbook.io/scf-handbook/scf-awards/instawards/official-rules): reputación on-chain de servicios, instaladores macOS y Linux, interfaz.
+- **Instaward de BAF (Colombia):** propuesta para el ciclo de noviembre de 2026, en preparación con el chapter según las [reglas de Instawards](https://stellar.gitbook.io/scf-handbook/scf-awards/instawards/official-rules): reputación on-chain de servicios, instaladores macOS y Linux, interfaz.
 - **SCF Build:** postulación en la ronda siguiente a la 46 (noviembre de 2026), en el primer trimestre de 2027, con mainnet ya desplegada. [communityfund.stellar.org](https://communityfund.stellar.org/)
 - **Primeros publicadores externos:** creadores y dueños de APIs que cobren por Kiba en mainnet durante el primer trimestre de 2027.
 
