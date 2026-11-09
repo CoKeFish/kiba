@@ -61,7 +61,7 @@ const socials = [
 ---
 
 <footer style="
-  padding: 56px 64px 32px;
+  padding: clamp(40px, 6vw, 56px) var(--gutter) 32px;
   background: var(--bg-surface);
   border-top: 1px solid var(--border-subtle);
 ">
@@ -132,6 +132,6 @@ const socials = [
   .footer-social:hover { color: #fff !important; background: var(--accent) !important; }
 
   @media (max-width: 768px) {
-    .footer-cols { grid-template-columns: repeat(2, auto) !important; gap: 32px !important; }
+    .footer-cols { grid-template-columns: repeat(2, 1fr) !important; gap: 28px 24px !important; width: 100%; }
   }
 </style>

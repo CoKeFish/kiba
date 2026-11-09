@@ -46,16 +46,16 @@ const agents = [
 ];
 ---
 
-<section style="padding: 56px 64px; background: var(--bg-canvas);">
+<section style="padding: clamp(40px, 6vw, 56px) var(--gutter); background: var(--bg-canvas);">
   <div style="max-width: 1240px; margin: 0 auto;">
-    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px;">
+    <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 8px 20px; flex-wrap: wrap; margin-bottom: 24px;">
       <h2 class="js-reveal slide-up" style="
         font-family: var(--font-display); font-size: clamp(22px, 2.4vw, 30px);
         font-weight: 800; letter-spacing: -0.03em; color: var(--fg-1);
       ">{t("featured.title.pre")}<span style="color: var(--accent);">{t("featured.title.em")}</span></h2>
       <a href={`${DASHBOARD_URL}/agents`} class="js-reveal slide-up d1" style="
         font-family: var(--font-sans); font-size: 14px; font-weight: 700;
-        color: var(--accent); text-decoration: none;
+        color: var(--accent); text-decoration: none; white-space: nowrap;
       ">{t("featured.viewall")}</a>
     </div>
 

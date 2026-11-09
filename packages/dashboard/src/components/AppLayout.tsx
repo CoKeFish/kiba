@@ -1,4 +1,5 @@
-import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   BarChart3,
@@ -17,6 +18,8 @@ import {
   Store,
   ShoppingBag,
   Plug,
+  Menu,
+  X,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useMode, type DashboardMode } from "@/lib/mode";
@@ -27,9 +30,7 @@ import { formatBalance } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { DemoFab } from "@/components/DemoFab";
-
-/** Alto de la barra superior y del recuadro del logo: iguales para que sus bordes inferiores coincidan. */
-const TOPBAR_HEIGHT = 64;
+import "./app-layout.css";
 
 // `label` es una clave i18n; se resuelve con t() en el render.
 const consumerNav = [
@@ -59,8 +60,31 @@ export function AppLayout() {
   const { mode, setMode } = useMode();
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const location = useLocation();
+  // Cajón lateral (solo tiene efecto en pantallas estrechas; en escritorio la barra es fija).
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const nav = mode === "publisher" ? publisherNav : consumerNav;
+
+  // Al cambiar de página se cierra el cajón.
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [location.pathname]);
+
+  // Con el cajón abierto: Escape lo cierra y la página de detrás no hace scroll.
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [menuOpen]);
 
   const switchMode = (m: DashboardMode) => {
     setMode(m);
@@ -78,27 +102,36 @@ export function AppLayout() {
   };
 
   return (
-    <div className="flex h-screen" style={{ background: "var(--color-bg)" }}>
+    <div className="app-shell">
+      <div
+        className={`app-backdrop${menuOpen ? " is-open" : ""}`}
+        onClick={() => setMenuOpen(false)}
+        aria-hidden="true"
+      />
+
       {/* Sidebar */}
       <aside
-        className="w-60 flex flex-col"
-        style={{
-          background: "var(--color-bg-soft)",
-          borderRight: "1px solid var(--color-border)",
-        }}
+        id="app-sidebar"
+        className={`app-sidebar${menuOpen ? " is-open" : ""}`}
+        aria-label={t("nav.menu")}
       >
         {/* Brand — misma altura que la barra superior para que los dos bordes queden en línea */}
-        <div
-          className="px-5 flex items-center shrink-0"
-          style={{ height: TOPBAR_HEIGHT, borderBottom: "1px solid var(--color-border)" }}
-        >
+        <div className="app-sidebar__brand">
           <Link to="/app" className="kiba-brand-link" aria-label="Kiba home">
             <img src="/logo.png" alt="Kiba" className="kiba-logo kiba-logo--sidebar" />
           </Link>
+          <button
+            type="button"
+            className="app-icon-btn app-sidebar__close"
+            onClick={() => setMenuOpen(false)}
+            aria-label={t("nav.close_menu")}
+          >
+            <X size={18} />
+          </button>
         </div>
 
         {/* Mode switch — Consumer ⇄ Publisher (same account) */}
-        <div className="px-3 pt-3">
+        <div className="app-sidebar__mode">
           <div
             style={{
               display: "grid",
@@ -143,29 +176,15 @@ export function AppLayout() {
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 p-3" style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        <nav className="app-sidebar__nav">
           {nav.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
               end={item.end}
-              style={({ isActive }: { isActive: boolean }) => ({
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                padding: "9px 14px",
-                borderRadius: 999,
-                textDecoration: "none",
-                fontSize: 13,
-                fontFamily: "var(--font-sans)",
-                fontWeight: isActive ? 700 : 500,
-                color: isActive ? "var(--color-primary)" : "var(--color-fg-subtle)",
-                background: isActive
-                  ? "color-mix(in srgb, var(--color-primary) 14%, transparent)"
-                  : "transparent",
-                transition: "all var(--dur-fast) var(--ease-out)",
-              })}
-              className="nav-item"
+              className={({ isActive }: { isActive: boolean }) =>
+                `app-nav-item${isActive ? " is-active" : ""}`
+              }
             >
               <item.icon size={15} />
               {t(item.label)}
@@ -174,57 +193,10 @@ export function AppLayout() {
         </nav>
 
         {/* Bottom: language + user + logout */}
-        <div
-          className="p-3"
-          style={{ borderTop: "1px solid var(--color-border)" }}
-        >
-          <div style={{ marginBottom: 10 }}>
-            <LanguageSwitcher variant="sidebar" />
-          </div>
-          {user?.email && (
-            <div
-              style={{
-                fontFamily: "var(--font-mono)",
-                fontSize: 11,
-                color: "var(--color-fg-subtle)",
-                marginBottom: 8,
-                paddingLeft: 12,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {user.email}
-            </div>
-          )}
-          <button
-            type="button"
-            onClick={handleLogout}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              width: "100%",
-              padding: "8px 12px",
-              borderRadius: 8,
-              border: "none",
-              background: "transparent",
-              color: "var(--color-fg-subtle)",
-              fontFamily: "var(--font-sans)",
-              fontSize: 13,
-              cursor: "pointer",
-              transition: "all var(--dur-fast) var(--ease-out)",
-            }}
-            onMouseEnter={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.background =
-                "color-mix(in srgb, var(--color-danger) 12%, transparent)";
-              (e.currentTarget as HTMLButtonElement).style.color = "var(--color-danger)";
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.background = "transparent";
-              (e.currentTarget as HTMLButtonElement).style.color = "var(--color-fg-subtle)";
-            }}
-          >
+        <div className="app-sidebar__foot">
+          <LanguageSwitcher variant="sidebar" />
+          {user?.email && <div className="app-sidebar__email">{user.email}</div>}
+          <button type="button" onClick={handleLogout} className="app-logout">
             <LogOut size={15} />
             {t("nav.logout")}
           </button>
@@ -232,62 +204,43 @@ export function AppLayout() {
       </aside>
 
       {/* Main area */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="app-main">
         {/* Top bar */}
-        <header
-          className="flex items-center justify-between px-6 shrink-0"
-          style={{
-            height: TOPBAR_HEIGHT,
-            borderBottom: "1px solid var(--color-border)",
-            background: "var(--color-bg-soft)",
-          }}
-        >
-          <div
-            style={{
-              fontFamily: "var(--font-mono)",
-              fontSize: 11,
-              color: "var(--color-fg-subtle)",
-              letterSpacing: "0.04em",
-            }}
-          >
-            {user?.email}
-          </div>
-          <div className="flex items-center gap-3">
-            <div
-              style={{
-                fontFamily: "var(--font-mono)",
-                fontSize: 12,
-                color: "var(--color-fg-subtle)",
-              }}
+        <header className="app-topbar">
+          <div className="app-topbar__left">
+            <button
+              type="button"
+              className="app-icon-btn app-menu-btn"
+              onClick={() => setMenuOpen(true)}
+              aria-label={t("nav.menu")}
+              aria-controls="app-sidebar"
+              aria-expanded={menuOpen}
             >
-              {t("topbar.balance")}{" "}
+              <Menu size={20} />
+            </button>
+            <Link to="/app" className="kiba-brand-link app-topbar__brand" aria-label="Kiba home">
+              <img src="/logo.png" alt="Kiba" className="kiba-logo" />
+            </Link>
+            <div className="app-topbar__email">{user?.email}</div>
+          </div>
+          <div className="app-topbar__right">
+            <div className="app-topbar__balance">
+              <span className="app-topbar__balance-label">{t("topbar.balance")} </span>
               {/* Un solo saldo: lo regalado + la wallet de pagos, ya descontado lo usado. */}
-              <span style={{ color: "var(--color-fg)", fontWeight: 600 }}>
-                {balance ? formatBalance(balance.total_usd) : "—"}
-              </span>
+              <strong>{balance ? formatBalance(balance.total_usd) : "—"}</strong>
             </div>
-            <Button size="md" onClick={() => navigate("/app/billing")}>
+            <Button size="md" className="whitespace-nowrap" onClick={() => navigate("/app/billing")}>
               {t("topbar.top_up")}
             </Button>
           </div>
         </header>
 
-        <main
-          className="flex-1 overflow-y-auto"
-          style={{ padding: 24, background: "#f4f7fb" }}
-        >
+        <main className="app-content">
           <Outlet />
         </main>
       </div>
 
       <DemoFab />
-
-      <style>{`
-        .nav-item:hover {
-          background: color-mix(in srgb, var(--color-primary) 10%, transparent) !important;
-          color: var(--color-fg) !important;
-        }
-      `}</style>
     </div>
   );
 }

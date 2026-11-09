@@ -128,6 +128,9 @@
   --space-10: 72px;
   --space-11: 96px;
 
+  /* Margen lateral de las secciones: 20 px en móvil, 64 px en escritorio */
+  --gutter: clamp(20px, 5vw, 64px);
+
   /* Radii — rounder for the playful look */
   --radius-xs:   6px;
   --radius-sm:   10px;
@@ -172,6 +175,11 @@
 /* ============================================================
    BASE ELEMENT STYLES
    ============================================================ */
+html {
+  /* Evita el scroll horizontal por elementos decorativos que sobresalen */
+  overflow-x: hidden;
+}
+
 html, body {
   background: var(--bg-canvas);
   color: var(--fg-1);
@@ -182,6 +190,18 @@ html, body {
   text-rendering: optimizeLegibility;
   scroll-behavior: smooth;
   min-height: 100vh;
+  -webkit-text-size-adjust: 100%;
+}
+
+img, svg, video {
+  max-width: 100%;
+}
+
+/* En móvil los campos van a 16 px: por debajo iOS hace zoom al enfocarlos */
+@media (max-width: 720px) {
+  input:not([type="checkbox"]):not([type="radio"]), select, textarea {
+    font-size: 16px !important;
+  }
 }
 
 h1, h2, h3, h4, h5, h6 {

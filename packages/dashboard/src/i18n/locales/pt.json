@@ -22,7 +22,9 @@
     "consumer": "Consumidor",
     "publisher": "Publicador",
     "logout": "Sair",
-    "results": "Resultados"
+    "results": "Resultados",
+    "menu": "Menu",
+    "close_menu": "Fechar menu"
   },
   "topbar": {
     "balance": "Saldo:",

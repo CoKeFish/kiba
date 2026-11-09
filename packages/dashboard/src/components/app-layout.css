@@ -1,0 +1,295 @@
+/* App shell — barra lateral + barra superior + contenido.
+   En escritorio la barra lateral es fija (240 px). En pantallas estrechas (≤ 900 px) se
+   convierte en un cajón deslizante que abre el botón ☰ de la barra superior. */
+
+.app-shell {
+  display: flex;
+  height: 100vh;
+  height: 100dvh;
+  background: var(--color-bg);
+}
+
+/* ── Barra lateral ── */
+.app-sidebar {
+  width: 240px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg-soft);
+  border-right: 1px solid var(--color-border);
+}
+
+.app-sidebar__brand {
+  height: 64px;
+  flex-shrink: 0;
+  padding: 0 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--color-border);
+}
+
+/* Selectores con dos clases: ganan a .app-icon-btn / .kiba-brand-link (que ponen display) */
+.app-sidebar .app-sidebar__close {
+  display: none;
+}
+
+.app-sidebar__mode {
+  padding: 12px 12px 0;
+}
+
+.app-sidebar__nav {
+  flex: 1;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow-y: auto;
+}
+
+.app-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  border-radius: 999px;
+  text-decoration: none;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-fg-subtle);
+  background: transparent;
+  transition: all var(--dur-fast) var(--ease-out);
+}
+
+.app-nav-item:hover {
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  color: var(--color-fg);
+}
+
+.app-nav-item.is-active {
+  font-weight: 700;
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 14%, transparent);
+}
+
+.app-sidebar__foot {
+  padding: 12px;
+  border-top: 1px solid var(--color-border);
+}
+
+.app-sidebar__email {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-fg-subtle);
+  margin: 10px 0 8px;
+  padding-left: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-logout {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--color-fg-subtle);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease-out);
+}
+
+.app-logout:hover {
+  background: color-mix(in srgb, var(--color-danger) 12%, transparent);
+  color: var(--color-danger);
+}
+
+/* Fondo oscuro detrás del cajón (solo móvil) */
+.app-backdrop {
+  display: none;
+}
+
+/* ── Área principal ── */
+.app-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.app-topbar {
+  height: 64px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 24px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg-soft);
+}
+
+.app-topbar__left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.app-topbar .app-menu-btn,
+.app-topbar .app-topbar__brand {
+  display: none;
+}
+
+.app-topbar__email {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-fg-subtle);
+  letter-spacing: 0.04em;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-topbar__right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.app-topbar__balance {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-fg-subtle);
+  white-space: nowrap;
+}
+
+.app-topbar__balance strong {
+  color: var(--color-fg);
+  font-weight: 600;
+}
+
+.app-content {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 24px;
+  background: #f4f7fb;
+}
+
+/* Botón icono redondo (☰ y ✕) */
+.app-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  background: #fff;
+  color: var(--color-fg);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out);
+}
+
+.app-icon-btn:hover {
+  background: color-mix(in srgb, var(--color-primary) 8%, white);
+}
+
+/* ── Móvil / tablet estrecha ── */
+@media (max-width: 900px) {
+  .app-sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 60;
+    width: min(300px, 86vw);
+    transform: translateX(-104%);
+    transition: transform 0.26s var(--ease-out);
+    box-shadow: 0 24px 60px color-mix(in srgb, var(--color-fg) 22%, transparent);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .app-sidebar.is-open {
+    transform: none;
+  }
+
+  .app-sidebar__brand {
+    height: 56px;
+    padding: 0 12px 0 20px;
+  }
+
+  .app-sidebar .app-sidebar__close {
+    display: inline-flex;
+  }
+
+  /* Objetivos táctiles más cómodos en el cajón */
+  .app-nav-item {
+    padding: 11px 14px;
+    font-size: 14px;
+  }
+
+  .app-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 55;
+    background: color-mix(in srgb, var(--color-fg) 42%, transparent);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s var(--ease-out);
+  }
+
+  .app-backdrop.is-open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .app-topbar {
+    height: 56px;
+    padding: 0 12px;
+    gap: 8px;
+  }
+
+  .app-topbar .app-menu-btn,
+  .app-topbar .app-topbar__brand {
+    display: inline-flex;
+  }
+
+  .app-topbar__email {
+    display: none;
+  }
+
+  .app-topbar__right {
+    gap: 8px;
+  }
+
+  .app-topbar__balance-label {
+    display: none;
+  }
+
+  .app-topbar__balance {
+    font-size: 13px;
+  }
+
+  .app-content {
+    padding: 16px 16px 28px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-sidebar,
+  .app-backdrop {
+    transition: none !important;
+  }
+}

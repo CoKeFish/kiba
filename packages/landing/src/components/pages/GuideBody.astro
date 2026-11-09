@@ -385,6 +385,54 @@ const MCP_URL = `${GATEWAY_URL.replace(/\/+$/, "")}/mcp`;
   .guide-foot a:hover {
     text-decoration: underline;
   }
+
+  @media (max-width: 560px) {
+    .guide {
+      padding: 44px var(--gutter) 72px;
+    }
+    .guide-card {
+      flex-direction: column;
+      padding: 20px 18px;
+      gap: 10px;
+    }
+    .guide-card__num {
+      width: 32px;
+      height: 32px;
+      font-size: 16px;
+    }
+    .guide-card__body h2 {
+      font-size: 18px;
+    }
+    /* Botones a todo el ancho: nada de textos partidos en dos líneas */
+    .guide-btn {
+      width: 100%;
+      justify-content: center;
+      padding: 13px 18px;
+    }
+    .guide-btns {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .guide-btn--soon {
+      font-size: 14px;
+      gap: 8px;
+      padding: 12px 12px;
+      white-space: nowrap;
+    }
+    .guide-btn--soon svg {
+      display: none;
+    }
+    .guide-url code {
+      flex-basis: 100%;
+      min-width: 0;
+      font-size: 12px;
+      overflow-wrap: anywhere;
+      word-break: normal;
+    }
+    .guide-copy {
+      width: 100%;
+    }
+  }
 </style>
 
 <script is:inline define:vars={{ copiedLabel: t("guide.copied") }}>

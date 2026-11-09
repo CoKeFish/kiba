@@ -444,6 +444,10 @@
 }
 
 @media (max-width: 640px) {
+  .playground-meta {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
   .playground-tip__mascot,
   .playground-run-row__mascot,
   .playground-cta__mascot {

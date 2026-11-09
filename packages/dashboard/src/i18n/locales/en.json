@@ -22,7 +22,9 @@
     "consumer": "Consumer",
     "publisher": "Publisher",
     "logout": "Log out",
-    "results": "Results"
+    "results": "Results",
+    "menu": "Menu",
+    "close_menu": "Close menu"
   },
   "topbar": {
     "balance": "Balance:",

@@ -173,7 +173,7 @@ export default function AgentsCatalog({ strings }: { strings?: CatalogStrings })
   return (
     <div>
       {/* Search + mode toggle */}
-      <div style={{ marginBottom: 16, display: "flex", flexDirection: "row", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+      <div className="acat-bar" style={{ marginBottom: 16, display: "flex", flexDirection: "row", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
         <div style={{ position: "relative", flex: 1, minWidth: 240 }}>
           <input
             type="text"
@@ -206,7 +206,7 @@ export default function AgentsCatalog({ strings }: { strings?: CatalogStrings })
           )}
         </div>
 
-        <div style={{
+        <div className="acat-modes" style={{
           display: "inline-flex",
           borderRadius: "var(--radius-md)",
           border: "1px solid var(--border-default)",
@@ -216,6 +216,7 @@ export default function AgentsCatalog({ strings }: { strings?: CatalogStrings })
             <button
               key={m}
               type="button"
+              className="acat-mode-btn"
               onClick={() => setMode(m)}
               style={{
                 padding: "10px 16px",
@@ -292,7 +293,13 @@ export default function AgentsCatalog({ strings }: { strings?: CatalogStrings })
         .acard:nth-child(even) { animation-name: acard-in-right; }
         .acard:hover { border-color: var(--accent); transform: translateX(8px) rotate(0.3deg); box-shadow: 0 8px 28px color-mix(in srgb, var(--accent) 14%, transparent); }
         @media (prefers-reduced-motion: reduce) { .acard { animation: none; } .acard:hover { transform: none; } }
-        @media (max-width: 620px) { .acard { grid-template-columns: 48px 1fr; } .acard-right { grid-column: 2; text-align: left !important; } }
+        @media (max-width: 620px) {
+          .acard { grid-template-columns: 48px 1fr; padding: 14px 16px; gap: 12px; }
+          .acard-right { grid-column: 2; text-align: left !important; }
+          /* El selector de modo ocupa todo el ancho, en tres columnas iguales */
+          .acat-modes { width: 100%; display: grid !important; grid-template-columns: repeat(3, 1fr); }
+          .acat-mode-btn { padding: 10px 6px !important; font-size: 12.5px !important; white-space: nowrap; }
+        }
       `}</style>
       {agents.length === 0 ? (
         <div style={{

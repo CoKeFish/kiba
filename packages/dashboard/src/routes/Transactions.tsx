@@ -40,12 +40,12 @@ export default function Transactions() {
       </div>
 
       <Card>
-        <CardHeader className="flex items-center justify-between flex-row">
+        <CardHeader className="flex items-center justify-between flex-row flex-wrap gap-3">
           <div>
             <CardTitle>{t("transactions.card_title")}</CardTitle>
             <CardDescription>{t("transactions.entries", { count: filtered.length })}</CardDescription>
           </div>
-          <div className="flex gap-1">
+          <div className="flex gap-1 flex-wrap">
             {(["all", "call", "topup", "refund"] as Filter[]).map((f) => (
               <Button
                 key={f}
@@ -66,7 +66,7 @@ export default function Transactions() {
               {t("transactions.empty")}
             </p>
           ) : (
-            <Table>
+            <Table stack>
               <Thead>
                 <Tr>
                   <Th>{t("transactions.col.time")}</Th>
@@ -80,11 +80,12 @@ export default function Transactions() {
               <Tbody>
                 {filtered.map((tx) => (
                   <Tr key={tx.id}>
-                    <Td className="text-xs text-[var(--color-fg-muted)] font-mono whitespace-nowrap">
+                    <Td label={t("transactions.col.time")} className="text-xs text-[var(--color-fg-muted)] font-mono whitespace-nowrap">
                       {format(new Date(tx.created_at * 1000), "MMM d, HH:mm:ss")}
                     </Td>
-                    <Td>
+                    <Td label={t("transactions.col.type")}>
                       <Badge
+                        className="whitespace-nowrap"
                         tone={
                           tx.type === "topup" ? "success" : tx.type === "refund" ? "warning" : "info"
                         }
@@ -92,7 +93,7 @@ export default function Transactions() {
                         {t(`transactions.type.${tx.type}`, { defaultValue: tx.type })}
                       </Badge>
                     </Td>
-                    <Td>
+                    <Td label={t("transactions.col.service_channel")}>
                       <div className="text-sm">{tx.service || "—"}</div>
                       {tx.channel && (
                         <div className="text-xs text-[var(--color-fg-muted)] uppercase tracking-wider">
@@ -100,8 +101,9 @@ export default function Transactions() {
                         </div>
                       )}
                     </Td>
-                    <Td>
+                    <Td label={t("transactions.col.status")}>
                       <Badge
+                        className="whitespace-nowrap"
                         tone={
                           tx.status === "success"
                             ? "success"
@@ -113,7 +115,7 @@ export default function Transactions() {
                         {t(`transactions.status.${tx.status}`, { defaultValue: tx.status })}
                       </Badge>
                     </Td>
-                    <Td className="text-right font-mono">
+                    <Td label={t("transactions.col.amount")} className="text-right font-mono whitespace-nowrap">
                       <div className={tx.type === "topup" ? "text-[var(--color-success)]" : ""}>
                         {tx.type === "topup" ? "+" : "-"}
                         {formatKibix(baseUnitsToKibix(tx.amount_lamports))} {KIBIX_LABEL}
@@ -124,7 +126,7 @@ export default function Transactions() {
                         })}
                       </div>
                     </Td>
-                    <Td>
+                    <Td label={t("transactions.col.tx")}>
                       {tx.tx_signature ? (
                         <a
                           href={explorerUrl(tx.tx_signature)}

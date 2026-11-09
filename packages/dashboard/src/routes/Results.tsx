@@ -41,7 +41,7 @@ export default function Results() {
               {t("results.empty")}
             </p>
           ) : (
-            <Table>
+            <Table stack>
               <Thead>
                 <Tr>
                   <Th>{t("results.col.time")}</Th>
@@ -54,14 +54,14 @@ export default function Results() {
               <Tbody>
                 {results.map((r) => (
                   <Tr key={r.resultId}>
-                    <Td className="text-xs text-[var(--color-fg-muted)] font-mono whitespace-nowrap">
+                    <Td label={t("results.col.time")} className="text-xs text-[var(--color-fg-muted)] font-mono whitespace-nowrap">
                       {format(new Date(r.createdAt * 1000), "MMM d, HH:mm:ss")}
                     </Td>
-                    <Td className="text-sm">{r.service}</Td>
-                    <Td>
+                    <Td label={t("results.col.service")} className="text-sm">{r.service}</Td>
+                    <Td label={t("results.col.status")}>
                       <Badge tone={statusTone(r.status)}>{t(`results.status.${r.status}`)}</Badge>
                     </Td>
-                    <Td className="text-right font-mono text-sm">
+                    <Td label={t("results.col.cost")} className="text-right font-mono text-sm whitespace-nowrap">
                       {r.costBaseUnits != null
                         ? `${formatKibix(baseUnitsToKibix(r.costBaseUnits))} ${KIBIX_LABEL}`
                         : "—"}

@@ -325,6 +325,10 @@
   .usage-kpi__peek {
     display: none;
   }
+
+  .usage-kpis {
+    padding-top: 0;
+  }
 }
 
 @media (max-width: 520px) {

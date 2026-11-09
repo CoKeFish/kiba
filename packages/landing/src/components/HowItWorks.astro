@@ -34,7 +34,7 @@ const steps = [
 ];
 ---
 
-<section id="how-it-works" style="padding: 64px 64px; background: var(--bg-surface); border-top: 1px solid var(--border-subtle);">
+<section id="how-it-works" style="padding: clamp(44px, 6vw, 64px) var(--gutter); background: var(--bg-surface); border-top: 1px solid var(--border-subtle);">
   <div style="max-width: 1040px; margin: 0 auto;">
     <div style="text-align: center; margin-bottom: 36px;">
       <div class="js-reveal slide-up" style="
@@ -90,9 +90,11 @@ const steps = [
   @keyframes wagR { 0%,100% { transform: rotate(4deg) translateY(0); } 50% { transform: rotate(-3deg) translateY(-8px); } }
 
   @media (max-width: 860px) {
-    .hiw-step { grid-template-columns: 1fr !important; gap: 28px !important; }
+    .hiw-step { grid-template-columns: 1fr !important; gap: 20px !important; padding: 28px 0; }
     .hiw-step.is-even .hiw-content { order: 1; }
     .hiw-step.is-even .hiw-visual { order: 2; }
+    .hiw-visual { height: 170px; }
+    .hiw-num { font-size: 44px; }
   }
   @media (prefers-reduced-motion: reduce) {
     .hiw-mascot { animation: none !important; }

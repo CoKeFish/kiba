@@ -52,12 +52,12 @@ const tiers = [
 ---
 
 <section id="pricing" style="
-  padding: 120px 64px;
+  padding: clamp(64px, 10vw, 120px) var(--gutter);
   background: var(--bg-canvas);
   border-top: 1px solid var(--border-subtle);
 ">
   <div style="max-width: 1280px; margin: 0 auto;">
-    <div style="margin-bottom: 64px; text-align: center;">
+    <div style="margin-bottom: clamp(36px, 6vw, 64px); text-align: center;">
       <div class="eyebrow js-reveal blur-up" style="margin-bottom: 16px;">{t("pricing.eyebrow")}</div>
       <h2 class="js-reveal elastic-up d1" style="
         font-family: var(--font-display);
@@ -162,6 +162,9 @@ const tiers = [
 
 <style>
   @media (max-width: 900px) {
-    .pricing-grid { grid-template-columns: 1fr !important; max-width: 480px; margin: 0 auto; }
+    .pricing-grid { grid-template-columns: 1fr !important; max-width: 480px; margin: 0 auto; gap: 24px !important; }
+  }
+  @media (max-width: 480px) {
+    .pricing-grid > div { padding: 26px 22px !important; }
   }
 </style>

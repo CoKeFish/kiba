@@ -50,7 +50,8 @@ const umamiWebsiteId = import.meta.env.PUBLIC_UMAMI_WEBSITE_ID;
 <html lang={lang}>
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#ffffff" />
     <meta name="description" content={description} />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
@@ -74,45 +75,63 @@ const umamiWebsiteId = import.meta.env.PUBLIC_UMAMI_WEBSITE_ID;
   </head>
   <body>
     <!-- Fixed header -->
-    <header id="site-header" style="
-      position: fixed; top: 0; left: 0; right: 0; height: 68px; z-index: 50;
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 0 40px;
-      background: color-mix(in srgb, var(--bg-canvas) 80%, transparent);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      border-bottom: 1px solid var(--border-subtle);
-      transition: box-shadow var(--dur-base) var(--ease-out);
-    ">
+    <header id="site-header">
       <!-- Brand -->
-      <a href="/" class="kiba-brand" aria-label="Kiba home" style="
-        display: inline-flex; align-items: center;
-        text-decoration: none; position: relative;
-      ">
+      <a href={home} class="kiba-brand" aria-label="Kiba home">
         <img src="/logo.png" alt="Kiba" class="kiba-logo" />
       </a>
 
-      <!-- Nav links -->
-      <nav style="display: flex; gap: 30px; align-items: center;">
+      <!-- Nav links (escritorio) -->
+      <nav class="site-nav" aria-label="Main">
         {navLinks.map((item) => (
-          <a
-            href={item.href}
-            class="nav-link"
-            style="
-              font-family: var(--font-sans);
-              font-size: 15px;
-              font-weight: 600;
-              color: var(--fg-2);
-              text-decoration: none;
-              transition: color var(--dur-fast) var(--ease-out);
-            "
-          >{item.label}</a>
+          <a href={item.href} class="nav-link">{item.label}</a>
         ))}
       </nav>
 
       <!-- CTAs -->
-      <div style="display: flex; gap: 10px; align-items: center;">
+      <div class="site-ctas">
         <!-- Language picker -->
+        <div class="lang-picker site-cta--secondary" role="group" aria-label="Language">
+          {localeList.map((l) => (
+            <a
+              href={localizePath(canonicalPath, l)}
+              class={`lang-opt ${l === lang ? "is-active" : ""}`}
+              aria-current={l === lang ? "true" : undefined}
+            >{languages[l]}</a>
+          ))}
+        </div>
+        <a href={`${DASHBOARD_URL}/login`} class="btn-ghost site-cta--secondary">{t("cta.signin")}</a>
+        <a href={INSTALLER_URL} title={t("cta.download_title")} class="btn-ghost site-cta--secondary">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+          {t("cta.download")}
+        </a>
+        <a href={`${DASHBOARD_URL}/signup`} class="btn-primary">{t("cta.start")}</a>
+
+        <!-- Menú (solo móvil) -->
+        <button
+          type="button"
+          class="site-menu-btn"
+          id="site-menu-btn"
+          aria-controls="site-menu"
+          aria-expanded="false"
+          aria-label={t("nav.menu")}
+          data-label-open={t("nav.menu")}
+          data-label-close={t("nav.close_menu")}
+        >
+          <svg class="site-menu-btn__open" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h16"/></svg>
+          <svg class="site-menu-btn__close" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12"/><path d="M18 6L6 18"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Panel del menú móvil: enlaces, idioma y accesos secundarios -->
+    <div id="site-menu" class="site-menu" hidden>
+      <nav class="site-menu__nav" aria-label="Main">
+        {navLinks.map((item) => (
+          <a href={item.href} class="site-menu__link">{item.label}</a>
+        ))}
+      </nav>
+      <div class="site-menu__row">
         <div class="lang-picker" role="group" aria-label="Language">
           {localeList.map((l) => (
             <a
@@ -122,61 +141,15 @@ const umamiWebsiteId = import.meta.env.PUBLIC_UMAMI_WEBSITE_ID;
             >{languages[l]}</a>
           ))}
         </div>
-        <a
-          href={`${DASHBOARD_URL}/login`}
-          class="btn-ghost"
-          style="
-            font-family: var(--font-sans);
-            font-size: 14px;
-            font-weight: 700;
-            background: transparent;
-            color: var(--fg-1);
-            border: 1.5px solid var(--border-strong);
-            padding: 9px 20px;
-            border-radius: 999px;
-            text-decoration: none;
-            transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
-          "
-        >{t("cta.signin")}</a>
-        <a
-          href={INSTALLER_URL}
-          title={t("cta.download_title")}
-          style="
-            display: inline-flex; align-items: center; gap: 7px;
-            font-family: var(--font-sans);
-            font-size: 14px;
-            font-weight: 700;
-            background: transparent;
-            color: var(--fg-1);
-            border: 1.5px solid var(--border-strong);
-            padding: 9px 18px;
-            border-radius: 999px;
-            text-decoration: none;
-            transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
-          "
-        >
+      </div>
+      <div class="site-menu__ctas">
+        <a href={`${DASHBOARD_URL}/login`} class="btn-ghost">{t("cta.signin")}</a>
+        <a href={INSTALLER_URL} title={t("cta.download_title")} class="btn-ghost">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
           {t("cta.download")}
         </a>
-        <a
-          href={`${DASHBOARD_URL}/signup`}
-          class="btn-primary"
-          style="
-            font-family: var(--font-sans);
-            font-size: 14px;
-            font-weight: 700;
-            background: var(--accent);
-            color: #fff;
-            border: none;
-            padding: 10px 22px;
-            border-radius: 999px;
-            text-decoration: none;
-            box-shadow: var(--glow-sm);
-            transition: transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
-          "
-        >{t("cta.start")}</a>
       </div>
-    </header>
+    </div>
 
     <!-- Page content — padded for fixed header -->
     <main style="padding-top: 68px;">
@@ -185,14 +158,99 @@ const umamiWebsiteId = import.meta.env.PUBLIC_UMAMI_WEBSITE_ID;
 
     <style>
       #site-header {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 68px;
+        z-index: 50;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 0 var(--gutter);
+        background: color-mix(in srgb, var(--bg-canvas) 80%, transparent);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border-bottom: 1px solid var(--border-subtle);
+        transition: box-shadow var(--dur-base) var(--ease-out);
         animation: header-slide-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
       }
       @keyframes header-slide-in {
         from { opacity: 0; transform: translateY(-14px); }
         to { opacity: 1; transform: translateY(0); }
       }
-      .nav-link:hover { color: var(--accent) !important; }
-      .btn-ghost:hover { border-color: var(--accent) !important; background: var(--accent-soft) !important; }
+
+      .kiba-brand {
+        display: inline-flex;
+        align-items: center;
+        flex-shrink: 0;
+        text-decoration: none;
+        position: relative;
+      }
+      .kiba-logo {
+        height: 28px;
+        width: auto;
+        display: block;
+        object-fit: contain;
+      }
+
+      .site-nav {
+        display: flex;
+        gap: 30px;
+        align-items: center;
+      }
+      .nav-link {
+        font-family: var(--font-sans);
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--fg-2);
+        text-decoration: none;
+        white-space: nowrap;
+        transition: color var(--dur-fast) var(--ease-out);
+      }
+      .nav-link:hover { color: var(--accent); }
+
+      .site-ctas {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-shrink: 0;
+      }
+
+      .btn-ghost {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        font-family: var(--font-sans);
+        font-size: 14px;
+        font-weight: 700;
+        background: transparent;
+        color: var(--fg-1);
+        border: 1.5px solid var(--border-strong);
+        padding: 9px 18px;
+        border-radius: 999px;
+        text-decoration: none;
+        white-space: nowrap;
+        transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+      }
+      .btn-ghost:hover { border-color: var(--accent); background: var(--accent-soft); }
+
+      .btn-primary {
+        font-family: var(--font-sans);
+        font-size: 14px;
+        font-weight: 700;
+        background: var(--accent);
+        color: #fff;
+        border: none;
+        padding: 10px 22px;
+        border-radius: 999px;
+        text-decoration: none;
+        white-space: nowrap;
+        box-shadow: var(--glow-sm);
+        transition: transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+      }
+      .btn-primary:hover { transform: translateY(-1px); background: var(--accent-hover); box-shadow: var(--glow-md); }
 
       .lang-picker {
         display: inline-flex;
@@ -218,22 +276,143 @@ const umamiWebsiteId = import.meta.env.PUBLIC_UMAMI_WEBSITE_ID;
         color: #fff;
         background: var(--accent);
       }
-      .btn-primary:hover { transform: translateY(-1px); background: var(--accent-hover) !important; box-shadow: var(--glow-md) !important; }
 
-      .kiba-logo {
-        height: 28px;
-        width: auto;
+      /* Botón ☰ — oculto en escritorio */
+      .site-menu-btn {
+        display: none;
+        align-items: center;
+        justify-content: center;
+        width: 42px;
+        height: 42px;
+        flex-shrink: 0;
+        border-radius: 12px;
+        border: 1.5px solid var(--border-strong);
+        background: #fff;
+        color: var(--fg-1);
+        cursor: pointer;
+        padding: 0;
+        transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+      }
+      .site-menu-btn:hover { border-color: var(--accent); background: var(--accent-soft); }
+      .site-menu-btn__close { display: none; }
+      .site-menu-btn[aria-expanded="true"] .site-menu-btn__open { display: none; }
+      .site-menu-btn[aria-expanded="true"] .site-menu-btn__close { display: block; }
+
+      /* Panel del menú móvil */
+      .site-menu {
+        position: fixed;
+        top: 68px;
+        left: 0;
+        right: 0;
+        z-index: 49;
+        max-height: calc(100vh - 68px);
+        max-height: calc(100dvh - 68px);
+        overflow-y: auto;
+        background: var(--bg-canvas);
+        border-bottom: 1px solid var(--border-subtle);
+        box-shadow: var(--shadow-lg);
+        padding: 8px var(--gutter) calc(24px + env(safe-area-inset-bottom));
+        animation: menu-drop 0.22s var(--ease-out);
+      }
+      .site-menu[hidden] { display: none; }
+      @keyframes menu-drop {
+        from { opacity: 0; transform: translateY(-8px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      .site-menu__nav {
+        display: flex;
+        flex-direction: column;
+      }
+      .site-menu__link {
         display: block;
-        object-fit: contain;
+        padding: 15px 4px;
+        font-family: var(--font-display);
+        font-size: 19px;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+        color: var(--fg-1);
+        text-decoration: none;
+        border-bottom: 1px solid var(--border-subtle);
+      }
+      .site-menu__link:hover { color: var(--accent); }
+      .site-menu__row {
+        display: flex;
+        justify-content: flex-start;
+        padding: 18px 0 14px;
+      }
+      .site-menu__ctas {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+      .site-menu__ctas .btn-ghost {
+        justify-content: center;
+        padding: 13px 16px;
       }
 
+      /* Fondo del menú: oscurece la página mientras está abierto */
+      body.site-menu-open::after {
+        content: "";
+        position: fixed;
+        inset: 68px 0 0;
+        z-index: 48;
+        background: color-mix(in srgb, var(--fg-1) 36%, transparent);
+      }
+      body.site-menu-open { overflow: hidden; }
+
+      @media (max-width: 1199px) {
+        .site-ctas .site-cta--secondary { display: none; }
+        .site-menu-btn { display: inline-flex; }
+        .site-nav { gap: 22px; }
+        .nav-link { font-size: 14px; }
+      }
       @media (max-width: 860px) {
-        #site-header nav { display: none !important; }
+        .site-nav { display: none; }
+        .btn-primary { padding: 10px 16px; font-size: 13px; }
+      }
+      @media (max-width: 360px) {
+        .site-ctas .btn-primary { display: none; }
+      }
+      @media (min-width: 861px) {
+        /* Con la nav visible en la cabecera, el menú solo aporta idioma y accesos */
+        .site-menu__nav { display: none; }
+        .site-menu__row { padding-top: 6px; }
+      }
+      @media (min-width: 1200px) {
+        .site-menu { display: none !important; }
       }
       @media (prefers-reduced-motion: reduce) {
-        #site-header { animation: none !important; }
+        #site-header, .site-menu { animation: none !important; }
       }
     </style>
+
+    <script is:inline>
+      (function () {
+        const btn = document.getElementById("site-menu-btn");
+        const menu = document.getElementById("site-menu");
+        if (!btn || !menu) return;
+        const setOpen = (open) => {
+          menu.hidden = !open;
+          btn.setAttribute("aria-expanded", open ? "true" : "false");
+          btn.setAttribute("aria-label", open ? btn.dataset.labelClose : btn.dataset.labelOpen);
+          document.body.classList.toggle("site-menu-open", open);
+        };
+        btn.addEventListener("click", () => setOpen(menu.hidden));
+        menu.querySelectorAll("a").forEach((a) => a.addEventListener("click", () => setOpen(false)));
+        document.addEventListener("keydown", (e) => {
+          if (e.key === "Escape" && !menu.hidden) setOpen(false);
+        });
+        // Tocar el fondo oscurecido cierra el menú.
+        document.addEventListener("click", (e) => {
+          if (menu.hidden) return;
+          if (menu.contains(e.target) || btn.contains(e.target)) return;
+          setOpen(false);
+        });
+        window.matchMedia("(min-width: 1200px)").addEventListener("change", (mq) => {
+          if (mq.matches) setOpen(false);
+        });
+      })();
+    </script>
 
     <script is:inline>
       (function () {

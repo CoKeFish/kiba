@@ -75,6 +75,29 @@ body,
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  -webkit-text-size-adjust: 100%;
+}
+
+img,
+svg,
+video,
+canvas {
+  max-width: 100%;
+}
+
+/* Palabras largas (claves, direcciones, hashes) no rompen el ancho en móvil */
+code,
+pre {
+  overflow-wrap: anywhere;
+}
+
+/* En móvil los campos van a 16 px: por debajo iOS hace zoom al enfocarlos */
+@media (max-width: 720px) {
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
 }
 
 ::selection {

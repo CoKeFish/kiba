@@ -1,9 +1,18 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
+import "./table.css";
 
-export const Table = ({ className, ...props }: React.TableHTMLAttributes<HTMLTableElement>) => (
-  <div className="w-full overflow-auto">
-    <table className={cn("w-full text-sm", className)} {...props} />
+interface TableProps extends React.TableHTMLAttributes<HTMLTableElement> {
+  /** En pantallas estrechas las filas se apilan como tarjetas (las celdas usan `label`). */
+  stack?: boolean;
+}
+
+export const Table = ({ className, stack = false, ...props }: TableProps) => (
+  <div className="ui-table-wrap">
+    <table
+      className={cn("ui-table w-full text-sm", stack && "ui-table--stack", className)}
+      {...props}
+    />
   </div>
 );
 
@@ -29,6 +38,11 @@ export const Th = ({ className, ...props }: React.ThHTMLAttributes<HTMLTableCell
   />
 );
 
-export const Td = ({ className, ...props }: React.TdHTMLAttributes<HTMLTableCellElement>) => (
-  <td className={cn("px-4 py-3", className)} {...props} />
+interface TdProps extends React.TdHTMLAttributes<HTMLTableCellElement> {
+  /** Etiqueta de la columna, mostrada delante del valor cuando la tabla se apila en móvil. */
+  label?: string;
+}
+
+export const Td = ({ className, label, ...props }: TdProps) => (
+  <td className={cn("px-4 py-3", className)} data-label={label} {...props} />
 );

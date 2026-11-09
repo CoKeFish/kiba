@@ -442,14 +442,22 @@
     padding: 16px 20px 32px;
   }
   .auth-mascot--triangle {
-    left: -92px;
-    width: 148px;
-    transform: translateY(-40%) rotate(-14deg);
+    left: 6px;
+    top: -74px;
+    width: 118px;
+    transform: rotate(-12deg);
   }
   .auth-mascot--heart {
-    left: -92px;
-    width: 108px;
-    transform: translateY(-32%);
+    left: auto;
+    right: 8px;
+    top: -66px;
+    width: 100px;
+    transform: rotate(8deg);
+    z-index: 0;
+  }
+  .auth-main {
+    align-items: flex-start;
+    padding-top: 88px;
   }
   .auth-card-wrap {
     max-width: 100%;

@@ -9,7 +9,8 @@ const DASHBOARD_URL = import.meta.env.PUBLIC_DASHBOARD_URL || "https://app.kiba.
 <section style="position: relative; overflow: hidden; background: #FFFFFF;">
   <div style="
     position: relative; z-index: 2;
-    max-width: 1140px; margin: 0 auto;
+    max-width: calc(1140px + 2 * var(--gutter)); margin: 0 auto;
+    padding: 0 var(--gutter);
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 32px;
@@ -17,7 +18,7 @@ const DASHBOARD_URL = import.meta.env.PUBLIC_DASHBOARD_URL || "https://app.kiba.
   " class="hero-grid">
 
     <!-- Left: copy -->
-    <div style="padding: 56px 0;">
+    <div class="hero-copy" style="padding: 56px 0;">
       <h1 class="hero-h1">
         <span class="hero-h1-line">{t("hero.h1.line1")}</span>
         <span class="hero-h1-line">{t("hero.h1.line2pre")}<em class="hero-stamp">{t("hero.h1.line2em")}</em></span>
@@ -175,8 +176,15 @@ const DASHBOARD_URL = import.meta.env.PUBLIC_DASHBOARD_URL || "https://app.kiba.
 
   @media (max-width: 900px) {
     .hero-grid { grid-template-columns: 1fr !important; gap: 8px !important; }
+    .hero-copy { padding: 40px 0 8px !important; }
     .hero-friends-img { width: min(100%, 420px); margin: 0 auto; }
     .hero-h1 { font-size: clamp(36px, 10vw, 52px); }
+    .hero-sub { font-size: 16px; max-width: 460px; }
+    .hero-art { padding: 0 0 16px; }
+  }
+  @media (max-width: 480px) {
+    .hero-ctas { flex-direction: column; align-items: stretch; }
+    .btn-hero { justify-content: center; padding: 14px 24px; font-size: 15px; }
   }
   @media (prefers-reduced-motion: reduce) {
     .hero-h1-line,

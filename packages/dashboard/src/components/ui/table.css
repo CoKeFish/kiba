@@ -1,0 +1,69 @@
+/* Tablas: en pantallas estrechas cada fila se apila como una tarjeta
+   (la cabecera se oculta y cada celda muestra su etiqueta con data-label). */
+
+.ui-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.ui-table th,
+.ui-table td {
+  vertical-align: middle;
+}
+
+.ui-table th {
+  white-space: nowrap;
+}
+
+@media (max-width: 720px) {
+  .ui-table--stack,
+  .ui-table--stack tbody,
+  .ui-table--stack tr,
+  .ui-table--stack td {
+    display: block;
+    width: 100%;
+  }
+
+  .ui-table--stack thead {
+    display: none;
+  }
+
+  .ui-table--stack tr {
+    padding: 8px 20px 12px;
+  }
+
+  .ui-table--stack tr:hover {
+    background: transparent;
+  }
+
+  .ui-table--stack td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 7px 0;
+    text-align: right !important;
+  }
+
+  .ui-table--stack td > * {
+    margin-left: auto;
+  }
+
+  .ui-table--stack td[data-label]::before {
+    content: attr(data-label);
+    flex-shrink: 0;
+    margin-right: auto;
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-fg-muted);
+    text-align: left;
+  }
+
+  .ui-table--stack td:empty {
+    display: none;
+  }
+}

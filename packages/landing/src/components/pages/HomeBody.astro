@@ -42,7 +42,7 @@ const catalogStrings = {
 <!-- Feature pills row -->
 <div style="
   display: flex; gap: 12px; flex-wrap: wrap; justify-content: center;
-  padding: 28px 64px; background: var(--bg-surface);
+  padding: 24px var(--gutter); background: var(--bg-surface);
   border-top: 1px solid var(--border-subtle);
 ">
   {featurePills.map((label, i) => (
@@ -53,7 +53,7 @@ const catalogStrings = {
 </div>
 
 <!-- Search + agent catalog -->
-<section id="agents" style="padding: 60px 64px; background: var(--bg-canvas); border-top: 1px solid var(--border-subtle);">
+<section id="agents" style="padding: clamp(44px, 6vw, 60px) var(--gutter); background: var(--bg-canvas); border-top: 1px solid var(--border-subtle);">
   <div style="max-width: 1140px; margin: 0 auto;">
     <h2 class="js-reveal slide-up" style="
       font-family: var(--font-display);
@@ -86,13 +86,13 @@ const catalogStrings = {
 <Pricing />
 
 <!-- CTA band (dark) -->
-<section style="padding: 32px 52px 64px; background: var(--bg-canvas);">
+<section style="padding: 32px var(--gutter) 64px; background: var(--bg-canvas);">
   <div class="js-reveal bounce-pop" style="
     position: relative; overflow: hidden;
     max-width: 1140px; margin: 0 auto;
     border-radius: 26px;
     background: var(--bg-ink);
-    padding: 52px 48px;
+    padding: clamp(32px, 5vw, 52px) clamp(24px, 4vw, 48px);
     display: flex; align-items: center; justify-content: space-between;
     gap: 40px; flex-wrap: wrap;
   ">
@@ -109,7 +109,7 @@ const catalogStrings = {
         {t("ctaband.sub")}
       </p>
     </div>
-    <div style="position: relative; z-index: 2; display: flex; gap: 12px; flex-wrap: wrap;">
+    <div class="cta-band-actions" style="position: relative; z-index: 2; display: flex; gap: 12px; flex-wrap: wrap;">
       <a
         href={`${DASHBOARD_URL}/signup`}
         class="btn-cta"
@@ -146,7 +146,7 @@ const catalogStrings = {
 <style>
   .feat-pill {
     display: flex; align-items: center; gap: 12px;
-    padding: 13px 24px; border-radius: 999px;
+    padding: 11px 20px; border-radius: 999px;
     border: 1px solid var(--border-default); background: #fff;
     font-family: var(--font-sans); font-size: 14px; font-weight: 600; color: var(--fg-1);
     transition: all var(--dur-base) var(--ease-out); cursor: default;
@@ -155,4 +155,11 @@ const catalogStrings = {
 
   .cta-glow { position: absolute; border-radius: 50%; filter: blur(80px); opacity: .35; pointer-events: none; }
   .btn-cta:hover { background: var(--c-yellow); transform: translateY(-2px); }
+
+  @media (max-width: 560px) {
+    .feat-pill { font-size: 13px; padding: 10px 16px; }
+    /* Los dos botones de la franja oscura ocupan todo el ancho, uno bajo otro */
+    .cta-band-actions { width: 100%; flex-direction: column; }
+    .cta-band-actions a { justify-content: center; text-align: center; }
+  }
 </style>

@@ -27,6 +27,8 @@ export const ui = {
     "cta.download": "Download",
     "cta.download_title": "Windows one-click installer (.exe)",
     "cta.start": "Start exploring →",
+    "nav.menu": "Menu",
+    "nav.close_menu": "Close menu",
 
     // ── Hero ──
     "hero.h1.line1": "Find the",
@@ -289,6 +291,8 @@ export const ui = {
     "cta.download": "Descargar",
     "cta.download_title": "Instalador de un clic para Windows (.exe)",
     "cta.start": "Empezar a explorar →",
+    "nav.menu": "Menú",
+    "nav.close_menu": "Cerrar menú",
 
     // ── Hero ──
     "hero.h1.line1": "Encuentra el",
@@ -551,6 +555,8 @@ export const ui = {
     "cta.download": "Baixar",
     "cta.download_title": "Instalador de um clique para Windows (.exe)",
     "cta.start": "Começar a explorar →",
+    "nav.menu": "Menu",
+    "nav.close_menu": "Fechar menu",
 
     // ── Hero ──
     "hero.h1.line1": "Encontre o",
