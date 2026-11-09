@@ -38,14 +38,14 @@ Punto de partida: tag [`kickoff`](https://github.com/CoKeFish/kiba/releases/tag/
 
 | | Al kickoff (6 nov) | Hoy (8 nov) |
 |---|---|---|
-| **Pagar APIs fuera de Kiba** | Solo servicios del catálogo de Kiba | `call_url`: el asistente paga **cualquier API x402 estándar en Stellar** con su saldo de Kiba. Tope por llamada, reembolso si la API falla, transacción en la cuenta. |
+| **Pagar APIs fuera de Kiba** | Solo servicios del catálogo de Kiba | `call_url`: el asistente paga **cualquier API x402 estándar en Stellar** con su saldo de Kiba. Tope por llamada, reembolso si la API rechaza la llamada antes de cobrar, transacción en la cuenta. |
 | **Cobrar a clientes fuera de Kiba** | Handshake 402 propio de Kiba | Cada servicio del SDK acepta **x402 estándar** (`PAYMENT-REQUIRED` con precio dinámico, `PAYMENT-SIGNATURE`, `PAYMENT-RESPONSE` con el hash), con facilitador o liquidando por sí mismo. Una variable de entorno lo activa. |
 | **Servicios que pagan servicios** | No existía | El handler recibe `ctx.kiba` para contratar y pagar a otros servicios y APIs x402 con el saldo del publicador. El gateway liga esos pagos al pedido del usuario y los devuelve como `subCalls` en el conector, la API y el dashboard. |
 | **Servicios nuevos** | 13 servicios | 15: **web-brief** (paga a web-scraper y translator-pro) y **compara-precios** (paga a web-scraper por cada tienda colombiana y dice dónde está más barato). |
 | **Resultados** | Enlaces que caducaban | El almacén de resultados guarda los archivos que generan los servicios (modelos 3D, canciones, licencias) y los sirve desde `api.kiba.tools`; el dashboard los previsualiza y descarga. |
 | **Arreglos (no cuentan como funciones)** | | translator-pro traduce con Gemini; web-scraper no inventa datos, lee YouTube y da errores claros; el conector muestra la causa real de un fallo. [`kiba-mcp` 0.1.9](https://www.npmjs.com/package/kiba-mcp/v/0.1.9) publicado el 8 de noviembre con `call_url`. |
 
-Commits por función: x402 comprador `123be1f` `8c79d6a`; x402 vendedor `828f1fa` `d01f8f0`; servicios que pagan servicios `2a53e5a` `b647705` `3f5fe3f` `2c221e0`; archivos en los resultados `a3fe6c1` `ea4f0d6`; compara-precios `cb67bb1`; traductor real `507010c`. El trabajo de x402 se hizo el 7 de noviembre y se publicó en `main` el 8 a las 12:24 en una sola tanda, por eso varios commits comparten la hora. Los contratos de Soroban no cambiaron durante el evento. El estado final de la entrega lleva el tag `cordillera-final`. Pruebas automáticas nuevas: `packages/gateway/test/x402.test.ts`, `cascade.test.ts`, `files.test.ts`, `packages/sdk/test/gateway-client.test.ts`, `call-context.test.ts`. Ejemplos ejecutables: [`examples/x402-seller`](examples/x402-seller) y [`examples/x402-buyer`](examples/x402-buyer).
+Commits por función: x402 comprador `123be1f` `8c79d6a`; x402 vendedor `828f1fa` `d01f8f0`; servicios que pagan servicios `2a53e5a` `b647705` `3f5fe3f` `2c221e0`; archivos en los resultados `a3fe6c1` `ea4f0d6`; compara-precios `cb67bb1`; traductor real `507010c`. El trabajo de x402 se hizo el 7 de noviembre (lo fechan sus transacciones de prueba en testnet, enlazadas abajo) y se publicó en `main` el 8 a las 12:24 en una sola tanda, por eso varios commits comparten la hora. Los contratos de Soroban no cambiaron durante el evento. El estado final de la entrega lleva el tag `cordillera-final`. Pruebas automáticas nuevas: `packages/gateway/test/x402.test.ts`, `cascade.test.ts`, `files.test.ts`, `packages/sdk/test/gateway-client.test.ts`, `call-context.test.ts`. Ejemplos ejecutables: [`examples/x402-seller`](examples/x402-seller) y [`examples/x402-buyer`](examples/x402-buyer).
 
 ### La demo, con sus transacciones
 
@@ -91,7 +91,7 @@ curl -si -X POST https://agent-web.kiba.tools/service -H 'content-type: applicat
 - **Un permiso, cero interrupciones.** El usuario autoriza una vez un permiso de gasto sobre su wallet de pagos y el asistente paga sin pedir firma por llamada. El permiso lo impone el contrato de USDC en Stellar: Kiba no puede mover más de lo autorizado ni después del vencimiento, y el usuario recarga, retira o revoca cuando quiera.
 - **Un solo saldo.** Todas las llamadas y sus precios aparecen en la cuenta, con el enlace a la transacción.
 - **Recargas.** En pesos por Bre-B (modo de prueba en testnet) o enviando USDC desde cualquier wallet de Stellar. Wompi (PSE, Nequi, tarjeta) está programado en el gateway y el dashboard y se activa con las llaves del comercio al salir a mainnet.
-- **Funciona en los asistentes que ya usas:** Claude, ChatGPT, Cursor y cualquier cliente MCP; instalador de un clic en Windows.
+- **Funciona en los asistentes que ya usas:** Claude, ChatGPT, Cursor y cualquier cliente MCP ([guías de conexión](https://docs.kiba.tools/conecta-tu-asistente)); instalador de un clic en Windows.
 
 ### Tracción (con fuente)
 
@@ -103,7 +103,7 @@ Kiba está en testnet y todavía no tiene usuarios ni publicadores externos: est
 | Pedidos a través del gateway (desde el 16 de octubre, cuando nació el almacén de resultados) | 277 de 5 cuentas: 266 completados y 11 con error. 180 de ellos son una prueba de carga de `world-clock` el 19 de octubre; sin esa prueba quedan 97 pedidos reales (86 completados). Durante el evento: 83 pedidos (73 completados), 33 de ellos pagos entre servicios | [`docs/metrics/pedidos-2026-11-08.csv`](docs/metrics/pedidos-2026-11-08.csv): fecha, cuenta anonimizada, servicio, estado, costo y, en los 105 pedidos liquidados por llamada, el enlace a su transacción |
 | Liquidaciones a publicadores (desde julio de 2026) | 97 liquidadas y 1 fallida | [`docs/metrics/liquidaciones-2026-11-08.csv`](docs/metrics/liquidaciones-2026-11-08.csv): fecha, servicio, monto y referencia on-chain (hash de la transacción o, en la primera, el escrow que la liquidó) |
 | Servicios publicados en el catálogo | 15, publicados por el equipo como demostración | [Catálogo](https://app.kiba.tools) |
-| Participaciones | Stellar PULSO 2026 ([DoraHacks](https://dorahacks.io/buidl/46218), sin premio) y Código Cordillera 2026; las licencias de medios se construyeron durante HackMeridian 2026 ([rama](https://github.com/CoKeFish/kiba/commits/hackmeridian-2026)) | DoraHacks, GitHub, Stellar Apex |
+| Participaciones | Stellar PULSO 2026 ([DoraHacks](https://dorahacks.io/buidl/46218)) y Código Cordillera 2026; las licencias de medios se construyeron durante HackMeridian 2026 ([rama](https://github.com/CoKeFish/kiba/commits/hackmeridian-2026)) | DoraHacks, GitHub, Stellar Apex |
 
 Las tres primeras filas se solapan: desde el 19 de octubre cada pago por llamada pasa por el contrato, queda en el pedido y genera su liquidación, así que no son volúmenes que se sumen. Las diferencias son los pagos anteriores al contrato (julio y 16 a 17 de octubre) y las liquidaciones por lotes.
 
@@ -113,7 +113,7 @@ Distribución, que no es uso: 680 descargas de `kiba-mcp` en [npm](https://www.n
 
 Stellar no es un detalle de Kiba: es el riel. Cada llamada pagada termina en `pay()` del contrato de pagos en Soroban, en USDC, con el reparto 95/5 fijado en el contrato y visible en cada transacción; el registro de servicios es un contrato; la wallet de pagos del usuario es una cuenta Stellar con un permiso `approve` sobre el contrato de USDC (SEP-41) y comisiones pagadas por Kiba con fee-bump; y la interoperabilidad es x402 sobre Stellar con los paquetes oficiales `@x402/stellar`. Sin Stellar no hay producto.
 
-Lo que ya está listo para mainnet: el SDK trae el preset `mainnet` con el USDC de Circle (`packages/sdk/src/config.ts`), el contrato de pagos tiene su batería de pruebas (`packages/contracts-payments/src/test.rs`) y la documentación ya describe [qué cambia para un publicador en mainnet](https://docs.kiba.tools/publica-un-servicio/mainnet). Lo que falta son los pasos de la tabla.
+Lo que ya existe para mainnet: el SDK trae la configuración `mainnet` con el USDC de Circle (`packages/sdk/src/config.ts`, aún sin ejercitar en esa red), el contrato de pagos tiene su batería de pruebas (`packages/contracts-payments/src/test.rs`) y la documentación ya describe [qué cambia para un publicador en mainnet](https://docs.kiba.tools/publica-un-servicio/mainnet). Lo que falta son los pasos de la tabla.
 
 | Hito | Fecha | Qué cambia |
 |---|---|---|
