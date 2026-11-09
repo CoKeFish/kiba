@@ -26,7 +26,9 @@ No accounts, API keys or subscriptions are required.
 
 ## Código Cordillera 2026 · track Scale
 
-> Sección para el jurado, en español. El resto del documento describe el producto en inglés. Proyecto en [Stellar Apex](https://stellarapex.org/projects/3bce6a11-3bee-4825-bc07-a44828d45f63); el video pitch está en su campo "demo url".
+> Sección para el jurado, en español. El resto del documento describe el producto en inglés.
+>
+> **Video pitch (5 min):** [youtu.be/xKk3R0B52Ms](https://youtu.be/xKk3R0B52Ms) · Proyecto en [Stellar Apex](https://stellarapex.org/projects/3bce6a11-3bee-4825-bc07-a44828d45f63).
 
 **En cinco líneas.** Los asistentes de IA no pueden pagar: cada servicio especializado exige cuenta, clave y suscripción, y el asistente se queda en respuestas genéricas. Kiba es el marketplace donde el asistente encuentra un servicio y lo paga por uso, en USDC sobre Stellar, dentro de la conversación. Llegamos al kickoff con el producto en testnet: gateway, conector MCP, SDK, contrato de pagos en Soroban, dashboard y catálogo. En las 48 horas del evento construimos **x402 estándar en ambos sentidos** y **servicios que pagan servicios**: un servicio de Kiba ahora contrata a otros y les paga desde su código, y el usuario ve toda la cascada con sus transacciones en Stellar. Lo siguiente es mainnet.
 
