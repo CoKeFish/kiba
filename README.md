@@ -92,6 +92,7 @@ curl -si -X POST https://agent-web.kiba.tools/service -H 'content-type: applicat
 - **Un solo saldo.** Todas las llamadas y sus precios aparecen en la cuenta, con el enlace a la transacción.
 - **Recargas.** En pesos por Bre-B (modo de prueba en testnet) o enviando USDC desde cualquier wallet de Stellar. Wompi (PSE, Nequi, tarjeta) está programado en el gateway y el dashboard y se activa con las llaves del comercio al salir a mainnet.
 - **Funciona en los asistentes que ya usas:** Claude, ChatGPT, Cursor y cualquier cliente MCP ([guías de conexión](https://docs.kiba.tools/conecta-tu-asistente)); instalador de un clic en Windows.
+- **Funciona en móvil.** El flujo completo ocurre en la app de Claude o de ChatGPT del teléfono, con el conector de Kiba; el panel web también abre en el navegador del móvil.
 
 ### Tracción (con fuente)
 
@@ -102,6 +103,7 @@ Kiba está en testnet y todavía no tiene usuarios ni publicadores externos: est
 | Pagos liquidados por llamada en el contrato de pagos de Soroban (desde el 19 de octubre) | 102 invocaciones | Contador público del contrato en [stellar.expert](https://stellar.expert/explorer/testnet/contract/CBARSI2VGH7SDUA2WD3CUEGWFY6GYGC2WRW5JYGYMR4BR2Q3WZHKDWL7) |
 | Pedidos a través del gateway (desde el 16 de octubre, cuando nació el almacén de resultados) | 277 de 5 cuentas: 266 completados y 11 con error. 180 de ellos son una prueba de carga de `world-clock` el 19 de octubre; sin esa prueba quedan 97 pedidos reales (86 completados). Durante el evento: 83 pedidos (73 completados), 33 de ellos pagos entre servicios | [`docs/metrics/pedidos-2026-11-08.csv`](docs/metrics/pedidos-2026-11-08.csv): fecha, cuenta anonimizada, servicio, estado, costo y, en los 105 pedidos liquidados por llamada, el enlace a su transacción |
 | Liquidaciones a publicadores (desde julio de 2026) | 97 liquidadas y 1 fallida | [`docs/metrics/liquidaciones-2026-11-08.csv`](docs/metrics/liquidaciones-2026-11-08.csv): fecha, servicio, monto y referencia on-chain (hash de la transacción o, en la primera, el escrow que la liquidó) |
+| Entrevistas con desarrolladores que construyen con agentes | 3 entrevistas grabadas en video, de 12 a 15 minutos, en octubre de 2026: confirman que encontrar la herramienta adecuada cuesta tiempo, que pagan por uso si el precio tiene sentido y que publicar un servicio propio atrae | [`docs/entrevistas.md`](docs/entrevistas.md): perfiles, citas y lo que cambiamos; grabaciones disponibles para el jurado bajo pedido |
 | Servicios publicados en el catálogo | 15, publicados por el equipo como demostración | [Catálogo](https://app.kiba.tools) |
 | Participaciones | Stellar PULSO 2026 ([DoraHacks](https://dorahacks.io/buidl/46218)) y Código Cordillera 2026; las licencias de medios se construyeron durante HackMeridian 2026 ([rama](https://github.com/CoKeFish/kiba/commits/hackmeridian-2026)) | DoraHacks, GitHub, Stellar Apex |
 
