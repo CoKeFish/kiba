@@ -3,16 +3,16 @@
 Tres entrevistas grabadas en video (12 a 15 minutos cada una), realizadas en octubre de 2026 por el equipo de Kiba a
 desarrolladores que construyen con agentes de IA. Cada entrevista tuvo dos partes: cómo trabajan hoy con
 agentes y qué pasa cuando necesitan una capacidad que su agente no tiene; y una demostración de Kiba (instalador,
-conector en Claude y ChatGPT, dashboard, modelo 95/5) seguida de su reacción. Las grabaciones están disponibles para
-el jurado bajo pedido; aquí va el resumen, sin datos personales.
+conector en Claude y ChatGPT, dashboard, modelo 95/5) seguida de su reacción. Las grabaciones completas están enlazadas
+abajo; este resumen no incluye datos personales.
 
 ## Perfiles
 
-| | Perfil | Cómo usa agentes hoy |
-|---|---|---|
-| Entrevista 1 | Desarrollador en una empresa de datos; construye rastreadores web en Python y Rust | Open Code con modelos de Google y Claude Code; la empresa le da acceso a las herramientas que necesita |
-| Entrevista 2 | Desarrollador de software y hardware, trabajo por contrato y proyectos propios | Claude Code para planeación y revisión de código; prefiere herramientas de código abierto |
-| Entrevista 3 | Desarrollador y emprendedor, con un producto en incubación | Claude y ChatGPT para idear y diseñar la arquitectura; otro modelo para escribir código |
+| | Perfil | Cómo usa agentes hoy | Grabación |
+|---|---|---|---|
+| Entrevista 1 | Desarrollador en una empresa de datos; construye rastreadores web en Python y Rust | Open Code con modelos de Google y Claude Code; la empresa le da acceso a las herramientas que necesita | [Video, 15 min](https://drive.google.com/file/d/1y5wU0WfywMS2vwK43nK1vBmqWQiBhsc6/view) |
+| Entrevista 2 | Desarrollador de software y hardware, trabajo por contrato y proyectos propios | Claude Code para planeación y revisión de código; prefiere herramientas de código abierto | [Video, 14 min](https://drive.google.com/file/d/1BdGLBh2MsjbG_HVamdZsF7LXCQC8bak8/view) |
+| Entrevista 3 | Desarrollador y emprendedor, con un producto en incubación | Claude y ChatGPT para idear y diseñar la arquitectura; otro modelo para escribir código | [Video, 12 min](https://drive.google.com/file/d/1JjvxiGeelmbW2nVhXBRQT7vHT9sVtyez/view) |
 
 ## Qué confirmaron
 
