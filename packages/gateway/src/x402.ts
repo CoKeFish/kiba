@@ -36,6 +36,7 @@ import { db, withTransaction } from './db';
 import { explorerTxUrl } from './chain';
 import { getMasterWallet } from './wallets';
 import { hasSpendWallet, releaseSpend, reserveSpend } from './spend';
+import { confirmChannel, releaseChannel, reserveChannel, type ChannelReserve } from './channel';
 import { assertAllowedUrl } from './net-guard';
 import { resultUrl } from './results';
 
@@ -308,6 +309,7 @@ export async function callX402Url(args: X402CallArgs): Promise<X402CallResult> {
   // 3. Cobro al usuario: crédito primero, si no la wallet de pagos.
   const meta = { mode: 'x402', url: u.href, network: accept.network, payTo: accept.payTo, scheme: accept.scheme };
   let paidWith: 'credit' | 'wallet';
+  let hold: ChannelReserve = { ok: false, reason: 'none', available: 0 };
   let debitTxId: number | undefined;
   let left: number;
   const virtual = await getBalance(args.userId);
@@ -320,6 +322,14 @@ export async function callX402Url(args: X402CallArgs): Promise<X402CallResult> {
     paidWith = 'credit';
     debitTxId = d.transactionId;
     left = d.newBalance;
+  } else if ((hold = await reserveChannel(args.userId, lamports)).ok) {
+    // Depósito retirable: el precio se aparta del canal y pasa a consumido si la API responde.
+    paidWith = 'wallet';
+    left = hold.left;
+  } else if (hold.reason === 'insufficient') {
+    const msg = `depósito insuficiente: la API cobra ${lamportsToUsd(lamports).toFixed(4)} USD y quedan ${lamportsToUsd(hold.available).toFixed(4)} USD; recarga el depósito`;
+    await closeResult(resultId, { error: msg });
+    throw new Error(msg);
   } else if (await hasSpendWallet(args.userId)) {
     const r = await reserveSpend(args.userId, lamports);
     if (!r.ok) {
@@ -335,6 +345,7 @@ export async function callX402Url(args: X402CallArgs): Promise<X402CallResult> {
   }
   const refund = async (reason: string) => {
     if (paidWith === 'credit') await refundCredit(args.userId, lamports, service, reason);
+    else if (hold.ok) await releaseChannel(hold);
     else await releaseSpend(args.userId, lamports);
   };
 
@@ -371,7 +382,8 @@ export async function callX402Url(args: X402CallArgs): Promise<X402CallResult> {
   const txHash = settled?.transaction || undefined;
   const explorerUrl = txHash ? explorerTxUrl(txHash) : undefined;
   if (txHash && debitTxId != null) await attachSignature(debitTxId, txHash).catch(() => undefined);
-  if (paidWith === 'wallet') await recordSpendCall(args.userId, lamports, service, { ...meta, txHash });
+  if (hold.ok) await confirmChannel(hold);
+  if (paidWith === 'wallet') await recordSpendCall(args.userId, lamports, service, { ...meta, txHash, ...(hold.ok ? { paidFrom: 'deposit' } : {}) });
   await closeResult(resultId, { result: second.body, lamports, explorerUrl });
 
   return {

@@ -466,6 +466,20 @@ async function runInit(): Promise<void> {
     )
   `);
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_pay_channel_moves_channel ON pay_channel_moves(channel_id, id)`);
+  // Consumo por llamada: `held` es lo apartado por llamadas en curso (una fila en
+  // pay_channel_holds por llamada); al terminar pasa a `spent` o se suelta.
+  await pool.query(`ALTER TABLE pay_channels ADD COLUMN IF NOT EXISTS held BIGINT NOT NULL DEFAULT 0`);
+  // Desde cuándo hay consumo sin cobrar (NULL = todo cobrado): el job cobra lo que lleva mucho.
+  await pool.query(`ALTER TABLE pay_channels ADD COLUMN IF NOT EXISTS unsettled_since BIGINT`);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS pay_channel_holds (
+      id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      channel_id BIGINT NOT NULL REFERENCES pay_channels(id),
+      amount BIGINT NOT NULL,
+      created_at BIGINT NOT NULL
+    )
+  `);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_pay_channel_holds_age ON pay_channel_holds(created_at)`);
   // Fund per-call: earning fondeada on-chain apunta al escrow del ciclo (NULL = legacy/acumulado).
   await pool.query(`ALTER TABLE agent_earnings ADD COLUMN IF NOT EXISTS escrow_id TEXT`);
   // licenses (rama hackmeridian-2026, antes del primer despliegue): de credencial firmada a

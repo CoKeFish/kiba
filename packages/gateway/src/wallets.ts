@@ -215,7 +215,10 @@ export async function getUserBalances(userId: number): Promise<UserBalances> {
     // Con wallet de pagos cuenta lo que se puede gastar ahí (ya descontado lo usado sin cobrar);
     // si no, la wallet anterior (paga en modo wallet-direct). Import diferido: spend.ts importa este módulo.
     const { spendAvailable } = await import('./spend.js');
-    walletLamports = (await spendAvailable(userId)) ?? (await userOnChainBalance(userId));
+    const { channelAvailable } = await import('./channel.js');
+    // El depósito retirable suma lo que queda por gastar en el canal.
+    walletLamports =
+      ((await channelAvailable(userId)) ?? 0) + ((await spendAvailable(userId)) ?? (await userOnChainBalance(userId)));
   } catch (err) {
     console.warn(`[wallets] on-chain balance failed for user ${userId}:`, (err as Error).message);
   }

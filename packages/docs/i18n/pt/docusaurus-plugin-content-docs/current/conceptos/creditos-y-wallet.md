@@ -34,9 +34,9 @@ Quem prefere pagar com a própria wallet deixa um **depósito** em um canal de p
 
 - **Depositar.** Em **Billing**, o usuário escolhe um valor e assina uma transação com a sua wallet: a da Kiba com Privy, ou uma externa como Freighter, xBull ou Lobstr. Essa transação cria o canal dele e move o USDC da wallet para o canal. O mínimo é 1 USDC.
 - **Recarregar.** Outra transação assinada pelo usuário soma ao depósito.
-- **Pagar.** Cada chamada é descontada do depósito na hora, sem assinatura e sem transação na cadeia. A Kiba cobra o consumo do contrato em lotes, e o contrato nunca paga mais do que foi depositado.
+- **Pagar.** Cada chamada é descontada do depósito na hora, sem assinatura e sem transação na cadeia. A Kiba cobra o consumo do contrato em lotes: quando o pendente chega a 0,10 USDC ou está há dez minutos sem ser cobrado. Uma transação cobre todas as chamadas do lote, e o contrato nunca paga mais do que foi depositado.
 - **Retirar.** A Kiba cobra o consumo pendente e o resto volta para a wallet do usuário na mesma transação. O canal é fechado; para continuar pagando com a wallet, abre-se outro.
-- **Retirar sem passar pela Kiba.** O usuário solicita a retirada diretamente ao contrato. Depois do prazo de espera do canal, de cerca de uma hora, ele retira tudo o que a Kiba não tiver cobrado.
+- **Retirar sem passar pela Kiba.** O usuário solicita a retirada diretamente ao contrato. A Kiba detecta, deixa de aceitar gasto contra esse depósito e cobra o que está pendente. Depois do prazo de espera do canal, de cerca de uma hora, o usuário retira tudo o que sobrar.
 
 A Kiba paga as taxas de rede de todas essas transações: o usuário não precisa de XLM.
 
@@ -65,7 +65,8 @@ O dashboard (barra superior e página **Billing**) e a ferramenta [`get_balance`
 | Situação | Quem paga | `paidWith` |
 |---|---|---|
 | Há crédito suficiente | A tesouraria assina e paga on-chain; a wallet do usuário não é tocada (uma única cobrança) | `credit` |
-| Não há crédito | A wallet paga diretamente com o escrow completo on-chain; mais lento (uma única cobrança) | `wallet` |
+| Não há crédito e há um depósito aberto | O preço é descontado do depósito na hora; a Kiba cobra do canal em lotes | `wallet` |
+| Não há crédito nem depósito | A wallet paga diretamente com o escrow completo on-chain; mais lento (uma única cobrança) | `wallet` |
 
 Os publishers recebem **on-chain**, não em créditos.
 

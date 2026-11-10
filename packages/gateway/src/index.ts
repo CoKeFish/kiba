@@ -81,8 +81,10 @@ import {
   submitPrepared,
 } from './spend';
 import {
+  channelsEnabled,
   getChannelStatus,
   liquidateChannel,
+  runChannelJob,
   prepareChannelCloseStart,
   prepareChannelOpen,
   prepareChannelRefund,
@@ -1693,6 +1695,15 @@ void initDb()
     console.error('[db] initDb falló — no se puede arrancar el gateway:', err);
     process.exit(1);
   });
+
+// Depósitos retirables: cobra por tandas lo consumido y detecta los retiros pedidos al contrato.
+// El intervalo debe ser mucho menor que la espera del retiro (CHANNEL_REFUND_WAIT_LEDGERS).
+const CHANNEL_JOB_INTERVAL_MS = Number(process.env.CHANNEL_JOB_INTERVAL_MS) || 60_000;
+if (channelsEnabled()) {
+  setInterval(() => {
+    void runChannelJob().catch((err) => console.error('[channel] job falló:', (err as Error).message));
+  }, CHANNEL_JOB_INTERVAL_MS);
+}
 
 // Liquidación PROGRAMADA (opcional): si SETTLEMENT_INTERVAL_MS está seteado, liquida por lotes
 // a todos los agentes con acumulado >= mínimo. Vacío = solo bajo demanda (POST /v1/publisher/settle).

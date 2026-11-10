@@ -34,9 +34,9 @@ Users who prefer to pay from their own wallet leave a **deposit** in a Stellar p
 
 - **Deposit.** From **Billing**, the user picks an amount and signs one transaction with their wallet: the Kiba wallet with Privy, or an external one such as Freighter, xBull or Lobstr. That transaction creates their channel and moves the USDC from the wallet into it. The minimum is 1 USDC.
 - **Top up.** Another transaction signed by the user adds to the deposit.
-- **Pay.** Each call is deducted from the deposit instantly, with no signature and no on-chain transaction. Kiba collects the usage from the contract in batches, and the contract never pays out more than was deposited.
+- **Pay.** Each call is deducted from the deposit instantly, with no signature and no on-chain transaction. Kiba collects the usage from the contract in batches: when the pending amount reaches 0.10 USDC or has gone ten minutes uncollected. One transaction covers every call in the batch, and the contract never pays out more than was deposited.
 - **Withdraw.** Kiba collects the pending usage and the rest goes back to the user's wallet in the same transaction. The channel closes; to keep paying from the wallet, the user opens another one.
-- **Withdraw without going through Kiba.** The user requests the withdrawal directly from the contract. After the channel's waiting period, about one hour, they withdraw everything Kiba has not collected.
+- **Withdraw without going through Kiba.** The user requests the withdrawal directly from the contract. Kiba detects it, stops accepting spending against that deposit and collects what is pending. After the channel's waiting period, about one hour, the user withdraws everything that is left.
 
 Kiba pays the network fees for all of these transactions: the user does not need XLM.
 
@@ -65,7 +65,8 @@ The dashboard (top bar and **Billing** page) and the [`get_balance`](/conecta-tu
 | Situation | Who pays | `paidWith` |
 |---|---|---|
 | Enough credit | The treasury signs and pays on-chain; the user's wallet isn't touched (a single charge) | `credit` |
-| No credit | The wallet pays directly with the full on-chain escrow; slower (a single charge) | `wallet` |
+| No credit and an open deposit | The price is deducted from the deposit instantly; Kiba collects it from the channel in batches | `wallet` |
+| No credit and no deposit | The wallet pays directly with the full on-chain escrow; slower (a single charge) | `wallet` |
 
 Publishers get paid **on-chain**, not in credits.
 

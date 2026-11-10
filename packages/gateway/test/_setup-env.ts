@@ -35,4 +35,4 @@ export const TEST_MASTER_KEYPAIR = masterKp;
 
 /** Tablas a truncar entre tests (con CASCADE + reinicio de identidades). */
 export const TRUNCATE_SQL =
-  'TRUNCATE pay_channel_moves, pay_channels, result_files, licenses, spend_prepared, spend_charges, spend_reads, call_results, oauth_refresh_tokens, oauth_tokens, oauth_sessions, oauth_clients, api_keys, transactions, agent_earnings, settlements, payment_charges, user_agents, users RESTART IDENTITY CASCADE';
+  'TRUNCATE pay_channel_holds, pay_channel_moves, pay_channels, result_files, licenses, spend_prepared, spend_charges, spend_reads, call_results, oauth_refresh_tokens, oauth_tokens, oauth_sessions, oauth_clients, api_keys, transactions, agent_earnings, settlements, payment_charges, user_agents, users RESTART IDENTITY CASCADE';

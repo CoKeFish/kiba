@@ -23,8 +23,14 @@ import { db, initDb, pool } from '../src/db';
 import { setSpendChain, submitPrepared, type PreparedTx, type SpendChain } from '../src/spend';
 import {
   CHANNEL_MIN_DEPOSIT,
+  CHANNEL_SETTLE_THRESHOLD,
   CHANNEL_WAIT_LEDGERS,
+  channelAvailable,
   commitmentBytes,
+  confirmChannel,
+  releaseChannel,
+  reserveChannel,
+  runChannelJob,
   getChannelStatus,
   hasOpenChannel,
   liquidateChannel,
@@ -180,6 +186,21 @@ class FakeNet implements ChannelChain {
   async read(channel: string) {
     const ch = this.channels.get(channel)!;
     return { balance: ch.balance, withdrawn: ch.withdrawn };
+  }
+  async closeEffective(channels: string[]) {
+    return new Map(channels.map((c) => [c, this.channels.get(c)?.closeAt ?? null] as [string, number | null]));
+  }
+  /** El usuario pide el retiro directamente al contrato, sin pasar por Kiba. */
+  externalCloseStart(channel: string) {
+    const ch = this.channels.get(channel)!;
+    ch.closeAt = this.ledger + ch.wait;
+  }
+  /** Pasada la espera, el usuario retira directamente del contrato todo lo que quede. */
+  externalRefund(channel: string) {
+    const ch = this.channels.get(channel)!;
+    if (ch.closeAt === null || this.ledger < ch.closeAt) throw new Error('RefundWaitingPeriodNotElapsed');
+    this.wallets.set(ch.owner, (this.wallets.get(ch.owner) ?? 0n) + ch.balance);
+    ch.balance = 0n;
   }
   private withdraw(channel: string, amount: bigint, sig: Buffer): FakeChannel {
     const ch = this.channels.get(channel);
@@ -444,6 +465,147 @@ test('durante la espera Kiba también puede liquidar de inmediato', async () => 
 test('el retiro no se puede preparar sin haberlo pedido', async () => {
   const { user } = await openChannel('a@x.com', 2);
   await assert.rejects(prepareChannelRefund(user), /primero pide el retiro/);
+});
+
+// ─── Consumo por llamada y cobro por tandas ─────────────────────────────────
+
+/** Una llamada servida: aparta el precio y lo confirma. */
+async function call(userId: number, usdc: number) {
+  const r = await reserveChannel(userId, USDC(usdc));
+  assert.equal(r.ok, true, 'la llamada debía caber en el depósito');
+  if (r.ok) await confirmChannel(r);
+}
+const treasuryIs = async (usdc: number) => {
+  for (let i = 0; i < 100 && Number(net.treasury) !== USDC(usdc); i++) await new Promise((r) => setTimeout(r, 20));
+  assert.equal(Number(net.treasury), USDC(usdc));
+  // El cobro termina cuando queda anotado como movimiento, no cuando llega el dinero.
+  for (let i = 0; i < 100; i++) {
+    const { n } = (await db.prepare(`SELECT COUNT(*) AS n FROM pay_channel_moves WHERE kind = 'settle'`).get()) as { n: number };
+    if (Number(n) >= net.settles) break;
+    await new Promise((r) => setTimeout(r, 20));
+  }
+};
+
+test('una llamada aparta su precio y, al servirse, pasa a consumido', async () => {
+  const { user } = await openChannel('a@x.com', 2);
+  const r = await reserveChannel(user, USDC(0.03));
+  assert.ok(r.ok && r.left === USDC(1.97));
+  assert.equal(await channelAvailable(user), USDC(1.97));
+  let st = await getChannelStatus(user);
+  assert.equal(st.channel?.spentBaseUnits, 0); // aún no es consumo
+  assert.equal(st.channel?.availableBaseUnits, USDC(1.97));
+  if (r.ok) await confirmChannel(r);
+  st = await getChannelStatus(user);
+  assert.equal(st.channel?.spentBaseUnits, USDC(0.03));
+  assert.equal(st.channel?.availableBaseUnits, USDC(1.97));
+  assert.equal(Number(net.treasury), 0); // por debajo del umbral no se cobra todavía
+});
+
+test('si la llamada falla, lo apartado vuelve a estar disponible', async () => {
+  const { user } = await openChannel('a@x.com', 2);
+  const r = await reserveChannel(user, USDC(0.5));
+  assert.ok(r.ok);
+  if (r.ok) await releaseChannel(r);
+  assert.equal(await channelAvailable(user), USDC(2));
+  assert.equal((await getChannelStatus(user)).channel?.spentBaseUnits, 0);
+});
+
+test('sin depósito o sin saldo suficiente no se aparta nada', async () => {
+  const nobody = await createTestUser('b@x.com');
+  assert.deepEqual(await reserveChannel(nobody, USDC(0.1)), { ok: false, reason: 'none', available: 0 });
+  assert.equal(await channelAvailable(nobody), null);
+  const { user } = await openChannel('a@x.com', 1);
+  await call(user, 0.9);
+  assert.deepEqual(await reserveChannel(user, USDC(0.2)), { ok: false, reason: 'insufficient', available: USDC(0.1) });
+  await treasuryIs(0.9); // el cobro por umbral corre en segundo plano
+});
+
+test('llamadas simultáneas nunca apartan más de lo depositado', async () => {
+  const { user } = await openChannel('a@x.com', 2);
+  const rs = await Promise.all(Array.from({ length: 30 }, () => reserveChannel(user, USDC(0.1))));
+  assert.equal(rs.filter((r) => r.ok).length, 20);
+  assert.equal(await channelAvailable(user), 0);
+});
+
+test('al llegar al umbral Kiba cobra lo consumido en una sola transacción', async () => {
+  const { user } = await openChannel('a@x.com', 2);
+  assert.ok(CHANNEL_SETTLE_THRESHOLD === USDC(0.1));
+  await call(user, 0.04);
+  await call(user, 0.04);
+  assert.equal(net.settles, 0);
+  await call(user, 0.04); // 0.12 sin cobrar ≥ 0.10
+  await treasuryIs(0.12);
+  assert.equal(net.settles, 1);
+  const st = await getChannelStatus(user);
+  assert.equal(st.channel?.settledBaseUnits, USDC(0.12));
+  assert.deepEqual(st.moves[0] && [st.moves[0].kind, st.moves[0].amount], ['settle', USDC(0.12)]);
+});
+
+test('el job cobra lo que lleva demasiado sin cobrar aunque no llegue al umbral', async () => {
+  const { user } = await openChannel('a@x.com', 2);
+  await call(user, 0.04);
+  await runChannelJob();
+  assert.equal(net.settles, 0); // reciente y bajo el umbral: espera
+  await db.prepare('UPDATE pay_channels SET unsettled_since = unsettled_since - 3600 WHERE user_id = ?').run(user);
+  await runChannelJob();
+  await treasuryIs(0.04);
+  await call(user, 0.01); // el reloj vuelve a contar desde el consumo nuevo
+  await runChannelJob();
+  assert.equal(net.settles, 1);
+});
+
+test('lo apartado por una llamada que nunca terminó se suelta, y si termina tarde cuenta igual', async () => {
+  const { user } = await openChannel('a@x.com', 2);
+  const r = await reserveChannel(user, USDC(0.5));
+  assert.ok(r.ok);
+  await db.prepare('UPDATE pay_channel_holds SET created_at = created_at - 3600').run();
+  await runChannelJob();
+  assert.equal(await channelAvailable(user), USDC(2));
+  if (r.ok) await confirmChannel(r);
+  const st = await getChannelStatus(user);
+  assert.equal(st.channel?.spentBaseUnits, USDC(0.5));
+  assert.equal(st.channel?.availableBaseUnits, USDC(1.5));
+  await treasuryIs(0.5);
+});
+
+test('con una llamada en curso no se liquida', async () => {
+  const { user } = await openChannel('a@x.com', 2);
+  const r = await reserveChannel(user, USDC(0.5));
+  await assert.rejects(liquidateChannel(user), /llamada en curso/);
+  if (r.ok) await confirmChannel(r);
+  await treasuryIs(0.5);
+  const liq = await liquidateChannel(user);
+  assert.equal(liq.paidBaseUnits, 0);
+  assert.equal(liq.refundedBaseUnits, USDC(1.5));
+});
+
+test('retiro pedido directamente al contrato: Kiba se entera, cobra y deja de aceptar gasto', async () => {
+  const { user, kp } = await openChannel('a@x.com', 5);
+  await call(user, 0.06);
+  const channel = (await getChannelStatus(user)).channel!.channel;
+  net.externalCloseStart(channel);
+  await runChannelJob();
+  let st = await getChannelStatus(user);
+  assert.equal(st.channel?.state, 'closing');
+  assert.equal(st.channel?.closeEffectiveLedger, net.ledger + CHANNEL_WAIT_LEDGERS);
+  await treasuryIs(0.06); // cobrado dentro de la espera, aunque estaba bajo el umbral
+  assert.deepEqual(await reserveChannel(user, USDC(0.01)), { ok: false, reason: 'none', available: 0 });
+  // Pasada la espera el usuario retira por fuera; Kiba cierra el canal en sus libros.
+  net.ledger += CHANNEL_WAIT_LEDGERS;
+  net.externalRefund(channel);
+  await runChannelJob();
+  st = await getChannelStatus(user);
+  assert.equal(st.channel?.state, 'closed');
+  assert.equal(wallet(kp), USDC(5 + 4.94));
+  assert.deepEqual(
+    st.moves.map((m) => [m.kind, m.amount]),
+    [
+      ['refund', USDC(4.94)],
+      ['settle', USDC(0.06)],
+      ['close_start', 0],
+      ['open', USDC(5)],
+    ],
+  );
 });
 
 test('con la fábrica apagada los depósitos no están disponibles', async () => {

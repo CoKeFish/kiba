@@ -44,5 +44,20 @@ total consumido sin tocar la cadena, y Kiba cobra ese total presentando un compr
 con la clave de gasto del canal. Para salir, el usuario liquida (Kiba cobra y el resto vuelve a
 su wallet en una transacción) o pide el retiro al contrato y retira tras la espera.
 
-Las pruebas están en `packages/gateway/test/channel.test.ts` (red en memoria) y
-`packages/gateway/test/e2e-channel.mts` (testnet real).
+Variables del gateway:
+
+| Variable | Por defecto | Qué controla |
+|---|---|---|
+| `KIBA_CHANNEL_FACTORY_ID` | la fábrica de testnet | Fábrica de canales; `0` apaga los depósitos |
+| `CHANNEL_MIN_DEPOSIT` | `10000000` (1 USDC) | Depósito mínimo para abrir un canal |
+| `CHANNEL_REFUND_WAIT_LEDGERS` | `720` (~1 h) | Espera del retiro pedido directamente al contrato |
+| `CHANNEL_SETTLE_THRESHOLD` | `1000000` (0,10 USDC) | Consumo sin cobrar a partir del cual Kiba cobra |
+| `CHANNEL_SETTLE_MAX_AGE_S` | `600` | Tiempo máximo que un consumo queda sin cobrar |
+| `CHANNEL_JOB_INTERVAL_MS` | `60000` | Cada cuánto corre el trabajo que cobra y detecta retiros |
+
+El intervalo del trabajo y el tiempo máximo sin cobrar deben ser mucho menores que la espera del
+retiro: es el margen que tiene Kiba para cobrar antes de que el usuario pueda llevarse el resto.
+
+Las pruebas están en `packages/gateway/test/channel.test.ts` (red en memoria),
+`packages/gateway/test/e2e-channel.mts` (ciclo del canal en testnet) y
+`packages/gateway/test/e2e-channel-calls.mts` (llamadas reales pagadas del depósito).

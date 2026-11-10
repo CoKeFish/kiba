@@ -31,6 +31,7 @@ import { recordEarning } from './settlement';
 import { type PerCallFundResult } from './escrows';
 import { payOrFundForCall, perCallPaymentEnabled } from './kiba-pay';
 import { hasSpendWallet, releaseSpend, reserveSpend } from './spend';
+import { confirmChannel, releaseChannel, reserveChannel } from './channel';
 
 /**
  * Cuánto espera la respuesta al fund per-call (la tarea sigue en background si excede). Por
@@ -119,6 +120,8 @@ async function recordSpendCall(args: {
   lamports: number;
   service: string;
   floorPricePerCall: number;
+  /** 'deposit' = pagada del depósito retirable (canal); por defecto, del permiso de gasto. */
+  mode?: 'spend-permit' | 'deposit';
 }): Promise<void> {
   await db
     .prepare(
@@ -130,7 +133,7 @@ async function recordSpendCall(args: {
       -args.lamports,
       args.service,
       JSON.stringify({
-        mode: 'spend-permit',
+        mode: args.mode ?? 'spend-permit',
         settlement: 'deferred',
         floorPricePerCall: args.floorPricePerCall,
         dynamicAmountLamports: args.lamports,
@@ -244,7 +247,7 @@ export async function callOnBehalf(args: {
 }): Promise<{
   result: unknown;
   cost: { lamports: number; usd: number };
-  mode: 'virtual' | 'spend-permit' | 'wallet-direct';
+  mode: 'virtual' | 'deposit' | 'spend-permit' | 'wallet-direct';
   paidWith: 'credit' | 'wallet';
   newBalance: { lamports: number; usd: number };
   trace: X402Trace;
@@ -373,6 +376,50 @@ export async function callOnBehalf(args: {
       newBalance: { lamports: debited.newBalance, usd: lamportsToUsd(debited.newBalance) },
       trace,
       explorerUrl: onchain.txHash ? explorerTxUrl(onchain.txHash) : undefined,
+    };
+  }
+
+  // ── MODO DEPÓSITO (canal de pago del usuario, channel.ts) ────────────────
+  // Sin crédito → si el usuario tiene un depósito abierto, el precio se aparta de ahí al
+  // instante (sin cadena) y, si el servicio responde, pasa a consumido. Kiba lo cobra al canal
+  // por tandas. El servicio se llama por la vía de confianza, igual que en modo crédito.
+  const hold = await reserveChannel(args.userId, lamports);
+  if (!hold.ok && hold.reason === 'insufficient') {
+    throw new Error(
+      `depósito insuficiente: la llamada cuesta ${lamportsToUsd(lamports).toFixed(4)} USD y quedan ${lamportsToUsd(hold.available).toFixed(4)} USD; recarga el depósito`,
+    );
+  }
+  if (hold.ok) {
+    const t0 = Date.now();
+    let result: unknown;
+    try {
+      result = await client.callSigned(manifest.endpoint, args.payload, {
+        signer: getPlatformSigner(),
+        service: args.service,
+        timeoutMs: 120_000,
+        callId: args.callId,
+      });
+    } catch (err) {
+      manifests.delete(args.service);
+      await releaseChannel(hold);
+      throw err;
+    }
+    await confirmChannel(hold);
+    await recordEarning({ service: args.service, payTo: quote.payTo, lamports });
+    await recordSpendCall({
+      userId: args.userId,
+      lamports,
+      service: args.service,
+      floorPricePerCall: manifest.pricePerCall,
+      mode: 'deposit',
+    });
+    return {
+      result,
+      cost: { lamports, usd: lamportsToUsd(lamports) },
+      mode: 'deposit',
+      paidWith: 'wallet',
+      newBalance: { lamports: hold.left, usd: lamportsToUsd(hold.left) },
+      trace: platformTrace({ manifest, quote, tQuote, quoteDurationMs, t0, lamports }),
     };
   }
 

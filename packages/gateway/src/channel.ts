@@ -13,6 +13,11 @@
  *   - Retiro con espera (no depende de que Kiba coopere): el usuario pide el cierre, pasa el
  *     plazo del canal y retira todo lo que Kiba no haya cobrado.
  *
+ * Cobro por tandas: cada llamada aparta su precio del depósito (`reserveChannel`) y, al
+ * terminar bien, lo suma al consumo. Kiba cobra al contrato cuando lo consumido sin cobrar llega
+ * a un umbral o lleva demasiado tiempo (`runChannelJob`), siempre mucho antes de la espera del
+ * retiro. El mismo job detecta los retiros pedidos directamente al contrato.
+ *
  * Clave de gasto: es una clave ed25519 distinta de la wallet, fijada al abrir el canal. Solo
  * autoriza cobros de ESE canal a favor de Kiba, hasta lo depositado. Con el conector web no hay
  * programa del usuario que firme cada llamada, así que la guarda Kiba: se deriva del seed de la
@@ -55,6 +60,12 @@ const TESTNET_FACTORY = 'CBV34HJF4VU4YBGMNHC2L3TKLDSTOXYN5ADZRBWCILJLHOTAAKWX75S
 export const CHANNEL_WAIT_LEDGERS = Number(process.env.CHANNEL_REFUND_WAIT_LEDGERS) || 720;
 /** Depósito mínimo para abrir un canal (unidades base). Default 1 USDC. */
 export const CHANNEL_MIN_DEPOSIT = Number(process.env.CHANNEL_MIN_DEPOSIT) || 10_000_000;
+/** Consumo sin cobrar a partir del cual Kiba cobra al canal (unidades base). Default 0.10 USDC. */
+export const CHANNEL_SETTLE_THRESHOLD = Number(process.env.CHANNEL_SETTLE_THRESHOLD) || 1_000_000;
+/** Tiempo máximo que un consumo queda sin cobrar, aunque no llegue al umbral. Default 10 min. */
+export const CHANNEL_SETTLE_MAX_AGE_S = Number(process.env.CHANNEL_SETTLE_MAX_AGE_S) || 600;
+/** Una llamada tarda como mucho 2 min: lo apartado por más de esto es de un proceso que murió. */
+const HOLD_TTL_S = 300;
 /** Validez de una transacción preparada (igual que en spend.ts). */
 const PREPARED_TTL_S = 600;
 
@@ -72,6 +83,11 @@ export interface ChannelChain {
   openedChannel(hash: string): Promise<string>;
   /** Saldo que queda en el canal y total ya cobrado por Kiba. */
   read(channel: string): Promise<{ balance: bigint; withdrawn: bigint }>;
+  /**
+   * Ledger en que se hace efectivo el cierre de cada canal (null = nadie pidió el retiro). Sirve
+   * para enterarse de los retiros pedidos directamente al contrato, sin pasar por Kiba.
+   */
+  closeEffective(channels: string[]): Promise<Map<string, number | null>>;
   /** Bytes del compromiso «de este canal llevo gastado `amount`» (lo que firma la clave de gasto). */
   commitment(channel: string, amount: bigint): Buffer;
   /** Cobra hasta `amount` sin cerrar el canal. Devuelve el hash. */
@@ -181,6 +197,33 @@ class StellarChannelChain implements ChannelChain {
     return { balance, withdrawn };
   }
 
+  async closeEffective(channels: string[]): Promise<Map<string, number | null>> {
+    const out = new Map<string, number | null>();
+    // Una sola lectura por cada 100 canales: la entrada de instancia de cada contrato.
+    for (let i = 0; i < channels.length; i += 100) {
+      const keys = channels.slice(i, i + 100).map((c) =>
+        xdr.LedgerKey.contractData(
+          new xdr.LedgerKeyContractData({
+            contract: new Address(c).toScAddress(),
+            key: xdr.ScVal.scvLedgerKeyContractInstance(),
+            durability: xdr.ContractDataDurability.persistent(),
+          }),
+        ),
+      );
+      const res = await this.server.getLedgerEntries(...keys);
+      for (const e of res.entries) {
+        const data = e.val.contractData();
+        let effective: number | null = null;
+        for (const it of data.val().instance().storage() ?? []) {
+          const k = scValToNative(it.key()) as unknown;
+          if (Array.isArray(k) && k[0] === 'CloseEffectiveAtLedger') effective = Number(scValToNative(it.val()));
+        }
+        out.set(Address.fromScAddress(data.contract()).toString(), effective);
+      }
+    }
+    return out;
+  }
+
   private async ensureCollectorFunded(): Promise<void> {
     if (this.funded) return;
     try {
@@ -258,6 +301,8 @@ export function setChannelChain(c: ChannelChain | null): void {
   injected = c !== null;
 }
 const enabled = () => injected || channelFactoryId() !== null;
+/** true si este gateway acepta depósitos. */
+export const channelsEnabled = enabled;
 
 // ─── Clave de gasto ─────────────────────────────────────────────────────────
 
@@ -289,6 +334,8 @@ interface ChannelRow {
   deposited: number;
   spent: number;
   settled: number;
+  held: number;
+  unsettled_since: number | null;
   status: ChannelState;
   close_effective_ledger: number | null;
   refunded: number | null;
@@ -303,6 +350,8 @@ const num = (r: ChannelRow): ChannelRow => ({
   deposited: Number(r.deposited),
   spent: Number(r.spent),
   settled: Number(r.settled),
+  held: Number(r.held ?? 0),
+  unsettled_since: r.unsettled_since == null ? null : Number(r.unsettled_since),
   close_effective_ledger: r.close_effective_ledger === null ? null : Number(r.close_effective_ledger),
   refunded: r.refunded === null ? null : Number(r.refunded),
   created_at: Number(r.created_at),
@@ -460,20 +509,125 @@ onPreparedSent('channel_refund', async ({ meta, hash }) => {
   await addMove(id, 'refund', amount, hash);
 });
 
+// ─── Consumo por llamada ────────────────────────────────────────────────────
+
+export type ChannelReserve =
+  | { ok: true; holdId: number; channelId: number; amount: number; /** Lo que queda para gastar tras apartar. */ left: number }
+  | { ok: false; reason: 'none' | 'insufficient'; available: number };
+
+/** Suelta lo apartado por llamadas que nunca terminaron (el proceso murió a mitad). */
+async function sweepStaleHolds(): Promise<void> {
+  await db
+    .prepare(
+      `WITH h AS (DELETE FROM pay_channel_holds WHERE created_at < ? RETURNING channel_id, amount),
+            s AS (SELECT channel_id, SUM(amount) AS total FROM h GROUP BY channel_id)
+       UPDATE pay_channels c SET held = GREATEST(0, c.held - s.total) FROM s WHERE c.id = s.channel_id`,
+    )
+    .run(nowS() - HOLD_TTL_S);
+}
+
+/**
+ * Aparta `amount` del depósito para una llamada. Es una sola sentencia atómica: dos llamadas
+ * simultáneas nunca apartan más de lo disponible (depositado − consumido − apartado).
+ * `reason: 'none'` = el usuario no tiene un depósito abierto.
+ */
+export async function reserveChannel(userId: number, amount: number): Promise<ChannelReserve> {
+  if (!enabled()) return { ok: false, reason: 'none', available: 0 };
+  const row = (await db
+    .prepare(
+      `WITH gate AS (
+         UPDATE pay_channels SET held = held + ?
+         WHERE user_id = ? AND status = 'open' AND deposited - spent - held >= ?
+         RETURNING id, deposited - spent - held AS left_after
+       )
+       INSERT INTO pay_channel_holds (channel_id, amount, created_at)
+       SELECT id, ?, ? FROM gate
+       RETURNING id, channel_id, (SELECT left_after FROM gate) AS left_after`,
+    )
+    .get(amount, userId, amount, amount, nowS())) as { id: number; channel_id: number; left_after: number } | undefined;
+  if (row) return { ok: true, holdId: Number(row.id), channelId: Number(row.channel_id), amount, left: Number(row.left_after) };
+  const ch = await liveChannel(userId);
+  if (!ch || ch.status !== 'open') return { ok: false, reason: 'none', available: 0 };
+  return { ok: false, reason: 'insufficient', available: Math.max(0, ch.deposited - ch.spent - ch.held) };
+}
+
+/** La llamada falló: lo apartado vuelve a estar disponible. */
+export async function releaseChannel(r: { holdId: number }): Promise<void> {
+  await db
+    .prepare(
+      `WITH h AS (DELETE FROM pay_channel_holds WHERE id = ? RETURNING channel_id, amount)
+       UPDATE pay_channels c SET held = GREATEST(0, c.held - h.amount) FROM h WHERE c.id = h.channel_id`,
+    )
+    .run(r.holdId);
+}
+
+/**
+ * La llamada se sirvió: lo apartado pasa a consumido. Si lo consumido sin cobrar llega al
+ * umbral, Kiba lo cobra al canal en segundo plano.
+ */
+export async function confirmChannel(r: { holdId: number; channelId: number; amount: number }): Promise<void> {
+  const now = nowS();
+  let row = (await db
+    .prepare(
+      `WITH h AS (DELETE FROM pay_channel_holds WHERE id = ? RETURNING channel_id, amount)
+       UPDATE pay_channels c
+          SET held = GREATEST(0, c.held - h.amount), spent = c.spent + h.amount,
+              unsettled_since = COALESCE(c.unsettled_since, ?)
+         FROM h WHERE c.id = h.channel_id
+       RETURNING c.user_id, c.spent, c.settled`,
+    )
+    .get(r.holdId, now)) as { user_id: number; spent: number; settled: number } | undefined;
+  if (!row) {
+    // Lo apartado ya se había soltado por viejo (la llamada tardó de más): el consumo cuenta igual.
+    row = (await db
+      .prepare(
+        `UPDATE pay_channels SET spent = spent + ?, unsettled_since = COALESCE(unsettled_since, ?)
+         WHERE id = ? RETURNING user_id, spent, settled`,
+      )
+      .get(r.amount, now, r.channelId)) as { user_id: number; spent: number; settled: number } | undefined;
+  }
+  if (row && Number(row.spent) - Number(row.settled) >= CHANNEL_SETTLE_THRESHOLD) {
+    void settleChannel(Number(row.user_id)).catch((err) => console.error('[channel] cobro por umbral:', (err as Error).message));
+  }
+}
+
+/** Lo que el usuario puede gastar de su depósito ahora, o null si no tiene uno abierto. */
+export async function channelAvailable(userId: number): Promise<number | null> {
+  if (!enabled()) return null;
+  const ch = await liveChannel(userId);
+  if (!ch || ch.status !== 'open') return null;
+  return Math.max(0, ch.deposited - ch.spent - ch.held);
+}
+
 // ─── Cobros de Kiba ─────────────────────────────────────────────────────────
+
+const settling = new Map<number, Promise<string | null>>();
 
 /**
  * Cobra al canal lo consumido que aún no se ha cobrado, sin cerrarlo. Devuelve el hash, o null
- * si no había nada que cobrar.
+ * si no había nada que cobrar. Un solo cobro en vuelo por usuario.
  */
-export async function settleChannel(userId: number): Promise<string | null> {
-  const ch = await liveChannel(userId);
-  if (!ch || !ch.channel || ch.status === 'liquidating' || ch.spent <= ch.settled) return null;
-  const amount = ch.spent;
-  const hash = await getChain().settle(ch.channel, BigInt(amount), signCommitment(ch, amount));
-  await db.prepare('UPDATE pay_channels SET settled = GREATEST(settled, ?) WHERE id = ?').run(amount, ch.id);
-  await addMove(ch.id, 'settle', amount - ch.settled, hash);
-  return hash;
+export function settleChannel(userId: number): Promise<string | null> {
+  const running = settling.get(userId);
+  if (running) return running;
+  const p = (async () => {
+    const ch = await liveChannel(userId);
+    if (!ch || !ch.channel || ch.status === 'liquidating' || ch.spent <= ch.settled) return null;
+    const amount = ch.spent;
+    const hash = await getChain().settle(ch.channel, BigInt(amount), signCommitment(ch, amount));
+    // Si entró consumo nuevo mientras se cobraba, sigue contando desde ahora.
+    await db
+      .prepare(
+        `UPDATE pay_channels SET settled = GREATEST(settled, ?),
+                unsettled_since = CASE WHEN spent > ?::bigint THEN ?::bigint ELSE NULL END
+         WHERE id = ?`,
+      )
+      .run(amount, amount, nowS(), ch.id);
+    await addMove(ch.id, 'settle', amount - ch.settled, hash);
+    return hash;
+  })().finally(() => settling.delete(userId));
+  settling.set(userId, p);
+  return p;
 }
 
 export interface Liquidation {
@@ -492,11 +646,14 @@ export interface Liquidation {
  */
 export async function liquidateChannel(userId: number): Promise<Liquidation> {
   const c = getChain();
+  await sweepStaleHolds();
   const before = await liveChannel(userId);
   if (!before || !before.channel || before.status === 'liquidating') throw new Error('no tienes un depósito abierto');
+  if (before.held > 0) throw new Error('hay una llamada en curso; inténtalo en unos segundos');
+  await settling.get(userId)?.catch(() => null);
   // Reclamar el canal: desde aquí no se anota más consumo ni entra otra liquidación.
   const claimed = (await db
-    .prepare(`UPDATE pay_channels SET status = 'liquidating' WHERE id = ? AND status = ? RETURNING *`)
+    .prepare(`UPDATE pay_channels SET status = 'liquidating' WHERE id = ? AND status = ? AND held = 0 RETURNING *`)
     .get(before.id, before.status)) as ChannelRow | undefined;
   if (!claimed) throw new Error('el depósito cambió; vuelve a intentarlo');
   const ch = num(claimed);
@@ -512,11 +669,77 @@ export async function liquidateChannel(userId: number): Promise<Liquidation> {
   const paid = ch.spent - ch.settled;
   const refunded = Math.max(0, ch.deposited - ch.spent - pending);
   await db
-    .prepare(`UPDATE pay_channels SET status = 'closed', settled = ?, refunded = ?, closed_at = ? WHERE id = ?`)
+    .prepare(`UPDATE pay_channels SET status = 'closed', settled = ?, unsettled_since = NULL, refunded = ?, closed_at = ? WHERE id = ?`)
     .run(ch.spent, refunded, nowS(), ch.id);
   if (paid > 0) await addMove(ch.id, 'settle', paid, hash);
   await addMove(ch.id, 'close', refunded, hash);
   return { hash, paidBaseUnits: paid, refundedBaseUnits: refunded, pendingBaseUnits: pending };
+}
+
+// ─── Trabajo periódico ──────────────────────────────────────────────────────
+
+/**
+ * Mantiene los canales al día. Corre cada minuto:
+ *   - suelta lo apartado por llamadas que nunca terminaron;
+ *   - detecta los retiros pedidos directamente al contrato y los marca;
+ *   - cobra lo consumido que llegó al umbral, lleva demasiado sin cobrar o está en un canal
+ *     con retiro pedido (hay que cobrarlo antes de que venza la espera);
+ *   - cierra los canales cuyo retiro ya se hizo por fuera.
+ */
+export async function runChannelJob(): Promise<void> {
+  if (!enabled()) return;
+  await sweepStaleHolds();
+  const rows = (
+    (await db.prepare(`SELECT * FROM pay_channels WHERE status IN ('open','closing') AND channel IS NOT NULL`).all()) as ChannelRow[]
+  ).map(num);
+  if (rows.length === 0) return;
+  const c = getChain();
+  const now = nowS();
+
+  const open = rows.filter((r) => r.status === 'open');
+  const effective = open.length ? await c.closeEffective(open.map((r) => r.channel!)) : new Map<string, number | null>();
+  for (const ch of open) {
+    const eff = effective.get(ch.channel!);
+    if (eff == null) continue;
+    const marked = await db
+      .prepare(`UPDATE pay_channels SET status = 'closing', close_effective_ledger = ? WHERE id = ? AND status = 'open' RETURNING id`)
+      .get(eff, ch.id);
+    if (marked) {
+      await addMove(ch.id, 'close_start', 0, null);
+      ch.status = 'closing';
+      ch.close_effective_ledger = eff;
+    }
+  }
+
+  let latest: number | null = null;
+  for (const ch of rows) {
+    try {
+      const unsettled = ch.spent - ch.settled;
+      const due =
+        unsettled > 0 &&
+        (ch.status === 'closing' ||
+          unsettled >= CHANNEL_SETTLE_THRESHOLD ||
+          (ch.unsettled_since !== null && now - ch.unsettled_since >= CHANNEL_SETTLE_MAX_AGE_S));
+      if (due) await settleChannel(ch.user_id);
+      if (ch.status === 'closing' && ch.close_effective_ledger !== null) {
+        latest ??= await getSpendChain().latestLedger();
+        if (latest < ch.close_effective_ledger) continue;
+        // Pasó la espera: si el canal ya está vacío, el usuario retiró por fuera.
+        const { balance, withdrawn } = await c.read(ch.channel!);
+        if (balance > 0n) continue;
+        const refunded = Math.max(0, ch.deposited - Number(withdrawn));
+        const closed = await db
+          .prepare(
+            `UPDATE pay_channels SET status = 'closed', settled = ?, unsettled_since = NULL, refunded = ?, closed_at = ?
+             WHERE id = ? AND status = 'closing' RETURNING id`,
+          )
+          .get(Number(withdrawn), refunded, nowS(), ch.id);
+        if (closed) await addMove(ch.id, 'refund', refunded, null);
+      }
+    } catch (err) {
+      console.error(`[channel] job canal ${ch.id}:`, (err as Error).message);
+    }
+  }
 }
 
 // ─── Estado ─────────────────────────────────────────────────────────────────
@@ -575,7 +798,7 @@ export async function getChannelStatus(userId: number): Promise<ChannelStatus> {
       depositedBaseUnits: ch.deposited,
       spentBaseUnits: ch.spent,
       settledBaseUnits: ch.settled,
-      availableBaseUnits: ch.status === 'closed' ? 0 : Math.max(0, ch.deposited - ch.spent),
+      availableBaseUnits: ch.status === 'closed' ? 0 : Math.max(0, ch.deposited - ch.spent - ch.held),
       waitLedgers: ch.wait_ledgers,
       closeEffectiveLedger: eff,
       refundAt: ch.status === 'closing' && eff !== null ? nowS() + Math.max(0, eff - latest) * 5 : null,
