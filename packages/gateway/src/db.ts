@@ -428,6 +428,44 @@ async function runInit(): Promise<void> {
       read_at BIGINT NOT NULL
     )
   `);
+  // Depósito retirable (channel.ts): un canal de pago de Stellar por usuario.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS pay_channels (
+      id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      user_id BIGINT NOT NULL REFERENCES users(id),
+      address TEXT NOT NULL,
+      kind TEXT NOT NULL,
+      salt TEXT NOT NULL,
+      channel TEXT,
+      wait_ledgers INTEGER NOT NULL,
+      deposited BIGINT NOT NULL DEFAULT 0,
+      spent BIGINT NOT NULL DEFAULT 0,
+      settled BIGINT NOT NULL DEFAULT 0,
+      status TEXT NOT NULL,
+      close_effective_ledger BIGINT,
+      refunded BIGINT,
+      created_at BIGINT NOT NULL,
+      closed_at BIGINT
+    )
+  `);
+  // Un solo canal vivo por usuario y por wallet.
+  await pool.query(
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_pay_channels_live_user ON pay_channels(user_id) WHERE status IN ('open','closing','liquidating')`,
+  );
+  await pool.query(
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_pay_channels_live_address ON pay_channels(address) WHERE status IN ('open','closing','liquidating')`,
+  );
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS pay_channel_moves (
+      id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      channel_id BIGINT NOT NULL REFERENCES pay_channels(id),
+      kind TEXT NOT NULL,
+      amount BIGINT NOT NULL,
+      tx_hash TEXT,
+      created_at BIGINT NOT NULL
+    )
+  `);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_pay_channel_moves_channel ON pay_channel_moves(channel_id, id)`);
   // Fund per-call: earning fondeada on-chain apunta al escrow del ciclo (NULL = legacy/acumulado).
   await pool.query(`ALTER TABLE agent_earnings ADD COLUMN IF NOT EXISTS escrow_id TEXT`);
   // licenses (rama hackmeridian-2026, antes del primer despliegue): de credencial firmada a

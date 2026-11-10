@@ -19,13 +19,21 @@ import { PrivyProvider, useLogin, usePrivy, useLogout } from "@privy-io/react-au
 import { useCreateWallet, useSignRawHash } from "@privy-io/react-auth/extended-chains";
 import { api, type PreparedTx, type SpendStatus } from "@/lib/api";
 import { PayWalletBody, type PayWalletSigner } from "./PayWalletBody";
+import { DepositCard } from "./DepositCard";
 
 type SubmitBody = { hash: string; signature: string } | { xdr: string };
 
 export default function PayWallet({ email }: { email: string }) {
   const { data: st } = useQuery({ queryKey: ["spend"], queryFn: api.spend, refetchInterval: 15_000 });
   if (!st) return null;
-  if (!st.privyAppId) return <PayWalletBody st={st} privy={null} external={externalSigner} />;
+  if (!st.privyAppId) {
+    return (
+      <>
+        <PayWalletBody st={st} privy={null} external={externalSigner} />
+        <DepositCard privy={null} external={externalSigner} />
+      </>
+    );
+  }
   return (
     <PrivyProvider
       appId={st.privyAppId}
@@ -124,20 +132,23 @@ function WithPrivy({ st, email }: { st: SpendStatus; email: string }) {
   };
 
   return (
-    <PayWalletBody
-      st={st}
-      privy={privySigner}
-      external={externalSigner}
-      privySession={
-        authenticated
-          ? {
-              logout: async () => {
-                await logout();
-                qc.invalidateQueries({ queryKey: ["spend"] });
-              },
-            }
-          : null
-      }
-    />
+    <>
+      <PayWalletBody
+        st={st}
+        privy={privySigner}
+        external={externalSigner}
+        privySession={
+          authenticated
+            ? {
+                logout: async () => {
+                  await logout();
+                  qc.invalidateQueries({ queryKey: ["spend"] });
+                },
+              }
+            : null
+        }
+      />
+      <DepositCard privy={privySigner} external={externalSigner} />
+    </>
   );
 }

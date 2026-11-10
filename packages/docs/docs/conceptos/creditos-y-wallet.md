@@ -28,6 +28,31 @@ Cada cuenta recibe una wallet Stellar. Cuando Privy está configurado, se aprovi
 - Guarda **USDC** en Stellar; el gateway configura la [trustline](/stellar/usdc-y-trustlines).
 - Para fondearla, envía USDC a su dirección: es una cuenta Stellar normal, sin memo.
 
+## Depósito retirable
+
+Quien prefiere pagar con su propia wallet deja un **depósito** en un canal de pago de Stellar. El depósito sigue siendo del usuario: Kiba solo cobra lo consumido y el resto se retira cuando el usuario quiera.
+
+- **Depositar.** Desde **Billing**, el usuario elige un monto y firma una transacción con su wallet: la de Kiba con Privy, o una externa como Freighter, xBull o Lobstr. Esa transacción crea su canal y mueve el USDC de la wallet al canal. El mínimo es 1 USDC.
+- **Recargar.** Otra transacción firmada por el usuario suma al depósito.
+- **Pagar.** Cada llamada se descuenta del depósito al instante, sin firma y sin transacción en cadena. Kiba cobra lo consumido al contrato por tandas, y el contrato nunca paga más de lo depositado.
+- **Retirar.** Kiba cobra lo consumido pendiente y el resto vuelve a la wallet del usuario en la misma transacción. El canal se cierra; para seguir pagando con la wallet se abre otro.
+- **Retirar sin pasar por Kiba.** El usuario pide el retiro directamente al contrato. Tras la espera del canal, de alrededor de una hora, retira todo lo que Kiba no haya cobrado.
+
+Kiba paga las comisiones de red de todas estas transacciones: el usuario no necesita XLM.
+
+El contrato es el [canal de pago unidireccional de Stellar](https://github.com/stellar-experimental/one-way-channel), el mismo que usa MPP Session. Hay un canal por usuario, creado por una fábrica. La dirección del canal y cada movimiento aparecen en el dashboard con su enlace al explorador.
+
+| Endpoint | Qué hace |
+|---|---|
+| `GET /v1/channel` | Estado del depósito: depositado, consumido, disponible y movimientos |
+| `POST /v1/channel/open` | Prepara la apertura del canal con el depósito inicial |
+| `POST /v1/channel/topup` | Prepara una recarga |
+| `POST /v1/channel/liquidate` | Retira: Kiba cobra lo consumido y el resto vuelve a la wallet |
+| `POST /v1/channel/close-start` | Prepara la solicitud de retiro sin pasar por Kiba |
+| `POST /v1/channel/refund` | Prepara el retiro, pasada la espera |
+
+Las transacciones preparadas las firma el usuario y se envían con `POST /v1/spend/submit`.
+
 ## Tu saldo
 
 El dashboard (barra superior y página **Billing**) y la herramienta [`get_balance`](/conecta-tu-asistente/herramientas-mcp#get_balance) muestran **un solo saldo en USD**: tus créditos más lo que puedes gastar con tu wallet, ya descontado lo usado que aún no se cobró. Es lo que tiene tu asistente para pagar servicios.

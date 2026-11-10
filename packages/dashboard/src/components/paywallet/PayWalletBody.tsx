@@ -36,9 +36,9 @@ type Step = "login" | "account" | "trustline" | "permit" | "withdraw" | "revoke"
 type Panel = null | "topup" | "withdraw";
 
 /** USDC con 2–4 decimales, truncando (un saldo nunca debe mostrarse redondeado hacia arriba). */
-const usdc = (baseUnits: number) =>
+export const usdc = (baseUnits: number) =>
   (Math.trunc(baseUnits / 1e3) / 1e4).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 4 });
-const truncate = (a: string) => (a.length > 12 ? `${a.slice(0, 6)}…${a.slice(-6)}` : a);
+export const truncate = (a: string) => (a.length > 12 ? `${a.slice(0, 6)}…${a.slice(-6)}` : a);
 const RENEW_WARNING_S = 30 * 86_400;
 
 export function PayWalletBody({
@@ -347,7 +347,7 @@ export function PayWalletBody({
   );
 }
 
-function Alert({ tone, children }: { tone: "danger" | "warning"; children: React.ReactNode }) {
+export function Alert({ tone, children }: { tone: "danger" | "warning"; children: React.ReactNode }) {
   return (
     <p className={`text-sm flex items-start gap-2 ${tone === "danger" ? "text-[var(--color-danger)]" : "text-[var(--color-warning)]"}`}>
       <AlertCircle size={16} className="mt-0.5 shrink-0" />
@@ -356,7 +356,7 @@ function Alert({ tone, children }: { tone: "danger" | "warning"; children: React
   );
 }
 
-function CopyButton({ value, label }: { value: string; label?: string }) {
+export function CopyButton({ value, label }: { value: string; label?: string }) {
   const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   return (

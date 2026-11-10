@@ -94,7 +94,7 @@ function treasuryAddress(): string {
   return Keypair.fromRawEd25519Seed(Buffer.from(getMasterWallet().secretKey.slice(0, 32))).publicKey();
 }
 
-function collectorKeypair(): Keypair {
+export function collectorKeypair(): Keypair {
   const secret = process.env.SPEND_COLLECTOR_SECRET;
   if (secret) return Keypair.fromSecret(secret);
   // Derivada del seed de la treasury con separación de dominio: estable entre reinicios sin
@@ -103,6 +103,14 @@ function collectorKeypair(): Keypair {
   return Keypair.fromRawEd25519Seed(
     createHash('sha256').update('kiba:spend-collector:').update(seed).digest(),
   );
+}
+
+/** Todo lo que usa la secuencia del collector va en serie (también los cobros del canal). */
+let collectorQueue: Promise<unknown> = Promise.resolve();
+export function serialCollector<T>(fn: () => Promise<T>): Promise<T> {
+  const p = collectorQueue.then(fn, fn);
+  collectorQueue = p.catch(() => {});
+  return p;
 }
 
 /** Reserva con la que Kiba crea la cuenta del usuario: 2 reservas base + 1 trustline (+ margen). */
@@ -115,8 +123,6 @@ class StellarSpendChain implements SpendChain {
   private readonly usdc = new Asset('USDC', this.cfg.assetIssuer!);
   private readonly token = new Contract(this.usdc.contractId(this.cfg.networkPassphrase));
   private readonly collector = collectorKeypair();
-  /** Lo que usa la secuencia del collector va en serie para no chocar. */
-  private queue: Promise<unknown> = Promise.resolve();
   private funded = false;
 
   spender(): string {
@@ -130,9 +136,7 @@ class StellarSpendChain implements SpendChain {
   }
 
   private serial<T>(fn: () => Promise<T>): Promise<T> {
-    const p = this.queue.then(fn, fn);
-    this.queue = p.catch(() => {});
-    return p;
+    return serialCollector(fn);
   }
 
   private async view(fn: string, args: xdr.ScVal[]): Promise<bigint> {
@@ -176,7 +180,9 @@ class StellarSpendChain implements SpendChain {
   }
 
   async latestLedger(): Promise<number> {
-    return (await this.server.getLatestLedger()).sequence;
+    // getHealth da el número sin decodificar la cabecera del ledger: getLatestLedger falla cuando
+    // la red sube de protocolo y esta versión del SDK no conoce el formato nuevo.
+    return (await this.server.getHealth()).latestLedger;
   }
 
   private async ensureCollectorFunded(): Promise<void> {
@@ -299,6 +305,8 @@ let chain: SpendChain | null = null;
 function getChain(): SpendChain {
   return (chain ??= new StellarSpendChain());
 }
+/** Acceso a la cadena compartido con el canal de pago (cuenta, saldo, envío con comisión de Kiba). */
+export const getSpendChain = getChain;
 /** Tests: sustituye el acceso a la cadena y reinicia el estado en memoria (reintentos). */
 export function setSpendChain(c: SpendChain | null): void {
   chain = c;
@@ -696,7 +704,21 @@ export async function settleAllSpend(): Promise<void> {
 
 // ─── Transacciones que firma el usuario ─────────────────────────────────────
 
-export type PreparedKind = 'trustline' | 'approve' | 'withdraw';
+export type PreparedKind =
+  | 'trustline'
+  | 'approve'
+  | 'withdraw'
+  | 'channel_open'
+  | 'channel_topup'
+  | 'channel_close_start'
+  | 'channel_refund';
+
+/** Lo que pasa después de enviar una transacción preparada de otro módulo (p. ej. el canal). */
+export type PreparedEffect = (a: { userId: number; address: string; meta: Record<string, unknown>; hash: string }) => Promise<void>;
+const preparedEffects = new Map<PreparedKind, PreparedEffect>();
+export function onPreparedSent(kind: PreparedKind, fn: PreparedEffect): void {
+  preparedEffects.set(kind, fn);
+}
 
 export interface PreparedTx {
   kind: PreparedKind;
@@ -707,9 +729,9 @@ export interface PreparedTx {
   networkPassphrase: string;
 }
 
-const ADDRESS_RE = /^G[A-Z2-7]{55}$/;
+export const ADDRESS_RE = /^G[A-Z2-7]{55}$/;
 
-async function storePrepared(userId: number, kind: PreparedKind, address: string, txXdr: string, meta: object = {}): Promise<PreparedTx> {
+export async function storePrepared(userId: number, kind: PreparedKind, address: string, txXdr: string, meta: object = {}): Promise<PreparedTx> {
   const c = getChain();
   const tx = TransactionBuilder.fromXDR(txXdr, c.passphrase()) as Transaction;
   const hash = tx.hash().toString('hex');
@@ -892,6 +914,8 @@ export async function submitPrepared(
       )
       .run(userId, -(meta.amount ?? 0), sent, JSON.stringify({ to: meta.to }), nowS());
   }
+  const effect = preparedEffects.get(row.kind);
+  if (effect) await effect({ userId, address: row.address, meta: meta as Record<string, unknown>, hash: sent });
   return { kind: row.kind, hash: sent, address: row.address };
 }
 

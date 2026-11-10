@@ -76,6 +76,26 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
     }),
+  // Depósito retirable: canal de pago del usuario. Lo que firma el usuario se envía con spendSubmit.
+  channel: () => request<ChannelStatus>("/v1/channel"),
+  channelOpen: (args: { address: string; amount: number; kind: "privy" | "external" }) =>
+    request<PreparedTx & { amountBaseUnits: number }>("/v1/channel/open", {
+      method: "POST",
+      body: JSON.stringify(args),
+    }),
+  channelTopUp: (amount: number) =>
+    request<PreparedTx & { amountBaseUnits: number }>("/v1/channel/topup", {
+      method: "POST",
+      body: JSON.stringify({ amount }),
+    }),
+  /** Kiba cobra lo consumido y el resto vuelve a la wallet, en una transacción. */
+  channelLiquidate: () =>
+    request<{ hash: string; paidBaseUnits: number; refundedBaseUnits: number; pendingBaseUnits: number; explorerUrl: string }>(
+      "/v1/channel/liquidate",
+      { method: "POST" },
+    ),
+  channelCloseStart: () => request<PreparedTx>("/v1/channel/close-start", { method: "POST" }),
+  channelRefund: () => request<PreparedTx & { amountBaseUnits: number }>("/v1/channel/refund", { method: "POST" }),
   spendMigrate: () =>
     request<{ hash: string; amountBaseUnits: number; explorerUrl: string }>("/v1/spend/migrate", {
       method: "POST",
@@ -306,12 +326,38 @@ export type Transaction = {
 
 /** Transacción armada por el gateway para que el usuario la firme. */
 export type PreparedTx = {
-  kind: "trustline" | "approve" | "withdraw";
+  kind: "trustline" | "approve" | "withdraw" | "channel_open" | "channel_topup" | "channel_close_start" | "channel_refund";
   /** Hash (hex) a firmar con Privy `signRawHash`. */
   hash: string;
   /** XDR sin firmar, para wallets externas (Stellar Wallets Kit). */
   xdr: string;
   networkPassphrase: string;
+};
+
+/** Depósito retirable del usuario (gateway channel.ts). Montos en unidades base (1 USDC = 1e7). */
+export type ChannelStatus = {
+  /** false si este gateway no tiene depósitos. */
+  enabled: boolean;
+  minDepositBaseUnits: number;
+  /** Espera del retiro sin Kiba para depósitos nuevos, en ledgers (~5 s). */
+  waitLedgers: number;
+  latestLedger: number | null;
+  /** El depósito vivo o, si no hay, el último cerrado. */
+  channel: null | {
+    address: string;
+    kind: "privy" | "external";
+    channel: string;
+    state: "open" | "closing" | "liquidating" | "closed";
+    depositedBaseUnits: number;
+    spentBaseUnits: number;
+    settledBaseUnits: number;
+    availableBaseUnits: number;
+    waitLedgers: number;
+    closeEffectiveLedger: number | null;
+    /** Cuándo se puede retirar tras pedir el retiro (unix s, estimado). */
+    refundAt: number | null;
+  };
+  moves: { kind: "open" | "top_up" | "settle" | "close" | "close_start" | "refund"; amount: number; txHash: string | null; createdAt: number }[];
 };
 
 export type SpendStatus = {

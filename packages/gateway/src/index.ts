@@ -81,6 +81,14 @@ import {
   submitPrepared,
 } from './spend';
 import {
+  getChannelStatus,
+  liquidateChannel,
+  prepareChannelCloseStart,
+  prepareChannelOpen,
+  prepareChannelRefund,
+  prepareChannelTopUp,
+} from './channel';
+import {
   addressOnChainBalance,
   getMasterWallet,
   getOnChainBalance,
@@ -1457,6 +1465,57 @@ app.post('/v1/spend/migrate', requireAuth, async (req, res) => {
     res.status(400).json({ error: (err as Error).message });
   }
 });
+
+// ─── Depósito retirable: canal de pago por usuario (channel.ts) ──
+// Las transacciones que firma el usuario se envían con /v1/spend/submit, igual que las demás.
+
+const channelRoute =
+  <T>(fn: (userId: number, body: Record<string, unknown>) => Promise<T>, status = 400) =>
+  async (req: Request, res: Response) => {
+    try {
+      res.json(await fn(req.bearerUser!.id, (req.body ?? {}) as Record<string, unknown>));
+    } catch (err) {
+      res.status(status).json({ error: (err as Error).message });
+    }
+  };
+
+app.get('/v1/channel', requireAuth, channelRoute((id) => getChannelStatus(id), 500));
+
+/** Abre el canal con el depósito inicial (USDC). La wallet se activa antes con /v1/spend/activate. */
+app.post(
+  '/v1/channel/open',
+  requireAuth,
+  channelRoute(async (id, b) => {
+    if (typeof b.address !== 'string') throw new Error('address requerido');
+    const amount = usdcBody(b.amount);
+    if (amount === undefined) throw new Error('amount requerido');
+    return prepareChannelOpen(id, { address: b.address, amount, kind: b.kind === 'privy' ? 'privy' : 'external' });
+  }),
+);
+
+app.post(
+  '/v1/channel/topup',
+  requireAuth,
+  channelRoute(async (id, b) => {
+    const amount = usdcBody(b.amount);
+    if (amount === undefined) throw new Error('amount requerido');
+    return prepareChannelTopUp(id, amount);
+  }),
+);
+
+/** Liquida: Kiba cobra lo consumido y el resto vuelve a la wallet del usuario, en una transacción. */
+app.post(
+  '/v1/channel/liquidate',
+  requireAuth,
+  channelRoute(async (id) => {
+    const r = await liquidateChannel(id);
+    return { ...r, explorerUrl: explorerTxUrl(r.hash) };
+  }),
+);
+
+/** Retiro con espera: pedir el cierre y, pasado el plazo, retirar lo que quede. */
+app.post('/v1/channel/close-start', requireAuth, channelRoute((id) => prepareChannelCloseStart(id)));
+app.post('/v1/channel/refund', requireAuth, channelRoute((id) => prepareChannelRefund(id)));
 
 // ─── Resultados guardados de call_agent (results.ts) ──
 

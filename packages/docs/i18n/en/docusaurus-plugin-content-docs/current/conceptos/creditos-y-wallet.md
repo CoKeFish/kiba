@@ -28,6 +28,31 @@ Every account gets a Stellar wallet. When Privy is configured, it's provisioned 
 - It holds **USDC** on Stellar; the gateway sets up the [trustline](/stellar/usdc-y-trustlines).
 - To fund it, send USDC to its address: it's a regular Stellar account, no memo.
 
+## Withdrawable deposit
+
+Users who prefer to pay from their own wallet leave a **deposit** in a Stellar payment channel. The deposit stays theirs: Kiba only charges what was used, and the rest can be withdrawn whenever the user wants.
+
+- **Deposit.** From **Billing**, the user picks an amount and signs one transaction with their wallet: the Kiba wallet with Privy, or an external one such as Freighter, xBull or Lobstr. That transaction creates their channel and moves the USDC from the wallet into it. The minimum is 1 USDC.
+- **Top up.** Another transaction signed by the user adds to the deposit.
+- **Pay.** Each call is deducted from the deposit instantly, with no signature and no on-chain transaction. Kiba collects the usage from the contract in batches, and the contract never pays out more than was deposited.
+- **Withdraw.** Kiba collects the pending usage and the rest goes back to the user's wallet in the same transaction. The channel closes; to keep paying from the wallet, the user opens another one.
+- **Withdraw without going through Kiba.** The user requests the withdrawal directly from the contract. After the channel's waiting period, about one hour, they withdraw everything Kiba has not collected.
+
+Kiba pays the network fees for all of these transactions: the user does not need XLM.
+
+The contract is [Stellar's one-way payment channel](https://github.com/stellar-experimental/one-way-channel), the same one MPP Session uses. There is one channel per user, created by a factory. The channel address and every movement are shown in the dashboard with a link to the explorer.
+
+| Endpoint | What it does |
+|---|---|
+| `GET /v1/channel` | Deposit status: deposited, used, available and movements |
+| `POST /v1/channel/open` | Prepares opening the channel with the initial deposit |
+| `POST /v1/channel/topup` | Prepares a top-up |
+| `POST /v1/channel/liquidate` | Withdraws: Kiba collects the usage and the rest goes back to the wallet |
+| `POST /v1/channel/close-start` | Prepares the withdrawal request that does not go through Kiba |
+| `POST /v1/channel/refund` | Prepares the withdrawal once the waiting period is over |
+
+Prepared transactions are signed by the user and sent with `POST /v1/spend/submit`.
+
 ## Your balance {/* #tu-saldo */}
 
 The dashboard (top bar and **Billing** page) and the [`get_balance`](/conecta-tu-asistente/herramientas-mcp#get_balance) tool show **a single balance in USD**: your credits plus what you can spend with your wallet, minus usage not yet charged. It's what your assistant has to pay for services.
