@@ -1,35 +1,28 @@
 #![no_std]
 //! Kiba — pagos en USDC con el split de la plataforma, sobre Soroban (Stellar).
 //!
-//! Sustituye a los escrows de Trustless Work. Tres formas de pagar a un servicio, todas con
+//! Sustituye a los escrows de Trustless Work. Dos formas de pagar a un servicio, ambas con
 //! el mismo split (`fee_bps` a la treasury, el resto al servicio):
 //!
 //!   pay                       pago directo en UNA tx (liquidaciones y pago por llamada).
 //!   open / claim / refund     escrow por llamada (x402 desde el SDK, sin la plataforma):
 //!                             el pagador bloquea el monto, el servicio cobra tras servir y,
 //!                             si no lo hace antes de que expire, el pagador lo recupera.
-//!   open_channel / redeem /   canal de pago: el pagador deposita una vez y firma off-chain
-//!   close_channel             vales (ed25519) con el total acumulado; el servicio los verifica
-//!                             al instante y cobra el último cuando quiere (por lotes).
 //!
 //! Sin funciones de administración: token, treasury y comisión se fijan al desplegar y no
 //! cambian (nadie puede subir la comisión ni desviar pagos después).
 
 use soroban_sdk::{
-    contract, contracterror, contractimpl, contracttype, panic_with_error, token, xdr::ToXdr,
-    Address, Bytes, BytesN, Env,
+    contract, contracterror, contractimpl, contracttype, panic_with_error, token, Address, BytesN, Env,
 };
 
 const LEDGERS_PER_DAY: u32 = 17_280; // ~5 s por ledger
 const INSTANCE_TTL: u32 = 30 * LEDGERS_PER_DAY;
-/// Margen de TTL sobre la expiración de un escrow/canal: tras expirar, el pagador tiene
+/// Margen de TTL sobre la expiración de un escrow: tras expirar, el pagador tiene
 /// este tiempo para recuperar los fondos antes de que la entrada pueda archivarse.
 const TTL_MARGIN: u32 = 30 * LEDGERS_PER_DAY;
-/// Tope de vida de un escrow o canal (Soroban limita el TTL máximo de una entrada).
+/// Tope de vida de un escrow (Soroban limita el TTL máximo de una entrada).
 const MAX_TTL_LEDGERS: u32 = 120 * LEDGERS_PER_DAY;
-/// Prefijo del mensaje que firma el pagador en cada vale (separación de dominio).
-const VOUCHER_DOMAIN: &[u8] = b"kiba-voucher-v1";
-
 #[contracttype]
 #[derive(Clone)]
 pub struct Config {
@@ -49,22 +42,10 @@ pub struct Escrow {
 }
 
 #[contracttype]
-#[derive(Clone, Debug, PartialEq)]
-pub struct Channel {
-    /// Clave ed25519 con la que el pagador firma los vales.
-    pub key: BytesN<32>,
-    pub deposit: i128,
-    /// Total ya cobrado por el servicio (los vales llevan el total acumulado, no el delta).
-    pub redeemed: i128,
-    pub expires: u32,
-}
-
-#[contracttype]
 #[derive(Clone)]
 enum Key {
     Config,
     Escrow(BytesN<32>),
-    Channel(Address, Address),
 }
 
 #[contracterror]
@@ -78,12 +59,6 @@ pub enum Error {
     EscrowNotFound = 11,
     EscrowExpired = 12,
     EscrowNotExpired = 13,
-    ChannelNotFound = 20,
-    ChannelKeyMismatch = 21,
-    ChannelExpired = 22,
-    ChannelNotExpired = 23,
-    VoucherNotNew = 24,
-    VoucherOverDeposit = 25,
 }
 
 fn config(e: &Env) -> Config {
@@ -116,16 +91,6 @@ fn split(e: &Env, cfg: &Config, from: &Address, to: &Address, amount: i128) -> (
         t.transfer(from, &cfg.treasury, &fee);
     }
     (net, fee)
-}
-
-/// Mensaje que firma el pagador para un vale: dominio | contrato | pagador | servicio | total.
-pub fn voucher_message(e: &Env, payer: &Address, receiver: &Address, cumulative: i128) -> Bytes {
-    let mut m = Bytes::from_slice(e, VOUCHER_DOMAIN);
-    m.append(&e.current_contract_address().to_xdr(e));
-    m.append(&payer.clone().to_xdr(e));
-    m.append(&receiver.clone().to_xdr(e));
-    m.append(&Bytes::from_slice(e, &cumulative.to_be_bytes()));
-    m
 }
 
 #[contract]
@@ -218,91 +183,6 @@ impl KibaPayments {
 
     pub fn get_escrow(e: Env, id: BytesN<32>) -> Option<Escrow> {
         e.storage().persistent().get(&Key::Escrow(id))
-    }
-
-    // ─── Canal de pago con vales ──────────────────────────────
-
-    /// Abre (o recarga) el canal `payer` → `receiver` depositando `amount`. Los vales se firman
-    /// con `key`; recargar exige la misma clave y puede alargar la expiración.
-    pub fn open_channel(e: Env, payer: Address, receiver: Address, key: BytesN<32>, amount: i128, ttl_ledgers: u32) {
-        payer.require_auth();
-        if amount <= 0 {
-            panic_with_error!(&e, Error::BadAmount);
-        }
-        let expires = check_ttl(&e, ttl_ledgers);
-        let k = Key::Channel(payer.clone(), receiver.clone());
-        let ch = match e.storage().persistent().get::<_, Channel>(&k) {
-            Some(mut ch) => {
-                if ch.key != key {
-                    panic_with_error!(&e, Error::ChannelKeyMismatch);
-                }
-                ch.deposit += amount;
-                ch.expires = ch.expires.max(expires);
-                ch
-            }
-            None => Channel { key, deposit: amount, redeemed: 0, expires },
-        };
-        let cfg = config(&e);
-        token::Client::new(&e, &cfg.token).transfer(&payer, &e.current_contract_address(), &amount);
-        e.storage().persistent().set(&k, &ch);
-        keep(&e, &k, ch.expires);
-        e.events().publish(("channel", receiver), (payer, ch.deposit, ch.expires));
-    }
-
-    /// El servicio cobra hasta el total acumulado de un vale firmado por el pagador. Solo paga
-    /// la diferencia con lo ya cobrado, así que un vale viejo o repetido no paga dos veces.
-    pub fn redeem(e: Env, payer: Address, receiver: Address, cumulative: i128, signature: BytesN<64>) -> (i128, i128) {
-        receiver.require_auth();
-        let k = Key::Channel(payer.clone(), receiver.clone());
-        let mut ch: Channel = e
-            .storage()
-            .persistent()
-            .get(&k)
-            .unwrap_or_else(|| panic_with_error!(&e, Error::ChannelNotFound));
-        if e.ledger().sequence() > ch.expires {
-            panic_with_error!(&e, Error::ChannelExpired);
-        }
-        if cumulative <= ch.redeemed {
-            panic_with_error!(&e, Error::VoucherNotNew);
-        }
-        if cumulative > ch.deposit {
-            panic_with_error!(&e, Error::VoucherOverDeposit);
-        }
-        let msg = voucher_message(&e, &payer, &receiver, cumulative);
-        e.crypto().ed25519_verify(&ch.key, &msg, &signature);
-        let delta = cumulative - ch.redeemed;
-        ch.redeemed = cumulative;
-        e.storage().persistent().set(&k, &ch);
-        keep(&e, &k, ch.expires);
-        let cfg = config(&e);
-        let (net, fee) = split(&e, &cfg, &e.current_contract_address(), &receiver, delta);
-        e.events().publish(("redeemed", receiver), (payer, cumulative, net, fee));
-        (net, fee)
-    }
-
-    /// Tras la expiración, devuelve al pagador lo que el servicio no cobró y cierra el canal.
-    pub fn close_channel(e: Env, payer: Address, receiver: Address) -> i128 {
-        let k = Key::Channel(payer.clone(), receiver.clone());
-        let ch: Channel = e
-            .storage()
-            .persistent()
-            .get(&k)
-            .unwrap_or_else(|| panic_with_error!(&e, Error::ChannelNotFound));
-        if e.ledger().sequence() <= ch.expires {
-            panic_with_error!(&e, Error::ChannelNotExpired);
-        }
-        e.storage().persistent().remove(&k);
-        let left = ch.deposit - ch.redeemed;
-        if left > 0 {
-            let cfg = config(&e);
-            token::Client::new(&e, &cfg.token).transfer(&e.current_contract_address(), &payer, &left);
-        }
-        e.events().publish(("closed", receiver), (payer, left));
-        left
-    }
-
-    pub fn get_channel(e: Env, payer: Address, receiver: Address) -> Option<Channel> {
-        e.storage().persistent().get(&Key::Channel(payer, receiver))
     }
 }
 

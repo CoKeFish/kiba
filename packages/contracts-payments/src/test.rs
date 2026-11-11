@@ -2,7 +2,6 @@
 extern crate std;
 
 use super::*;
-use ed25519_dalek::{Signer, SigningKey};
 use soroban_sdk::{
     testutils::{Address as _, Ledger},
     token::{StellarAssetClient, TokenClient},
@@ -42,14 +41,6 @@ fn setup<'a>() -> Setup<'a> {
 
 fn id(e: &Env, n: u8) -> BytesN<32> {
     BytesN::from_array(e, &[n; 32])
-}
-
-fn sign_voucher(s: &Setup, sk: &SigningKey, cumulative: i128) -> BytesN<64> {
-    let msg = s.e.as_contract(&s.c.address, || voucher_message(&s.e, &s.payer, &s.service, cumulative));
-    let mut buf = [0u8; 2048];
-    let len = msg.len() as usize;
-    msg.copy_into_slice(&mut buf[..len]);
-    BytesN::from_array(&s.e, &sk.sign(&buf[..len]).to_bytes())
 }
 
 fn advance(e: &Env, ledgers: u32) {
@@ -165,87 +156,4 @@ fn escrow_ttl_fuera_de_rango() {
         s.c.try_open(&s.payer, &s.service, &1, &id(&s.e, 2), &(MAX_TTL_LEDGERS + 1)),
         Err(Ok(ce(Error::BadTtl)))
     );
-}
-
-#[test]
-fn canal_cobra_por_lotes_con_vales_acumulados() {
-    let s = setup();
-    let sk = SigningKey::from_bytes(&[7u8; 32]);
-    let key = BytesN::from_array(&s.e, &sk.verifying_key().to_bytes());
-    s.c.open_channel(&s.payer, &s.service, &key, &100_000, &1_000);
-    // 3 llamadas de 5000: el servicio guarda solo el último vale y lo cobra una vez.
-    let v3 = sign_voucher(&s, &sk, 15_000);
-    assert_eq!(s.c.redeem(&s.payer, &s.service, &15_000, &v3), (14_250, 750));
-    // Más llamadas después: un vale con un total mayor cobra solo la diferencia.
-    let v5 = sign_voucher(&s, &sk, 25_000);
-    assert_eq!(s.c.redeem(&s.payer, &s.service, &25_000, &v5), (9_500, 500));
-    assert_eq!(s.usdc.balance(&s.service), 23_750);
-    assert_eq!(s.usdc.balance(&s.treasury), 1_250);
-    let ch = s.c.get_channel(&s.payer, &s.service).unwrap();
-    assert_eq!((ch.deposit, ch.redeemed), (100_000, 25_000));
-}
-
-#[test]
-fn canal_rechaza_vales_viejos_repetidos_o_falsos() {
-    let s = setup();
-    let sk = SigningKey::from_bytes(&[7u8; 32]);
-    let key = BytesN::from_array(&s.e, &sk.verifying_key().to_bytes());
-    s.c.open_channel(&s.payer, &s.service, &key, &100_000, &1_000);
-    let v = sign_voucher(&s, &sk, 10_000);
-    s.c.redeem(&s.payer, &s.service, &10_000, &v);
-    assert_eq!(s.c.try_redeem(&s.payer, &s.service, &10_000, &v), Err(Ok(ce(Error::VoucherNotNew))));
-    // Firma de otra clave → falla la verificación ed25519 (pánico del host).
-    let otro = SigningKey::from_bytes(&[8u8; 32]);
-    let falso = sign_voucher(&s, &otro, 20_000);
-    assert!(s.c.try_redeem(&s.payer, &s.service, &20_000, &falso).is_err());
-    // Vale válido con el total cambiado → firma no corresponde.
-    let v2 = sign_voucher(&s, &sk, 20_000);
-    assert!(s.c.try_redeem(&s.payer, &s.service, &30_000, &v2).is_err());
-    assert_eq!(s.c.get_channel(&s.payer, &s.service).unwrap().redeemed, 10_000);
-}
-
-#[test]
-fn canal_no_paga_mas_que_el_deposito() {
-    let s = setup();
-    let sk = SigningKey::from_bytes(&[7u8; 32]);
-    let key = BytesN::from_array(&s.e, &sk.verifying_key().to_bytes());
-    s.c.open_channel(&s.payer, &s.service, &key, &10_000, &1_000);
-    let v = sign_voucher(&s, &sk, 10_001);
-    assert_eq!(s.c.try_redeem(&s.payer, &s.service, &10_001, &v), Err(Ok(ce(Error::VoucherOverDeposit))));
-}
-
-#[test]
-fn canal_vale_de_otro_servicio_no_sirve() {
-    let s = setup();
-    let sk = SigningKey::from_bytes(&[7u8; 32]);
-    let key = BytesN::from_array(&s.e, &sk.verifying_key().to_bytes());
-    let otro_servicio = Address::generate(&s.e);
-    s.c.open_channel(&s.payer, &s.service, &key, &10_000, &1_000);
-    s.c.open_channel(&s.payer, &otro_servicio, &key, &10_000, &1_000);
-    // Vale firmado para `service`: presentado por otro servicio no verifica.
-    let v = sign_voucher(&s, &sk, 5_000);
-    assert!(s.c.try_redeem(&s.payer, &otro_servicio, &5_000, &v).is_err());
-}
-
-#[test]
-fn canal_recarga_y_cierre_devuelve_lo_no_cobrado() {
-    let s = setup();
-    let sk = SigningKey::from_bytes(&[7u8; 32]);
-    let key = BytesN::from_array(&s.e, &sk.verifying_key().to_bytes());
-    s.c.open_channel(&s.payer, &s.service, &key, &10_000, &10);
-    s.c.open_channel(&s.payer, &s.service, &key, &5_000, &20); // recarga y alarga
-    let otra = BytesN::from_array(&s.e, &[1u8; 32]);
-    assert_eq!(
-        s.c.try_open_channel(&s.payer, &s.service, &otra, &1, &20),
-        Err(Ok(ce(Error::ChannelKeyMismatch)))
-    );
-    let v = sign_voucher(&s, &sk, 4_000);
-    s.c.redeem(&s.payer, &s.service, &4_000, &v);
-    assert_eq!(s.c.try_close_channel(&s.payer, &s.service), Err(Ok(ce(Error::ChannelNotExpired))));
-    advance(&s.e, 21);
-    let v2 = sign_voucher(&s, &sk, 6_000);
-    assert_eq!(s.c.try_redeem(&s.payer, &s.service, &6_000, &v2), Err(Ok(ce(Error::ChannelExpired))));
-    assert_eq!(s.c.close_channel(&s.payer, &s.service), 11_000);
-    assert_eq!(s.usdc.balance(&s.payer), 1_000_000_000 - 4_000);
-    assert!(s.c.get_channel(&s.payer, &s.service).is_none());
 }
