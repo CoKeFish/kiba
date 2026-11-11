@@ -412,6 +412,17 @@ async function runInit(): Promise<void> {
   await pool.query(`ALTER TABLE agent_earnings ADD COLUMN IF NOT EXISTS refunded BIGINT NOT NULL DEFAULT 0`);
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_earnings_hold ON agent_earnings(hold_id)`);
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_earnings_tx ON agent_earnings(tx_id)`);
+  // El escrow de Trustless Work de cada publicador: uno de larga vida al que se agregan tramos.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS publisher_escrows (
+      id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      pay_to TEXT NOT NULL,
+      engagement_id TEXT NOT NULL,
+      escrow_id TEXT,
+      tranches INTEGER NOT NULL DEFAULT 0,
+      created_at BIGINT NOT NULL
+    )`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS publisher_escrows_pay_to ON publisher_escrows (pay_to, id)`);
   // Una retención = lo ganado por un servicio en un período, guardado en un escrow.
   await pool.query(`
     CREATE TABLE IF NOT EXISTS earning_holds (

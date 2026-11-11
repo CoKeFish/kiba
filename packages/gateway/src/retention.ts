@@ -35,8 +35,10 @@ import { refundToChannel } from './channel';
 
 const DAY_S = 86_400;
 /** Duración de un período, en días. Lo ganado en un período va a una sola retención. */
-export const RETENTION_PERIOD_DAYS = Number(process.env.RETENTION_PERIOD_DAYS) || 7;
+export const RETENTION_PERIOD_DAYS = Number(process.env.RETENTION_PERIOD_DAYS) || 1;
 /** Monto mínimo de una retención (unidades base). Lo que no llega se suma al período siguiente. */
+/** Tramos que junta el escrow de un publicador antes de abrir otro. */
+export const RETENTION_MAX_TRANCHES = Number(process.env.RETENTION_MAX_TRANCHES) || 40;
 export const RETENTION_MIN_HOLD = Number(process.env.RETENTION_MIN_HOLD) || BASE_UNITS_PER_TOKEN;
 
 export type Trust = 'new' | 'verified' | 'trusted';
@@ -53,11 +55,12 @@ const isTrust = (v: unknown): v is Trust => v === 'new' || v === 'verified' || v
 export interface HoldBackend {
   /** Deja listo lo que no depende de ninguna retención (la cuenta del resolutor). */
   ready(): Promise<void>;
-  /** Crea y fondea el escrow de una retención. `engagementId` lo identifica para no duplicarlo. */
+  /** Guarda una retención en escrow. `engagementId` la identifica para no duplicarla. Devuelve
+   *  un identificador opaco de dónde quedó (con Trustless Work: `contrato#tramo`). */
   open(a: { engagementId: string; service: string; receiver: string; amount: number }): Promise<{ escrowId: string }>;
-  /** Libera el escrow completo al publicador (el contrato aparta las comisiones). */
+  /** Libera la retención al publicador (el contrato aparta las comisiones). */
   release(escrowId: string): Promise<void>;
-  /** Cierra el escrow por disputa repartiendo su saldo entre el publicador y la tesorería. */
+  /** Cierra la retención por disputa repartiendo su monto entre el publicador y la tesorería. */
   resolve(escrowId: string, a: { receiver: string; toReceiver: number; toTreasury: number }): Promise<void>;
 }
 
@@ -140,38 +143,77 @@ class TrustlessWorkHolds implements HoldBackend {
     this.isReady = true;
   }
 
+  /**
+   * El escrow vigente de un publicador: uno de larga vida al que se le agregan tramos. Cuando
+   * junta RETENTION_MAX_TRANCHES se abre otro.
+   */
+  private async escrowOf(receiver: string): Promise<{ id: number; escrowId: string | null; engagementId: string }> {
+    const row = (await db
+      .prepare('SELECT id, escrow_id, engagement_id, tranches FROM publisher_escrows WHERE pay_to = ? ORDER BY id DESC LIMIT 1')
+      .get(receiver)) as { id: number; escrow_id: string | null; engagement_id: string; tranches: number } | undefined;
+    if (row && Number(row.tranches) < RETENTION_MAX_TRANCHES) {
+      return { id: Number(row.id), escrowId: row.escrow_id, engagementId: row.engagement_id };
+    }
+    const engagementId = `kiba-pub-${receiver.slice(0, 12)}-${Date.now().toString(36)}`;
+    const info = await db
+      .prepare('INSERT INTO publisher_escrows (pay_to, engagement_id, tranches, created_at) VALUES (?, ?, 0, ?) RETURNING id')
+      .run(receiver, engagementId, Math.floor(Date.now() / 1000));
+    return { id: Number(info.lastInsertRowid), escrowId: null, engagementId };
+  }
+
+  /**
+   * Mete una retención como un tramo del escrow de su publicador y deposita su monto. Cada paso
+   * mira primero lo que ya hay en la red, así que repetirla tras un fallo no duplica nada.
+   */
   open(a: { engagementId: string; service: string; receiver: string; amount: number }): Promise<{ escrowId: string }> {
     // Todo lo que firma la tesorería va por su cola: una sola transacción suya en vuelo.
     return enqueueChainTask(async () => {
       await ensureTreasuryFunded();
       const t = this.treasury.publicKey();
-      const { escrowId } = await this.asTreasury.deployAndFund({
-        agentOwner: a.receiver,
-        service: a.service,
-        engagementId: a.engagementId,
-        amountBaseUnits: BigInt(a.amount),
-        roles: {
-          approver: t,
-          serviceProvider: t,
-          platformAddress: this.tw.platformAddress,
-          releaseSigner: t,
-          disputeResolver: this.resolver.publicKey(),
-          receiver: a.receiver,
-        },
-      });
-      return { escrowId };
+      const tranche = { description: a.engagementId, amountBaseUnits: BigInt(a.amount), receiver: a.receiver };
+      const pe = await this.escrowOf(a.receiver);
+      let escrowId = pe.escrowId;
+      if (!escrowId) {
+        escrowId = await this.asTreasury.deployTranches({
+          engagementId: pe.engagementId,
+          title: `Kiba: ganancias retenidas de ${a.receiver.slice(0, 6)}`,
+          roles: {
+            approver: t,
+            serviceProvider: t,
+            platformAddress: this.tw.platformAddress,
+            releaseSigner: t,
+            disputeResolver: this.resolver.publicKey(),
+          },
+          first: tranche,
+        });
+        await db.prepare('UPDATE publisher_escrows SET escrow_id = ? WHERE id = ?').run(escrowId, pe.id);
+      }
+      const index = await this.asTreasury.addTranche(escrowId, tranche);
+      // Lo que el escrow debe tener: la suma de los tramos que siguen adentro. Se deposita solo
+      // lo que falte.
+      const now = await this.asTreasury.readTranches(escrowId);
+      const owed = now.tranches.filter((x) => !x.released && !x.resolved).reduce((sum, x) => sum + x.amountBaseUnits, 0n);
+      if (owed > now.balanceBaseUnits) await this.asTreasury.fundTranches(escrowId, owed - now.balanceBaseUnits);
+      await db.prepare('UPDATE publisher_escrows SET tranches = ? WHERE id = ?').run(now.tranches.length, pe.id);
+      return { escrowId: `${escrowId}#${index}` };
     });
   }
 
-  release(escrowId: string): Promise<void> {
-    return enqueueChainTask(async () => {
-      await this.asTreasury.release(escrowId);
-    });
+  private static part(holdEscrowId: string): { escrowId: string; index: number } {
+    const [escrowId, index] = holdEscrowId.split('#');
+    if (!escrowId || index === undefined || !/^\d+$/.test(index)) throw new Error(`retención sin tramo: ${holdEscrowId}`);
+    return { escrowId, index: Number(index) };
   }
 
-  async resolve(escrowId: string, a: { receiver: string; toReceiver: number; toTreasury: number }): Promise<void> {
-    await enqueueChainTask(() => this.asTreasury.dispute(escrowId));
-    await this.asResolver.resolveDispute(escrowId, [
+  release(holdEscrowId: string): Promise<void> {
+    const { escrowId, index } = TrustlessWorkHolds.part(holdEscrowId);
+    return enqueueChainTask(() => this.asTreasury.releaseTranche(escrowId, index));
+  }
+
+  async resolve(holdEscrowId: string, a: { receiver: string; toReceiver: number; toTreasury: number }): Promise<void> {
+    const { escrowId, index } = TrustlessWorkHolds.part(holdEscrowId);
+    await enqueueChainTask(() => this.asTreasury.disputeTranche(escrowId, index));
+    await this.asResolver.resolveTranche(escrowId, index, [
       { address: a.receiver, amountBaseUnits: BigInt(a.toReceiver) },
       { address: this.treasury.publicKey(), amountBaseUnits: BigInt(a.toTreasury) },
     ]);
@@ -457,7 +499,8 @@ export async function listHoldsOfPublisher(userId: number, limit = 50): Promise<
     refundedBaseUnits: h.refund_due,
     trust: isTrust(h.trust) ? h.trust : null,
     retentionDays: h.retention_days,
-    escrowId: h.escrow_id,
+    // Con Trustless Work la retención es un tramo (`contrato#tramo`): aquí va solo el contrato.
+    escrowId: h.escrow_id ? h.escrow_id.split("#")[0] : null,
     periodEnd: h.period_end,
     releaseAt: h.release_at,
     releasedAt: h.released_at,

@@ -65,7 +65,7 @@ const DAY = 86_400;
 const now = () => Math.floor(Date.now() / 1000);
 
 await initDb();
-await db.exec('TRUNCATE claims, earning_holds, agent_earnings, settlements, transactions, user_agents, users RESTART IDENTITY CASCADE');
+await db.exec('TRUNCATE claims, earning_holds, publisher_escrows, agent_earnings, settlements, transactions, user_agents, users RESTART IDENTITY CASCADE');
 console.log(`Tesorería de prueba: ${treasury.publicKey()}`);
 await Promise.all([pubA, pubB].map((k) => fund(k.publicKey())));
 await Promise.all([pubA, pubB].map((k) => classic(k, [Operation.changeTrust({ asset: usdc })])));
@@ -111,12 +111,12 @@ await paidCall('e2e-b', pubB.publicKey(), 2e7);
 const holds = async () =>
   (await db.prepare('SELECT * FROM earning_holds ORDER BY service').all()) as Array<Record<string, unknown>>;
 
-// 1. Cierre del período: un escrow real de Trustless Work por servicio, con el monto exacto.
+// 1. Cierre del período: cada ganancia entra como un tramo del escrow de Trustless Work de su publicador.
 let t = Date.now();
 await retention.runRetentionJob();
 let [a, b] = await holds();
 check(
-  '1. al cerrar el período se crea un escrow de Trustless Work por servicio',
+  '1. al cerrar el período cada ganancia queda en el escrow de su publicador',
   a?.status === 'held' && b?.status === 'held' && String(a.escrow_id).startsWith('C') && String(b.escrow_id).startsWith('C') &&
     Number(a.amount) === 5e7 && Number(b.amount) === 2e7,
   `${((Date.now() - t) / 1000).toFixed(0)} s; escrows ${String(a?.escrow_id).slice(0, 8)}… y ${String(b?.escrow_id).slice(0, 8)}…${a?.error ? ' error: ' + a.error : ''}`,
@@ -170,6 +170,23 @@ check(
 // 5. Repetir el trabajo no paga dos veces.
 await retention.runRetentionJob();
 check('5. repetir el trabajo no vuelve a pagar', near(await usdcOf(pubA.publicKey()), gotA) && near(await usdcOf(pubB.publicKey()), gotB));
+
+// 6. Otra tanda del mismo publicador entra como un tramo nuevo del MISMO escrow y se libera.
+await paidCall('e2e-a', pubA.publicKey(), 1e7);
+t = Date.now();
+await retention.runRetentionJob();
+const all = await holds();
+const first = all.find((h) => h.service === 'e2e-a' && h.status === 'resolved')!;
+const next = all.find((h) => h.service === 'e2e-a' && h.status !== 'resolved');
+const contract = (h?: Record<string, unknown>) => String(h?.escrow_id).split('#')[0];
+check(
+  '6. otra tanda del mismo publicador entra como tramo nuevo del mismo escrow',
+  next?.status === 'held' && contract(next) === contract(first) && next.escrow_id !== first.escrow_id,
+  `${contract(first).slice(0, 8)}… tramos ${String(first.escrow_id).split('#')[1]} y ${String(next?.escrow_id).split('#')[1]}, ${((Date.now() - t) / 1000).toFixed(0)} s${next?.error ? ' error: ' + next.error : ''}`,
+);
+await db.prepare(`UPDATE earning_holds SET release_at = ? WHERE status = 'held'`).run(now() - 1);
+await retention.runRetentionJob();
+check('   y se libera sola a su publicador', near(await usdcOf(pubA.publicKey()), gotA + 0.947), `publicador A: ${await usdcOf(pubA.publicKey())} USDC`);
 
 console.log(`\n${pass}/${pass + fail} comprobaciones pasaron`);
 await pool.end();

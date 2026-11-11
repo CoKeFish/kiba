@@ -104,6 +104,31 @@ export interface DeployAndFundArgs {
   roles?: TrustlessWorkRoles;
 }
 
+/** Un tramo nuevo de un escrow por tramos. `description` lo identifica dentro del escrow. */
+export interface TrancheInput {
+  description: string;
+  amountBaseUnits: bigint;
+  receiver: string;
+}
+
+export interface Tranche {
+  index: number;
+  description: string;
+  amountBaseUnits: bigint;
+  receiver: string;
+  status: string;
+  approved: boolean;
+  released: boolean;
+  disputed: boolean;
+  resolved: boolean;
+}
+
+export interface TrancheEscrow {
+  balanceBaseUnits: bigint;
+  tranches: Tranche[];
+  raw: Record<string, unknown>;
+}
+
 export class TrustlessWorkEscrowClient {
   private readonly http: AxiosInstance;
   private readonly label: string;
@@ -427,15 +452,15 @@ export class TrustlessWorkEscrowClient {
   }
 
   /** Ubica el contractId de un escrow recién desplegado por engagementId (recovery). */
-  private async recoverEscrowId(engagementId: string): Promise<string | null> {
+  private async recoverEscrowId(engagementId: string, tries = 30): Promise<string | null> {
     // ~60s: única vía de obtener el contractId de un deploy "pending" (no viene en la respuesta
     // ni es derivable por txHash). El lag del indexer de TW es variable (típico ~15-25s, con
     // cola mayor). Devuelve apenas aparece; el tope solo aplica si el indexer va muy lento.
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < tries; i++) {
       const escrows = await this.getEscrowsBySigner(this.address);
       const match = escrows.find((e) => e.engagementId === engagementId);
       if (typeof match?.contractId === 'string' && match.contractId) return match.contractId;
-      await this.sleep(2000);
+      if (i < tries - 1) await this.sleep(2000);
     }
     return null;
   }
@@ -620,6 +645,226 @@ export class TrustlessWorkEscrowClient {
       }
     }
     await this.waitFor(escrowId, (e) => !!(e.flags as Record<string, boolean>)?.resolved, 'resolve-dispute');
+  }
+
+  // ─── Escrow por tramos (liberación múltiple) ──────────────────────────────
+  //
+  // Un solo escrow de larga vida al que se le van agregando tramos. Cada tramo tiene su monto y
+  // su destinatario, y se libera o se disputa por separado. Con fondos adentro, lo único que
+  // Trustless Work deja cambiar es agregar tramos; eso basta para ir sumando dinero.
+
+  /** Lee el escrow contra la red (no solo el indexador, que va con retraso). */
+  private async getEscrowOnChain(escrowId: string): Promise<Record<string, unknown> | null> {
+    const res = await this.http.get('/helper/get-escrow-by-contract-ids', {
+      params: { contractIds: [escrowId], validateOnChain: true },
+    });
+    const arr = res.data as Array<Record<string, unknown>> | undefined;
+    return Array.isArray(arr) && arr.length ? arr[0] : null;
+  }
+
+  /** Saldo del escrow y sus tramos, tal como están en la red. */
+  async readTranches(escrowId: string): Promise<TrancheEscrow> {
+    const e = await this.getEscrowOnChain(escrowId);
+    if (!e) throw new Error(`[${this.label}] el escrow ${escrowId} no existe`);
+    const units = (v: unknown) => BigInt(Math.round(Number(v ?? 0) * this.cfg.baseUnitsPerToken));
+    const raw = (Array.isArray(e.milestones) ? e.milestones : []) as Array<Record<string, unknown>>;
+    return {
+      balanceBaseUnits: units(e.balance),
+      raw: e,
+      tranches: raw.map((m, index) => {
+        const f = (m.flags ?? {}) as Record<string, boolean>;
+        return {
+          index,
+          description: String(m.description ?? ''),
+          amountBaseUnits: units(m.amount),
+          receiver: String(m.receiver ?? ''),
+          status: String(m.status ?? ''),
+          approved: !!f.approved,
+          released: !!f.released,
+          disputed: !!f.disputed,
+          resolved: !!f.resolved,
+        };
+      }),
+    };
+  }
+
+  /**
+   * Crea un escrow por tramos con su primer tramo (sin fondear). `engagementId` lo identifica:
+   * repetir la llamada con el mismo devuelve el mismo escrow.
+   */
+  async deployTranches(a: {
+    engagementId: string;
+    title: string;
+    roles: Omit<TrustlessWorkRoles, 'receiver'>;
+    first: TrancheInput;
+  }): Promise<string> {
+    const existing = await this.recoverEscrowId(a.engagementId, 1).catch(() => null);
+    if (existing) return existing;
+    const body = {
+      signer: this.address,
+      engagementId: a.engagementId,
+      title: a.title,
+      description: a.title,
+      roles: a.roles,
+      platformFee: this.cfg.platformFee,
+      trustline: this.cfg.trustline,
+      milestones: [this.trancheBody(a.first)],
+    };
+    let escrowId: string | null = null;
+    try {
+      escrowId = this.extractContractId(await this.postSimAndSend('/deployer/multi-release', body, 'deploy-tranches'));
+    } catch (err) {
+      console.warn(`[${this.label}] deploy por tramos: ${this.errorText(err)}`);
+    }
+    escrowId ??= await this.recoverEscrowId(a.engagementId);
+    if (!escrowId) throw new Error(`[${this.label}] no se pudo obtener el contractId del escrow por tramos`);
+    return escrowId;
+  }
+
+  private trancheBody(t: TrancheInput): Record<string, unknown> {
+    return { description: t.description, amount: this.toDecimal(t.amountBaseUnits), receiver: t.receiver };
+  }
+
+  /**
+   * Agrega un tramo a un escrow, tenga o no fondos. La `description` lo identifica: si ya hay un
+   * tramo con esa descripción no se agrega otro. Devuelve su posición.
+   */
+  async addTranche(escrowId: string, t: TrancheInput): Promise<number> {
+    const find = async () => (await this.readTranches(escrowId)).tranches.find((x) => x.description === t.description);
+    const had = await find();
+    if (had) return had.index;
+    const cur = await this.readTranches(escrowId);
+    const e = cur.raw;
+    // Los tramos que ya existen se reenvían tal como están; solo el último es nuevo.
+    const existing = ((e.milestones ?? []) as Array<Record<string, unknown>>).map((m) => ({
+      description: m.description,
+      status: m.status ?? '',
+      evidence: m.evidence ?? '',
+      amount: Number(m.amount),
+      receiver: m.receiver,
+      flags: m.flags,
+    }));
+    await this.postSimAndSend(
+      '/escrow/multi-release/update-escrow',
+      {
+        signer: this.address,
+        contractId: escrowId,
+        escrow: {
+          engagementId: e.engagementId,
+          title: e.title,
+          description: e.description,
+          roles: e.roles,
+          platformFee: this.cfg.platformFee,
+          trustline: this.cfg.trustline,
+          milestones: [...existing, this.trancheBody(t)],
+          isActive: true,
+        },
+      },
+      'add-tranche',
+      'put',
+    );
+    for (let i = 0; i < 10; i++) {
+      const now = await find();
+      if (now) return now.index;
+      await this.sleep(2500);
+    }
+    throw new Error(`[${this.label}] el tramo '${t.description}' no aparece en el escrow ${escrowId}`);
+  }
+
+  /** Deposita en un escrow por tramos. */
+  async fundTranches(escrowId: string, amountBaseUnits: bigint): Promise<string> {
+    const resp = await this.postSimAndSend(
+      '/escrow/multi-release/fund-escrow',
+      { contractId: escrowId, signer: this.address, amount: this.toDecimal(amountBaseUnits) },
+      'fund-tranches',
+    );
+    return String(resp.innerTxHash ?? '');
+  }
+
+  /** Espera a que un tramo cumpla una condición en la red. */
+  private async waitTranche(escrowId: string, index: number, pred: (t: Tranche) => boolean, label: string): Promise<Tranche> {
+    let last: Tranche | undefined;
+    for (let i = 0; i < 12; i++) {
+      last = (await this.readTranches(escrowId)).tranches[index];
+      if (last && pred(last)) return last;
+      await this.sleep(2500);
+    }
+    throw new Error(`[${this.label}] ${label}: el tramo ${index} de ${escrowId} no cambió a tiempo`);
+  }
+
+  /**
+   * Libera un tramo a su destinatario. Son tres pasos (marcar, aprobar, liberar); los que ya
+   * están hechos se saltan, así que repetirla es seguro. Este signer debe ser quien presta el
+   * servicio, quien aprueba y quien libera.
+   */
+  async releaseTranche(escrowId: string, index: number): Promise<void> {
+    const milestoneIndex = String(index);
+    let t = (await this.readTranches(escrowId)).tranches[index];
+    if (!t) throw new Error(`[${this.label}] el escrow ${escrowId} no tiene el tramo ${index}`);
+    if (t.released) return;
+    if (!t.approved) {
+      if (!/complet/i.test(t.status)) {
+        await this.postSimAndSend(
+          '/escrow/multi-release/change-milestone-status',
+          { contractId: escrowId, milestoneIndex, newStatus: 'completed', newEvidence: 'kiba', serviceProvider: this.address },
+          'tranche-status',
+        );
+        await this.waitTranche(escrowId, index, (x) => /complet/i.test(x.status), 'marcar');
+      }
+      await this.postSimAndSend(
+        '/escrow/multi-release/approve-milestone',
+        { contractId: escrowId, milestoneIndex, approver: this.address },
+        'tranche-approve',
+      );
+      await this.waitTranche(escrowId, index, (x) => x.approved, 'aprobar');
+    }
+    try {
+      await this.postSimAndSend(
+        '/escrow/multi-release/release-milestone-funds',
+        { contractId: escrowId, milestoneIndex, releaseSigner: this.address },
+        'tranche-release',
+      );
+    } catch (err) {
+      if (!this.isAlreadyDone(err)) throw err;
+    }
+    t = await this.waitTranche(escrowId, index, (x) => x.released, 'liberar');
+  }
+
+  /** Abre una disputa sobre un solo tramo; los demás siguen su curso. */
+  async disputeTranche(escrowId: string, index: number): Promise<void> {
+    const t = (await this.readTranches(escrowId)).tranches[index];
+    if (!t) throw new Error(`[${this.label}] el escrow ${escrowId} no tiene el tramo ${index}`);
+    if (t.disputed || t.resolved) return;
+    await this.postSimAndSend(
+      '/escrow/multi-release/dispute-milestone',
+      { contractId: escrowId, milestoneIndex: String(index), signer: this.address },
+      'tranche-dispute',
+    );
+    await this.waitTranche(escrowId, index, (x) => x.disputed || x.resolved, 'disputar');
+  }
+
+  /** Resuelve la disputa de un tramo repartiendo su monto. Lo firma el `disputeResolver`. */
+  async resolveTranche(
+    escrowId: string,
+    index: number,
+    distributions: Array<{ address: string; amountBaseUnits: bigint }>,
+  ): Promise<void> {
+    const t = (await this.readTranches(escrowId)).tranches[index];
+    if (!t) throw new Error(`[${this.label}] el escrow ${escrowId} no tiene el tramo ${index}`);
+    if (t.resolved) return;
+    await this.postSimAndSend(
+      '/escrow/multi-release/resolve-milestone-dispute',
+      {
+        contractId: escrowId,
+        milestoneIndex: String(index),
+        disputeResolver: this.address,
+        distributions: distributions
+          .filter((d) => d.amountBaseUnits > 0n)
+          .map((d) => ({ address: d.address, amount: this.toDecimal(d.amountBaseUnits) })),
+      },
+      'tranche-resolve',
+    );
+    await this.waitTranche(escrowId, index, (x) => x.resolved, 'resolver');
   }
 
   private errorText(err: unknown): string {
