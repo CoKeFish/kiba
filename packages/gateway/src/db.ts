@@ -397,6 +397,28 @@ async function runInit(): Promise<void> {
   await pool.query(`ALTER TABLE agent_earnings ADD COLUMN IF NOT EXISTS refunded BIGINT NOT NULL DEFAULT 0`);
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_earnings_hold ON agent_earnings(hold_id)`);
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_earnings_tx ON agent_earnings(tx_id)`);
+  // MPP como vendedor (mpp-sell.ts): pruebas de pago ya usadas y registro de cada pago recibido.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS mpp_store (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL,
+      updated_at BIGINT NOT NULL
+    )`);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS mpp_payments (
+      id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      service TEXT NOT NULL,
+      pay_to TEXT NOT NULL,
+      payer TEXT,
+      amount BIGINT NOT NULL,
+      reference TEXT,
+      status TEXT NOT NULL,
+      earning_id BIGINT,
+      refund_tx TEXT,
+      error TEXT,
+      created_at BIGINT NOT NULL
+    )`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS mpp_payments_service ON mpp_payments (service, id)`);
   // Servicios externos: APIs que ya cobran con x402 o MPP, listadas con su URL (external.ts).
   await pool.query(`
     CREATE TABLE IF NOT EXISTS external_services (

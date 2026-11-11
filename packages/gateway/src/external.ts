@@ -9,8 +9,8 @@
  * Kiba cobra su comisión encima del precio de la API (EXTERNAL_FEE_BPS): el usuario paga precio
  * más comisión, la API recibe su precio completo y la comisión se queda en la tesorería.
  *
- * Hoy Kiba paga los que cobran con x402. Los que cobran con MPP se pueden listar, pero no se
- * pueden llamar todavía.
+ * Kiba paga los que cobran con x402 y los que cobran con MPP por llamada en USDC de Stellar. Un
+ * servicio de MPP que solo acepte otra forma de pago queda listado, pero no se puede llamar.
  */
 import { db } from './db';
 import { lamportsToUsd } from './billing';
@@ -58,7 +58,7 @@ export interface ExternalService {
   method: Method;
   params: ExternalParam[];
   protocol: 'x402' | 'mpp';
-  /** false = listado pero Kiba todavía no puede pagarlo (MPP). */
+  /** false = listado, pero cobra de una forma que Kiba no puede pagar. */
   payable: boolean;
   /** Último precio cotizado por la API, sin la comisión de Kiba (unidades base). null = sin cotización. */
   priceBaseUnits: number | null;
@@ -102,7 +102,7 @@ function view(r: Row): ExternalService {
     method: r.method as Method,
     params: JSON.parse(r.params || '[]') as ExternalParam[],
     protocol: r.protocol === 'mpp' ? 'mpp' : 'x402',
-    payable: r.protocol !== 'mpp',
+    payable: price != null,
     priceBaseUnits: price,
     pricePerCall: total,
     priceUsd: total == null ? null : lamportsToUsd(total),
@@ -205,7 +205,7 @@ export async function registerExternal(userId: number, input: ExternalInput): Pr
       `INSERT INTO external_services (slug, user_id, name, description, url, method, params, protocol, price_lamports, calls, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`,
     )
-    .run(slug, userId, name, description, url, method, JSON.stringify(params), quote.kind, quote.kind === 'x402' ? quote.lamports : null, now, now);
+    .run(slug, userId, name, description, url, method, JSON.stringify(params), quote.kind, quote.lamports ?? null, now, now);
   return (await getExternal(slug))!;
 }
 
@@ -266,7 +266,7 @@ export async function callExternal(args: {
   const svc = await getExternal(slug);
   if (!svc) throw new Error(`servicio externo no encontrado: ${args.service}`);
   if (!svc.payable) {
-    throw new Error(`'${svc.name}' cobra con MPP y Kiba todavía no paga con ese protocolo; por ahora solo está listado`);
+    throw new Error(`'${svc.name}' cobra con MPP de una forma que Kiba no puede pagar (solo cobros por llamada en USDC de Stellar); por ahora solo está listado`);
   }
   if (args.payload != null && (typeof args.payload !== 'object' || Array.isArray(args.payload))) {
     throw new Error('payload debe ser un objeto con los parámetros del servicio');

@@ -80,14 +80,14 @@ const TOOLS = [
   {
     name: 'call_url',
     annotations: {
-      title: 'Pay an x402 API',
+      title: 'Pay an x402 or MPP API',
       readOnlyHint: false,
       destructiveHint: false,
       idempotentHint: false,
       openWorldHint: true,
     },
     description:
-      'Llama una API externa que cobra con x402 (HTTP 402) en Stellar, aunque no esté en el catálogo de Kiba. Kiba lee la cotización del 402, paga en USDC desde el saldo del usuario y devuelve la respuesta de la API más el costo, el saldo restante y el enlace a la transacción en stellar.expert. Si la URL no cobra, devuelve la respuesta sin cobrar. Rechaza precios mayores a 1 USD salvo que el usuario autorice más con `maxUsd`. Úsala cuando el usuario te dé una URL que cobra por consulta; para los servicios del catálogo usa call_agent.',
+      'Llama una API externa que cobra por consulta con x402 o con MPP (HTTP 402) en Stellar, aunque no esté en el catálogo de Kiba. Kiba lee la cotización del 402, paga en USDC desde el saldo del usuario y devuelve la respuesta de la API más el costo, el saldo restante y el enlace a la transacción en stellar.expert. Si la URL no cobra, devuelve la respuesta sin cobrar. Rechaza precios mayores a 1 USD salvo que el usuario autorice más con `maxUsd`. Úsala cuando el usuario te dé una URL que cobra por consulta; para los servicios del catálogo usa call_agent.',
     inputSchema: {
       type: 'object',
       properties: {

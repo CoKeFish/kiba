@@ -1,5 +1,6 @@
 /**
- * x402 estándar hacia fuera (lado comprador).
+ * x402 estándar hacia fuera (lado comprador). También paga las APIs que cobran con MPP: el
+ * flujo es el mismo y solo cambian el reto y la prueba de pago (mpp.ts).
  *
  * Kiba paga cualquier API que cobre con x402 (HTTP 402) en Stellar, esté o no en el
  * registro de Kiba. El flujo es el del estándar (x402 v2, esquema `exact`, red
@@ -37,6 +38,7 @@ import { explorerTxUrl } from './chain';
 import { getMasterWallet } from './wallets';
 import { confirmChannel, releaseChannel, reserveChannel, type ChannelReserve } from './channel';
 import { assertAllowedUrl } from './net-guard';
+import { isMppChallenge, mppAuthorization, readMppQuote, readMppReceipt } from './mpp';
 import { resultUrl } from './results';
 
 /** Red x402 (CAIP-2) derivada de STELLAR_NETWORK, igual que el resto del gateway. */
@@ -89,6 +91,8 @@ export interface X402CallResult {
   cost: { lamports: number; usd: number; feeLamports?: number };
   paidWith?: 'credit' | 'wallet';
   network?: string;
+  /** Con qué protocolo se pagó. */
+  protocol?: 'x402' | 'mpp';
   payTo?: string;
   payer?: string;
   txHash?: string;
@@ -259,7 +263,8 @@ async function closeResult(id: string, out: { result?: unknown; error?: string; 
 
 export type PaidUrlQuote =
   | { kind: 'x402'; lamports: number; network: string; payTo: string }
-  | { kind: 'mpp' }
+  /** Con MPP el precio solo se conoce si la API ofrece un cobro por llamada en USDC de nuestra red. */
+  | { kind: 'mpp'; lamports?: number; network?: string; payTo?: string }
   | { kind: 'free'; status: number };
 
 /**
@@ -276,7 +281,13 @@ export async function probePaidUrl(url: string, method = 'GET', body?: unknown):
   });
   if (first.status !== 402) return { kind: 'free', status: first.status };
   // MPP pide el pago con el esquema de autenticación HTTP "Payment".
-  if (/^\s*Payment\b/i.test(first.headers.get('www-authenticate') ?? '')) return { kind: 'mpp' };
+  if (isMppChallenge(first.headers)) {
+    try {
+      return { kind: 'mpp', ...readMppQuote(first.headers) };
+    } catch {
+      return { kind: 'mpp' };
+    }
+  }
   const required = httpClient().getPaymentRequiredResponse((n) => first.headers.get(n), first.body);
   const accept = pickStellarRequirements(required.accepts ?? []);
   return { kind: 'x402', lamports: Number(BigInt(accept.amount)), network: accept.network, payTo: accept.payTo };
@@ -318,13 +329,21 @@ export async function callX402Url(args: X402CallArgs): Promise<X402CallResult> {
     return { ...base, status: first.status, result: first.body, paid: false, cost: { lamports: 0, usd: 0 } };
   }
 
-  // 2. Requisitos de pago en Stellar.
+  // 2. Cómo y cuánto cobra: con MPP (reto en WWW-Authenticate) o con x402 (PAYMENT-REQUIRED).
   const http = httpClient();
-  let required: PaymentRequired;
-  let accept: PaymentRequirements;
+  const viaMpp = isMppChallenge(first.headers);
+  let required: PaymentRequired | undefined;
+  let x402Accept: PaymentRequirements | undefined;
+  let accept: { amount: string; network: string; payTo: string; scheme: string };
   try {
-    required = http.getPaymentRequiredResponse((n) => first.headers.get(n), first.body);
-    accept = pickStellarRequirements(required.accepts ?? []);
+    if (viaMpp) {
+      const q = readMppQuote(first.headers);
+      accept = { amount: String(q.lamports), network: q.network, payTo: q.payTo, scheme: 'charge' };
+    } else {
+      required = http.getPaymentRequiredResponse((n) => first.headers.get(n), first.body);
+      x402Accept = pickStellarRequirements(required.accepts ?? []);
+      accept = x402Accept;
+    }
   } catch (err) {
     await closeResult(resultId, { error: (err as Error).message });
     throw err;
@@ -342,7 +361,7 @@ export async function callX402Url(args: X402CallArgs): Promise<X402CallResult> {
 
   // 3. Cobro al usuario: crédito primero, si no su depósito.
   const meta = {
-    mode: 'x402',
+    mode: viaMpp ? 'mpp' : 'x402',
     url: u.href,
     network: accept.network,
     payTo: accept.payTo,
@@ -382,9 +401,14 @@ export async function callX402Url(args: X402CallArgs): Promise<X402CallResult> {
   };
 
   // 4. Firma de la treasury + llamada pagada.
-  let payload: PaymentPayload;
+  let payHeaders: Record<string, string>;
   try {
-    payload = await http.createPaymentPayload({ ...required, accepts: [accept] });
+    if (viaMpp) {
+      payHeaders = { authorization: await mppAuthorization(first.headers) };
+    } else {
+      const payload: PaymentPayload = await http.createPaymentPayload({ ...required!, accepts: [x402Accept!] });
+      payHeaders = http.encodePaymentSignatureHeader(payload);
+    }
   } catch (err) {
     const msg = `no se pudo firmar el pago: ${(err as Error).message}`;
     await refund(msg);
@@ -393,7 +417,7 @@ export async function callX402Url(args: X402CallArgs): Promise<X402CallResult> {
   }
   let second: HttpReply;
   try {
-    second = await send(u, method, { ...headers, ...http.encodePaymentSignatureHeader(payload) }, bodyText);
+    second = await send(u, method, { ...headers, ...payHeaders }, bodyText);
   } catch (err) {
     const msg = `la llamada pagada a ${u.host} falló: ${(err as Error).message}`;
     await refund(msg);
@@ -401,17 +425,28 @@ export async function callX402Url(args: X402CallArgs): Promise<X402CallResult> {
     throw new Error(msg);
   }
 
-  // 5. Resultado: liquidado (PAYMENT-RESPONSE) o rechazo.
-  const parsed = http.parsePaymentResult({ status: second.status, getHeader: (n) => second.headers.get(n), body: second.body });
-  const settled = parsed.paymentStatus === 'settled' ? (parsed.header as SettleResponse) : undefined;
-  if (second.status >= 400 && !settled) {
+  // 5. Resultado: liquidado (PAYMENT-RESPONSE en x402, Payment-Receipt en MPP) o rechazo.
+  let txHash: string | undefined;
+  let payerAddress: string | undefined;
+  let settledOk: boolean;
+  if (viaMpp) {
+    const receipt = readMppReceipt(second.headers);
+    settledOk = receipt !== null;
+    txHash = receipt?.reference;
+  } else {
+    const parsed = http.parsePaymentResult({ status: second.status, getHeader: (n) => second.headers.get(n), body: second.body });
+    const settled = parsed.paymentStatus === 'settled' ? (parsed.header as SettleResponse) : undefined;
+    settledOk = settled !== undefined;
+    txHash = settled?.transaction || undefined;
+    payerAddress = settled?.payer;
+  }
+  if (second.status >= 400 && !settledOk) {
     const msg = `la API rechazó la llamada pagada (${second.status}): ${describe(second.body) || 'sin detalle'}`;
     await refund(msg);
     await closeResult(resultId, { error: msg });
     throw new Error(msg);
   }
 
-  const txHash = settled?.transaction || undefined;
   const explorerUrl = txHash ? explorerTxUrl(txHash) : undefined;
   if (txHash && debitTxId != null) await attachSignature(debitTxId, txHash).catch(() => undefined);
   if (hold.ok) await confirmChannel(hold);
@@ -427,7 +462,8 @@ export async function callX402Url(args: X402CallArgs): Promise<X402CallResult> {
     cost: { lamports, usd: lamportsToUsd(lamports), ...(fee > 0 ? { feeLamports: fee } : {}) },
     network: accept.network,
     payTo: accept.payTo,
-    payer: settled?.payer,
+    payer: payerAddress,
+    protocol: viaMpp ? 'mpp' : 'x402',
     txHash,
     explorerUrl,
     newBalance: { lamports: left, usd: lamportsToUsd(left) },

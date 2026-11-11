@@ -53,6 +53,7 @@ import {
 } from './mcp-oauth';
 import { handleMcpRequest } from './mcp';
 import { callX402Url, x402PayerAddress, X402_NETWORK } from './x402';
+import { handleMppSell, listMppServices, mppSellEnabled } from './mpp-sell';
 import {
   callExternal,
   isExternalService,
@@ -1394,6 +1395,26 @@ app.post('/v1/x402/call', requireAuth, async (req, res) => {
     const msg = err instanceof Error ? err.message : 'unknown error';
     res.status(502).json({ error: msg });
   }
+});
+
+// ─── MPP como vendedor (mpp-sell.ts): rutas públicas, sin cuenta de Kiba ─────
+
+/** Lo que un agente externo puede comprar por MPP, con la URL de cada servicio. */
+app.get('/mpp', async (req, res) => {
+  if (!mppSellEnabled()) return res.status(404).json({ error: 'not found' });
+  try {
+    res.json(await listMppServices(`${req.protocol}://${req.get('host')}`));
+  } catch (err) {
+    res.status(502).json({ error: (err as Error).message });
+  }
+});
+
+/** Una llamada a un servicio del catálogo, pagada con MPP. */
+app.all('/mpp/:service', (req, res) => {
+  void handleMppSell(req, res).catch((err) => {
+    console.error('[mpp]', (err as Error).message);
+    if (!res.headersSent) res.status(500).json({ error: 'error interno' });
+  });
 });
 
 // ─── Servicios externos (nivel ligero de publicador, external.ts) ───────────

@@ -180,6 +180,36 @@ async function cachedManifest(client: AgentClient, service: string): Promise<Ser
   return m;
 }
 
+/** Cotiza un servicio del catálogo para un pedido: su ficha y lo que cobra por él. */
+export async function quoteService(
+  service: string,
+  payload: unknown,
+): Promise<{ manifest: ServiceManifest; quote: X402Quote; lamports: number }> {
+  const client = new AgentClient({ wallet: getMasterWallet() });
+  try {
+    const { manifest, quote } = await client.getQuote(service, payload, {
+      timeoutMs: 30_000,
+      signer: getPlatformSigner(),
+      manifest: await cachedManifest(client, service),
+    });
+    return { manifest, quote, lamports: Number(quote.amount) };
+  } catch (err) {
+    manifests.delete(service);
+    throw err;
+  }
+}
+
+/** Llama un servicio ya cobrado, con la llamada firmada por la plataforma. */
+export async function callServiceAsPlatform(manifest: ServiceManifest, service: string, payload: unknown): Promise<unknown> {
+  const client = new AgentClient({ wallet: getMasterWallet() });
+  try {
+    return await client.callSigned(manifest.endpoint, payload, { signer: getPlatformSigner(), service, timeoutMs: 120_000 });
+  } catch (err) {
+    manifests.delete(service);
+    throw err;
+  }
+}
+
 export async function callOnBehalf(args: {
   userId: number;
   service: string;
