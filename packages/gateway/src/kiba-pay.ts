@@ -1,11 +1,10 @@
 /**
  * Pagos a servicios con el contrato de pagos de Kiba (packages/contracts-payments).
  *
- * Reemplaza a los escrows de Trustless Work en el modo crédito: cada pago es UNA tx `pay`
- * (treasury → servicio; el contrato aplica el split 95/5), sin deploy, fondeo ni release.
- *   - Por llamada: tras servir una llamada con crédito se le paga al servicio su parte (igual
- *     que el fondeo por llamada de TW, sin depender del opt-in de liquidación automática).
- *   - Por lotes: settlement.ts paga lo acumulado con una sola tx.
+ * Cada pago es UNA tx `pay` (tesorería → servicio; el contrato aplica el reparto 95/5).
+ *   - Por llamada: tras servir una llamada se le paga al servicio su parte al momento. Con
+ *     retención solo se usa para las llamadas con licencia (su pago es la prueba).
+ *   - Por lotes: settlement.ts paga lo acumulado con una sola tx (solo sin retención).
  *
  * Nunca se paga dos veces: el pago se reserva en `settlements` ('pending', escrow_id =
  * KIBA_PAY_REF) y su hash se guarda ANTES de enviar. Si la red no confirma ni rechaza, la
@@ -16,13 +15,12 @@ import { db, withTransaction } from './db';
 import { attachSignature } from './billing';
 import { chainClientFor } from './chain';
 import { ensureTreasuryFunded, getMasterWallet } from './wallets';
-import {
-  enqueueChainTask,
-  chainQueuePending,
-  fundForCall,
-  perCallFundEnabled,
-  type PerCallFundResult,
-} from './escrows';
+import { enqueueChainTask, chainQueuePending } from './treasury-queue';
+
+/** Resultado de un pago por llamada: el hash de su transacción, si se pagó. */
+export interface CallPayment {
+  txHash?: string;
+}
 
 /** Marca en settlements.escrow_id de los pagos hechos con el contrato de Kiba. */
 export const KIBA_PAY_REF = 'kiba-pay';
@@ -40,12 +38,12 @@ export function setKibaPayClient(c: ChainClient | null | undefined): void {
   client = c;
 }
 
-/** ¿Pagos con el contrato de Kiba? KIBA_PAY=0 vuelve a Trustless Work (kill-switch). */
+/** ¿Pagos con el contrato de Kiba? Requiere el contrato configurado; KIBA_PAY=0 los apaga. */
 export function kibaPayEnabled(): boolean {
   return process.env.KIBA_PAY !== '0' && Boolean(treasuryClient()?.paymentsContractId);
 }
 
-/** Pago por llamada activo (PER_CALL_FUND=0 lo apaga, igual que el fondeo de TW). */
+/** Pago por llamada activo (PER_CALL_FUND=0 lo apaga). */
 export function kibaPayPerCallEnabled(): boolean {
   return process.env.PER_CALL_FUND !== '0' && kibaPayEnabled();
 }
@@ -104,8 +102,8 @@ export async function sendKibaPay(
 }
 
 /**
- * Paga al servicio UNA llamada ya servida con crédito. Mismo contrato que `fundForCall`:
- * devuelve el hash, o `{}` si no se pudo o no tocaba (la ganancia queda acumulada). NUNCA rechaza.
+ * Paga al servicio UNA llamada ya servida. Devuelve el hash, o `{}` si no se pudo o no tocaba
+ * (la ganancia queda acumulada). NUNCA rechaza.
  */
 export function payForCall(args: {
   service: string;
@@ -115,13 +113,13 @@ export function payForCall(args: {
   transactionId?: number;
   /** Huella de la licencia (licenses.ts): viaja en el pago en vez del id de la liquidación. */
   reference?: bigint;
-}): Promise<PerCallFundResult> {
+}): Promise<CallPayment> {
   if (!kibaPayPerCallEnabled()) return Promise.resolve({});
   if (chainQueuePending() >= MAX_PENDING) {
     console.warn(`[kiba-pay] cola llena (${chainQueuePending()}); ${args.service} queda como acumulado`);
     return Promise.resolve({});
   }
-  return enqueueChainTask(async (): Promise<PerCallFundResult> => {
+  return enqueueChainTask(async (): Promise<CallPayment> => {
     try {
       const cc = treasuryClient();
       if (!cc?.payService) return {};
@@ -153,15 +151,6 @@ export function payForCall(args: {
       return {};
     }
   });
-}
-
-/** Pago por llamada en modo crédito: contrato de Kiba si está, si no el fondeo de TW. */
-export function payOrFundForCall(args: Parameters<typeof payForCall>[0]): Promise<PerCallFundResult> {
-  return kibaPayEnabled() ? payForCall(args) : fundForCall(args);
-}
-
-export function perCallPaymentEnabled(): boolean {
-  return kibaPayEnabled() ? kibaPayPerCallEnabled() : perCallFundEnabled();
 }
 
 /**

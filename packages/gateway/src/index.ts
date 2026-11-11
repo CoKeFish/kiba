@@ -67,8 +67,8 @@ import { getLicense, licenseDto, listLicenses, verifyLicense } from './licenses'
 import { searchMedia } from './media';
 import { settleAgent, settleAllDue, MIN_PAYOUT, recordEarning } from './settlement';
 import { listUserSettlements, getDailySeries } from './publisher';
-import { warmEscrows, enqueueChainTask } from './escrows';
-import { kibaPayEnabled, payOrFundForCall, reconcileKibaPays } from './kiba-pay';
+import { enqueueChainTask } from './treasury-queue';
+import { kibaPayEnabled, payForCall, reconcileKibaPays } from './kiba-pay';
 import {
   getSpendStatus,
   legacyWallet,
@@ -1140,9 +1140,8 @@ app.post('/v1/publisher/settle', requireAuth, async (req, res) => {
   }
 });
 
-// SOLO DEMO (DEMO_TOOLS=1; 404 si está apagado): acredita 1 USDC de earning al servicio del
-// caller y fondea el escrow TW del ciclo, igual que una llamada real (recordEarning +
-// fundForCall). Deja el pendiente listo para liquidar con /v1/publisher/settle.
+// SOLO DEMO (DEMO_TOOLS=1; 404 si está apagado): anota 1 USDC de ganancia al servicio de quien
+// llama, igual que una llamada real, y la paga al momento si el pago por llamada está activo.
 app.post('/v1/publisher/demo/fund', requireAuth, async (req, res) => {
   if (process.env.DEMO_TOOLS !== '1') return res.status(404).json({ error: 'not found' });
   try {
@@ -1156,7 +1155,7 @@ app.post('/v1/publisher/demo/fund', requireAuth, async (req, res) => {
     // Monto FIJO server-side (1 USDC gross); se ignora cualquier monto del cliente.
     const lamports = BASE_UNITS_PER_TOKEN;
     const earningId = await recordEarning({ service, payTo: agent.owner, lamports });
-    const onchain = await payOrFundForCall({ service, payTo: agent.owner, lamports, earningId });
+    const onchain = await payForCall({ service, payTo: agent.owner, lamports, earningId });
 
     res.json({
       ok: true,
@@ -1164,7 +1163,6 @@ app.post('/v1/publisher/demo/fund', requireAuth, async (req, res) => {
       amount_base_units: lamports,
       earning_id: earningId,
       funded: !!onchain.txHash,
-      escrow_id: onchain.escrowId ?? null,
       tx_hash: onchain.txHash ?? null,
       explorer_url: onchain.txHash ? explorerTxUrl(onchain.txHash) : null,
     });
@@ -1732,14 +1730,10 @@ void initDb()
   .then(failOrphanedResults)
   .then(() => {
     // Pagos del contrato de Kiba que quedaron sin confirmación al reiniciar: se resuelven por hash.
-    // Con TW (sin contrato de Kiba): pre-calienta los escrows del ciclo (WARM_ESCROW_SERVICES)
-    // para que la primera llamada de cada servicio pague solo el fund, no el deploy.
     if (kibaPayEnabled()) {
       void enqueueChainTask(reconcileKibaPays).catch((err) =>
         console.warn('[kiba-pay] reconcile:', (err as Error).message),
       );
-    } else {
-      warmEscrows();
     }
     app.listen(PORT, '0.0.0.0', () => {
       console.log('╔══════════════════════════════════════════╗');

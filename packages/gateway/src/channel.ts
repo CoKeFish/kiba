@@ -53,7 +53,7 @@ import {
 } from '@stellar/stellar-sdk';
 import { resolveChainConfig } from 'kiba-sdk';
 import { db } from './db';
-import { enqueueChainTask } from './escrows';
+import { enqueueChainTask } from './treasury-queue';
 import { getMasterWallet } from './wallets';
 import {
   ADDRESS_RE,

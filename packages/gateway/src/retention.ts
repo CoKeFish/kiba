@@ -29,7 +29,7 @@ import { Asset, Horizon, Keypair, Operation, TransactionBuilder } from '@stellar
 import { LocalKeypairSigner, TrustlessWorkEscrowClient, resolveChainConfig } from 'kiba-sdk';
 import { db, withTransaction } from './db';
 import { BASE_UNITS_PER_TOKEN } from './chain';
-import { enqueueChainTask } from './escrows';
+import { enqueueChainTask } from './treasury-queue';
 import { ensureTreasuryFunded, getMasterWallet } from './wallets';
 import { refundToChannel } from './channel';
 

@@ -22,8 +22,7 @@ import {
 } from './wallets';
 import { BASE_UNITS_PER_TOKEN, explorerTxUrl } from './chain';
 import { recordEarning } from './settlement';
-import { type PerCallFundResult } from './escrows';
-import { payOrFundForCall, perCallPaymentEnabled } from './kiba-pay';
+import { kibaPayPerCallEnabled, payForCall, type CallPayment } from './kiba-pay';
 import { confirmChannel, releaseChannel, reserveChannel } from './channel';
 import { retentionEnabled } from './retention';
 
@@ -284,7 +283,7 @@ export async function callOnBehalf(args: {
     // (la fila y transactions.signature quedan bien; solo esta respuesta sale sin link).
     // Ante cualquier fallo on-chain la ganancia ya quedó acumulada (legacy) — la llamada
     // nunca falla por la cadena.
-    let onchain: PerCallFundResult = {};
+    let onchain: CallPayment = {};
     const t1 = Date.now();
     // Si el resultado trae licencia, su documento se escribe ahora (con la wallet que cobra) y su
     // huella viaja en el pago por llamada.
@@ -292,22 +291,22 @@ export async function callOnBehalf(args: {
     // Con retención, la ganancia espera su plazo en un escrow y no se paga por llamada. La
     // excepción es una llamada que devuelve una licencia: su pago lleva la huella del documento
     // y es la prueba de la licencia, así que se hace ahora.
-    if (perCallPaymentEnabled() && (!retentionEnabled() || reference !== undefined)) {
-      const fund = payOrFundForCall({
+    if (kibaPayPerCallEnabled() && (!retentionEnabled() || reference !== undefined)) {
+      const fund = payForCall({
         service: args.service,
         payTo: quote.payTo,
         lamports,
         earningId,
         transactionId: debited.transactionId,
         reference,
-      }).catch((): PerCallFundResult => ({}));
+      }).catch((): CallPayment => ({}));
       void fund.then((r) => {
         if (r.txHash) args.onExplorerUrl?.(explorerTxUrl(r.txHash));
       });
       if (FUND_WAIT_TIMEOUT_MS > 0) {
         onchain = await Promise.race([
           fund,
-          new Promise<PerCallFundResult>((resolve) => setTimeout(() => resolve({}), FUND_WAIT_TIMEOUT_MS)),
+          new Promise<CallPayment>((resolve) => setTimeout(() => resolve({}), FUND_WAIT_TIMEOUT_MS)),
         ]);
       }
     }
@@ -319,7 +318,7 @@ export async function callOnBehalf(args: {
       quoteDurationMs,
       t0,
       lamports,
-      fund: onchain.txHash ? { txHash: onchain.txHash, escrowId: onchain.escrowId, t1 } : undefined,
+      fund: onchain.txHash ? { txHash: onchain.txHash, t1 } : undefined,
     });
 
     return {
