@@ -130,6 +130,15 @@ Distribución, que no es uso: 680 descargas de `kiba-mcp` en [npm](https://www.n
 
 Stellar no es un detalle de Kiba: es el riel. Cada llamada pagada termina en `pay()` del contrato de pagos en Soroban, en USDC, con el reparto 95/5 fijado en el contrato y visible en cada transacción; el registro de servicios es un contrato; la wallet de pagos del usuario es una cuenta Stellar con un permiso `approve` sobre el contrato de USDC (SEP-41) y comisiones pagadas por Kiba con fee-bump; y la interoperabilidad es x402 sobre Stellar con los paquetes oficiales `@x402/stellar`. Sin Stellar no hay producto.
 
+Quien usa su asistente no necesita ver Stellar. Stellar es lo que hace abierto y comprobable el lado de los publicadores y lo que se compra, y eso una base de datos no lo da:
+
+- **Licencias verificables.** Lo que el usuario compra queda anclado al pago en cadena. Cualquiera lo comprueba sin Kiba, incluso si Kiba deja de existir.
+- **Catálogo abierto.** El registro de servicios es un contrato: el publicador es dueño de su ficha y cualquiera puede leerla.
+- **Pagos sin fronteras.** Un publicador de cualquier país cobra en su wallet, sin que Kiba integre un banco por país.
+- **Red abierta.** Por x402, cualquier agente del ecosistema puede pagarle a un servicio de Kiba, y el asistente de Kiba puede pagar cualquier API de fuera. MPP es el siguiente estándar en la ruta.
+- **Reputación que no se puede inventar.** Cada cobro queda en cadena, así que las cifras de uso de un servicio son comprobables y no un número que Kiba afirma.
+- **Garantías para el publicador (en construcción).** Su ganancia apartada en un escrow que él puede ver y que él mismo libera, con Kiba interviniendo solo si hay un reclamo.
+
 Lo que ya existe para mainnet: el SDK trae la configuración `mainnet` con el USDC de Circle (`packages/sdk/src/config.ts`, aún sin ejercitar en esa red), el contrato de pagos tiene su batería de pruebas (`packages/contracts-payments/src/test.rs`) y la documentación ya describe [qué cambia para un publicador en mainnet](https://docs.kiba.tools/publica-un-servicio/mainnet). Lo que falta son los pasos de la tabla.
 
 | Hito | Fecha | Qué cambia |
