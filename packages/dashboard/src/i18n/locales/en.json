@@ -24,7 +24,8 @@
     "logout": "Log out",
     "results": "Results",
     "menu": "Menu",
-    "close_menu": "Close menu"
+    "close_menu": "Close menu",
+    "admin_claims": "Claims"
   },
   "topbar": {
     "balance": "Balance:",
@@ -676,7 +677,8 @@
       "service_channel": "Service / Channel",
       "status": "Status",
       "amount": "Amount",
-      "tx": "Tx"
+      "tx": "Tx",
+      "claim": "Claim"
     },
     "type": {
       "call": "Call",
@@ -839,7 +841,8 @@
       "settle": "Charged by Kiba",
       "close": "Returned to your wallet",
       "close_start": "Withdrawal requested",
-      "refund": "Withdrawal"
+      "refund": "Withdrawal",
+      "claim_refund": "Refund from a claim"
     },
     "wait_min": "about {{n}} min",
     "wait_h": "about {{n}} h",
@@ -920,5 +923,61 @@
       "font-web": "font · desktop + web",
       "font-full": "font · full"
     }
+  },
+  "claims": {
+    "claim": "Claim",
+    "until": "until {{date}}",
+    "window_closed": "Window closed",
+    "reason_label": "What happened",
+    "reason_placeholder": "Tell us what happened with this call",
+    "send": "Send claim",
+    "cancel": "Cancel",
+    "refunded_amount": "Refunded: {{usd}}",
+    "status": {
+      "open": "Under review",
+      "rejected": "Not accepted",
+      "refunded": "Refunded"
+    }
+  },
+  "admin_claims": {
+    "title": "Claims",
+    "subtitle": "Calls a user has claimed. What you refund goes back to the user the way they paid and is deducted from the publisher's held earnings.",
+    "open_title": "To resolve",
+    "open_count_one": "{{count}} open claim",
+    "open_count_other": "{{count}} open claims",
+    "loading": "Loading…",
+    "empty": "No claims to resolve.",
+    "closed_title": "Resolved",
+    "call_id": "call {{id}}",
+    "note_label": "Note for the user",
+    "note_placeholder": "Note for the user (optional)",
+    "amount_label": "Amount to refund in USDC",
+    "amount_all": "All: {{amount}}",
+    "refund_all": "Refund all",
+    "refund_partial": "Refund that amount",
+    "reject": "Reject",
+    "amount_invalid": "The amount must be between 0 and {{amount}} USDC."
+  },
+  "holds": {
+    "title": "Held earnings",
+    "desc": "What each service earns in a week goes into a Trustless Work escrow in your name. It is released to your wallet when the period ends, if there are no open claims.",
+    "empty": "No held earnings yet. The current week is held when it closes.",
+    "status": {
+      "funding": "preparing the escrow",
+      "held": "held",
+      "releasing": "releasing",
+      "released": "paid",
+      "resolved": "paid with refunds",
+      "void": "no payment"
+    },
+    "release_on": "released on {{date}}",
+    "paid_on": "on {{date}}",
+    "funding_hint": "in a few minutes",
+    "void_hint": "everything in the period was refunded",
+    "refunded": "refunded to users: {{usd}}",
+    "view_escrow": "view escrow",
+    "payouts_subtitle": "You keep {{netPct}}% of each paid call. Earnings are held for a period and then released to your wallet.",
+    "kpi_hint": "from the current week; held when it closes",
+    "wallet_desc": "Your earnings arrive here when each hold is released."
   }
 }

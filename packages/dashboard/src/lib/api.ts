@@ -70,6 +70,21 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
     }),
+  // Reclamos y retención de ganancias
+  /** Qué llamadas de estas se pueden reclamar todavía y cuáles ya tienen reclamo. */
+  claimsInfo: (transactionIds: number[]) =>
+    request<Record<string, ClaimInfo>>("/v1/claims/info", {
+      method: "POST",
+      body: JSON.stringify({ transactionIds }),
+    }),
+  createClaim: (transactionId: number, reason: string) =>
+    request<Claim>("/v1/claims", { method: "POST", body: JSON.stringify({ transactionId, reason }) }),
+  adminClaims: () => request<Claim[]>("/v1/admin/claims"),
+  /** `amount` en USDC; sin él se devuelve todo lo reclamado. */
+  adminResolveClaim: (id: number, body: { decision: "reject" | "refund"; amount?: number; note?: string }) =>
+    request<Claim>(`/v1/admin/claims/${id}/resolve`, { method: "POST", body: JSON.stringify(body) }),
+  publisherHolds: () => request<{ enabled: boolean; holds: Hold[] }>("/v1/publisher/holds"),
+
   // Depósito retirable: canal de pago del usuario. Lo que firma el usuario se envía con spendSubmit.
   channel: () => request<ChannelStatus>("/v1/channel"),
   channelOpen: (args: { address: string; amount: number; kind: "privy" | "external" }) =>
@@ -249,6 +264,8 @@ export type User = {
   /** Modo publisher activo (misma cuenta). Habilita la gestión de agentes + ingresos. */
   is_publisher?: boolean;
   publisher_name?: string | null;
+  /** Puede resolver reclamos (su correo está en la lista de administradores del gateway). */
+  is_admin?: boolean;
   /** Símbolo del activo de liquidación de la cadena activa. */
   asset: "SOL" | "XLM";
   /** Nombre de la unidad base (lamports/stroops). */
@@ -328,6 +345,46 @@ export type PreparedTx = {
   networkPassphrase: string;
 };
 
+/** Reclamo de una llamada (gateway retention.ts). Montos en unidades base (1 USDC = 1e7). */
+export type Claim = {
+  id: number;
+  transactionId: number;
+  service: string;
+  amountBaseUnits: number;
+  reason: string;
+  status: "open" | "rejected" | "refunded";
+  refundedBaseUnits: number;
+  note: string | null;
+  createdAt: number;
+  resolvedAt: number | null;
+  /** Solo en la cola de administración. */
+  userEmail?: string;
+};
+
+export type ClaimInfo = {
+  /** true si la llamada todavía se puede reclamar. */
+  claimable: boolean;
+  /** Hasta cuándo (unix s); null si aún no tiene fecha. */
+  until: number | null;
+  claim: Claim | null;
+};
+
+/** Ganancia de un servicio en un período, retenida en un escrow hasta que vence su plazo. */
+export type Hold = {
+  id: number;
+  service: string;
+  status: "funding" | "held" | "releasing" | "released" | "resolved" | "void";
+  amountBaseUnits: number;
+  /** Devuelto a usuarios por reclamos aceptados. */
+  refundedBaseUnits: number;
+  trust: "new" | "verified" | "trusted" | null;
+  retentionDays: number | null;
+  escrowId: string | null;
+  periodEnd: number;
+  releaseAt: number | null;
+  releasedAt: number | null;
+};
+
 /** Depósito retirable del usuario (gateway channel.ts). Montos en unidades base (1 USDC = 1e7). */
 export type ChannelStatus = {
   /** false si este gateway no tiene depósitos. */
@@ -357,7 +414,7 @@ export type ChannelStatus = {
   };
   /** Días de antelación con que se avisa de la devolución por inactividad. */
   idleNoticeDays: number;
-  moves: { kind: "open" | "top_up" | "settle" | "close" | "close_start" | "refund"; amount: number; txHash: string | null; createdAt: number }[];
+  moves: { kind: "open" | "top_up" | "settle" | "close" | "close_start" | "refund" | "claim_refund"; amount: number; txHash: string | null; createdAt: number }[];
 };
 
 export type SpendStatus = {

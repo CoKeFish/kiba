@@ -24,7 +24,8 @@
     "logout": "Cerrar sesión",
     "results": "Resultados",
     "menu": "Menú",
-    "close_menu": "Cerrar menú"
+    "close_menu": "Cerrar menú",
+    "admin_claims": "Reclamos"
   },
   "topbar": {
     "balance": "Saldo:",
@@ -676,7 +677,8 @@
       "service_channel": "Servicio / Canal",
       "status": "Estado",
       "amount": "Monto",
-      "tx": "Tx"
+      "tx": "Tx",
+      "claim": "Reclamo"
     },
     "type": {
       "call": "Llamada",
@@ -839,7 +841,8 @@
       "settle": "Cobro de Kiba",
       "close": "Devolución a tu wallet",
       "close_start": "Retiro pedido",
-      "refund": "Retiro"
+      "refund": "Retiro",
+      "claim_refund": "Devolución por reclamo"
     },
     "wait_min": "unos {{n}} min",
     "wait_h": "unas {{n}} h",
@@ -920,5 +923,61 @@
       "font-web": "fuente · escritorio + web",
       "font-full": "fuente · completa"
     }
+  },
+  "claims": {
+    "claim": "Reclamar",
+    "until": "hasta el {{date}}",
+    "window_closed": "Plazo vencido",
+    "reason_label": "Qué pasó",
+    "reason_placeholder": "Cuenta qué pasó con esta llamada",
+    "send": "Enviar reclamo",
+    "cancel": "Cancelar",
+    "refunded_amount": "Devuelto: {{usd}}",
+    "status": {
+      "open": "En revisión",
+      "rejected": "No procede",
+      "refunded": "Devuelto"
+    }
+  },
+  "admin_claims": {
+    "title": "Reclamos",
+    "subtitle": "Llamadas que un usuario reclamó. Lo que devuelvas vuelve al usuario por donde pagó y se descuenta de la ganancia retenida del publicador.",
+    "open_title": "Por resolver",
+    "open_count_one": "{{count}} reclamo abierto",
+    "open_count_other": "{{count}} reclamos abiertos",
+    "loading": "Cargando…",
+    "empty": "No hay reclamos por resolver.",
+    "closed_title": "Resueltos",
+    "call_id": "llamada {{id}}",
+    "note_label": "Nota para el usuario",
+    "note_placeholder": "Nota para el usuario (opcional)",
+    "amount_label": "Monto a devolver en USDC",
+    "amount_all": "Todo: {{amount}}",
+    "refund_all": "Devolver todo",
+    "refund_partial": "Devolver ese monto",
+    "reject": "Rechazar",
+    "amount_invalid": "El monto debe estar entre 0 y {{amount}} USDC."
+  },
+  "holds": {
+    "title": "Ganancias retenidas",
+    "desc": "Lo que gana cada servicio en una semana pasa a un escrow de Trustless Work a tu nombre. Se libera a tu wallet cuando vence el plazo, si no hay reclamos abiertos.",
+    "empty": "Todavía no hay ganancias retenidas. La semana en curso se retiene al cerrar.",
+    "status": {
+      "funding": "preparando el escrow",
+      "held": "retenida",
+      "releasing": "liberando",
+      "released": "pagada",
+      "resolved": "pagada con devoluciones",
+      "void": "sin pago"
+    },
+    "release_on": "se libera el {{date}}",
+    "paid_on": "el {{date}}",
+    "funding_hint": "en unos minutos",
+    "void_hint": "todo lo del período se devolvió",
+    "refunded": "devuelto a usuarios: {{usd}}",
+    "view_escrow": "ver escrow",
+    "payouts_subtitle": "Te quedas con el {{netPct}}% de cada llamada pagada. Lo ganado se retiene un plazo y después se libera a tu wallet.",
+    "kpi_hint": "de la semana en curso; se retiene al cerrar",
+    "wallet_desc": "Aquí llegan tus ganancias cuando se libera cada retención."
   }
 }

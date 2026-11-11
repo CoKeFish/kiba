@@ -20,6 +20,7 @@ import {
   Plug,
   Menu,
   X,
+  ShieldAlert,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useMode, type DashboardMode } from "@/lib/mode";
@@ -64,7 +65,11 @@ export function AppLayout() {
   // Cajón lateral (solo tiene efecto en pantallas estrechas; en escritorio la barra es fija).
   const [menuOpen, setMenuOpen] = useState(false);
 
-  const nav = mode === "publisher" ? publisherNav : consumerNav;
+  // La cola de reclamos solo la ven los administradores de Kiba.
+  const nav = [
+    ...(mode === "publisher" ? publisherNav : consumerNav),
+    ...(user?.is_admin ? [{ to: "/app/admin/claims", label: "nav.admin_claims", icon: ShieldAlert }] : []),
+  ];
 
   // Al cambiar de página se cierra el cajón.
   useEffect(() => {

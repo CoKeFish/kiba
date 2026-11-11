@@ -19,8 +19,26 @@ Kiba uses the **x402** pattern: an HTTP request gets `402 Payment Required` with
 1. The gateway debits the user's credits.
 2. It calls the service with a short signed certificate: service name, payload hash, timestamp and nonce. The service verifies the signature with the platform's **public** key; no shared secret ever travels.
 3. The service responds. The gateway records the earning in the publisher's ledger. If the service fails, the debit is refunded.
-4. <TW /> The gateway funds the publisher's current **settlement escrow** on Trustless Work with the call amount. The response includes an explorer link to that transaction.
-5. Periodically the cycle is **settled**. <TW /> The escrow is released and the balance is swept to the publisher's wallet; Trustless Work applies the platform fee on release.
+4. <TW /> When the week closes, what each service earned goes into a **Trustless Work escrow** in the publisher's name, for the exact amount.
+5. Once the holding period ends, the escrow is **released** to the publisher's wallet; Trustless Work applies the platform fee on release.
+
+### Holding period and claims
+
+Earnings are always held for a period before they are paid. The period depends on how much the publisher is trusted:
+
+| Publisher | Holding period |
+|---|---|
+| New | 14 days |
+| Verified | 3 days |
+| Trusted | 1 day |
+
+While the earning from a call has not been released, the user can **claim** it from their history, explaining what happened. A Kiba administrator reviews the claim and rejects it or refunds all or part of it. The refund goes back the way it was paid: to credits or to the deposit.
+
+- With an open claim, that service's hold is not released.
+- If there were refunds, the escrow is closed with a split: the publisher gets their share and Kiba gets back what it already refunded to the user.
+- The publisher sees each hold, its release date and its escrow under **Payouts**.
+
+Calls with a [licence](/conceptos/licencias) are paid right away: their on-chain payment is the proof of the licence.
 
 ### Direct escrow call (SDK) {/* #llamada-con-escrow-directo-sdk */}
 

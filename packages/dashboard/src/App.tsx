@@ -5,6 +5,7 @@ import Signup from "@/routes/Signup";
 import Overview from "@/routes/Overview";
 import Connect from "@/routes/Connect";
 import Transactions from "@/routes/Transactions";
+import AdminClaims from "@/routes/AdminClaims";
 import Results from "@/routes/Results";
 import ResultDetail from "@/routes/ResultDetail";
 import Verify from "@/routes/Verify";
@@ -60,6 +61,7 @@ export default function App() {
         <Route path="connect" element={<Connect />} />
         <Route path="usage" element={<Usage />} />
         <Route path="transactions" element={<Transactions />} />
+        <Route path="admin/claims" element={<AdminClaims />} />
         <Route path="results" element={<Results />} />
         <Route path="results/:id" element={<ResultDetail />} />
         <Route path="agents" element={<Agents />} />

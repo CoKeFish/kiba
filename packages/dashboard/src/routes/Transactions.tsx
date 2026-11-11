@@ -17,6 +17,7 @@ import {
 } from "@/lib/format";
 import { format } from "date-fns";
 import { ExternalLink } from "lucide-react";
+import { ClaimControl } from "@/components/claims/ClaimControl";
 
 type Filter = "all" | "call" | "topup" | "refund";
 
@@ -29,6 +30,13 @@ export default function Transactions() {
   });
 
   const filtered = txs.filter((tx: Transaction) => filter === "all" || tx.type === filter);
+  // Qué llamadas se pueden reclamar todavía y cuáles ya tienen reclamo.
+  const callIds = txs.filter((tx) => tx.type === "call").map((tx) => Number(tx.id));
+  const { data: claimInfo = {} } = useQuery({
+    queryKey: ["claims-info", callIds.join(",")],
+    queryFn: () => api.claimsInfo(callIds),
+    enabled: callIds.length > 0,
+  });
 
   return (
     <div className="space-y-6">
@@ -75,6 +83,7 @@ export default function Transactions() {
                   <Th>{t("transactions.col.status")}</Th>
                   <Th className="text-right">{t("transactions.col.amount")}</Th>
                   <Th>{t("transactions.col.tx")}</Th>
+                  <Th>{t("transactions.col.claim")}</Th>
                 </Tr>
               </Thead>
               <Tbody>
@@ -141,6 +150,13 @@ export default function Transactions() {
                         <span className="text-xs text-[var(--color-fg-muted)]">
                           {t("transactions.off_chain")}
                         </span>
+                      )}
+                    </Td>
+                    <Td label={t("transactions.col.claim")}>
+                      {tx.type === "call" ? (
+                        <ClaimControl transactionId={Number(tx.id)} info={claimInfo[tx.id]} />
+                      ) : (
+                        <span className="text-xs text-[var(--color-fg-muted)]">—</span>
                       )}
                     </Td>
                   </Tr>

@@ -6,6 +6,7 @@ import { formatUsd, shortSig } from "@/lib/format";
 import { chain } from "@/lib/chain";
 import { serviceToName } from "@/components/AgentManager";
 import { Check, Coins, Copy, ExternalLink, Info, Loader2, TrendingUp, Wallet } from "lucide-react";
+import { HoldsCard } from "@/components/publisher/HoldsCard";
 import "./publisher.css";
 
 /** URL del explorer para una ref on-chain de settlement (tx / contract). null = sin link. */
@@ -28,6 +29,9 @@ export default function PublisherPayouts() {
     queryFn: () => api.publisherSettlements(),
     refetchInterval: 20_000,
   });
+  // Con retención, las ganancias se liberan solas al vencer su plazo: no se liquidan a pedido.
+  const { data: holds } = useQuery({ queryKey: ["publisher-holds"], queryFn: api.publisherHolds });
+  const retention = holds?.enabled ?? false;
   const [copied, setCopied] = useState<string | null>(null);
 
   const feePct = data?.fee.pct ?? 5;
@@ -88,7 +92,9 @@ export default function PublisherPayouts() {
         <div className="pub-head__copy">
           <h1 className="pub-title">{t("publisher.payouts.title")}</h1>
           <p className="pub-subtitle">
-            {t("publisher.payouts.subtitle", { network: chain.networkLabel, netPct })}
+            {retention
+              ? t("holds.payouts_subtitle", { netPct })
+              : t("publisher.payouts.subtitle", { network: chain.networkLabel, netPct })}
           </p>
         </div>
       </header>
@@ -100,7 +106,9 @@ export default function PublisherPayouts() {
               <p className="pub-kpi__label">{t("publisher.payouts.kpi_to_settle")}</p>
               <p className="pub-kpi__value">{isLoading ? "—" : formatUsd(pendingUsd)}</p>
               <p className="pub-kpi__hint">
-                {t("publisher.payouts.kpi_to_settle_hint", { min: minAsset.toFixed(2), asset })}
+                {retention
+                  ? t("holds.kpi_hint")
+                  : t("publisher.payouts.kpi_to_settle_hint", { min: minAsset.toFixed(2), asset })}
               </p>
             </div>
             <div className="pub-kpi__icon" style={{ background: "color-mix(in srgb, var(--color-primary) 14%, transparent)", color: "var(--color-primary)" }}>
@@ -138,12 +146,14 @@ export default function PublisherPayouts() {
         </article>
       </div>
 
+      <HoldsCard />
+
       <section className="pub-card">
         <div className="pub-card__head">
           <div>
             <h2 className="pub-card__title">{t("publisher.payouts.wallet_title")}</h2>
             <p className="pub-card__desc">
-              {t("publisher.payouts.wallet_desc", { netPct })}
+              {retention ? t("holds.wallet_desc") : t("publisher.payouts.wallet_desc", { netPct })}
             </p>
           </div>
         </div>
@@ -167,13 +177,15 @@ export default function PublisherPayouts() {
           ))}
           {wallets.length === 0 && <div className="pub-wallet-row"><span>—</span></div>}
 
-          <div className="pub-info" style={{ marginTop: 14, display: "flex", gap: 10, alignItems: "flex-start" }}>
+          <div className="pub-info" style={{ marginTop: 14, display: retention ? "none" : "flex", gap: 10, alignItems: "flex-start" }}>
             <Info size={18} style={{ flexShrink: 0, color: "var(--color-primary)", marginTop: 2 }} />
             <div>
               {t("publisher.payouts.info", { asset, min: minAsset.toFixed(2) })}
             </div>
           </div>
 
+          {!retention && (
+            <>
           <label className="pub-auto-settle">
             <input
               type="checkbox"
@@ -235,6 +247,8 @@ export default function PublisherPayouts() {
                       })}
               </p>
             )
+          )}
+            </>
           )}
         </div>
       </section>

@@ -19,8 +19,26 @@ Kiba usa el patrón **x402**: una petición HTTP recibe `402 Payment Required` c
 1. El gateway debita los créditos del usuario.
 2. Llama al servicio con un certificado corto firmado: nombre del servicio, hash del payload, marca de tiempo y nonce. El servicio verifica la firma con la clave **pública** de la plataforma; nunca viaja un secreto compartido.
 3. El servicio responde. El gateway registra la ganancia en el libro del publisher. Si el servicio falla, el débito se reembolsa.
-4. <TW /> El gateway fondea el **escrow de liquidación** vigente del publisher en Trustless Work con el monto de la llamada. La respuesta incluye un enlace del explorador a esa transacción.
-5. Periódicamente se **liquida** el ciclo. <TW /> Se libera el escrow y se barre el saldo a la wallet del publisher; Trustless Work aplica la comisión de plataforma al liberar.
+4. <TW /> Al cerrar la semana, lo que ganó cada servicio pasa a un **escrow de Trustless Work** a nombre del publisher, con el monto exacto.
+5. Vencido el plazo de retención, el escrow se **libera** a la wallet del publisher; Trustless Work aplica la comisión de plataforma al liberar.
+
+### Retención y reclamos
+
+Las ganancias siempre se retienen un plazo antes de pagarse. El plazo depende de la confianza en el publisher:
+
+| Publisher | Retención |
+|---|---|
+| Nuevo | 14 días |
+| Verificado | 3 días |
+| De confianza | 1 día |
+
+Mientras la ganancia de una llamada no se ha liberado, el usuario puede **reclamarla** desde su historial contando qué pasó. Un administrador de Kiba revisa el reclamo y lo rechaza o devuelve todo o una parte. Lo devuelto vuelve por donde se pagó: a los créditos o al depósito.
+
+- Con un reclamo abierto, la retención de ese servicio no se libera.
+- Si hubo devoluciones, el escrow se cierra repartiendo: al publisher lo suyo y a Kiba lo que ya devolvió al usuario.
+- El publisher ve cada retención, su fecha de liberación y su escrow en **Pagos**.
+
+Las llamadas con [licencia](/conceptos/licencias) se pagan al momento: su pago on-chain es la prueba de la licencia.
 
 ### Llamada con escrow directo (SDK)
 
