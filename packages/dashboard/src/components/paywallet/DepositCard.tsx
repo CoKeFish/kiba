@@ -41,6 +41,11 @@ export function DepositCard({ privy, external }: { privy: PayWalletSigner | null
   const signer = live ? (live.kind === "privy" && privy ? privy : external) : null;
   const busy = step !== null;
   const refundReady = live?.state === "closing" && live.refundAt !== null && live.refundAt <= Date.now() / 1000;
+  // Sin uso, el depósito se devuelve a la wallet: se avisa en los últimos días.
+  const idleSoon =
+    live?.state === "open" &&
+    live.idleReturnAt !== null &&
+    live.idleReturnAt - Date.now() / 1000 < st.idleNoticeDays * 86_400;
 
   const run = async (fn: () => Promise<{ text: string; hash?: string } | void>) => {
     setErr(null);
@@ -154,7 +159,9 @@ export function DepositCard({ privy, external }: { privy: PayWalletSigner | null
         {!live ? (
           <div className="space-y-4">
             {ch?.state === "closed" && (
-              <p className="text-xs text-[var(--color-fg-muted)]">{t("deposit.last_closed")}</p>
+              <p className="text-xs text-[var(--color-fg-muted)]">
+                {t(ch.closedReason === "idle" ? "deposit.last_closed_idle" : "deposit.last_closed")}
+              </p>
             )}
             <ul className="text-sm text-[var(--color-fg-muted)] list-disc pl-5 space-y-1">
               <li>{t("deposit.point_yours")}</li>
@@ -213,6 +220,12 @@ export function DepositCard({ privy, external }: { privy: PayWalletSigner | null
               <Figure label={t("deposit.deposited")} value={usdc(live.depositedBaseUnits)} />
               <Figure label={t("deposit.spent")} value={usdc(live.spentBaseUnits)} />
             </dl>
+
+            {idleSoon && (
+              <Alert tone="warning">
+                {t("deposit.idle_hint", { date: format(new Date(live.idleReturnAt! * 1000), "MMM d") })}
+              </Alert>
+            )}
 
             {live.state === "closing" && live.refundAt !== null && (
               <Alert tone="warning">

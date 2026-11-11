@@ -356,7 +356,13 @@ export type ChannelStatus = {
     closeEffectiveLedger: number | null;
     /** Cuándo se puede retirar tras pedir el retiro (unix s, estimado). */
     refundAt: number | null;
+    /** Cuándo se devolverá a la wallet si nadie lo usa (unix s). */
+    idleReturnAt: number | null;
+    /** 'idle' si Kiba lo devolvió por inactividad. */
+    closedReason: "idle" | null;
   };
+  /** Días de antelación con que se avisa de la devolución por inactividad. */
+  idleNoticeDays: number;
   moves: { kind: "open" | "top_up" | "settle" | "close" | "close_start" | "refund"; amount: number; txHash: string | null; createdAt: number }[];
 };
 

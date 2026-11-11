@@ -471,6 +471,10 @@ async function runInit(): Promise<void> {
   await pool.query(`ALTER TABLE pay_channels ADD COLUMN IF NOT EXISTS held BIGINT NOT NULL DEFAULT 0`);
   // Desde cuándo hay consumo sin cobrar (NULL = todo cobrado): el job cobra lo que lleva mucho.
   await pool.query(`ALTER TABLE pay_channels ADD COLUMN IF NOT EXISTS unsettled_since BIGINT`);
+  // Último uso (depósito, recarga o llamada): un depósito sin uso se devuelve a la wallet.
+  await pool.query(`ALTER TABLE pay_channels ADD COLUMN IF NOT EXISTS last_active_at BIGINT`);
+  // Por qué se cerró, cuando no fue el usuario: 'idle' = devuelto por inactividad.
+  await pool.query(`ALTER TABLE pay_channels ADD COLUMN IF NOT EXISTS closed_reason TEXT`);
   await pool.query(`
     CREATE TABLE IF NOT EXISTS pay_channel_holds (
       id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,

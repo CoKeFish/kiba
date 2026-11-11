@@ -18,6 +18,10 @@
  * a un umbral o lleva demasiado tiempo (`runChannelJob`), siempre mucho antes de la espera del
  * retiro. El mismo job detecta los retiros pedidos directamente al contrato.
  *
+ * Inactividad: un depósito que nadie usa no se retiene. Pasados `CHANNEL_IDLE_DAYS` sin
+ * depósitos, recargas ni llamadas, Kiba lo liquida: cobra lo pendiente y devuelve el resto a la
+ * wallet. El dashboard lo avisa con días de antelación; cualquier uso reinicia la cuenta.
+ *
  * Vida del canal: Stellar archiva los datos de un contrato cuando se acaba el plazo que tienen
  * pagado (al crear un canal, unos 7 días en testnet). Archivado no se pierde nada, pero no se
  * puede cobrar ni retirar hasta restaurarlo. El job renueva el plazo de cada canal vivo antes
@@ -74,6 +78,11 @@ export const CHANNEL_SETTLE_MAX_AGE_S = Number(process.env.CHANNEL_SETTLE_MAX_AG
 export const CHANNEL_TTL_MIN_LEDGERS = Number(process.env.CHANNEL_TTL_MIN_LEDGERS) || 51_840;
 /** Hasta cuántos ledgers de vida se renueva un canal. Default ~30 días. */
 export const CHANNEL_TTL_EXTEND_LEDGERS = Number(process.env.CHANNEL_TTL_EXTEND_LEDGERS) || 518_400;
+/** Días sin uso tras los que el depósito se devuelve a la wallet. `0` = nunca. Default 90. */
+export const CHANNEL_IDLE_DAYS = process.env.CHANNEL_IDLE_DAYS === undefined ? 90 : Number(process.env.CHANNEL_IDLE_DAYS) || 0;
+/** Con cuántos días de antelación el dashboard avisa de la devolución por inactividad. Default 7. */
+export const CHANNEL_IDLE_NOTICE_DAYS = Number(process.env.CHANNEL_IDLE_NOTICE_DAYS) || 7;
+const DAY_S = 86_400;
 /** Una llamada tarda como mucho 2 min: lo apartado por más de esto es de un proceso que murió. */
 const HOLD_TTL_S = 300;
 /** Validez de una transacción preparada (igual que en spend.ts). */
@@ -530,6 +539,8 @@ interface ChannelRow {
   settled: number;
   held: number;
   unsettled_since: number | null;
+  last_active_at: number | null;
+  closed_reason: string | null;
   status: ChannelState;
   close_effective_ledger: number | null;
   refunded: number | null;
@@ -546,6 +557,7 @@ const num = (r: ChannelRow): ChannelRow => ({
   settled: Number(r.settled),
   held: Number(r.held ?? 0),
   unsettled_since: r.unsettled_since == null ? null : Number(r.unsettled_since),
+  last_active_at: r.last_active_at == null ? null : Number(r.last_active_at),
   close_effective_ledger: r.close_effective_ledger === null ? null : Number(r.close_effective_ledger),
   refunded: r.refunded === null ? null : Number(r.refunded),
   created_at: Number(r.created_at),
@@ -668,15 +680,15 @@ onPreparedSent('channel_open', async ({ meta, hash }) => {
   const amount = Number(meta.amount);
   const channel = await getChain().openedChannel(hash);
   await db
-    .prepare(`UPDATE pay_channels SET channel = ?, deposited = ?, status = 'open' WHERE id = ? AND status = 'preparing'`)
-    .run(channel, amount, id);
+    .prepare(`UPDATE pay_channels SET channel = ?, deposited = ?, status = 'open', last_active_at = ? WHERE id = ? AND status = 'preparing'`)
+    .run(channel, amount, nowS(), id);
   await addMove(id, 'open', amount, hash);
 });
 
 onPreparedSent('channel_topup', async ({ meta, hash }) => {
   const id = Number(meta.channelId);
   const amount = Number(meta.amount);
-  await db.prepare('UPDATE pay_channels SET deposited = deposited + ? WHERE id = ?').run(amount, id);
+  await db.prepare('UPDATE pay_channels SET deposited = deposited + ?, last_active_at = ? WHERE id = ?').run(amount, nowS(), id);
   await addMove(id, 'top_up', amount, hash);
 });
 
@@ -766,19 +778,19 @@ export async function confirmChannel(r: { holdId: number; channelId: number; amo
       `WITH h AS (DELETE FROM pay_channel_holds WHERE id = ? RETURNING channel_id, amount)
        UPDATE pay_channels c
           SET held = GREATEST(0, c.held - h.amount), spent = c.spent + h.amount,
-              unsettled_since = COALESCE(c.unsettled_since, ?)
+              unsettled_since = COALESCE(c.unsettled_since, ?), last_active_at = ?
          FROM h WHERE c.id = h.channel_id
        RETURNING c.user_id, c.spent, c.settled`,
     )
-    .get(r.holdId, now)) as { user_id: number; spent: number; settled: number } | undefined;
+    .get(r.holdId, now, now)) as { user_id: number; spent: number; settled: number } | undefined;
   if (!row) {
     // Lo apartado ya se había soltado por viejo (la llamada tardó de más): el consumo cuenta igual.
     row = (await db
       .prepare(
-        `UPDATE pay_channels SET spent = spent + ?, unsettled_since = COALESCE(unsettled_since, ?)
+        `UPDATE pay_channels SET spent = spent + ?, unsettled_since = COALESCE(unsettled_since, ?), last_active_at = ?
          WHERE id = ? RETURNING user_id, spent, settled`,
       )
-      .get(r.amount, now, r.channelId)) as { user_id: number; spent: number; settled: number } | undefined;
+      .get(r.amount, now, now, r.channelId)) as { user_id: number; spent: number; settled: number } | undefined;
   }
   if (row && Number(row.spent) - Number(row.settled) >= CHANNEL_SETTLE_THRESHOLD) {
     void settleChannel(Number(row.user_id)).catch((err) => console.error('[channel] cobro por umbral:', (err as Error).message));
@@ -838,7 +850,7 @@ export interface Liquidation {
  * Liquida el canal: en una transacción el contrato le paga a Kiba lo consumido y devuelve el
  * resto a la wallet del usuario. El canal queda cerrado; para seguir pagando se abre otro.
  */
-export async function liquidateChannel(userId: number): Promise<Liquidation> {
+export async function liquidateChannel(userId: number, reason?: 'idle'): Promise<Liquidation> {
   const c = getChain();
   await sweepStaleHolds();
   const before = await liveChannel(userId);
@@ -862,9 +874,22 @@ export async function liquidateChannel(userId: number): Promise<Liquidation> {
   const pending = Number((await c.read(ch.channel!).catch(() => ({ balance: 0n }))).balance);
   const paid = ch.spent - ch.settled;
   const refunded = Math.max(0, ch.deposited - ch.spent - pending);
-  await db
-    .prepare(`UPDATE pay_channels SET status = 'closed', settled = ?, unsettled_since = NULL, refunded = ?, closed_at = ? WHERE id = ?`)
-    .run(ch.spent, refunded, nowS(), ch.id);
+  if (pending > 0) {
+    // La wallet no pudo recibir la devolución (p. ej. dejó de aceptar USDC): el resto sigue en el
+    // canal, que ya está cerrado en la red. Queda como retiro pendiente, disponible de inmediato.
+    const effective = await getSpendChain().latestLedger();
+    await db
+      .prepare(
+        `UPDATE pay_channels SET status = 'closing', settled = ?, unsettled_since = NULL, close_effective_ledger = ?, closed_reason = ? WHERE id = ?`,
+      )
+      .run(ch.spent, effective, reason ?? null, ch.id);
+  } else {
+    await db
+      .prepare(
+        `UPDATE pay_channels SET status = 'closed', settled = ?, unsettled_since = NULL, refunded = ?, closed_at = ?, closed_reason = ? WHERE id = ?`,
+      )
+      .run(ch.spent, refunded, nowS(), reason ?? null, ch.id);
+  }
   if (paid > 0) await addMove(ch.id, 'settle', paid, hash);
   await addMove(ch.id, 'close', refunded, hash);
   return { hash, paidBaseUnits: paid, refundedBaseUnits: refunded, pendingBaseUnits: pending };
@@ -899,11 +924,29 @@ export async function runChannelJob(): Promise<void> {
     if (!info) continue;
     latest ??= await getSpendChain().latestLedger();
     if (info.liveUntil !== null && info.liveUntil - latest >= CHANNEL_TTL_MIN_LEDGERS) continue;
+    // Un retiro que lleva mucho disponible sin que nadie lo recoja deja de renovarse: si se
+    // archiva, el dinero sigue ahí y se restaura cuando el usuario lo retire.
+    if (ch.status === 'closing' && ch.close_effective_ledger !== null && latest > ch.close_effective_ledger + CHANNEL_TTL_EXTEND_LEDGERS) continue;
     try {
       const hash = await c.keepAlive(ch.channel!);
       console.log(`[channel] canal ${ch.id} ${info.liveUntil === null ? 'restaurado y renovado' : 'renovado'}: ${hash}`);
     } catch (err) {
       console.error(`[channel] renovar canal ${ch.id}:`, (err as Error).message);
+    }
+  }
+
+  // Depósitos sin uso: se devuelven a la wallet.
+  if (CHANNEL_IDLE_DAYS > 0) {
+    for (const ch of rows) {
+      if (ch.status !== 'open' || ch.held > 0) continue;
+      if (now - (ch.last_active_at ?? ch.created_at) < CHANNEL_IDLE_DAYS * DAY_S) continue;
+      try {
+        const r = await liquidateChannel(ch.user_id, 'idle');
+        ch.status = 'closed';
+        console.log(`[channel] canal ${ch.id} devuelto por inactividad: ${r.hash}`);
+      } catch (err) {
+        console.error(`[channel] devolver canal ${ch.id} por inactividad:`, (err as Error).message);
+      }
     }
   }
 
@@ -921,6 +964,7 @@ export async function runChannelJob(): Promise<void> {
   }
 
   for (const ch of rows) {
+    if (ch.status === 'closed') continue; // devuelto en esta misma pasada
     try {
       const unsettled = ch.spent - ch.settled;
       const due =
@@ -974,12 +1018,23 @@ export interface ChannelStatus {
     closeEffectiveLedger: number | null;
     /** Estimación (unix s) de cuándo se puede retirar tras pedir el retiro, a 5 s por ledger. */
     refundAt: number | null;
+    /** Cuándo se devolverá a la wallet si nadie lo usa (unix s); null si no aplica. */
+    idleReturnAt: number | null;
+    /** 'idle' si Kiba lo devolvió por inactividad. */
+    closedReason: 'idle' | null;
   };
+  /** Días de antelación con que se avisa de la devolución por inactividad. */
+  idleNoticeDays: number;
   moves: { kind: string; amount: number; txHash: string | null; createdAt: number }[];
 }
 
 export async function getChannelStatus(userId: number): Promise<ChannelStatus> {
-  const base = { enabled: enabled(), minDepositBaseUnits: CHANNEL_MIN_DEPOSIT, waitLedgers: CHANNEL_WAIT_LEDGERS };
+  const base = {
+    enabled: enabled(),
+    minDepositBaseUnits: CHANNEL_MIN_DEPOSIT,
+    waitLedgers: CHANNEL_WAIT_LEDGERS,
+    idleNoticeDays: CHANNEL_IDLE_NOTICE_DAYS,
+  };
   if (!base.enabled) return { ...base, latestLedger: null, channel: null, moves: [] };
   // El canal vivo o, si no hay, el último cerrado (para mostrar cómo terminó).
   const row = (await db
@@ -1010,6 +1065,9 @@ export async function getChannelStatus(userId: number): Promise<ChannelStatus> {
       waitLedgers: ch.wait_ledgers,
       closeEffectiveLedger: eff,
       refundAt: ch.status === 'closing' && eff !== null ? nowS() + Math.max(0, eff - latest) * 5 : null,
+      idleReturnAt:
+        ch.status === 'open' && CHANNEL_IDLE_DAYS > 0 ? (ch.last_active_at ?? ch.created_at) + CHANNEL_IDLE_DAYS * DAY_S : null,
+      closedReason: ch.closed_reason === 'idle' ? 'idle' : null,
     },
     moves: moves.map((m) => ({ kind: m.kind, amount: Number(m.amount), txHash: m.tx_hash, createdAt: Number(m.created_at) })),
   };

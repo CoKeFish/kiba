@@ -37,6 +37,7 @@ Users who prefer to pay from their own wallet leave a **deposit** in a Stellar p
 - **Pay.** Each call is deducted from the deposit instantly, with no signature and no on-chain transaction. Kiba collects the usage from the contract in batches: when the pending amount reaches 0.10 USDC or has gone ten minutes uncollected. One transaction covers every call in the batch, and the contract never pays out more than was deposited.
 - **Withdraw.** Kiba collects the pending usage and the rest goes back to the user's wallet in the same transaction. The channel closes; to keep paying from the wallet, the user opens another one.
 - **Withdraw without going through Kiba.** The user requests the withdrawal directly from the contract. Kiba detects it, stops accepting spending against that deposit and collects what is pending. After the channel's waiting period, about one hour, the user withdraws everything that is left.
+- **Unused.** A deposit that goes 90 days without deposits, top-ups or calls is returned automatically: Kiba collects the pending usage and the rest goes back to the wallet. The dashboard gives 7 days' notice, and any call or top-up resets the count.
 
 Kiba pays the network fees for all of these transactions: the user does not need XLM. It also keeps the channel alive on the network: Stellar archives contracts whose storage period runs out, and Kiba renews that period before it does, so the deposit is always available to pay or withdraw.
 

@@ -56,6 +56,8 @@ Variables del gateway:
 | `CHANNEL_JOB_INTERVAL_MS` | `60000` | Cada cuánto corre el trabajo que cobra, detecta retiros y renueva canales |
 | `CHANNEL_TTL_MIN_LEDGERS` | `51840` (~3 días) | Vida restante por debajo de la cual Kiba renueva un canal |
 | `CHANNEL_TTL_EXTEND_LEDGERS` | `518400` (~30 días) | Hasta cuánta vida se renueva |
+| `CHANNEL_IDLE_DAYS` | `90` | Días sin uso tras los que el depósito se devuelve a la wallet; `0` = nunca |
+| `CHANNEL_IDLE_NOTICE_DAYS` | `7` | Antelación con que el dashboard avisa de esa devolución |
 
 El intervalo del trabajo y el tiempo máximo sin cobrar deben ser mucho menores que la espera del
 retiro: es el margen que tiene Kiba para cobrar antes de que el usuario pueda llevarse el resto.

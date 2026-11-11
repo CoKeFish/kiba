@@ -22,6 +22,7 @@ import {
 import { db, initDb, pool } from '../src/db';
 import { setSpendChain, submitPrepared, type PreparedTx, type SpendChain } from '../src/spend';
 import {
+  CHANNEL_IDLE_DAYS,
   CHANNEL_MIN_DEPOSIT,
   CHANNEL_SETTLE_THRESHOLD,
   CHANNEL_TTL_EXTEND_LEDGERS,
@@ -79,6 +80,8 @@ class FakeNet implements ChannelChain {
   opened = new Map<string, string>();
   treasury = 0n;
   failClose = false;
+  /** La wallet del usuario no puede recibir la devolución (p. ej. dejó de aceptar USDC). */
+  refundBroken = false;
 
   // ── lo que el canal usa de la cadena de la wallet (spend.ts) ──
   spend = {
@@ -247,8 +250,10 @@ class FakeNet implements ChannelChain {
     if (this.failClose) throw new Error('red caída');
     const ch = this.withdraw(channel, amount, sig);
     if (ch.closeAt === null || ch.closeAt > this.ledger) ch.closeAt = this.ledger;
-    this.wallets.set(ch.owner, (this.wallets.get(ch.owner) ?? 0n) + ch.balance);
-    ch.balance = 0n;
+    if (!this.refundBroken) {
+      this.wallets.set(ch.owner, (this.wallets.get(ch.owner) ?? 0n) + ch.balance);
+      ch.balance = 0n;
+    }
     return `close-${channel.slice(0, 6)}`;
   }
 
@@ -628,6 +633,65 @@ test('retiro pedido directamente al contrato: Kiba se entera, cobra y deja de ac
       ['open', USDC(5)],
     ],
   );
+});
+
+// ─── Inactividad ────────────────────────────────────────────────────────────
+
+const DAY = 86_400;
+const idleFor = (userId: number, days: number) =>
+  db.prepare('UPDATE pay_channels SET last_active_at = ? WHERE user_id = ?').run(Math.floor(Date.now() / 1000) - days * DAY, userId);
+
+test('un depósito sin uso se devuelve a la wallet a los 90 días, cobrando antes lo pendiente', async () => {
+  const { user, kp } = await openChannel('a@x.com', 5);
+  await call(user, 0.04);
+  assert.equal(CHANNEL_IDLE_DAYS, 90);
+  let st = await getChannelStatus(user);
+  assert.ok(Math.abs(st.channel!.idleReturnAt! - (Math.floor(Date.now() / 1000) + 90 * DAY)) < 5);
+  await idleFor(user, 89);
+  await runChannelJob();
+  assert.equal((await getChannelStatus(user)).channel?.state, 'open'); // aún no
+  await idleFor(user, 91);
+  await runChannelJob();
+  st = await getChannelStatus(user);
+  assert.equal(st.channel?.state, 'closed');
+  assert.equal(st.channel?.closedReason, 'idle');
+  assert.equal(Number(net.treasury), USDC(0.04));
+  assert.equal(wallet(kp), USDC(5 + 4.96));
+});
+
+test('cualquier uso reinicia la cuenta de inactividad', async () => {
+  const { user, kp } = await openChannel('a@x.com', 5);
+  await idleFor(user, 91);
+  await call(user, 0.01); // una llamada
+  await runChannelJob();
+  assert.equal((await getChannelStatus(user)).channel?.state, 'open');
+  await idleFor(user, 91);
+  await signAndSend(user, kp, await prepareChannelTopUp(user, USDC(1))); // una recarga
+  await runChannelJob();
+  const st = await getChannelStatus(user);
+  assert.equal(st.channel?.state, 'open');
+  assert.equal(st.channel?.closedReason, null);
+});
+
+test('si la wallet no puede recibir la devolución, el resto queda como retiro disponible', async () => {
+  const { user, kp } = await openChannel('a@x.com', 5);
+  await call(user, 0.04);
+  net.refundBroken = true;
+  const liq = await liquidateChannel(user);
+  assert.equal(liq.paidBaseUnits, USDC(0.04));
+  assert.equal(liq.refundedBaseUnits, 0);
+  assert.equal(liq.pendingBaseUnits, USDC(4.96));
+  let st = await getChannelStatus(user);
+  assert.equal(st.channel?.state, 'closing');
+  assert.ok(st.channel!.refundAt! <= Math.floor(Date.now() / 1000) + 1); // disponible ya
+  // Arreglada la wallet, el usuario retira lo que quedó.
+  net.refundBroken = false;
+  const p = await prepareChannelRefund(user);
+  assert.equal(p.amountBaseUnits, USDC(4.96));
+  await signAndSend(user, kp, p);
+  st = await getChannelStatus(user);
+  assert.equal(st.channel?.state, 'closed');
+  assert.equal(wallet(kp), USDC(5 + 4.96));
 });
 
 // ─── Vida del canal ─────────────────────────────────────────────────────────

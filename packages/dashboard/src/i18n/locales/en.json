@@ -867,6 +867,8 @@
     "closing_ready": "The waiting period is over: you can withdraw what's left.",
     "refund": "Withdraw what's left",
     "last_closed": "Your previous deposit was closed and the rest went back to your wallet.",
+    "idle_hint": "You haven't used this deposit in a while. On {{date}} we'll return it to your wallet, after charging what you used. A call or a top-up keeps it open.",
+    "last_closed_idle": "We returned your deposit to your wallet because it had gone unused for a long time.",
     "need_usdc": "Your wallet needs USDC to deposit. Send USDC (Stellar network) to this address and try again:",
     "moves": "Activity",
     "move": {

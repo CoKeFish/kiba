@@ -867,6 +867,8 @@
     "closing_ready": "O prazo já passou: você pode retirar o que sobrou.",
     "refund": "Retirar o que sobrou",
     "last_closed": "Seu depósito anterior foi fechado e o resto voltou para a sua wallet.",
+    "idle_hint": "Faz tempo que você não usa este depósito. Em {{date}} vamos devolvê-lo para a sua wallet, depois de cobrar o que foi consumido. Uma chamada ou uma recarga o mantém aberto.",
+    "last_closed_idle": "Devolvemos o seu depósito para a sua wallet porque ele estava há muito tempo sem uso.",
     "need_usdc": "Sua wallet precisa de USDC para depositar. Envie USDC (rede Stellar) para este endereço e tente de novo:",
     "moves": "Movimentações",
     "move": {
