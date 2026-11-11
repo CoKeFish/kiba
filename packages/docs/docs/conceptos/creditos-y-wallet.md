@@ -38,7 +38,7 @@ Quien prefiere pagar con su propia wallet deja un **depósito** en un canal de p
 - **Retirar.** Kiba cobra lo consumido pendiente y el resto vuelve a la wallet del usuario en la misma transacción. El canal se cierra; para seguir pagando con la wallet se abre otro.
 - **Retirar sin pasar por Kiba.** El usuario pide el retiro directamente al contrato. Kiba lo detecta, deja de aceptar gasto contra ese depósito y cobra lo pendiente. Tras la espera del canal, de alrededor de una hora, el usuario retira todo lo que queda.
 
-Kiba paga las comisiones de red de todas estas transacciones: el usuario no necesita XLM.
+Kiba paga las comisiones de red de todas estas transacciones: el usuario no necesita XLM. También mantiene vivo el canal en la red: Stellar archiva los contratos cuyo plazo de permanencia vence, y Kiba renueva ese plazo antes de que ocurra, de modo que el depósito está siempre disponible para pagar o retirar.
 
 El contrato es el [canal de pago unidireccional de Stellar](https://github.com/stellar-experimental/one-way-channel), el mismo que usa MPP Session. Hay un canal por usuario, creado por una fábrica. La dirección del canal y cada movimiento aparecen en el dashboard con su enlace al explorador.
 

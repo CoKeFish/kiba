@@ -136,6 +136,25 @@ const ch = st.channel!.channel;
   check('3. el compromiso local coincide con el del contrato', onchain.equals(channel.commitmentBytes(Networks.TESTNET, ch, 13_000_000n)));
 }
 
+// 3b. Vida del canal: nace con unos días pagados; el job la renueva cuando queda poca.
+{
+  const liveUntil = async () => (await channel.chainForTests().inspect([ch])).get(ch)!.liveUntil!;
+  const latest = (await server.getHealth()).latestLedger;
+  const before = await liveUntil();
+  const t0 = Date.now();
+  // Primero lo compartido (fábrica y molde); después, lo propio de este canal.
+  await channel.chainForTests().maintainFactory();
+  const hash = await channel.chainForTests().keepAlive(ch);
+  const after = await liveUntil();
+  check(
+    '3b. renovar la vida del canal: de ~7 a ~30 días',
+    before - latest < 130_000 && after - latest > 500_000,
+    `${((before - latest) / 17280).toFixed(1)} → ${((after - latest) / 17280).toFixed(1)} días, ${((Date.now() - t0) / 1000).toFixed(1)} s, tx ${hash.slice(0, 10)}…`,
+  );
+  const { fee_charged } = (await (await fetch(`https://horizon-testnet.stellar.org/transactions/${hash}`)).json()) as { fee_charged: string };
+  console.log(`   comisión de renovar un canal por ~23 días: ${Number(fee_charged) / 1e7} XLM`);
+}
+
 // 4. Recargar 1 USDC.
 await userSends(uid, await channel.prepareChannelTopUp(uid, 1e7));
 st = await channel.getChannelStatus(uid);

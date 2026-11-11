@@ -24,6 +24,8 @@ import { setSpendChain, submitPrepared, type PreparedTx, type SpendChain } from 
 import {
   CHANNEL_MIN_DEPOSIT,
   CHANNEL_SETTLE_THRESHOLD,
+  CHANNEL_TTL_EXTEND_LEDGERS,
+  CHANNEL_TTL_MIN_LEDGERS,
   CHANNEL_WAIT_LEDGERS,
   channelAvailable,
   commitmentBytes,
@@ -41,6 +43,7 @@ import {
   setChannelChain,
   settleChannel,
   type ChannelChain,
+  type ChannelOnChain,
 } from '../src/channel';
 
 const PASS = Networks.TESTNET;
@@ -48,9 +51,13 @@ const TOKEN = new Contract(new Asset('USDC', Keypair.random().publicKey()).contr
 const FACTORY = new Contract(StrKey.encodeContract(randomBytes(32)));
 const TREASURY = Keypair.random().publicKey();
 const USDC = (n: number) => Math.round(n * 1e7);
+/** Vida con la que nace un canal en la red de prueba: 7 días. */
+const NEW_CHANNEL_TTL = 120_960;
 const i128 = (n: bigint) => nativeToScVal(n, { type: 'i128' });
 
 interface FakeChannel {
+  /** Hasta qué ledger tiene pagada su vida; por debajo del ledger actual está archivado. */
+  liveUntil: number;
   owner: string;
   key: Buffer;
   balance: bigint;
@@ -116,6 +123,7 @@ class FakeNet implements ChannelChain {
       pay(owner, amount);
       const id = StrKey.encodeContract(randomBytes(32));
       this.channels.set(id, {
+        liveUntil: this.ledger + NEW_CHANNEL_TTL,
         owner,
         key: Buffer.from(args[3].bytes()),
         balance: amount,
@@ -128,6 +136,7 @@ class FakeNet implements ChannelChain {
     }
     const ch = this.channels.get(contract);
     if (!ch) throw new Error('canal inexistente');
+    if (ch.liveUntil < this.ledger) throw new Error('canal archivado');
     assert.equal(ch.owner, tx.source, 'solo el dueño del depósito firma estas operaciones');
     if (fn === 'top_up') {
       const amount = BigInt(scValToNative(args[0]) as bigint);
@@ -187,9 +196,21 @@ class FakeNet implements ChannelChain {
     const ch = this.channels.get(channel)!;
     return { balance: ch.balance, withdrawn: ch.withdrawn };
   }
-  async closeEffective(channels: string[]) {
-    return new Map(channels.map((c) => [c, this.channels.get(c)?.closeAt ?? null] as [string, number | null]));
+  async inspect(channels: string[]) {
+    return new Map(
+      channels.map((c) => {
+        const ch = this.channels.get(c)!;
+        return [c, { closeEffective: ch.closeAt, liveUntil: ch.liveUntil >= this.ledger ? ch.liveUntil : null }] as [string, ChannelOnChain];
+      }),
+    );
   }
+  renewals: string[] = [];
+  async keepAlive(channel: string) {
+    this.channels.get(channel)!.liveUntil = this.ledger + CHANNEL_TTL_EXTEND_LEDGERS;
+    this.renewals.push(channel);
+    return `renew-${this.renewals.length}`;
+  }
+  async maintainFactory() {}
   /** El usuario pide el retiro directamente al contrato, sin pasar por Kiba. */
   externalCloseStart(channel: string) {
     const ch = this.channels.get(channel)!;
@@ -205,6 +226,7 @@ class FakeNet implements ChannelChain {
   private withdraw(channel: string, amount: bigint, sig: Buffer): FakeChannel {
     const ch = this.channels.get(channel);
     if (!ch) throw new Error('canal inexistente');
+    if (ch.liveUntil < this.ledger) throw new Error('canal archivado');
     const key = Keypair.fromPublicKey(StrKey.encodeEd25519PublicKey(ch.key));
     if (!key.verify(this.commitment(channel, amount), sig)) throw new Error('firma del compromiso inválida');
     const payout = amount - ch.withdrawn;
@@ -606,6 +628,36 @@ test('retiro pedido directamente al contrato: Kiba se entera, cobra y deja de ac
       ['open', USDC(5)],
     ],
   );
+});
+
+// ─── Vida del canal ─────────────────────────────────────────────────────────
+
+test('el job renueva el canal cuando le queda poca vida, y no antes', async () => {
+  const { user } = await openChannel('a@x.com', 2);
+  const channel = (await getChannelStatus(user)).channel!.channel;
+  await runChannelJob();
+  assert.equal(net.renewals.length, 0); // recién creado: le quedan 7 días
+  net.ledger += NEW_CHANNEL_TTL - CHANNEL_TTL_MIN_LEDGERS + 1; // le quedan menos de 3 días
+  await runChannelJob();
+  assert.deepEqual(net.renewals, [channel]);
+  assert.equal(net.channels.get(channel)!.liveUntil, net.ledger + CHANNEL_TTL_EXTEND_LEDGERS);
+  await runChannelJob();
+  assert.equal(net.renewals.length, 1); // ya renovado: no se repite
+});
+
+test('un canal que llegó a archivarse se restaura y vuelve a servir', async () => {
+  const { user, kp } = await openChannel('a@x.com', 2);
+  await call(user, 0.04);
+  net.ledger += NEW_CHANNEL_TTL + 10; // Kiba estuvo caído más de 7 días
+  await assert.rejects(liquidateChannel(user), /archivado/);
+  assert.equal((await getChannelStatus(user)).channel?.state, 'open'); // la liquidación fallida no lo rompe
+  await db.prepare('UPDATE pay_channels SET unsettled_since = unsettled_since - 3600 WHERE user_id = ?').run(user);
+  await runChannelJob();
+  assert.equal(net.renewals.length, 1);
+  await treasuryIs(0.04); // restaurado, el mismo job ya pudo cobrar lo pendiente
+  const liq = await liquidateChannel(user);
+  assert.equal(liq.refundedBaseUnits, USDC(1.96));
+  assert.equal(wallet(kp), USDC(8 + 1.96));
 });
 
 test('con la fábrica apagada los depósitos no están disponibles', async () => {

@@ -38,7 +38,7 @@ Users who prefer to pay from their own wallet leave a **deposit** in a Stellar p
 - **Withdraw.** Kiba collects the pending usage and the rest goes back to the user's wallet in the same transaction. The channel closes; to keep paying from the wallet, the user opens another one.
 - **Withdraw without going through Kiba.** The user requests the withdrawal directly from the contract. Kiba detects it, stops accepting spending against that deposit and collects what is pending. After the channel's waiting period, about one hour, the user withdraws everything that is left.
 
-Kiba pays the network fees for all of these transactions: the user does not need XLM.
+Kiba pays the network fees for all of these transactions: the user does not need XLM. It also keeps the channel alive on the network: Stellar archives contracts whose storage period runs out, and Kiba renews that period before it does, so the deposit is always available to pay or withdraw.
 
 The contract is [Stellar's one-way payment channel](https://github.com/stellar-experimental/one-way-channel), the same one MPP Session uses. There is one channel per user, created by a factory. The channel address and every movement are shown in the dashboard with a link to the explorer.
 

@@ -18,6 +18,11 @@
  * a un umbral o lleva demasiado tiempo (`runChannelJob`), siempre mucho antes de la espera del
  * retiro. El mismo job detecta los retiros pedidos directamente al contrato.
  *
+ * Vida del canal: Stellar archiva los datos de un contrato cuando se acaba el plazo que tienen
+ * pagado (al crear un canal, unos 7 días en testnet). Archivado no se pierde nada, pero no se
+ * puede cobrar ni retirar hasta restaurarlo. El job renueva el plazo de cada canal vivo antes
+ * de que venza y, si alguno llegó a archivarse, lo restaura. Lo paga Kiba.
+ *
  * Clave de gasto: es una clave ed25519 distinta de la wallet, fijada al abrir el canal. Solo
  * autoriza cobros de ESE canal a favor de Kiba, hasta lo depositado. Con el conector web no hay
  * programa del usuario que firme cada llamada, así que la guarda Kiba: se deriva del seed de la
@@ -39,6 +44,7 @@ import {
   nativeToScVal,
   rpc,
   scValToNative,
+  SorobanDataBuilder,
   xdr,
 } from '@stellar/stellar-sdk';
 import { resolveChainConfig } from 'kiba-sdk';
@@ -64,6 +70,10 @@ export const CHANNEL_MIN_DEPOSIT = Number(process.env.CHANNEL_MIN_DEPOSIT) || 10
 export const CHANNEL_SETTLE_THRESHOLD = Number(process.env.CHANNEL_SETTLE_THRESHOLD) || 1_000_000;
 /** Tiempo máximo que un consumo queda sin cobrar, aunque no llegue al umbral. Default 10 min. */
 export const CHANNEL_SETTLE_MAX_AGE_S = Number(process.env.CHANNEL_SETTLE_MAX_AGE_S) || 600;
+/** Si a un canal le quedan menos ledgers de vida que esto, Kiba lo renueva. Default ~3 días. */
+export const CHANNEL_TTL_MIN_LEDGERS = Number(process.env.CHANNEL_TTL_MIN_LEDGERS) || 51_840;
+/** Hasta cuántos ledgers de vida se renueva un canal. Default ~30 días. */
+export const CHANNEL_TTL_EXTEND_LEDGERS = Number(process.env.CHANNEL_TTL_EXTEND_LEDGERS) || 518_400;
 /** Una llamada tarda como mucho 2 min: lo apartado por más de esto es de un proceso que murió. */
 const HOLD_TTL_S = 300;
 /** Validez de una transacción preparada (igual que en spend.ts). */
@@ -84,10 +94,16 @@ export interface ChannelChain {
   /** Saldo que queda en el canal y total ya cobrado por Kiba. */
   read(channel: string): Promise<{ balance: bigint; withdrawn: bigint }>;
   /**
-   * Ledger en que se hace efectivo el cierre de cada canal (null = nadie pidió el retiro). Sirve
-   * para enterarse de los retiros pedidos directamente al contrato, sin pasar por Kiba.
+   * Estado en la red de cada canal:
+   *   - `closeEffective`: ledger en que se hace efectivo el cierre (null = nadie pidió el retiro).
+   *     Sirve para enterarse de los retiros pedidos directamente al contrato, sin pasar por Kiba.
+   *   - `liveUntil`: hasta qué ledger tiene pagada su vida (null = ya está archivado).
    */
-  closeEffective(channels: string[]): Promise<Map<string, number | null>>;
+  inspect(channels: string[]): Promise<Map<string, ChannelOnChain>>;
+  /** Renueva la vida del canal (y lo restaura antes si está archivado). Devuelve el hash. */
+  keepAlive(channel: string): Promise<string>;
+  /** Mantiene viva la fábrica de canales (sin ella no se pueden abrir canales nuevos). */
+  maintainFactory(): Promise<void>;
   /** Bytes del compromiso «de este canal llevo gastado `amount`» (lo que firma la clave de gasto). */
   commitment(channel: string, amount: bigint): Buffer;
   /** Cobra hasta `amount` sin cerrar el canal. Devuelve el hash. */
@@ -96,7 +112,32 @@ export interface ChannelChain {
   close(channel: string, amount: bigint, sig: Buffer): Promise<string>;
 }
 
+export interface ChannelOnChain {
+  closeEffective: number | null;
+  liveUntil: number | null;
+}
+
 const i128 = (n: bigint) => nativeToScVal(n, { type: 'i128' });
+
+/** Entrada de instancia de un contrato: su configuración y su plazo de vida. */
+const instanceKey = (contract: string) =>
+  xdr.LedgerKey.contractData(
+    new xdr.LedgerKeyContractData({
+      contract: new Address(contract).toScAddress(),
+      key: xdr.ScVal.scvLedgerKeyContractInstance(),
+      durability: xdr.ContractDataDurability.persistent(),
+    }),
+  );
+/** Entrada donde el token guarda el saldo de un contrato (ahí está el depósito). */
+const balanceKey = (token: string, holder: string) =>
+  xdr.LedgerKey.contractData(
+    new xdr.LedgerKeyContractData({
+      contract: new Address(token).toScAddress(),
+      key: xdr.ScVal.scvVec([xdr.ScVal.scvSymbol('Balance'), new Address(holder).toScVal()]),
+      durability: xdr.ContractDataDurability.persistent(),
+    }),
+  );
+const codeKey = (wasmHash: Buffer) => xdr.LedgerKey.contractCode(new xdr.LedgerKeyContractCode({ hash: wasmHash }));
 
 /** Bytes del compromiso: ScVal::Map {amount, channel, domain: "chancmmt", network} en XDR. */
 export function commitmentBytes(networkPassphrase: string, channel: string, amount: bigint): Buffer {
@@ -135,14 +176,186 @@ class StellarChannelChain implements ChannelChain {
 
   /** Transacción de un solo llamado, fuente = el usuario; la comisión la paga Kiba al enviarla. */
   private async userTx(owner: string, op: xdr.Operation): Promise<string> {
-    const tx = new TransactionBuilder(await this.server.getAccount(owner), {
-      fee: '100',
+    const build = async () =>
+      new TransactionBuilder(await this.server.getAccount(owner), {
+        fee: '100',
+        networkPassphrase: this.cfg.networkPassphrase,
+      })
+        .addOperation(op)
+        .setTimeout(PREPARED_TTL_S)
+        .build();
+    // Si lo que toca la transacción está archivado, Kiba lo restaura antes de prepararla.
+    const sim = await this.server.simulateTransaction(await build());
+    if (rpc.Api.isSimulationRestore(sim)) {
+      await serialCollector(() => this.footprintTx(Operation.restoreFootprint({}), sim.restorePreamble.transactionData.build()));
+    }
+    return (await this.server.prepareTransaction(await build())).toXDR();
+  }
+
+  /** Transacción del collector que solo renueva o restaura entradas (no llama a ningún contrato). */
+  private async footprintTx(op: xdr.Operation, data: xdr.SorobanTransactionData): Promise<string> {
+    await this.ensureCollectorFunded();
+    let tx = new TransactionBuilder(await this.server.getAccount(this.collector.publicKey()), {
+      fee: '100000',
       networkPassphrase: this.cfg.networkPassphrase,
     })
       .addOperation(op)
-      .setTimeout(PREPARED_TTL_S)
+      .setSorobanData(data)
+      .setTimeout(60)
       .build();
-    return (await this.server.prepareTransaction(tx)).toXDR();
+    tx = await this.server.prepareTransaction(tx);
+    tx.sign(this.collector);
+    const sent = await this.server.sendTransaction(tx);
+    if (sent.status === 'ERROR') {
+      throw new Error(`[channel] renovación rechazada al enviar: ${sent.errorResult?.result().switch().name ?? 'ERROR'}`);
+    }
+    const res = await this.server.pollTransaction(sent.hash, { attempts: 60 });
+    if (res.status !== 'SUCCESS') throw new Error(`[channel] renovación ${sent.hash} ${res.status}`);
+    return sent.hash;
+  }
+
+  /**
+   * Entradas propias de un contrato y hasta cuándo viven: su instancia y, si se da `token`, su
+   * saldo en ese token. Con `withCode` se incluye también su código, que es compartido por todos
+   * los contratos creados del mismo molde y pesa mucho más: los canales no lo renuevan cada uno,
+   * lo mantiene `maintainFactory`. `liveUntil` null = alguna entrada está archivada o no existe.
+   */
+  private async entriesOf(
+    contracts: string[],
+    token?: string,
+    withCode = false,
+  ): Promise<Map<string, { keys: xdr.LedgerKey[]; liveUntil: number | null; closeEffective: number | null; wasm: Buffer | null }>> {
+    const out = new Map<string, { keys: xdr.LedgerKey[]; liveUntil: number | null; closeEffective: number | null; wasm: Buffer | null }>();
+    const latest = (await this.server.getHealth()).latestLedger;
+    const live = (seq: number | undefined) => (seq !== undefined && seq >= latest ? seq : null);
+    for (let i = 0; i < contracts.length; i += 50) {
+      const chunk = contracts.slice(i, i + 50);
+      const instances = new Map<string, { liveUntil: number | null; wasm: Buffer | null; closeEffective: number | null }>();
+      const balances = new Map<string, number | null>();
+      const res = await this.server.getLedgerEntries(
+        ...chunk.map(instanceKey),
+        ...(token ? chunk.map((c) => balanceKey(token, c)) : []),
+      );
+      for (const e of res.entries) {
+        const data = e.val.contractData();
+        const owner = Address.fromScAddress(data.contract()).toString();
+        if (data.key().switch() === xdr.ScValType.scvLedgerKeyContractInstance()) {
+          const inst = data.val().instance();
+          let closeEffective: number | null = null;
+          for (const it of inst.storage() ?? []) {
+            const k = scValToNative(it.key()) as unknown;
+            if (Array.isArray(k) && k[0] === 'CloseEffectiveAtLedger') closeEffective = Number(scValToNative(it.val()));
+          }
+          const exe = inst.executable();
+          const wasm = exe.switch() === xdr.ContractExecutableType.contractExecutableWasm() ? Buffer.from(exe.wasmHash()) : null;
+          instances.set(owner, { liveUntil: live(e.liveUntilLedgerSeq), wasm, closeEffective });
+        } else {
+          // Saldo: la entrada es del token; el titular va dentro de la clave.
+          const holder = Address.fromScVal(data.key().vec()![1]).toString();
+          balances.set(holder, live(e.liveUntilLedgerSeq));
+        }
+      }
+      const hashes = withCode ? [...new Set([...instances.values()].filter((v) => v.wasm).map((v) => v.wasm!.toString('hex')))] : [];
+      const codeLive = new Map<string, number | null>();
+      if (hashes.length) {
+        const codes = await this.server.getLedgerEntries(...hashes.map((h) => codeKey(Buffer.from(h, 'hex'))));
+        for (const e of codes.entries) codeLive.set(Buffer.from(e.val.contractCode().hash()).toString('hex'), live(e.liveUntilLedgerSeq));
+      }
+      for (const c of chunk) {
+        const inst = instances.get(c);
+        const keys = [instanceKey(c)];
+        if (token) keys.push(balanceKey(token, c));
+        if (!inst) {
+          out.set(c, { keys, liveUntil: null, closeEffective: null, wasm: null });
+          continue;
+        }
+        const lives: (number | null)[] = [inst.liveUntil];
+        if (withCode && inst.wasm) {
+          keys.push(codeKey(inst.wasm));
+          lives.push(codeLive.get(inst.wasm.toString('hex')) ?? null);
+        }
+        // Un canal sin saldo aún no tiene entrada de saldo: no cuenta.
+        if (token && balances.has(c)) lives.push(balances.get(c)!);
+        out.set(c, {
+          keys,
+          liveUntil: lives.includes(null) ? null : Math.min(...(lives as number[])),
+          closeEffective: inst.closeEffective,
+          wasm: inst.wasm,
+        });
+      }
+    }
+    return out;
+  }
+
+  async inspect(channels: string[]): Promise<Map<string, ChannelOnChain>> {
+    const out = new Map<string, ChannelOnChain>();
+    for (const [c, v] of await this.entriesOf(channels, getSpendChain().tokenContract())) {
+      out.set(c, { closeEffective: v.closeEffective, liveUntil: v.liveUntil });
+    }
+    return out;
+  }
+
+  /** Restaura (si `archived`) y renueva el plazo de un grupo de entradas. */
+  private renewKeys(keys: xdr.LedgerKey[], archived: boolean): Promise<string> {
+    return serialCollector(async () => {
+      if (archived) await this.footprintTx(Operation.restoreFootprint({}), new SorobanDataBuilder().setReadWrite(keys).build());
+      return this.footprintTx(
+        Operation.extendFootprintTtl({ extendTo: CHANNEL_TTL_EXTEND_LEDGERS }),
+        new SorobanDataBuilder().setReadOnly(keys).build(),
+      );
+    });
+  }
+
+  async keepAlive(channel: string): Promise<string> {
+    // Solo lo propio del canal: su instancia y su saldo. El código lo mantiene `maintainFactory`.
+    const info = (await this.entriesOf([channel], getSpendChain().tokenContract())).get(channel)!;
+    return this.renewKeys(info.keys, info.liveUntil === null);
+  }
+
+  private factoryCheckedAt = 0;
+  private channelCode: Buffer | null = null;
+  /** Molde de los canales: el código que la fábrica usa para crear cada uno. */
+  private async channelCodeHash(): Promise<Buffer> {
+    if (this.channelCode) return this.channelCode;
+    const tx = new TransactionBuilder(new Account(this.collector.publicKey(), '0'), {
+      fee: '100',
+      networkPassphrase: this.cfg.networkPassphrase,
+    })
+      .addOperation(this.factory.call('wasm_hash'))
+      .setTimeout(30)
+      .build();
+    const sim = await this.server.simulateTransaction(tx);
+    if (rpc.Api.isSimulationError(sim)) throw new Error(`[channel] wasm_hash: ${sim.error}`);
+    return (this.channelCode = Buffer.from(scValToNative(sim.result!.retval) as Uint8Array));
+  }
+
+  /**
+   * Lo compartido por todos los canales: la fábrica (instancia y código) y el molde de los
+   * canales. Sin esto no se abren canales nuevos ni funcionan los existentes.
+   */
+  async maintainFactory(): Promise<void> {
+    // Una vez por hora basta: su plazo se mide en días.
+    if (Date.now() - this.factoryCheckedAt < 3_600_000) return;
+    const id = this.factory.contractId();
+    const latest = (await this.server.getHealth()).latestLedger;
+    const info = (await this.entriesOf([id], undefined, true)).get(id)!;
+    let liveUntil = info.liveUntil;
+    const keys = [...info.keys];
+    if (liveUntil !== null) {
+      // Con la fábrica archivada no se le puede preguntar el molde: primero se restaura ella.
+      const mold = codeKey(await this.channelCodeHash());
+      keys.push(mold);
+      const e = (await this.server.getLedgerEntries(mold)).entries[0];
+      const moldLive = e?.liveUntilLedgerSeq !== undefined && e.liveUntilLedgerSeq >= latest ? e.liveUntilLedgerSeq : null;
+      liveUntil = moldLive === null ? null : Math.min(liveUntil, moldLive);
+    }
+    if (liveUntil === null || liveUntil - latest < CHANNEL_TTL_MIN_LEDGERS) {
+      const hash = await this.renewKeys(keys, liveUntil === null);
+      console.log(`[channel] fábrica y molde ${liveUntil === null ? 'restaurados y renovados' : 'renovados'}: ${hash}`);
+      // Si faltaba el molde por estar la fábrica archivada, la próxima pasada lo cubre.
+      if (keys.length === info.keys.length) return;
+    }
+    this.factoryCheckedAt = Date.now();
   }
 
   buildOpen(a: { owner: string; salt: Buffer; commitmentKey: Buffer; amount: bigint; waitLedgers: number }): Promise<string> {
@@ -197,33 +410,6 @@ class StellarChannelChain implements ChannelChain {
     return { balance, withdrawn };
   }
 
-  async closeEffective(channels: string[]): Promise<Map<string, number | null>> {
-    const out = new Map<string, number | null>();
-    // Una sola lectura por cada 100 canales: la entrada de instancia de cada contrato.
-    for (let i = 0; i < channels.length; i += 100) {
-      const keys = channels.slice(i, i + 100).map((c) =>
-        xdr.LedgerKey.contractData(
-          new xdr.LedgerKeyContractData({
-            contract: new Address(c).toScAddress(),
-            key: xdr.ScVal.scvLedgerKeyContractInstance(),
-            durability: xdr.ContractDataDurability.persistent(),
-          }),
-        ),
-      );
-      const res = await this.server.getLedgerEntries(...keys);
-      for (const e of res.entries) {
-        const data = e.val.contractData();
-        let effective: number | null = null;
-        for (const it of data.val().instance().storage() ?? []) {
-          const k = scValToNative(it.key()) as unknown;
-          if (Array.isArray(k) && k[0] === 'CloseEffectiveAtLedger') effective = Number(scValToNative(it.val()));
-        }
-        out.set(Address.fromScAddress(data.contract()).toString(), effective);
-      }
-    }
-    return out;
-  }
-
   private async ensureCollectorFunded(): Promise<void> {
     if (this.funded) return;
     try {
@@ -244,15 +430,21 @@ class StellarChannelChain implements ChannelChain {
     return serialCollector(async () => {
       await this.ensureCollectorFunded();
       const source = this.collector.publicKey();
-      const seq = (await this.server.getAccount(source)).sequenceNumber();
+      const call = new Contract(channel).call(fn, i128(amount), xdr.ScVal.scvBytes(sig));
+      let seq = (await this.server.getAccount(source)).sequenceNumber();
       const build = (op: xdr.Operation) =>
         new TransactionBuilder(new Account(source, seq), { fee: '100000', networkPassphrase: this.cfg.networkPassphrase })
           .addOperation(op)
           .setTimeout(60)
           .build();
-      const call = new Contract(channel).call(fn, i128(amount), xdr.ScVal.scvBytes(sig));
       // 1) Simular para saber qué autorización pide; 2) firmarla con la tesorería; 3) preparar y enviar.
-      const sim = await this.server.simulateTransaction(build(call));
+      let sim = await this.server.simulateTransaction(build(call));
+      if (rpc.Api.isSimulationRestore(sim)) {
+        // El canal está archivado: se restaura y se vuelve a simular.
+        await this.footprintTx(Operation.restoreFootprint({}), sim.restorePreamble.transactionData.build());
+        seq = (await this.server.getAccount(source)).sequenceNumber();
+        sim = await this.server.simulateTransaction(build(call));
+      }
       if (rpc.Api.isSimulationError(sim)) throw new Error(`[channel] ${fn}: ${sim.error}`);
       const auth = await Promise.all(
         (sim.result?.auth ?? []).map((e) => authorizeEntry(e, this.treasury, sim.latestLedger + 100, this.cfg.networkPassphrase)),
@@ -295,6 +487,8 @@ function getChain(): ChannelChain {
   if (!id) throw new Error('los depósitos no están disponibles');
   return (chain = new StellarChannelChain(id));
 }
+/** Pruebas contra la red real: el acceso a la cadena en uso. */
+export const chainForTests = (): ChannelChain => getChain();
 /** Tests: sustituye el acceso a la cadena (null = el real). */
 export function setChannelChain(c: ChannelChain | null): void {
   chain = c;
@@ -681,6 +875,7 @@ export async function liquidateChannel(userId: number): Promise<Liquidation> {
 /**
  * Mantiene los canales al día. Corre cada minuto:
  *   - suelta lo apartado por llamadas que nunca terminaron;
+ *   - renueva la vida de los canales a los que les queda poco y restaura los archivados;
  *   - detecta los retiros pedidos directamente al contrato y los marca;
  *   - cobra lo consumido que llegó al umbral, lleva demasiado sin cobrar o está en un canal
  *     con retiro pedido (hay que cobrarlo antes de que venza la espera);
@@ -695,11 +890,25 @@ export async function runChannelJob(): Promise<void> {
   if (rows.length === 0) return;
   const c = getChain();
   const now = nowS();
+  await c.maintainFactory().catch((err) => console.error('[channel] fábrica:', (err as Error).message));
 
-  const open = rows.filter((r) => r.status === 'open');
-  const effective = open.length ? await c.closeEffective(open.map((r) => r.channel!)) : new Map<string, number | null>();
-  for (const ch of open) {
-    const eff = effective.get(ch.channel!);
+  const onchain = await c.inspect(rows.map((r) => r.channel!));
+  let latest: number | null = null;
+  for (const ch of rows) {
+    const info = onchain.get(ch.channel!);
+    if (!info) continue;
+    latest ??= await getSpendChain().latestLedger();
+    if (info.liveUntil !== null && info.liveUntil - latest >= CHANNEL_TTL_MIN_LEDGERS) continue;
+    try {
+      const hash = await c.keepAlive(ch.channel!);
+      console.log(`[channel] canal ${ch.id} ${info.liveUntil === null ? 'restaurado y renovado' : 'renovado'}: ${hash}`);
+    } catch (err) {
+      console.error(`[channel] renovar canal ${ch.id}:`, (err as Error).message);
+    }
+  }
+
+  for (const ch of rows.filter((r) => r.status === 'open')) {
+    const eff = onchain.get(ch.channel!)?.closeEffective;
     if (eff == null) continue;
     const marked = await db
       .prepare(`UPDATE pay_channels SET status = 'closing', close_effective_ledger = ? WHERE id = ? AND status = 'open' RETURNING id`)
@@ -711,7 +920,6 @@ export async function runChannelJob(): Promise<void> {
     }
   }
 
-  let latest: number | null = null;
   for (const ch of rows) {
     try {
       const unsettled = ch.spent - ch.settled;
