@@ -25,7 +25,8 @@
     "results": "Results",
     "menu": "Menu",
     "close_menu": "Close menu",
-    "admin_claims": "Claims"
+    "admin_claims": "Claims",
+    "external": "External services"
   },
   "topbar": {
     "balance": "Balance:",
@@ -979,5 +980,50 @@
     "payouts_subtitle": "You keep {{netPct}}% of each paid call. Earnings are held for a period and then released to your wallet.",
     "kpi_hint": "from today; held when the day closes",
     "wallet_desc": "Your earnings arrive here when each hold is released."
+  },
+  "external": {
+    "title": "External services",
+    "subtitle": "List an API that already charges on its own. Nothing to integrate: Kiba shows it to assistants and pays it for each call right away.",
+    "list_title": "Your external services",
+    "list_desc": "The price includes Kiba's fee. Your API receives its full price on every call.",
+    "loading": "Loading…",
+    "empty": "You have not listed any external service yet.",
+    "col": {
+      "service": "Service",
+      "url": "URL",
+      "protocol": "Charges with",
+      "price": "Price per call",
+      "calls": "Calls"
+    },
+    "mpp_hint": "Listed. Kiba does not pay with MPP yet.",
+    "remove": "Remove {{name}}",
+    "add_title": "List an API",
+    "add_desc": "When you save, Kiba asks the URL for a quote without paying. It is only accepted if it replies asking for payment with x402 on Stellar or with MPP.",
+    "field": {
+      "name": "Name",
+      "slug": "Identifier",
+      "slug_hint": "Assistants call it as {{id}}.",
+      "url": "API URL",
+      "method": "Method",
+      "url_hint": "It must be https and public.",
+      "description": "Description",
+      "description_hint": "What it does and when to use it. This is what the assistant reads to decide whether to call it."
+    },
+    "params": {
+      "title": "Parameters",
+      "hint": "What the API needs on each call. Add an example for the ones needed to get a quote.",
+      "name": "Name",
+      "where": "Where it goes",
+      "in_query": "In the URL",
+      "in_body": "In the body",
+      "description": "Description",
+      "example": "Example",
+      "required": "Required",
+      "remove": "Remove parameter",
+      "add": "Add parameter"
+    },
+    "checking": "Asking for a quote…",
+    "submit": "List service",
+    "created": "Done. It now appears in the assistants' catalog."
   }
 }

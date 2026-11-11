@@ -21,6 +21,7 @@ import {
   Menu,
   X,
   ShieldAlert,
+  Globe,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useMode, type DashboardMode } from "@/lib/mode";
@@ -54,6 +55,7 @@ const publisherNav = [
   { to: "/app/publisher/payouts", label: "nav.payouts", icon: Wallet },
   { to: "/app/publisher/pricing", label: "nav.pricing", icon: Tag },
   { to: "/app/publisher/publish", label: "nav.publish", icon: Rocket },
+  { to: "/app/publisher/external", label: "nav.external", icon: Globe },
 ];
 
 export function AppLayout() {

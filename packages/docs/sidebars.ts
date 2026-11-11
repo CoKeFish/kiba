@@ -51,6 +51,7 @@ const sidebars: SidebarsConfig = {
       doc('publica-un-servicio/quickstart', 'rocket'),
       doc('publica-un-servicio/handler-y-precios', 'coin'),
       doc('publica-un-servicio/servicios-que-pagan-servicios', 'layers'),
+      doc('publica-un-servicio/servicios-externos', 'globe'),
       doc('publica-un-servicio/despliegue', 'cloud'),
       doc('publica-un-servicio/descubrimiento-y-llamadas', 'search'),
       doc('publica-un-servicio/como-cobras', 'wallet'),

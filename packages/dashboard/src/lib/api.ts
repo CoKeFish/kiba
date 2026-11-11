@@ -70,6 +70,19 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
     }),
+  // Servicios externos: APIs que ya cobran con x402 o MPP, listadas con su URL.
+  myExternal: () => request<ExternalService[]>("/v1/publisher/external"),
+  createExternal: (body: {
+    slug: string;
+    name: string;
+    description: string;
+    url: string;
+    method: string;
+    params: ExternalParam[];
+  }) => request<ExternalService>("/v1/publisher/external", { method: "POST", body: JSON.stringify(body) }),
+  deleteExternal: (slug: string) =>
+    request<{ ok: true }>(`/v1/publisher/external/${encodeURIComponent(slug)}`, { method: "DELETE" }),
+
   // Reclamos y retención de ganancias
   /** Qué llamadas de estas se pueden reclamar todavía y cuáles ya tienen reclamo. */
   claimsInfo: (transactionIds: number[]) =>
@@ -343,6 +356,35 @@ export type PreparedTx = {
   /** XDR sin firmar, para wallets externas (Stellar Wallets Kit). */
   xdr: string;
   networkPassphrase: string;
+};
+
+/** Parámetro de un servicio externo: viaja en la URL (`query`) o en el cuerpo JSON (`body`). */
+export type ExternalParam = {
+  name: string;
+  in: "query" | "body";
+  description: string;
+  required: boolean;
+  example?: string;
+};
+
+/** Servicio externo listado en Kiba (gateway external.ts). */
+export type ExternalService = {
+  /** Identificador con el que lo llama un asistente: `ext:<slug>`. */
+  service: string;
+  slug: string;
+  name: string;
+  description: string;
+  url: string;
+  method: string;
+  params: ExternalParam[];
+  protocol: "x402" | "mpp";
+  /** false = listado, pero Kiba todavía no puede pagarlo (MPP). */
+  payable: boolean;
+  /** Lo que paga el usuario por llamada, con la comisión de Kiba. */
+  priceUsd: number | null;
+  feeBps: number;
+  calls: number;
+  createdAt: number;
 };
 
 /** Reclamo de una llamada (gateway retention.ts). Montos en unidades base (1 USDC = 1e7). */

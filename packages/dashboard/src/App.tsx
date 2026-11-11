@@ -22,6 +22,7 @@ import PublisherAnalytics from "@/routes/publisher/Analytics";
 import PublisherPayouts from "@/routes/publisher/Payouts";
 import PublisherPricing from "@/routes/publisher/Pricing";
 import PublisherPublish from "@/routes/publisher/Publish";
+import PublisherExternal from "@/routes/publisher/External";
 import { PublisherGate } from "@/components/PublisherGate";
 import { useAuth } from "@/lib/auth";
 
@@ -82,6 +83,7 @@ export default function App() {
         <Route path="publisher/payouts" element={<PublisherGate><PublisherPayouts /></PublisherGate>} />
         <Route path="publisher/pricing" element={<PublisherGate><PublisherPricing /></PublisherGate>} />
         <Route path="publisher/publish" element={<PublisherGate><PublisherPublish /></PublisherGate>} />
+        <Route path="publisher/external" element={<PublisherGate><PublisherExternal /></PublisherGate>} />
       </Route>
       {/* Verificación pública de una licencia (la URL que acompaña a la licencia). Sin sesión. */}
       <Route path="/verify/:id" element={<Verify />} />

@@ -25,7 +25,8 @@
     "results": "Resultados",
     "menu": "Menu",
     "close_menu": "Fechar menu",
-    "admin_claims": "Reclamações"
+    "admin_claims": "Reclamações",
+    "external": "Serviços externos"
   },
   "topbar": {
     "balance": "Saldo:",
@@ -979,5 +980,50 @@
     "payouts_subtitle": "Você fica com {{netPct}}% de cada chamada paga. O ganho fica retido por um prazo e depois é liberado para a sua wallet.",
     "kpi_hint": "de hoje; retido ao fechar o dia",
     "wallet_desc": "Seus ganhos chegam aqui quando cada retenção é liberada."
+  },
+  "external": {
+    "title": "Serviços externos",
+    "subtitle": "Liste uma API que já cobra por conta própria. Não é preciso integrar nada: a Kiba a mostra aos assistentes e paga cada chamada na hora.",
+    "list_title": "Seus serviços externos",
+    "list_desc": "O preço inclui a comissão da Kiba. Sua API recebe o preço completo em cada chamada.",
+    "loading": "Carregando…",
+    "empty": "Você ainda não listou nenhum serviço externo.",
+    "col": {
+      "service": "Serviço",
+      "url": "URL",
+      "protocol": "Cobra com",
+      "price": "Preço por chamada",
+      "calls": "Chamadas"
+    },
+    "mpp_hint": "Listado. A Kiba ainda não paga com MPP.",
+    "remove": "Remover {{name}}",
+    "add_title": "Listar uma API",
+    "add_desc": "Ao salvar, a Kiba pede uma cotação à URL sem pagar. Só é aceita se responder pedindo pagamento com x402 na Stellar ou com MPP.",
+    "field": {
+      "name": "Nome",
+      "slug": "Identificador",
+      "slug_hint": "Os assistentes a chamam como {{id}}.",
+      "url": "URL da API",
+      "method": "Método",
+      "url_hint": "Deve ser https e pública.",
+      "description": "Descrição",
+      "description_hint": "O que faz e quando usar. É o que o assistente lê para decidir se a chama."
+    },
+    "params": {
+      "title": "Parâmetros",
+      "hint": "O que a API precisa em cada chamada. Coloque um exemplo nos que forem necessários para cotar.",
+      "name": "Nome",
+      "where": "Onde vai",
+      "in_query": "Na URL",
+      "in_body": "No corpo",
+      "description": "Descrição",
+      "example": "Exemplo",
+      "required": "Obrigatório",
+      "remove": "Remover parâmetro",
+      "add": "Adicionar parâmetro"
+    },
+    "checking": "Pedindo cotação…",
+    "submit": "Listar serviço",
+    "created": "Pronto. Já aparece no catálogo dos assistentes."
   }
 }
