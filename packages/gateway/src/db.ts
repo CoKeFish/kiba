@@ -397,6 +397,17 @@ async function runInit(): Promise<void> {
   await pool.query(`ALTER TABLE agent_earnings ADD COLUMN IF NOT EXISTS refunded BIGINT NOT NULL DEFAULT 0`);
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_earnings_hold ON agent_earnings(hold_id)`);
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_earnings_tx ON agent_earnings(tx_id)`);
+  // Créditos por lotes (billing.ts): cada entrada de créditos con su fecha de vencimiento.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS credit_lots (
+      id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      user_id BIGINT NOT NULL REFERENCES users(id),
+      amount BIGINT NOT NULL,
+      remaining BIGINT NOT NULL,
+      expires_at BIGINT,
+      created_at BIGINT NOT NULL
+    )`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS credit_lots_open ON credit_lots (user_id, expires_at) WHERE remaining > 0`);
   // Pagos sueltos de la tesorería (treasury-pay.ts): el hash se guarda antes de enviar.
   await pool.query(`
     CREATE TABLE IF NOT EXISTS treasury_payments (

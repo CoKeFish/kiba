@@ -293,6 +293,13 @@ export type User = {
 
 /** Respuesta de `/v1/balance` — chain-agnostic, con aliases legacy. */
 export type BalanceResponse = {
+  /** Los créditos son un prepago: con tope por cuenta y con vencimiento. */
+  credit?: {
+    cap_usd: number;
+    room_usd: number;
+    expiry_days: number;
+    next_expiry: { base_units: number; usd: number; at: number } | null;
+  };
   asset: "SOL" | "XLM";
   base_unit_name: "lamports" | "stroops";
   balance_base_units: number;
@@ -339,7 +346,7 @@ export type TopupResponse = {
 export type Transaction = {
   id: string;
   user_id: string;
-  type: "topup" | "call" | "refund";
+  type: "topup" | "call" | "refund" | "expire";
   amount_lamports: number;
   service?: string;
   channel?: "sdk" | "rest" | "mcp";

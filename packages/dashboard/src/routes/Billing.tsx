@@ -107,6 +107,17 @@ export default function Billing() {
                 {/* Un solo saldo: lo regalado + la wallet de pagos, ya descontado lo usado. */}
                 <p className="billing-balance__value">{balance ? formatBalance(balance.total_usd) : "—"}</p>
                 <p className="billing-balance__hint">{t("billing.balance_hint_total")}</p>
+                {balance?.credit && (
+                  <p className="billing-balance__hint">
+                    {t("billing.credit_cap", { cap: formatBalance(balance.credit.cap_usd) })}
+                    {balance.credit.next_expiry &&
+                      " " +
+                        t("billing.credit_expiry", {
+                          amount: formatBalance(balance.credit.next_expiry.usd),
+                          date: new Date(balance.credit.next_expiry.at * 1000).toLocaleDateString(),
+                        })}
+                  </p>
+                )}
               </div>
               <div className="billing-balance__icon">
                 <Wallet size={22} strokeWidth={2} />

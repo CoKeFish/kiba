@@ -64,7 +64,7 @@ import {
   registerExternal,
   removeExternal,
 } from './external';
-import { getBalance, getTransactions, lamportsToUsd, topup } from './billing';
+import { assertTopupAllowed, creditStatus, expireCredits, getBalance, getTransactions, lamportsToUsd, topup } from './billing';
 import {
   getPaymentProvider,
   getProvider,
@@ -72,6 +72,7 @@ import {
   getCharge as getChargeById,
   verifyCharge as verifyChargeRouted,
   COP_USD_RATE,
+  copToUsd,
 } from './payments';
 import { listAgents, masterWalletPubkey, platformPublicKey } from './proxy';
 import { getLicense, licenseDto, listLicenses, verifyLicense } from './licenses';
@@ -423,10 +424,11 @@ async function handleTopup(req: Request, res: Response) {
     if (json) return res.status(400).json({ error: 'invalid amount (must be 0 < n <= 1000)' });
     return res.status(400).send('invalid amount');
   }
-  // Tope de saldo agregado (créditos virtuales) anti-abuso / drenaje de treasury vía refills.
-  const MAX_BALANCE_USD = 10_000;
-  if (lamportsToUsd(await getBalance(userId)) + amount > MAX_BALANCE_USD) {
-    const capMsg = `balance cap exceeded (max $${MAX_BALANCE_USD})`;
+  // Tope de créditos por cuenta: son un prepago, no un lugar donde guardar dinero.
+  try {
+    await assertTopupAllowed(userId, amount);
+  } catch (err) {
+    const capMsg = (err as Error).message;
     if (json) return res.status(400).json({ error: capMsg });
     return res.status(400).send(capMsg);
   }
@@ -487,6 +489,12 @@ app.post('/v1/payments/breb/charge', requireAuth, async (req, res) => {
   }
   if (amountCop > 4_000_000) {
     return res.status(400).json({ error: 'amountCop capped at 4,000,000 COP in demo mode' });
+  }
+  // El tope se revisa antes de cobrar: no se le cobra a nadie una recarga que no cabe.
+  try {
+    await assertTopupAllowed(req.bearerUser!.id, copToUsd(amountCop));
+  } catch (err) {
+    return res.status(400).json({ error: (err as Error).message });
   }
   const redirectUrl =
     typeof req.body?.redirectUrl === 'string' ? req.body.redirectUrl : undefined;
@@ -920,8 +928,17 @@ app.get('/v1/me', requireAuth, async (req, res) => {
 });
 
 app.get('/v1/balance', requireAuth, async (req, res) => {
+  // Primero los créditos: al consultarlos se vence lo que ya caducó.
+  const credit = await creditStatus(req.bearerUser!.id);
   const balances = await getUserBalances(req.bearerUser!.id);
   res.json({
+    // Los créditos son un prepago: con tope por cuenta, con vencimiento, sin retiro ni transferencia.
+    credit: {
+      cap_usd: credit.capUsd,
+      room_usd: credit.roomUsd,
+      expiry_days: credit.expiryDays,
+      next_expiry: credit.nextExpiry ? { base_units: credit.nextExpiry.lamports, usd: credit.nextExpiry.usd, at: credit.nextExpiry.at } : null,
+    },
     asset: balances.asset,
     base_unit_name: balances.baseUnitName,
     balance_base_units: balances.creditBaseUnits,
@@ -1895,6 +1912,11 @@ if (channelsEnabled()) {
     void runChannelJob().catch((err) => console.error('[channel] job falló:', (err as Error).message));
   }, CHANNEL_JOB_INTERVAL_MS);
 }
+
+// Créditos: vence los que caducaron sin usarse.
+setInterval(() => {
+  void expireCredits().catch((err) => console.error('[créditos] job de caducidad falló:', (err as Error).message));
+}, Number(process.env.CREDIT_EXPIRY_JOB_INTERVAL_MS) || 3_600_000);
 
 // Pagos sueltos de la tesorería (devoluciones): resuelve por su hash los que quedaron sin
 // respuesta y reintenta los que no entraron.

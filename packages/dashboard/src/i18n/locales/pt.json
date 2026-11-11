@@ -181,7 +181,9 @@
     "th_amount_usd": "Valor (USD)",
     "th_status": "Status",
     "badge_topup": "recarga",
-    "status_completed": "Concluída"
+    "status_completed": "Concluída",
+    "credit_cap": "Os créditos são um pré-pagamento: até {{cap}} por conta, sem saque nem transferência.",
+    "credit_expiry": "{{amount}} vencem em {{date}}."
   },
   "payments": {
     "breb": {
@@ -684,7 +686,8 @@
     "type": {
       "call": "Chamada",
       "topup": "Recarga",
-      "refund": "Reembolso"
+      "refund": "Reembolso",
+      "expire": "Créditos vencidos"
     },
     "status": {
       "success": "Sucesso",

@@ -276,3 +276,102 @@ test('attachSignature en id inexistente: no-throw, no efecto', async () => {
   const row = await db.prepare('SELECT * FROM transactions WHERE id = 999999').get();
   assert.equal(row, undefined);
 });
+
+
+// ─── Créditos como prepago: tope, caducidad, sin retiro ─────────────────────
+
+import {
+  CREDIT_EXPIRY_DAYS,
+  CREDIT_MAX_BALANCE_USD,
+  assertTopupAllowed,
+  creditStatus,
+  expireCredits,
+} from '../src/billing';
+
+const DAY = 86_400;
+const nowS = () => Math.floor(Date.now() / 1000);
+/** Hace que todos los lotes de una cuenta hayan entrado hace `days` días. */
+const ageLots = (userId: number, days: number) =>
+  db.prepare('UPDATE credit_lots SET expires_at = expires_at - ? WHERE user_id = ?').run(days * DAY, userId);
+const lotsOf = async (userId: number) =>
+  ((await db.prepare('SELECT remaining FROM credit_lots WHERE user_id = ? AND remaining > 0 ORDER BY expires_at, id').all(userId)) as Array<{ remaining: number }>).map(
+    (l) => Number(l.remaining),
+  );
+
+test('tope por cuenta: una recarga que lo supera se rechaza, y dice cuánto cabe', async () => {
+  const userId = await createTestUser('cap@test', 0);
+  await assertTopupAllowed(userId, CREDIT_MAX_BALANCE_USD);
+  await topup(userId, CREDIT_MAX_BALANCE_USD - 10);
+  await assertTopupAllowed(userId, 10);
+  await assert.rejects(() => assertTopupAllowed(userId, 10.01), /puedes recargar hasta 10\.00 USD más/);
+  const st = await creditStatus(userId);
+  assert.equal(st.capUsd, CREDIT_MAX_BALANCE_USD);
+  assert.ok(Math.abs(st.roomUsd - 10) < 1e-6);
+});
+
+test('los créditos caducan: se gasta primero lo que vence antes y lo vencido se descuenta', async () => {
+  assert.equal(CREDIT_EXPIRY_DAYS, 365);
+  const userId = await createTestUser('exp@test', 0);
+  await topup(userId, 1); // 1 USD viejo
+  await creditStatus(userId); // crea su lote
+  await ageLots(userId, 300); // le quedan 65 días
+  await topup(userId, 2); // 2 USD nuevos
+
+  let st = await creditStatus(userId);
+  assert.equal(st.balanceLamports, usdToLamports(3));
+  assert.deepEqual(await lotsOf(userId), [usdToLamports(1), usdToLamports(2)]);
+  assert.equal(st.nextExpiry?.lamports, usdToLamports(1));
+  assert.ok(Math.abs(st.nextExpiry!.at - (nowS() + 65 * DAY)) < 5);
+
+  // Un gasto de 0,40 sale del lote viejo.
+  const d = await debit({ userId, lamports: usdToLamports(0.4), service: 'x' });
+  assert.equal(d.ok, true);
+  assert.deepEqual(await lotsOf(userId), [usdToLamports(0.6), usdToLamports(2)]);
+
+  // Pasa el tiempo: el lote viejo vence. Lo que le quedaba se descuenta y queda registrado.
+  assert.equal(await expireCredits(nowS() + 66 * DAY), 1);
+  assert.equal(await getBalance(userId), usdToLamports(2));
+  assert.deepEqual(await lotsOf(userId), [usdToLamports(2)]);
+  const tx = (await db.prepare(`SELECT amount_lamports, type FROM transactions WHERE user_id = ? AND type = 'expire'`).get(userId)) as {
+    amount_lamports: number;
+    type: string;
+  };
+  assert.equal(Number(tx.amount_lamports), -usdToLamports(0.6));
+  assert.equal(await expireCredits(nowS() + 66 * DAY), 0); // no dos veces
+});
+
+test('lo caducado no se puede gastar aunque el trabajo periódico no haya pasado', async () => {
+  const userId = await createTestUser('late@test', 0);
+  await topup(userId, 1);
+  await creditStatus(userId);
+  await ageLots(userId, 366); // ya venció
+  const d = await debit({ userId, lamports: usdToLamports(0.5), service: 'x' });
+  assert.deepEqual(d, { ok: false, error: 'insufficient balance' });
+  assert.equal(await getBalance(userId), 0);
+});
+
+test('un reembolso entra como créditos nuevos, con su propio vencimiento', async () => {
+  const userId = await createTestUser('refund@test', 0);
+  await topup(userId, 1);
+  await debit({ userId, lamports: usdToLamports(1), service: 'x' });
+  assert.deepEqual(await lotsOf(userId), []);
+  // Así devuelven saldo los demás módulos: sumando al total, sin saber de lotes.
+  await db.prepare('UPDATE users SET balance_lamports = balance_lamports + ? WHERE id = ?').run(usdToLamports(1), userId);
+  const st = await creditStatus(userId);
+  assert.deepEqual(await lotsOf(userId), [usdToLamports(1)]);
+  assert.ok(Math.abs(st.nextExpiry!.at - (nowS() + 365 * DAY)) < 5);
+});
+
+test('los créditos no salen de la cuenta: no hay retiro ni transferencia', async () => {
+  // El único gasto posible es `debit` (una llamada) y la caducidad. Ninguna ruta del gateway
+  // resta créditos de otra forma: se comprueba sobre el código.
+  const { readFileSync, readdirSync } = await import('node:fs');
+  const dir = new URL('../src/', import.meta.url);
+  const offenders: string[] = [];
+  for (const f of readdirSync(dir)) {
+    if (!f.endsWith('.ts') || f === 'billing.ts') continue;
+    const src = readFileSync(new URL(f, dir), 'utf8');
+    if (/balance_lamports\s*=\s*balance_lamports\s*-/.test(src)) offenders.push(f);
+  }
+  assert.deepEqual(offenders, []);
+});

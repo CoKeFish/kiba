@@ -181,7 +181,9 @@
     "th_amount_usd": "Monto (USD)",
     "th_status": "Estado",
     "badge_topup": "recarga",
-    "status_completed": "Completada"
+    "status_completed": "Completada",
+    "credit_cap": "Los créditos son un prepago: hasta {{cap}} por cuenta, sin retiro ni transferencia.",
+    "credit_expiry": "{{amount}} vencen el {{date}}."
   },
   "payments": {
     "breb": {
@@ -684,7 +686,8 @@
     "type": {
       "call": "Llamada",
       "topup": "Recarga",
-      "refund": "Reembolso"
+      "refund": "Reembolso",
+      "expire": "Créditos vencidos"
     },
     "status": {
       "success": "Correcto",

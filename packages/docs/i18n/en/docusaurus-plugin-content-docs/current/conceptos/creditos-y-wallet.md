@@ -82,3 +82,17 @@ All in sandbox/test. Selected with `PAYMENT_PROVIDER`; the default is `bre-b-san
 | Wompi | Colombian PSP |
 | Bre-B | QR or key, manual confirmation |
 | USDC deposit on Stellar | Memo detection via Horizon |
+
+## Credits are a prepayment
+
+Credits pay for service calls and nothing else. They are not a money balance.
+
+| Rule | Detail |
+|---|---|
+| Cap per account | An account can hold up to 200 USD in credits. A top-up that exceeds it is rejected before you are charged. |
+| Expiry | Credits expire 365 days after they enter the account. The ones that expire first are spent first. The dashboard shows how much expires and when. |
+| No withdrawal | Credits are not converted to USDC or sent to a wallet. |
+| No transfer | They cannot be moved from one account to another. |
+| Refunds | If a call fails or a claim is accepted, what is returned comes in as new credits, with their own expiry. |
+
+If you want to be able to get back what you do not spend, use your wallet's deposit: that one is yours and returns to your wallet.

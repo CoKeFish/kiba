@@ -181,7 +181,9 @@
     "th_amount_usd": "Amount (USD)",
     "th_status": "Status",
     "badge_topup": "topup",
-    "status_completed": "Completed"
+    "status_completed": "Completed",
+    "credit_cap": "Credits are a prepayment: up to {{cap}} per account, with no withdrawal or transfer.",
+    "credit_expiry": "{{amount}} expire on {{date}}."
   },
   "payments": {
     "breb": {
@@ -684,7 +686,8 @@
     "type": {
       "call": "Call",
       "topup": "Top-up",
-      "refund": "Refund"
+      "refund": "Refund",
+      "expire": "Expired credits"
     },
     "status": {
       "success": "Success",

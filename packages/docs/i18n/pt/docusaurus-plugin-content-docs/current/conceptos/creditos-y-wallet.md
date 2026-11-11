@@ -82,3 +82,17 @@ Todos em sandbox/teste. São selecionados com `PAYMENT_PROVIDER`; o padrão é `
 | Wompi | PSP colombiano |
 | Bre-B | QR ou chave, confirmação manual |
 | Depósito de USDC na Stellar | Detecção por memo via Horizon |
+
+## Os créditos são um pré-pagamento
+
+Os créditos servem para pagar chamadas a serviços e nada mais. Não são um saldo em dinheiro.
+
+| Regra | Detalhe |
+|---|---|
+| Limite por conta | Uma conta pode ter até 200 USD em créditos. Uma recarga que o ultrapassa é rejeitada antes de ser cobrada. |
+| Validade | Os créditos vencem 365 dias depois de entrarem na conta. Primeiro são gastos os que vencem antes. O painel mostra quanto vence e quando. |
+| Sem saque | Os créditos não são convertidos em USDC nem enviados a uma wallet. |
+| Sem transferência | Não passam de uma conta para outra. |
+| Reembolsos | Se uma chamada falhar ou uma reclamação for aceita, o valor devolvido entra como créditos novos, com validade própria. |
+
+Se você quer poder recuperar o que não gastar, use o depósito da sua wallet: esse é seu e volta para a sua wallet.
