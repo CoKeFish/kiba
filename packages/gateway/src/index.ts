@@ -53,7 +53,8 @@ import {
 } from './mcp-oauth';
 import { handleMcpRequest } from './mcp';
 import { callX402Url, x402PayerAddress, X402_NETWORK } from './x402';
-import { handleMppSell, listMppServices, mppSellEnabled } from './mpp-sell';
+import { handleMppSell, listMppServices, mppRefund, mppSellEnabled } from './mpp-sell';
+import { mppSessionsEnabled, prepareSessionOpen, registerSession, runMppSessionJob, sessionInfo } from './mpp-session';
 import {
   callExternal,
   isExternalService,
@@ -1409,6 +1410,38 @@ app.get('/mpp', async (req, res) => {
   }
 });
 
+// Pago por sesión: el agente abre un canal hacia Kiba y después cada llamada es solo una firma.
+
+/** Lo que hace falta para abrir un canal hacia Kiba. */
+app.get('/mpp/sessions/info', (_req, res) => {
+  if (!mppSellEnabled() || !mppSessionsEnabled()) return res.status(404).json({ error: 'not found' });
+  res.json(sessionInfo());
+});
+
+/** Arma la transacción que abre el canal; el agente la firma y la envía a la red. */
+app.post('/mpp/sessions/prepare', async (req, res) => {
+  if (!mppSellEnabled() || !mppSessionsEnabled()) return res.status(404).json({ error: 'not found' });
+  try {
+    const b = (req.body ?? {}) as Record<string, unknown>;
+    res.json(await prepareSessionOpen({ owner: String(b.owner ?? ''), commitmentKey: String(b.commitmentKey ?? ''), amount: Number(b.amount) }));
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+/** Registra un canal ya abierto: por su dirección (`channel`) o por la transacción que lo abrió (`openTx`). */
+app.post('/mpp/sessions', async (req, res) => {
+  if (!mppSellEnabled() || !mppSessionsEnabled()) return res.status(404).json({ error: 'not found' });
+  try {
+    const b = (req.body ?? {}) as Record<string, unknown>;
+    res.status(201).json(
+      await registerSession({ channel: typeof b.channel === 'string' ? b.channel : undefined, openTx: typeof b.openTx === 'string' ? b.openTx : undefined }),
+    );
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
 /** Una llamada a un servicio del catálogo, pagada con MPP. */
 app.all('/mpp/:service', (req, res) => {
   void handleMppSell(req, res).catch((err) => {
@@ -1859,6 +1892,13 @@ const CHANNEL_JOB_INTERVAL_MS = Number(process.env.CHANNEL_JOB_INTERVAL_MS) || 6
 if (channelsEnabled()) {
   setInterval(() => {
     void runChannelJob().catch((err) => console.error('[channel] job falló:', (err as Error).message));
+  }, CHANNEL_JOB_INTERVAL_MS);
+}
+
+// Sesiones de MPP: cobra a los canales de los agentes externos lo que ya firmaron.
+if (mppSellEnabled() && mppSessionsEnabled()) {
+  setInterval(() => {
+    void runMppSessionJob(mppRefund).catch((err) => console.error('[mpp] job de sesiones falló:', (err as Error).message));
   }, CHANNEL_JOB_INTERVAL_MS);
 }
 

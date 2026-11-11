@@ -3,8 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "Las librerías de MPP (Machine Payments Protocol) en Stellar, en un paquete aparte del gateway",
-  "type": "module",
-  "main": "index.js",
+  "main": "index.mjs",
   "types": "index.d.ts",
   "dependencies": {
     "@stellar/mpp": "^0.7.1",

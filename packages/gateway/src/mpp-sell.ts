@@ -9,6 +9,10 @@
  * se anota en el libro, igual que una llamada pagada con créditos. De ahí sigue el camino de
  * siempre (retención y liberación, o pago por lotes si la retención está apagada).
  *
+ * Un agente que hace muchas llamadas puede pagar por sesión: abre un canal hacia Kiba y manda la
+ * cabecera `X-Mpp-Channel` con su dirección. Cada llamada es entonces solo una firma, sin
+ * transacción en la red (mpp-session.ts).
+ *
  * Las pruebas de pago ya usadas se guardan en Postgres (`mpp_store`), así un mismo pago no sirve
  * dos veces aunque haya varios procesos del gateway.
  */
@@ -24,6 +28,7 @@ import { recordEarning } from './settlement';
 import { enqueueChainTask } from './treasury-queue';
 import { getSpendChain } from './spend';
 import { callServiceAsPlatform, listAgents, quoteService } from './proxy';
+import { getSession, mppSessionsEnabled, noteVoucher, parseVoucher, sessionCharger, voucherFits, type SessionView } from './mpp-session';
 
 /** ¿Se venden los servicios por MPP? `MPP_SELL=0` lo apaga. */
 export function mppSellEnabled(): boolean {
@@ -167,6 +172,8 @@ const realRefund: Refunder = (to, lamports) =>
     return sc.submitSponsored(tx.toXDR());
   });
 let refunder: Refunder = realRefund;
+/** Devuelve USDC desde la tesorería a quien pagó. */
+export const mppRefund: Refunder = (to, lamports) => refunder(to, lamports);
 /** Tests: sustituye la devolución en la red (null = la real). */
 export function setMppRefunder(fn: Refunder | null): void {
   refunder = fn ?? realRefund;
@@ -227,6 +234,26 @@ export async function handleMppSell(req: ExpressRequest, res: ExpressResponse): 
   const service = String(req.params.service ?? '');
   const payload: unknown = req.method === 'GET' ? { ...req.query } : (req.body ?? {});
 
+  // ¿Paga por sesión? Entonces la llamada nombra su canal.
+  const channel = String(req.get('x-mpp-channel') ?? (typeof req.query.channel === 'string' ? req.query.channel : '')).trim();
+  if (channel && req.method === 'GET') delete (payload as Record<string, unknown>).channel;
+  let session: SessionView | null = null;
+  if (channel) {
+    if (!mppSessionsEnabled()) {
+      res.status(404).json({ error: 'el pago por sesión no está disponible' });
+      return;
+    }
+    session = await getSession(channel);
+    if (!session) {
+      res.status(404).json({ error: 'canal no registrado: regístralo con POST /mpp/sessions' });
+      return;
+    }
+    if (session.status !== 'open') {
+      res.status(409).json({ error: 'ese canal tiene el cierre pedido y ya no acepta llamadas' });
+      return;
+    }
+  }
+
   // 1. Cuánto cuesta este pedido.
   let quote: Awaited<ReturnType<MppSellDeps['quote']>>;
   try {
@@ -237,13 +264,23 @@ export async function handleMppSell(req: ExpressRequest, res: ExpressResponse): 
     return;
   }
 
+  if (session && quote.lamports > session.availableBaseUnits) {
+    res.status(409).json({
+      error: `al canal le quedan ${lamportsToUsd(session.availableBaseUnits).toFixed(4)} USD y esta llamada cuesta ${lamportsToUsd(quote.lamports).toFixed(4)} USD; abre otro canal con más saldo`,
+    });
+    return;
+  }
+
   // 2. Cobro: 402 con el reto, o pago comprobado y liquidado en la red.
   const authorization = req.get('authorization') ?? undefined;
   const url = `${req.protocol}://${req.get('host')}${req.originalUrl}`;
   const webRequest = new Request(url, { method: req.method, headers: authorization ? { authorization } : {} });
   let result: ChargeResult;
   try {
-    result = await getCharger().charge({
+    const charging = session
+      ? await sessionCharger(channel, { secretKey: challengeSecret(), realm: process.env.MPP_REALM || 'kiba', store: pgMppStore() })
+      : getCharger();
+    result = await charging.charge({
       amount: usdc(quote.lamports),
       description: `Kiba: ${service}`,
       meta: { service },
@@ -266,14 +303,26 @@ export async function handleMppSell(req: ExpressRequest, res: ExpressResponse): 
   } catch {
     /* sin recibo legible: la llamada sigue, pero no hay hash que guardar */
   }
-  const payer = payerOf(authorization);
+  // Por sesión no hay transacción por llamada: la referencia es el canal y el total firmado.
+  let voucher: number | null = null;
+  if (session) {
+    const signed = parseVoucher(authorization);
+    // Una firma por más de lo que hay en el canal no se podría cobrar: no se sirve.
+    if (!signed || !(await voucherFits(channel, signed.amount))) {
+      res.status(409).json({ error: 'la firma supera lo que queda en el canal; abre otro canal con más saldo' });
+      return;
+    }
+    voucher = await noteVoucher(channel, signed);
+    reference = `canal:${channel}:${voucher}`;
+  }
+  const payer = session ? session.funder : payerOf(authorization);
   const now = Math.floor(Date.now() / 1000);
   const row = await db
     .prepare(
-      `INSERT INTO mpp_payments (service, pay_to, payer, amount, reference, status, created_at)
-       VALUES (?, ?, ?, ?, ?, 'paid', ?) RETURNING id`,
+      `INSERT INTO mpp_payments (service, pay_to, payer, amount, reference, status, channel, voucher, created_at)
+       VALUES (?, ?, ?, ?, ?, 'paid', ?, ?, ?) RETURNING id`,
     )
-    .run(service, quote.payTo, payer, quote.lamports, reference || null, now);
+    .run(service, quote.payTo, payer, quote.lamports, reference || null, session ? channel : null, voucher, now);
   const paymentId = Number(row.lastInsertRowid);
 
   // 4. Servir. Solo una llamada servida le deja ganancia al publicador.
@@ -284,7 +333,8 @@ export async function handleMppSell(req: ExpressRequest, res: ExpressResponse): 
     const msg = (err as Error).message;
     let refundTx: string | null = null;
     let status = 'refund_pending';
-    if (payer) {
+    // Por sesión Kiba todavía no ha cobrado esa firma: devuelve después de cobrarle al canal.
+    if (payer && !session) {
       try {
         refundTx = await refunder(payer, quote.lamports);
         status = 'refunded';
@@ -310,7 +360,11 @@ export async function handleMppSell(req: ExpressRequest, res: ExpressResponse): 
         service,
         result: out,
         cost: { baseUnits: quote.lamports, usd: lamportsToUsd(quote.lamports) },
-        payment: { reference: reference || null, network: MPP_NETWORK },
+        payment: {
+          reference: reference || null,
+          network: MPP_NETWORK,
+          ...(session ? { channel, cumulativeBaseUnits: voucher } : {}),
+        },
       }),
     ),
   );

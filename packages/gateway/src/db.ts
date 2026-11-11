@@ -419,6 +419,25 @@ async function runInit(): Promise<void> {
       created_at BIGINT NOT NULL
     )`);
   await pool.query(`CREATE INDEX IF NOT EXISTS mpp_payments_service ON mpp_payments (service, id)`);
+  // Pagos hechos por sesión: de qué canal salieron y con qué total firmado.
+  await pool.query(`ALTER TABLE mpp_payments ADD COLUMN IF NOT EXISTS channel TEXT`);
+  await pool.query(`ALTER TABLE mpp_payments ADD COLUMN IF NOT EXISTS voucher BIGINT`);
+  // Sesiones de MPP (mpp-session.ts): canales que agentes externos abrieron hacia Kiba.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS mpp_sessions (
+      channel TEXT PRIMARY KEY,
+      funder TEXT NOT NULL,
+      commitment_key TEXT NOT NULL,
+      wait_ledgers INTEGER NOT NULL DEFAULT 0,
+      status TEXT NOT NULL DEFAULT 'open',
+      cumulative BIGINT NOT NULL DEFAULT 0,
+      signature TEXT,
+      settled BIGINT NOT NULL DEFAULT 0,
+      last_voucher_at BIGINT,
+      created_at BIGINT NOT NULL
+    )`);
+  // Lo que queda dentro del canal en la red, según la última lectura.
+  await pool.query(`ALTER TABLE mpp_sessions ADD COLUMN IF NOT EXISTS balance BIGINT NOT NULL DEFAULT 0`);
   // Servicios externos: APIs que ya cobran con x402 o MPP, listadas con su URL (external.ts).
   await pool.query(`
     CREATE TABLE IF NOT EXISTS external_services (

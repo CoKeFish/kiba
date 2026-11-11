@@ -15,7 +15,7 @@ Kiba lo usa en los dos sentidos.
 
 Los [servicios externos](/publica-un-servicio/servicios-externos) que cobran con MPP se listan con su precio y se llaman con `call_agent`.
 
-Kiba paga un reto de MPP cuando ofrece un **cobro por llamada** (`stellar` / `charge`) en **USDC** y en la misma red en la que opera. Si la API solo ofrece otra moneda, otra red o un cobro por sesión, la llamada se rechaza sin cobrar.
+Como compradora, Kiba paga un reto de MPP cuando ofrece un **cobro por llamada** (`stellar` / `charge`) en **USDC** y en la misma red en la que opera. Si la API solo ofrece otra moneda, otra red o un cobro por sesión, la llamada se rechaza sin cobrar.
 
 ## Kiba vende
 
@@ -50,5 +50,38 @@ const res = await mppx.fetch('https://api.kiba.tools/mpp/translator', {
 | Un pago usado dos veces | Se rechaza. Las pruebas de pago ya usadas se guardan en la base de datos de Kiba. |
 | El servicio falla después del pago | Kiba le devuelve el USDC a quien pagó, en una transacción aparte. |
 | Límite | 60 peticiones por minuto por dirección IP. |
+
+## Pago por sesión
+
+Un agente que hace muchas llamadas no tiene que pagar en la red cada una. Abre un **canal de pago** hacia Kiba, deposita USDC ahí una vez, y en cada llamada manda solo una firma que dice cuánto debe en total. Una llamada tarda menos de medio segundo. Kiba le cobra al canal por tandas, en una sola transacción.
+
+1. Pide los datos para abrir el canal: `GET /mpp/sessions/info`.
+2. Pide la transacción de apertura: `POST /mpp/sessions/prepare` con `owner` (tu cuenta), `commitmentKey` (la clave pública con la que vas a firmar) y `amount` (el depósito, en unidades base). Fírmala con tu cuenta y envíala a la red.
+3. Registra el canal: `POST /mpp/sessions` con `openTx` (el hash de esa transacción) o `channel` (la dirección del canal).
+4. Llama a `/mpp/<servicio>` con la cabecera `X-Mpp-Channel: <canal>`.
+
+```js
+import { Mppx } from 'mppx/client'
+import { stellar } from '@stellar/mpp/channel/client'
+
+const mppx = Mppx.create({
+  methods: [stellar.channel({ commitmentKey, allowedChannels: [channel] })],
+})
+const res = await mppx.fetch('https://api.kiba.tools/mpp/translator', {
+  method: 'POST',
+  headers: { 'content-type': 'application/json', 'x-mpp-channel': channel },
+  body: JSON.stringify({ text: 'hello', to: 'es' }),
+})
+```
+
+| Qué pasa | Detalle |
+|---|---|
+| Qué canal se acepta | Solo el contrato de canal de Stellar que crea la fábrica de Kiba, con Kiba de destinataria y con USDC. Kiba lo comprueba en la red al registrarlo. |
+| Cuándo cobra Kiba | Cuando lo pendiente pasa de 0,10 USDC, cuando la última firma tiene más de 10 minutos, o de inmediato si pides cerrar el canal. |
+| Si la llamada no cabe | Una llamada que cuesta más de lo que queda en el canal se rechaza sin servir. |
+| Si el servicio falla | Kiba cobra esa firma y te devuelve el USDC en una transacción aparte. |
+| Recuperar lo que sobra | El canal es tuyo: pides el cierre en el contrato (`close_start`) y, pasado el plazo de espera, retiras el resto (`refund`). Kiba cobra lo pendiente antes. |
+
+Kiba todavía no **paga** por sesión cuando es ella la que compra: solo cobros por llamada.
 
 El publicador no tiene que hacer nada: su servicio se vende por MPP con el mismo precio y cobra por el mismo camino.

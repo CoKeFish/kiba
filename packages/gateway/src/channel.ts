@@ -50,6 +50,7 @@ import {
   scValToNative,
   SorobanDataBuilder,
   xdr,
+  StrKey,
 } from '@stellar/stellar-sdk';
 import { resolveChainConfig } from 'kiba-sdk';
 import { db } from './db';
@@ -105,6 +106,11 @@ export interface ChannelChain {
   /** Saldo que queda en el canal y total ya cobrado por Kiba. */
   read(channel: string): Promise<{ balance: bigint; withdrawn: bigint }>;
   /**
+   * Lee de la red un canal que no abrió Kiba (una sesión de MPP): si es el contrato auténtico,
+   * quién lo fondea, a quién le paga, en qué moneda y con qué clave se firma lo que debe.
+   */
+  describe(channel: string): Promise<ChannelDescription>;
+  /**
    * Estado en la red de cada canal:
    *   - `closeEffective`: ledger en que se hace efectivo el cierre (null = nadie pidió el retiro).
    *     Sirve para enterarse de los retiros pedidos directamente al contrato, sin pasar por Kiba.
@@ -121,6 +127,19 @@ export interface ChannelChain {
   settle(channel: string, amount: bigint, sig: Buffer): Promise<string>;
   /** Cobra hasta `amount`, cierra el canal y devuelve el resto al usuario. Devuelve el hash. */
   close(channel: string, amount: bigint, sig: Buffer): Promise<string>;
+}
+
+export interface ChannelDescription {
+  /** ¿Tiene el mismo código que los canales que crea la fábrica de Kiba? */
+  genuine: boolean;
+  from: string;
+  to: string;
+  token: string;
+  /** Clave pública (G...) con la que se firma lo que el canal debe. */
+  commitmentKey: string;
+  waitLedgers: number;
+  closeEffective: number | null;
+  balance: bigint;
 }
 
 export interface ChannelOnChain {
@@ -416,6 +435,32 @@ class StellarChannelChain implements ChannelChain {
     return BigInt(scValToNative(sim.result!.retval) as bigint);
   }
 
+  async describe(channel: string): Promise<ChannelDescription> {
+    const res = await this.server.getLedgerEntries(instanceKey(channel));
+    const entry = res.entries[0];
+    if (!entry) throw new Error('ese canal no existe en la red');
+    const inst = entry.val.contractData().val().instance();
+    const exe = inst.executable();
+    const wasm = exe.switch() === xdr.ContractExecutableType.contractExecutableWasm() ? Buffer.from(exe.wasmHash()) : null;
+    const fields = new Map<string, unknown>();
+    for (const it of inst.storage() ?? []) {
+      const k = scValToNative(it.key()) as unknown;
+      if (Array.isArray(k) && typeof k[0] === 'string') fields.set(k[0], scValToNative(it.val()));
+    }
+    const key = fields.get('CommitmentKey');
+    const genuine = wasm !== null && wasm.equals(await this.channelCodeHash()) && key instanceof Uint8Array && key.length === 32;
+    return {
+      genuine,
+      from: String(fields.get('From') ?? ''),
+      to: String(fields.get('To') ?? ''),
+      token: String(fields.get('Token') ?? ''),
+      commitmentKey: key instanceof Uint8Array && key.length === 32 ? StrKey.encodeEd25519PublicKey(Buffer.from(key)) : '',
+      waitLedgers: Number(fields.get('RefundWaitingPeriod') ?? 0),
+      closeEffective: fields.has('CloseEffectiveAtLedger') ? Number(fields.get('CloseEffectiveAtLedger')) : null,
+      balance: genuine ? (await this.read(channel)).balance : 0n,
+    };
+  }
+
   async read(channel: string): Promise<{ balance: bigint; withdrawn: bigint }> {
     const [balance, withdrawn] = await Promise.all([this.view(channel, 'balance'), this.view(channel, 'withdrawn')]);
     return { balance, withdrawn };
@@ -500,6 +545,8 @@ function getChain(): ChannelChain {
 }
 /** Pruebas contra la red real: el acceso a la cadena en uso. */
 export const chainForTests = (): ChannelChain => getChain();
+/** Acceso a la red de los canales, para quien cobra canales que no son depósitos de usuarios (mpp-session.ts). */
+export const getChannelChain = (): ChannelChain => getChain();
 /** Tests: sustituye el acceso a la cadena (null = el real). */
 export function setChannelChain(c: ChannelChain | null): void {
   chain = c;
