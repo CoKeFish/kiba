@@ -31,6 +31,7 @@ import { BASE_UNITS_PER_TOKEN, chainClientFor } from './chain';
 import { ensureTreasuryFunded, getMasterWallet } from './wallets';
 import { enqueueChainTask, warmServiceEscrow, type ServiceEscrowRow } from './escrows';
 import { KIBA_PAY_REF, kibaPayEnabled, reconcileKibaPays, sendKibaPay, treasuryClient } from './kiba-pay';
+import { retentionEnabled } from './retention';
 
 /** Monto mínimo (unidades base) para liquidar. Default 1 USDC = 1e7 stroops. */
 export const MIN_PAYOUT = Number(process.env.SETTLEMENT_MIN_PAYOUT) || BASE_UNITS_PER_TOKEN;
@@ -52,14 +53,17 @@ export async function recordEarning(args: {
   service: string;
   payTo: string;
   lamports: number;
+  /** Quién pagó la llamada y cómo: permite reclamarla y devolverla por donde salió (retention.ts). */
+  paidBy?: { userId: number; transactionId: number; paidWith: 'credit' | 'deposit'; channelId?: number };
 }): Promise<number> {
   const now = Math.floor(Date.now() / 1000);
+  const p = args.paidBy;
   const info = await db
     .prepare(
-      `INSERT INTO agent_earnings (service, pay_to, amount_lamports, created_at)
-     VALUES (?, ?, ?, ?) RETURNING id`,
+      `INSERT INTO agent_earnings (service, pay_to, amount_lamports, created_at, user_id, tx_id, paid_with, channel_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
     )
-    .run(args.service, args.payTo, args.lamports, now);
+    .run(args.service, args.payTo, args.lamports, now, p?.userId ?? null, p?.transactionId ?? null, p?.paidWith ?? null, p?.channelId ?? null);
   return Number(info.lastInsertRowid);
 }
 
@@ -110,6 +114,15 @@ export async function settleAgent(service: string): Promise<SettleResult> {
 }
 
 async function settleAgentInner(service: string): Promise<SettleResult> {
+  // Con retención, las ganancias no se liquidan a pedido: se liberan solas al vencer su plazo.
+  if (retentionEnabled()) {
+    return {
+      service,
+      status: 'skipped',
+      amountLamports: await getAccrued(service),
+      reason: 'las ganancias se liberan al vencer su plazo de retención',
+    };
+  }
   // Contrato de pagos de Kiba: lo acumulado sin fondear en TW se paga con UNA tx `pay`. El
   // camino de TW de abajo sigue solo para barrer escrows de ciclo que aún tengan fondos.
   if (kibaPayEnabled()) {

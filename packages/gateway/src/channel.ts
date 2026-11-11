@@ -53,6 +53,7 @@ import {
 } from '@stellar/stellar-sdk';
 import { resolveChainConfig } from 'kiba-sdk';
 import { db } from './db';
+import { enqueueChainTask } from './escrows';
 import { getMasterWallet } from './wallets';
 import {
   ADDRESS_RE,
@@ -542,6 +543,7 @@ interface ChannelRow {
   unsettled_since: number | null;
   last_active_at: number | null;
   closed_reason: string | null;
+  owed: number;
   status: ChannelState;
   close_effective_ledger: number | null;
   refunded: number | null;
@@ -559,6 +561,7 @@ const num = (r: ChannelRow): ChannelRow => ({
   held: Number(r.held ?? 0),
   unsettled_since: r.unsettled_since == null ? null : Number(r.unsettled_since),
   last_active_at: r.last_active_at == null ? null : Number(r.last_active_at),
+  owed: Number(r.owed ?? 0),
   close_effective_ledger: r.close_effective_ledger === null ? null : Number(r.close_effective_ledger),
   refunded: r.refunded === null ? null : Number(r.refunded),
   created_at: Number(r.created_at),
@@ -716,6 +719,7 @@ onPreparedSent('channel_refund', async ({ meta, hash }) => {
   await db
     .prepare(`UPDATE pay_channels SET status = 'closed', refunded = ?, closed_at = ? WHERE id = ? AND status = 'closing'`)
     .run(amount, nowS(), id);
+  await countOverCollected(id);
   await addMove(id, 'refund', amount, hash);
 });
 
@@ -801,6 +805,63 @@ export async function confirmChannel(r: { holdId: number; channelId: number; amo
   }
 }
 
+/**
+ * Devuelve `amount` al depósito por un reclamo aceptado. Con el canal abierto, lo consumido baja
+ * y vuelve a estar disponible. Si Kiba ya había cobrado ese consumo al contrato, o el canal ya
+ * no está abierto, Kiba le queda debiendo ese monto a la wallet y se lo paga (`payOwed`).
+ */
+export async function refundToChannel(channelId: number, amount: number): Promise<void> {
+  const open = await db
+    .prepare(`UPDATE pay_channels SET spent = GREATEST(0, spent - ?) WHERE id = ? AND status = 'open' RETURNING id`)
+    .get(amount, channelId);
+  if (open) return;
+  await db.prepare('UPDATE pay_channels SET owed = owed + ? WHERE id = ?').run(amount, channelId);
+}
+
+/**
+ * Al cerrarse un canal: si Kiba cobró más de lo que al final quedó consumido (por devoluciones
+ * de reclamos hechas después de cobrar), esa diferencia pasa a ser deuda de Kiba con la wallet.
+ * Se cuenta una sola vez por canal.
+ */
+async function countOverCollected(channelId: number): Promise<void> {
+  await db
+    .prepare(
+      `UPDATE pay_channels SET owed = owed + GREATEST(0, settled - spent), over_counted = 1
+       WHERE id = ? AND over_counted = 0`,
+    )
+    .run(channelId);
+}
+
+/** Paga desde la tesorería lo que Kiba les debe a las wallets de canales ya cerrados. */
+async function payOwed(): Promise<void> {
+  const rows = (
+    (await db.prepare(`SELECT * FROM pay_channels WHERE status = 'closed' AND owed > 0`).all()) as ChannelRow[]
+  ).map(num);
+  const sc = getSpendChain();
+  const treasury = treasuryKeypair();
+  for (const ch of rows) {
+    // Apartar antes de pagar: dos pasadas a la vez no pagan dos veces.
+    const taken = await db
+      .prepare('UPDATE pay_channels SET owed = owed - ? WHERE id = ? AND owed >= ? RETURNING id')
+      .get(ch.owed, ch.id, ch.owed);
+    if (!taken) continue;
+    try {
+      const hash = await enqueueChainTask(async () => {
+        const tx = TransactionBuilder.fromXDR(
+          await sc.buildPayment(treasury.publicKey(), ch.address, BigInt(ch.owed)),
+          sc.passphrase(),
+        );
+        tx.sign(treasury);
+        return sc.submitSponsored(tx.toXDR());
+      });
+      await addMove(ch.id, 'claim_refund', ch.owed, hash);
+    } catch (err) {
+      await db.prepare('UPDATE pay_channels SET owed = owed + ? WHERE id = ?').run(ch.owed, ch.id);
+      console.error(`[channel] pagar devolución del canal ${ch.id}:`, (err as Error).message);
+    }
+  }
+}
+
 /** Lo que el usuario puede gastar de su depósito ahora, o null si no tiene uno abierto. */
 export async function channelAvailable(userId: number): Promise<number | null> {
   if (!enabled()) return null;
@@ -867,17 +928,20 @@ export async function liquidateChannel(userId: number, reason?: 'idle'): Promise
     .get(before.id, before.status)) as ChannelRow | undefined;
   if (!claimed) throw new Error('el depósito cambió; vuelve a intentarlo');
   const ch = num(claimed);
+  // Lo que se le presenta al contrato nunca baja de lo ya cobrado: si un reclamo aceptado dejó
+  // lo consumido por debajo, la diferencia se le paga a la wallet aparte (`payOwed`).
+  const total = Math.max(ch.spent, ch.settled);
   let hash: string;
   try {
-    hash = await c.close(ch.channel!, BigInt(ch.spent), signCommitment(ch, ch.spent));
+    hash = await c.close(ch.channel!, BigInt(total), signCommitment(ch, total));
   } catch (err) {
     await db.prepare(`UPDATE pay_channels SET status = ? WHERE id = ? AND status = 'liquidating'`).run(before.status, ch.id);
     throw new Error(String((err as Error).message).split('\n')[0]);
   }
   // Si la lectura falla, la transacción ya entró: se asume la devolución completa.
   const pending = Number((await c.read(ch.channel!).catch(() => ({ balance: 0n }))).balance);
-  const paid = ch.spent - ch.settled;
-  const refunded = Math.max(0, ch.deposited - ch.spent - pending);
+  const paid = total - ch.settled;
+  const refunded = Math.max(0, ch.deposited - total - pending);
   if (pending > 0) {
     // La wallet no pudo recibir la devolución (p. ej. dejó de aceptar USDC): el resto sigue en el
     // canal, que ya está cerrado en la red. Queda como retiro pendiente, disponible de inmediato.
@@ -886,13 +950,14 @@ export async function liquidateChannel(userId: number, reason?: 'idle'): Promise
       .prepare(
         `UPDATE pay_channels SET status = 'closing', settled = ?, unsettled_since = NULL, close_effective_ledger = ?, closed_reason = ? WHERE id = ?`,
       )
-      .run(ch.spent, effective, reason ?? null, ch.id);
+      .run(total, effective, reason ?? null, ch.id);
   } else {
     await db
       .prepare(
         `UPDATE pay_channels SET status = 'closed', settled = ?, unsettled_since = NULL, refunded = ?, closed_at = ?, closed_reason = ? WHERE id = ?`,
       )
-      .run(ch.spent, refunded, nowS(), reason ?? null, ch.id);
+      .run(total, refunded, nowS(), reason ?? null, ch.id);
+    await countOverCollected(ch.id);
   }
   if (paid > 0) await addMove(ch.id, 'settle', paid, hash);
   await addMove(ch.id, 'close', refunded, hash);
@@ -913,6 +978,7 @@ export async function liquidateChannel(userId: number, reason?: 'idle'): Promise
 export async function runChannelJob(): Promise<void> {
   if (!enabled()) return;
   await sweepStaleHolds();
+  await payOwed().catch((err) => console.error('[channel] devoluciones:', (err as Error).message));
   const rows = (
     (await db.prepare(`SELECT * FROM pay_channels WHERE status IN ('open','closing') AND channel IS NOT NULL`).all()) as ChannelRow[]
   ).map(num);
@@ -990,7 +1056,10 @@ export async function runChannelJob(): Promise<void> {
              WHERE id = ? AND status = 'closing' RETURNING id`,
           )
           .get(Number(withdrawn), refunded, nowS(), ch.id);
-        if (closed) await addMove(ch.id, 'refund', refunded, null);
+        if (closed) {
+          await countOverCollected(ch.id);
+          await addMove(ch.id, 'refund', refunded, null);
+        }
       }
     } catch (err) {
       console.error(`[channel] job canal ${ch.id}:`, (err as Error).message);

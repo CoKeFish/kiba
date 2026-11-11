@@ -12,6 +12,7 @@ import {
   Contract,
   Keypair,
   Networks,
+  Operation,
   StrKey,
   TransactionBuilder,
   nativeToScVal,
@@ -41,6 +42,7 @@ import {
   prepareChannelOpen,
   prepareChannelRefund,
   prepareChannelTopUp,
+  refundToChannel,
   setChannelChain,
   settleChannel,
   type ChannelChain,
@@ -48,7 +50,8 @@ import {
 } from '../src/channel';
 
 const PASS = Networks.TESTNET;
-const TOKEN = new Contract(new Asset('USDC', Keypair.random().publicKey()).contractId(PASS));
+const USDC_ASSET = new Asset('USDC', Keypair.random().publicKey());
+const TOKEN = new Contract(USDC_ASSET.contractId(PASS));
 const FACTORY = new Contract(StrKey.encodeContract(randomBytes(32)));
 const TREASURY = Keypair.random().publicKey();
 const USDC = (n: number) => Math.round(n * 1e7);
@@ -93,6 +96,10 @@ class FakeNet implements ChannelChain {
       return { exists: Boolean(a), trustline: Boolean(a?.trustline) };
     },
     read: async (owner: string) => ({ balance: this.wallets.get(owner) ?? 0n, allowance: 0n }),
+    buildPayment: async (from: string, to: string, amount: bigint) => {
+      const units = amount.toString().padStart(8, '0');
+      return this.tx(from, Operation.payment({ destination: to, asset: USDC_ASSET, amount: `${units.slice(0, -7)}.${units.slice(-7)}` }));
+    },
     submitSponsored: async (signedXdr: string) => this.apply(signedXdr),
   } as unknown as SpendChain;
 
@@ -107,7 +114,15 @@ class FakeNet implements ChannelChain {
   /** Aplica una transacción firmada por el usuario como lo haría la red. */
   private apply(signedXdr: string): string {
     const tx = TransactionBuilder.fromXDR(signedXdr, PASS) as Transaction;
-    const call = (tx.operations[0] as { func: xdr.HostFunction }).func.invokeContract();
+    const first = tx.operations[0];
+    if (first.type === 'payment') {
+      // Pago directo de la tesorería de Kiba a una wallet (devolución de un reclamo).
+      const amount = BigInt(Math.round(Number(first.amount) * 1e7));
+      this.treasury -= amount;
+      this.wallets.set(first.destination, (this.wallets.get(first.destination) ?? 0n) + amount);
+      return `pay-${tx.hash().toString('hex').slice(0, 10)}`;
+    }
+    const call = (first as unknown as { func: xdr.HostFunction }).func.invokeContract();
     const contract = Address.fromScAddress(call.contractAddress()).toString();
     const fn = call.functionName().toString();
     const args = call.args();
@@ -705,6 +720,56 @@ test('si la wallet no puede recibir la devolución, el resto queda como retiro d
   st = await getChannelStatus(user);
   assert.equal(st.channel?.state, 'closed');
   assert.equal(wallet(kp), USDC(5 + 4.96));
+});
+
+// ─── Devoluciones por reclamos ──────────────────────────────────────────────
+
+const channelIdOf = async (userId: number) =>
+  Number(((await db.prepare('SELECT id FROM pay_channels WHERE user_id = ? ORDER BY id DESC LIMIT 1').get(userId)) as { id: number }).id);
+
+test('devolución con el depósito abierto y sin cobrar: vuelve a estar disponible', async () => {
+  const { user, kp } = await openChannel('a@x.com', 2);
+  await call(user, 0.06);
+  await refundToChannel(await channelIdOf(user), USDC(0.04));
+  const st = await getChannelStatus(user);
+  assert.equal(st.channel?.spentBaseUnits, USDC(0.02));
+  assert.equal(st.channel?.availableBaseUnits, USDC(1.98));
+  const liq = await liquidateChannel(user);
+  assert.equal(liq.paidBaseUnits, USDC(0.02));
+  assert.equal(liq.refundedBaseUnits, USDC(1.98));
+  assert.equal(wallet(kp), USDC(8 + 1.98));
+});
+
+test('devolución de consumo que Kiba ya había cobrado: se le paga a la wallet al cerrar', async () => {
+  const { user, kp } = await openChannel('a@x.com', 2);
+  await call(user, 0.5);
+  await treasuryIs(0.5); // cobrado al contrato por el umbral
+  await refundToChannel(await channelIdOf(user), USDC(0.2));
+  assert.equal(await channelAvailable(user), USDC(1.7)); // lo devuelto se puede volver a gastar
+  const liq = await liquidateChannel(user);
+  assert.equal(liq.paidBaseUnits, 0);
+  assert.equal(liq.refundedBaseUnits, USDC(1.5)); // lo que quedaba en el contrato
+  assert.equal(wallet(kp), USDC(8 + 1.5));
+  await runChannelJob(); // Kiba paga la diferencia desde la tesorería
+  assert.equal(wallet(kp), USDC(8 + 1.7));
+  assert.equal(Number(net.treasury), USDC(0.3));
+  await runChannelJob();
+  assert.equal(wallet(kp), USDC(8 + 1.7)); // una sola vez
+  const st = await getChannelStatus(user);
+  assert.deepEqual(st.moves[0] && [st.moves[0].kind, st.moves[0].amount], ['claim_refund', USDC(0.2)]);
+});
+
+test('devolución con el depósito ya cerrado: Kiba se lo paga a la wallet', async () => {
+  const { user, kp } = await openChannel('a@x.com', 2);
+  await call(user, 0.5);
+  await treasuryIs(0.5);
+  const id = await channelIdOf(user);
+  await liquidateChannel(user);
+  assert.equal(wallet(kp), USDC(8 + 1.5));
+  await refundToChannel(id, USDC(0.5));
+  await runChannelJob();
+  assert.equal(wallet(kp), USDC(10));
+  assert.equal(Number(net.treasury), 0);
 });
 
 // ─── Vida del canal ─────────────────────────────────────────────────────────

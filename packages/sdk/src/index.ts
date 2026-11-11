@@ -124,7 +124,9 @@ export {
   KibaPaymentsClient,
   PaymentPendingError,
   isKibaEscrowId,
+  TrustlessWorkEscrowClient,
 } from './chain';
+export type { TrustlessWorkConfig } from './chain';
 export type {
   WalletLike,
   ChainClient,

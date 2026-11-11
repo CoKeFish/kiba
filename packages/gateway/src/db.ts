@@ -400,6 +400,62 @@ async function runInit(): Promise<void> {
   await pool.query(
     `CREATE UNIQUE INDEX IF NOT EXISTS idx_users_spend_address ON users(spend_address) WHERE spend_address IS NOT NULL`,
   );
+  // Retención de ganancias con reclamos (retention.ts).
+  // Confianza en el publicador: decide cuántos días espera su ganancia ('new' | 'verified' | 'trusted').
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS publisher_trust TEXT NOT NULL DEFAULT 'new'`);
+  // Quién pagó cada ganancia y cómo, para poder reclamarla y devolverla por donde salió.
+  await pool.query(`ALTER TABLE agent_earnings ADD COLUMN IF NOT EXISTS user_id BIGINT`);
+  await pool.query(`ALTER TABLE agent_earnings ADD COLUMN IF NOT EXISTS tx_id BIGINT`);
+  await pool.query(`ALTER TABLE agent_earnings ADD COLUMN IF NOT EXISTS paid_with TEXT`);
+  await pool.query(`ALTER TABLE agent_earnings ADD COLUMN IF NOT EXISTS channel_id BIGINT`);
+  await pool.query(`ALTER TABLE agent_earnings ADD COLUMN IF NOT EXISTS hold_id BIGINT`);
+  await pool.query(`ALTER TABLE agent_earnings ADD COLUMN IF NOT EXISTS refunded BIGINT NOT NULL DEFAULT 0`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_earnings_hold ON agent_earnings(hold_id)`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_earnings_tx ON agent_earnings(tx_id)`);
+  // Una retención = lo ganado por un servicio en un período, guardado en un escrow.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS earning_holds (
+      id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      service TEXT NOT NULL,
+      pay_to TEXT NOT NULL,
+      engagement_id TEXT NOT NULL,
+      amount BIGINT NOT NULL DEFAULT 0,
+      refund_due BIGINT NOT NULL DEFAULT 0,
+      trust TEXT,
+      retention_days INTEGER,
+      status TEXT NOT NULL,
+      escrow_id TEXT,
+      period_end BIGINT NOT NULL,
+      release_at BIGINT,
+      created_at BIGINT NOT NULL,
+      funded_at BIGINT,
+      released_at BIGINT,
+      settlement_id BIGINT,
+      error TEXT
+    )
+  `);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_earning_holds_status ON earning_holds(status, release_at)`);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS claims (
+      id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      user_id BIGINT NOT NULL REFERENCES users(id),
+      earning_id BIGINT NOT NULL,
+      tx_id BIGINT NOT NULL,
+      service TEXT NOT NULL,
+      amount BIGINT NOT NULL,
+      reason TEXT NOT NULL,
+      status TEXT NOT NULL,
+      refund_amount BIGINT NOT NULL DEFAULT 0,
+      note TEXT,
+      created_at BIGINT NOT NULL,
+      resolved_at BIGINT,
+      resolved_by BIGINT
+    )
+  `);
+  // Un reclamo por llamada.
+  await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_claims_earning ON claims(earning_id)`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_claims_user ON claims(user_id, id)`);
+
   // Depósito retirable (channel.ts): un canal de pago de Stellar por usuario.
   await pool.query(`
     CREATE TABLE IF NOT EXISTS pay_channels (
@@ -447,6 +503,9 @@ async function runInit(): Promise<void> {
   await pool.query(`ALTER TABLE pay_channels ADD COLUMN IF NOT EXISTS last_active_at BIGINT`);
   // Por qué se cerró, cuando no fue el usuario: 'idle' = devuelto por inactividad.
   await pool.query(`ALTER TABLE pay_channels ADD COLUMN IF NOT EXISTS closed_reason TEXT`);
+  // Lo que Kiba le debe a la wallet del usuario por reclamos aceptados sobre consumo ya cobrado.
+  await pool.query(`ALTER TABLE pay_channels ADD COLUMN IF NOT EXISTS owed BIGINT NOT NULL DEFAULT 0`);
+  await pool.query(`ALTER TABLE pay_channels ADD COLUMN IF NOT EXISTS over_counted INTEGER NOT NULL DEFAULT 0`);
   await pool.query(`
     CREATE TABLE IF NOT EXISTS pay_channel_holds (
       id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,

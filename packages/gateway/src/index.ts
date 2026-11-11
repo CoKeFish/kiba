@@ -78,6 +78,20 @@ import {
   submitPrepared,
 } from './spend';
 import {
+  claimInfoForTransactions,
+  createClaim,
+  isAdminEmail,
+  listClaimsForAdmin,
+  listClaimsOfUser,
+  listHoldsOfPublisher,
+  resolveClaim,
+  retentionEnabled,
+  runRetentionJob,
+  setPublisherTrustByEmail,
+  RETENTION_DAYS,
+  type Trust,
+} from './retention';
+import {
   channelsEnabled,
   getChannelStatus,
   liquidateChannel,
@@ -865,6 +879,7 @@ app.get('/v1/me', requireAuth, async (req, res) => {
     custodial_wallet: user.custodial_wallet_pubkey,
     is_publisher: !!user.is_publisher,
     publisher_name: user.publisher_name ?? null,
+    is_admin: isAdminEmail(user.email),
     // Chain context (preferido para integraciones nuevas).
     asset: balances.asset,
     base_unit_name: balances.baseUnitName,
@@ -1447,6 +1462,79 @@ app.post('/v1/spend/migrate', requireAuth, async (req, res) => {
   }
 });
 
+// ─── Retención de ganancias y reclamos (retention.ts) ──
+
+/** Solo cuentas cuyo correo está en ADMIN_EMAILS. */
+function requireAdmin(req: Request, res: Response, next: NextFunction) {
+  if (!isAdminEmail(req.bearerUser?.email)) return res.status(403).json({ error: 'solo administradores' });
+  next();
+}
+
+/** Reclamos del usuario. */
+app.get('/v1/claims', requireAuth, async (req, res) => {
+  res.json(await listClaimsOfUser(req.bearerUser!.id));
+});
+
+/** ¿Qué llamadas de estas se pueden reclamar todavía, y cuáles ya tienen reclamo? */
+app.post('/v1/claims/info', requireAuth, async (req, res) => {
+  const ids = Array.isArray(req.body?.transactionIds)
+    ? (req.body.transactionIds as unknown[]).map(Number).filter((n) => Number.isInteger(n) && n > 0).slice(0, 200)
+    : [];
+  res.json(await claimInfoForTransactions(req.bearerUser!.id, ids));
+});
+
+/** El usuario reclama una llamada de su historial. */
+app.post('/v1/claims', requireAuth, async (req, res) => {
+  const { transactionId, reason } = req.body ?? {};
+  if (!Number.isInteger(Number(transactionId)) || typeof reason !== 'string') {
+    return res.status(400).json({ error: 'transactionId y reason requeridos' });
+  }
+  try {
+    res.json(await createClaim(req.bearerUser!.id, Number(transactionId), reason));
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+/** Cola de reclamos para quien los resuelve. */
+app.get('/v1/admin/claims', requireAuth, requireAdmin, async (_req, res) => {
+  res.json(await listClaimsForAdmin());
+});
+
+/** Resolver un reclamo: rechazarlo, o devolver todo o parte (`amount` en USDC). */
+app.post('/v1/admin/claims/:id/resolve', requireAuth, requireAdmin, async (req, res) => {
+  const { decision, amount, note } = req.body ?? {};
+  if (decision !== 'reject' && decision !== 'refund') return res.status(400).json({ error: 'decision inválida' });
+  try {
+    res.json(
+      await resolveClaim(req.bearerUser!.id, Number(req.params.id), {
+        decision,
+        amount: decision === 'refund' ? usdcBody(amount) : undefined,
+        note: typeof note === 'string' ? note : undefined,
+      }),
+    );
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+/** Cambia la confianza en un publicador, que decide cuántos días espera su ganancia. */
+app.post('/v1/admin/publishers/trust', requireAuth, requireAdmin, async (req, res) => {
+  const { email, trust } = req.body ?? {};
+  if (typeof email !== 'string') return res.status(400).json({ error: 'email requerido' });
+  try {
+    await setPublisherTrustByEmail(email, trust as Trust);
+    res.json({ ok: true, email: email.trim(), trust, retentionDays: RETENTION_DAYS[trust as Trust] });
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+/** Retenciones de los servicios del publicador: cuánto, en qué escrow y cuándo se libera. */
+app.get('/v1/publisher/holds', requireAuth, async (req, res) => {
+  res.json({ enabled: retentionEnabled(), holds: await listHoldsOfPublisher(req.bearerUser!.id) });
+});
+
 // ─── Depósito retirable: canal de pago por usuario (channel.ts) ──
 // Las transacciones que firma el usuario se envían con /v1/spend/submit, igual que las demás.
 
@@ -1678,6 +1766,15 @@ if (channelsEnabled()) {
   setInterval(() => {
     void runChannelJob().catch((err) => console.error('[channel] job falló:', (err as Error).message));
   }, CHANNEL_JOB_INTERVAL_MS);
+}
+
+// Retención de ganancias: cierra períodos, fondea los escrows nuevos y libera los vencidos.
+const RETENTION_JOB_INTERVAL_MS = Number(process.env.RETENTION_JOB_INTERVAL_MS) || 5 * 60_000;
+if (retentionEnabled()) {
+  setInterval(() => {
+    void runRetentionJob().catch((err) => console.error('[retención] job falló:', (err as Error).message));
+  }, RETENTION_JOB_INTERVAL_MS);
+  console.log(`[retención] activa: ganancias retenidas en escrow (nuevo ${RETENTION_DAYS.new} d, verificado ${RETENTION_DAYS.verified} d, de confianza ${RETENTION_DAYS.trusted} d)`);
 }
 
 // Liquidación PROGRAMADA (opcional): si SETTLEMENT_INTERVAL_MS está seteado, liquida por lotes

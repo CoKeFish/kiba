@@ -31,6 +31,7 @@ import { recordEarning } from './settlement';
 import { type PerCallFundResult } from './escrows';
 import { payOrFundForCall, perCallPaymentEnabled } from './kiba-pay';
 import { confirmChannel, releaseChannel, reserveChannel } from './channel';
+import { retentionEnabled } from './retention';
 
 /**
  * Cuánto espera la respuesta al fund per-call (la tarea sigue en background si excede). Por
@@ -120,11 +121,11 @@ async function recordDepositCall(args: {
   lamports: number;
   service: string;
   floorPricePerCall: number;
-}): Promise<void> {
-  await db
+}): Promise<number> {
+  const info = await db
     .prepare(
       `INSERT INTO transactions (user_id, type, amount_lamports, service, metadata, created_at)
-     VALUES (?, 'call', ?, ?, ?, ?)`,
+     VALUES (?, 'call', ?, ?, ?, ?) RETURNING id`,
     )
     .run(
       args.userId,
@@ -138,6 +139,7 @@ async function recordDepositCall(args: {
       }),
       Math.floor(Date.now() / 1000),
     );
+  return Number(info.lastInsertRowid);
 }
 
 /**
@@ -323,7 +325,12 @@ export async function callOnBehalf(args: {
 
     // Acredita la ganancia del agente con el precio COMPLETO (el 95/5 se aplica al liquidar
     // vía TW). Solo tras una llamada exitosa → un fallo nunca acumula ganancia.
-    const earningId = await recordEarning({ service: args.service, payTo: quote.payTo, lamports });
+    const earningId = await recordEarning({
+      service: args.service,
+      payTo: quote.payTo,
+      lamports,
+      paidBy: { userId: args.userId, transactionId: debited.transactionId, paidWith: 'credit' },
+    });
 
     // Fund per-call: fondea el escrow TW del ciclo del servicio con el monto de ESTA
     // llamada — una tx Stellar consultable por llamada. Esperamos el hash en línea (la
@@ -336,7 +343,10 @@ export async function callOnBehalf(args: {
     // Si el resultado trae licencia, su documento se escribe ahora (con la wallet que cobra) y su
     // huella viaja en el pago por llamada.
     const reference = await args.onBeforePay?.(result, { lamports, payTo: quote.payTo }).catch(() => undefined);
-    if (perCallPaymentEnabled()) {
+    // Con retención, la ganancia espera su plazo en un escrow y no se paga por llamada. La
+    // excepción es una llamada que devuelve una licencia: su pago lleva la huella del documento
+    // y es la prueba de la licencia, así que se hace ahora.
+    if (perCallPaymentEnabled() && (!retentionEnabled() || reference !== undefined)) {
       const fund = payOrFundForCall({
         service: args.service,
         payTo: quote.payTo,
@@ -403,12 +413,17 @@ export async function callOnBehalf(args: {
       throw err;
     }
     await confirmChannel(hold);
-    await recordEarning({ service: args.service, payTo: quote.payTo, lamports });
-    await recordDepositCall({
+    const transactionId = await recordDepositCall({
       userId: args.userId,
       lamports,
       service: args.service,
       floorPricePerCall: manifest.pricePerCall,
+    });
+    await recordEarning({
+      service: args.service,
+      payTo: quote.payTo,
+      lamports,
+      paidBy: { userId: args.userId, transactionId, paidWith: 'deposit', channelId: hold.channelId },
     });
     return {
       result,

@@ -567,6 +567,68 @@ export class TrustlessWorkEscrowClient {
   }
 
   /**
+   * Abre una disputa sobre TODO el escrow: congela la liberación hasta que se resuelva. La
+   * firma este signer, que debe ser el `approver` o el `serviceProvider`. El contrato no deja
+   * que la abra el `disputeResolver` ("The dispute resolver cannot dispute the escrow").
+   * Idempotente: una disputa ya abierta no es error.
+   */
+  async dispute(escrowId: string): Promise<void> {
+    try {
+      await this.postSimAndSend(
+        '/escrow/single-release/dispute-escrow',
+        { contractId: escrowId, signer: this.address },
+        'dispute',
+      );
+    } catch (err) {
+      if (!this.isAlreadyDone(err) && !/in dispute|disputed/i.test(this.errorText(err))) throw err;
+    }
+  }
+
+  /**
+   * Resuelve la disputa repartiendo el saldo del escrow entre las direcciones dadas. La firma
+   * este signer, que debe ser el `disputeResolver` (y no puede ser quien abrió la disputa).
+   * Los montos deben sumar el saldo del escrow. El contrato descuenta sus comisiones (la de
+   * Trustless Work y la de plataforma) de CADA parte: lo que vuelve a la plataforma solo pierde
+   * la de Trustless Work, porque la de plataforma vuelve a ella.
+   * Idempotente: una disputa ya resuelta no es error.
+   */
+  async resolveDispute(
+    escrowId: string,
+    distributions: Array<{ address: string; amountBaseUnits: bigint }>,
+  ): Promise<void> {
+    const parts = distributions
+      .filter((d) => d.amountBaseUnits > 0n)
+      .map((d) => ({ address: d.address, amount: this.toDecimal(d.amountBaseUnits) }));
+    for (let attempt = 0; ; attempt++) {
+      try {
+        await this.postSimAndSend(
+          '/escrow/single-release/resolve-dispute',
+          { contractId: escrowId, disputeResolver: this.address, distributions: parts },
+          'resolve-dispute',
+        );
+        break;
+      } catch (err) {
+        const msg = this.errorText(err);
+        if (/already.*resolved|been resolved/i.test(msg)) break;
+        // La disputa recién abierta puede no haber confirmado todavía: se reintenta. Nunca se da
+        // por resuelta una disputa que no está abierta (los fondos quedarían en el escrow).
+        if (/not.*disput/i.test(msg) && attempt < 5) {
+          await this.sleep(3000);
+          continue;
+        }
+        throw err;
+      }
+    }
+    await this.waitFor(escrowId, (e) => !!(e.flags as Record<string, boolean>)?.resolved, 'resolve-dispute');
+  }
+
+  private errorText(err: unknown): string {
+    return String(
+      (err as { response?: { data?: { message?: string } } }).response?.data?.message ?? (err as Error).message ?? '',
+    );
+  }
+
+  /**
    * Lee el escrow por contractId vía el indexer. `balance` = fondos efectivamente
    * bloqueados; `amount` = monto declarado. El estado sale de los flags. Expone los
    * `roles` (en particular `receiver`) para que el provider verifique que el escrow
