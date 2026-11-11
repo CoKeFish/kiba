@@ -46,7 +46,7 @@ const res = await mppx.fetch('https://api.kiba.tools/mpp/translator', {
 
 | Qué pasa | Detalle |
 |---|---|
-| A dónde va el pago | A la tesorería de Kiba. Lo ganado por el publicador se anota y sigue la [retención](/conceptos/pagos-y-liquidacion#retención-y-reclamos), igual que una llamada pagada con créditos. |
+| A dónde va el pago | A la tesorería de Kiba. Lo ganado por el publicador se anota y sigue la [retención](/conceptos/pagos-y-liquidacion), igual que una llamada pagada con créditos. |
 | Un pago usado dos veces | Se rechaza. Las pruebas de pago ya usadas se guardan en la base de datos de Kiba. |
 | El servicio falla después del pago | Kiba le devuelve el USDC a quien pagó, en una transacción aparte. |
 | Límite | 60 peticiones por minuto por dirección IP. |
