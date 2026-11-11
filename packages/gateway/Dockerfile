@@ -18,6 +18,11 @@ COPY packages/gateway ./packages/gateway
 
 WORKDIR /app/packages/gateway
 
+# Commit del que sale la imagen: /health lo devuelve. Va al final para no invalidar las capas
+# de arriba en cada commit.
+ARG GIT_COMMIT=
+ENV GIT_COMMIT=${GIT_COMMIT}
+
 EXPOSE 8000
 
 CMD ["npm", "run", "dev"]

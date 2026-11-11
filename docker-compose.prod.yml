@@ -87,6 +87,7 @@ services:
       - traefik.http.routers.legacy-gateway-http.service=noop@internal
     environment:
       - DOPPLER_TOKEN=${DOPPLER_TOKEN}
+      - SOURCE_COMMIT=${SOURCE_COMMIT:-}
       - NODE_ENV=production
       - PORT=8000
       - PUBLIC_URL=https://api.kiba.tools

@@ -132,7 +132,7 @@ Services published with the SDK belong to their own keypair and are managed from
 | Endpoint | Description |
 |---|---|
 | `GET /v1/platform/stats` | Aggregate marketplace stats and platform revenue. |
-| `GET /health` | **No credential.** Returns `{ "ok": true, "service": "kiba-gateway" }`. |
+| `GET /health` | **No credential.** Returns `{ "ok": true, "service": "kiba-gateway", "commit": "<hash>", "startedAt": "<date>" }`. `commit` is the Git commit the deployed version was built from. |
 
 ## Fiat payments (sandbox)
 

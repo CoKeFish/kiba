@@ -285,8 +285,15 @@ app.get('/', (req, res) => {
   res.send(landingView(!!req.user));
 });
 
+/**
+ * Commit del que salió esta imagen. GIT_COMMIT queda grabado en la imagen al construirla; si no
+ * está, vale el que Coolify le pasa al contenedor (SOURCE_COMMIT).
+ */
+const COMMIT = (process.env.GIT_COMMIT || process.env.SOURCE_COMMIT || '').trim() || 'unknown';
+const STARTED_AT = new Date().toISOString();
+
 app.get('/health', (_req, res) => {
-  res.json({ ok: true, service: 'kiba-gateway' });
+  res.json({ ok: true, service: 'kiba-gateway', commit: COMMIT, startedAt: STARTED_AT });
 });
 
 // ─── Signup ────────────────────────────────────────────────────

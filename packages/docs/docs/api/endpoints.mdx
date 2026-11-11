@@ -132,7 +132,7 @@ Los servicios publicados con el SDK pertenecen a su propio keypair y se gestiona
 | Endpoint | Descripción |
 |---|---|
 | `GET /v1/platform/stats` | Estadísticas agregadas del marketplace e ingresos de la plataforma. |
-| `GET /health` | **Sin credencial.** Devuelve `{ "ok": true, "service": "kiba-gateway" }`. |
+| `GET /health` | **Sin credencial.** Devuelve `{ "ok": true, "service": "kiba-gateway", "commit": "<hash>", "startedAt": "<fecha>" }`. `commit` es el commit de Git del que salió la versión desplegada. |
 
 ## Pagos fiat (sandbox)
 
