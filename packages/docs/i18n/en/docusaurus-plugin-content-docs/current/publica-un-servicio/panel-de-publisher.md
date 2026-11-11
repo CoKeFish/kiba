@@ -34,3 +34,13 @@ The counters stored in the contract (`total_calls`, `total_earned`) are informat
 :::
 
 The same data is available in the [REST API](/api/endpoints#publisher) with an API key.
+
+## The service is in your name
+
+The owner of a service in the Stellar registry is a wallet, and only that wallet can change it or remove it. That wallet is yours, not one of Kiba's.
+
+1. Link your wallet under **Billing**: a Privy wallet, created with your email and owned by you, or an external one such as Freighter.
+2. When you publish, change or remove a service, the dashboard asks you to sign with that wallet. Kiba builds the transaction and pays the fee: you do not need XLM.
+3. The service is registered in your wallet's name. Kiba cannot change it or remove it.
+
+Accounts created before this change have a wallet that Kiba created. The services they already published with it keep working the same way until they link their own.

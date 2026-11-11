@@ -1028,5 +1028,8 @@
     "checking": "Pidiendo cotización…",
     "submit": "Listar servicio",
     "created": "Listo. Ya aparece en el catálogo de los asistentes."
+  },
+  "wallet_sign": {
+    "other_wallet": "Conectaste otra wallet. Este servicio se firma con {{address}}."
   }
 }

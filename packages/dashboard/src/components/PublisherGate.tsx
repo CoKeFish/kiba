@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from "react";
+import { RegistrySigner } from "@/components/paywallet/RegistrySigner";
 import { useTranslation } from "react-i18next";
 import { useMutation } from "@tanstack/react-query";
 import { api } from "@/lib/api";
@@ -20,7 +21,13 @@ export function PublisherGate({ children }: { children: ReactNode }) {
     },
   });
 
-  if (user?.is_publisher) return <>{children}</>;
+  if (user?.is_publisher)
+    return (
+      <>
+        <RegistrySigner />
+        {children}
+      </>
+    );
 
   return (
     <div className="pub-onboard-wrap">

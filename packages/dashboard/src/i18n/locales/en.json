@@ -1028,5 +1028,8 @@
     "checking": "Asking for a quote…",
     "submit": "List service",
     "created": "Done. It now appears in the assistants' catalog."
+  },
+  "wallet_sign": {
+    "other_wallet": "You connected a different wallet. This service is signed with {{address}}."
   }
 }

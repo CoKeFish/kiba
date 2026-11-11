@@ -169,7 +169,8 @@ export const api = {
       body: JSON.stringify({ service, payload }),
     }),
 
-  // Agent management — registry CRUD a nombre del user (su custodial wallet firma)
+  // Servicios publicados. Con wallet propia el gateway devuelve la transacción por firmar
+  // (`prepared`): se firma con esa wallet y se envía. Ver lib/wallet-sign.ts.
   myAgents: () => request<MyAgent[]>("/v1/agents/mine"),
   registerAgent: (params: {
     service: string;
@@ -177,9 +178,13 @@ export const api = {
     endpoint: string;
     description: string;
   }) =>
-    request<{ signature: string; pda: string; owner: string }>("/v1/agents", {
+    request<{ signature: string; pda: string; owner: string } | NeedsSignature>("/v1/agents", {
       method: "POST",
       body: JSON.stringify(params),
+    }).then(async (r) => {
+      if (!("prepared" in r)) return r;
+      const sent = await signAndSubmit(r);
+      return { signature: sent.hash, pda: `stellar:${params.service}`, owner: r.wallet.address };
     }),
   updateAgent: (
     service: string,
@@ -189,15 +194,23 @@ export const api = {
       description?: string;
     },
   ) =>
-    request<{ signature: string; pda: string }>(`/v1/agents/${encodeURIComponent(service)}`, {
+    request<{ signature: string; pda: string } | NeedsSignature>(`/v1/agents/${encodeURIComponent(service)}`, {
       method: "PUT",
       body: JSON.stringify(params),
+    }).then(async (r) => {
+      if (!("prepared" in r)) return r;
+      const sent = await signAndSubmit(r);
+      return { signature: sent.hash, pda: `stellar:${service}` };
     }),
   deregisterAgent: (service: string) =>
-    request<{ signature: string; service: string; rentRecovered: number }>(
+    request<{ signature: string; service: string; rentRecovered: number } | NeedsSignature>(
       `/v1/agents/${encodeURIComponent(service)}`,
       { method: "DELETE" },
-    ),
+    ).then(async (r) => {
+      if (!("prepared" in r)) return r;
+      const sent = await signAndSubmit(r);
+      return { signature: sent.hash, service, rentRecovered: 0 };
+    }),
 
   // OAuth connections (apps the user has authorized)
   oauthConnections: () => request<OAuthConnection[]>("/v1/oauth/connections"),
@@ -465,6 +478,15 @@ export type ChannelStatus = {
   idleNoticeDays: number;
   moves: { kind: "open" | "top_up" | "settle" | "close" | "close_start" | "refund" | "claim_refund"; amount: number; txHash: string | null; createdAt: number }[];
 };
+
+/** El gateway armó la transacción y la tiene que firmar la wallet del usuario. */
+export type NeedsSignature = { prepared: PreparedTx; wallet: { address: string; kind: "privy" | "external" } };
+
+/** Firma con la wallet del usuario lo que el gateway armó y lo envía. */
+async function signAndSubmit(r: NeedsSignature): Promise<{ kind: string; hash: string; explorerUrl: string }> {
+  const { signPrepared } = await import("@/lib/wallet-sign");
+  return api.spendSubmit(await signPrepared(r.prepared, r.wallet));
+}
 
 export type SpendStatus = {
   /** Wallet vinculada (G...), o null si el usuario aún no firmó nada con una. */

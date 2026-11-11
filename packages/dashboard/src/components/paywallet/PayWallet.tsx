@@ -11,7 +11,7 @@
  * Todas las transacciones las arma el gateway; aquí solo se firman (hash con Privy, XDR completo
  * con wallets externas). Este módulo carga el SDK de Privy: se importa con lazy() desde Billing.
  */
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { PrivyProvider, useLogin, usePrivy, useLogout } from "@privy-io/react-auth";
@@ -19,6 +19,7 @@ import { useCreateWallet, useSignRawHash } from "@privy-io/react-auth/extended-c
 import { api, type PreparedTx, type SpendStatus } from "@/lib/api";
 import { PayWalletBody, type PayWalletSigner } from "./PayWalletBody";
 import { DepositCard } from "./DepositCard";
+import { registerPrivySign } from "@/lib/wallet-sign";
 
 type SubmitBody = { hash: string; signature: string } | { xdr: string };
 
@@ -60,9 +61,9 @@ const externalSigner: PayWalletSigner = {
   },
 };
 
-function WithPrivy({ st, email }: { st: SpendStatus; email: string }) {
+/** La wallet de Privy del usuario como firmante: inicia sesión si hace falta y firma el hash. */
+function usePrivySigner(email: string) {
   const { t } = useTranslation();
-  const qc = useQueryClient();
   const { ready, authenticated, user } = usePrivy();
   const { logout } = useLogout();
   const { createWallet } = useCreateWallet();
@@ -130,6 +131,42 @@ function WithPrivy({ st, email }: { st: SpendStatus; email: string }) {
     },
   };
 
+  return { privySigner, authenticated, logout };
+}
+
+/**
+ * Sin interfaz: deja la firma con Privy disponible para `signPrepared` (lib/wallet-sign.ts) en
+ * las páginas que firman fuera de la sección de pagos, como las del publicador.
+ */
+export function PrivySignHost({ appId, email }: { appId: string; email: string }) {
+  return (
+    <PrivyProvider
+      appId={appId}
+      config={{
+        loginMethods: ["email"],
+        appearance: { theme: "light", accentColor: "#4f9cc4" },
+        embeddedWallets: { showWalletUIs: false },
+      }}
+    >
+      <RegisterPrivySign email={email} />
+    </PrivyProvider>
+  );
+}
+function RegisterPrivySign({ email }: { email: string }) {
+  const { privySigner } = usePrivySigner(email);
+  // El firmante lee el estado de Privy por ref: registrar el de cada render lo mantiene al día.
+  const current = useRef(privySigner);
+  current.current = privySigner;
+  useEffect(() => {
+    registerPrivySign((tx, address) => current.current.sign(tx, address));
+    return () => registerPrivySign(null);
+  }, []);
+  return null;
+}
+
+function WithPrivy({ st, email }: { st: SpendStatus; email: string }) {
+  const qc = useQueryClient();
+  const { privySigner, authenticated, logout } = usePrivySigner(email);
   return (
     <>
       <DepositCard privy={privySigner} external={externalSigner} />
