@@ -75,7 +75,7 @@ const listen = (handler: Parameters<typeof createServer>[1]) =>
   });
 
 await initDb();
-await db.exec('TRUNCATE mpp_store, mpp_payments, agent_earnings, transactions, call_results, users RESTART IDENTITY CASCADE');
+await db.exec('TRUNCATE mpp_store, mpp_payments, treasury_payments, agent_earnings, transactions, call_results, users RESTART IDENTITY CASCADE');
 console.log(`Tesorería: ${treasury.publicKey()}`);
 await Promise.all([seller, payer].map((k) => fund(k.publicKey())));
 await Promise.all([seller, payer].map((k) => classic(k, Operation.changeTrust({ asset: usdc }))));
@@ -217,6 +217,16 @@ check(
   'D. si el servicio falla después del pago, Kiba le devuelve el dinero a quien pagó',
   failed?.status === 502 && failedBody?.refund?.status === 'refunded' && near(await usdcOf(payer.publicKey()), payerBeforeD),
   `${((Date.now() - t) / 1000).toFixed(0)} s; devolución ${String(failedBody?.refund?.transaction).slice(0, 12)}…${failedBody?.refund?.status !== 'refunded' ? ' ' + JSON.stringify(failedBody).slice(0, 200) : ''}`,
+);
+// La devolución pasó por treasury-pay.ts: su hash quedó guardado y la red lo reconoce.
+const { getSpendChain } = await import('../src/spend');
+const refundRow = (await db.prepare(`SELECT hash, tx_hash, status FROM treasury_payments WHERE kind = 'mpp-refund'`).get()) as Record<string, string> | undefined;
+const seen = refundRow?.hash ? await getSpendChain().txStatus(refundRow.hash) : undefined;
+const unknown = await getSpendChain().txStatus('0'.repeat(64));
+check(
+  '   la red reconoce la devolución por el hash que Kiba guardó antes de enviarla',
+  refundRow?.status === 'done' && seen?.status === 'success' && seen.hash === refundRow.tx_hash && unknown.status === 'not_found',
+  `guardado ${String(refundRow?.hash).slice(0, 12)}…; en la red ${String(seen?.hash).slice(0, 12)}…`,
 );
 const afterD = (await db.prepare('SELECT COUNT(*)::int AS n FROM agent_earnings').get()) as { n: number };
 check('   y el publicador no gana nada por esa llamada', afterD.n === 1);

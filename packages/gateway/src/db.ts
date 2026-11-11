@@ -397,6 +397,26 @@ async function runInit(): Promise<void> {
   await pool.query(`ALTER TABLE agent_earnings ADD COLUMN IF NOT EXISTS refunded BIGINT NOT NULL DEFAULT 0`);
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_earnings_hold ON agent_earnings(hold_id)`);
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_earnings_tx ON agent_earnings(tx_id)`);
+  // Pagos sueltos de la tesorería (treasury-pay.ts): el hash se guarda antes de enviar.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS treasury_payments (
+      id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      kind TEXT NOT NULL,
+      ref TEXT NOT NULL,
+      to_address TEXT NOT NULL,
+      amount BIGINT NOT NULL,
+      status TEXT NOT NULL,
+      hash TEXT,
+      tx_hash TEXT,
+      expires_at BIGINT,
+      attempts INTEGER NOT NULL DEFAULT 0,
+      applied BOOLEAN NOT NULL DEFAULT FALSE,
+      error TEXT,
+      created_at BIGINT NOT NULL,
+      updated_at BIGINT NOT NULL,
+      UNIQUE (kind, ref)
+    )`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS treasury_payments_open ON treasury_payments (status) WHERE status <> 'done'`);
   // MPP como vendedor (mpp-sell.ts): pruebas de pago ya usadas y registro de cada pago recibido.
   await pool.query(`
     CREATE TABLE IF NOT EXISTS mpp_store (

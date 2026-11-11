@@ -18,15 +18,13 @@
  */
 import { createHash } from 'node:crypto';
 import type { Request as ExpressRequest, Response as ExpressResponse } from 'express';
-import { TransactionBuilder } from '@stellar/stellar-sdk';
 import { Credential, MppxServer, Receipt, Store, stellarServerCharge } from '@kiba/mpp';
 import { db, withTransaction } from './db';
 import { lamportsToUsd } from './billing';
 import { MPP_NETWORK, mppCurrency, mppTreasury } from './mpp';
 import { getMasterWallet } from './wallets';
 import { recordEarning } from './settlement';
-import { enqueueChainTask } from './treasury-queue';
-import { getSpendChain } from './spend';
+import { onTreasuryPaid, payFromTreasury } from './treasury-pay';
 import { callServiceAsPlatform, listAgents, quoteService } from './proxy';
 import { getSession, mppSessionsEnabled, noteVoucher, parseVoucher, sessionCharger, voucherFits, type SessionView } from './mpp-session';
 
@@ -162,18 +160,21 @@ function allowed(ip: string): boolean {
 
 // ─── Devolución cuando el servicio falla después de cobrar ──────────────────
 
-type Refunder = (to: string, lamports: number) => Promise<string>;
-const realRefund: Refunder = (to, lamports) =>
-  enqueueChainTask(async () => {
-    const sc = getSpendChain();
-    const treasury = mppTreasury();
-    const tx = TransactionBuilder.fromXDR(await sc.buildPayment(treasury.publicKey(), to, BigInt(lamports)), sc.passphrase());
-    tx.sign(treasury);
-    return sc.submitSponsored(tx.toXDR());
-  });
+/** Devuelve USDC a quien pagó. `ref` identifica el pago de MPP: pedirlo dos veces no lo repite. */
+export type Refunder = (to: string, lamports: number, ref: string) => Promise<string>;
+const realRefund: Refunder = async (to, lamports, ref) => {
+  const p = await payFromTreasury({ kind: 'mpp-refund', ref, to, amount: lamports });
+  if (p.status === 'done') return p.txHash ?? p.hash ?? '';
+  // Enviado sin respuesta o por reintentar: lo termina treasury-pay.ts, sin duplicar.
+  throw new Error(`devolución ${p.status === 'sent' ? 'enviada, sin confirmación todavía' : 'pendiente'}`);
+};
+// La devolución que se confirma más tarde también deja el pago como devuelto.
+onTreasuryPaid('mpp-refund', async (p) => {
+  await db.prepare(`UPDATE mpp_payments SET status = 'refunded', refund_tx = ? WHERE id = ?`).run(p.txHash ?? p.hash, Number(p.ref));
+});
 let refunder: Refunder = realRefund;
 /** Devuelve USDC desde la tesorería a quien pagó. */
-export const mppRefund: Refunder = (to, lamports) => refunder(to, lamports);
+export const mppRefund: Refunder = (to, lamports, ref) => refunder(to, lamports, ref);
 /** Tests: sustituye la devolución en la red (null = la real). */
 export function setMppRefunder(fn: Refunder | null): void {
   refunder = fn ?? realRefund;
@@ -336,7 +337,7 @@ export async function handleMppSell(req: ExpressRequest, res: ExpressResponse): 
     // Por sesión Kiba todavía no ha cobrado esa firma: devuelve después de cobrarle al canal.
     if (payer && !session) {
       try {
-        refundTx = await refunder(payer, quote.lamports);
+        refundTx = await refunder(payer, quote.lamports, String(paymentId));
         status = 'refunded';
       } catch (e) {
         console.error(`[mpp] devolución del pago ${paymentId} a ${payer}:`, (e as Error).message);

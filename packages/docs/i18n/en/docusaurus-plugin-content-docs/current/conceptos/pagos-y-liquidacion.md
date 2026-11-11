@@ -19,7 +19,7 @@ Kiba uses the **x402** pattern: an HTTP request gets `402 Payment Required` with
 1. The gateway debits the user's credits.
 2. It calls the service with a short signed certificate: service name, payload hash, timestamp and nonce. The service verifies the signature with the platform's **public** key; no shared secret ever travels.
 3. The service responds. The gateway records the earning in the publisher's ledger. If the service fails, the debit is refunded.
-4. <TW /> When the day closes, what each service earned is added as a new tranche to the publisher's **Trustless Work escrow**. Each publisher has a single escrow.
+4. <TW /> When the day closes, what each service earned is added as a new tranche to the publisher's **Trustless Work escrow**. Each publisher has a single escrow. A service that accumulates 20 USDC goes in right away, without waiting for the day to close. One that does not reach 1 USDC waits, 7 days at most.
 5. Once the holding period ends, that tranche is **released** to the publisher's wallet; Trustless Work applies the platform fee on release.
 
 ### Holding period and claims

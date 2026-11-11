@@ -54,6 +54,7 @@ import {
 import { handleMcpRequest } from './mcp';
 import { callX402Url, x402PayerAddress, X402_NETWORK } from './x402';
 import { handleMppSell, listMppServices, mppRefund, mppSellEnabled } from './mpp-sell';
+import { runTreasuryPayments } from './treasury-pay';
 import { mppSessionsEnabled, prepareSessionOpen, registerSession, runMppSessionJob, sessionInfo } from './mpp-session';
 import {
   callExternal,
@@ -1894,6 +1895,12 @@ if (channelsEnabled()) {
     void runChannelJob().catch((err) => console.error('[channel] job falló:', (err as Error).message));
   }, CHANNEL_JOB_INTERVAL_MS);
 }
+
+// Pagos sueltos de la tesorería (devoluciones): resuelve por su hash los que quedaron sin
+// respuesta y reintenta los que no entraron.
+setInterval(() => {
+  void runTreasuryPayments().catch((err) => console.error('[tesorería] job de pagos falló:', (err as Error).message));
+}, CHANNEL_JOB_INTERVAL_MS);
 
 // Sesiones de MPP: cobra a los canales de los agentes externos lo que ya firmaron.
 if (mppSellEnabled() && mppSessionsEnabled()) {

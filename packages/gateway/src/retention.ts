@@ -40,6 +40,15 @@ export const RETENTION_PERIOD_DAYS = Number(process.env.RETENTION_PERIOD_DAYS) |
 /** Tramos que junta el escrow de un publicador antes de abrir otro. */
 export const RETENTION_MAX_TRANCHES = Number(process.env.RETENTION_MAX_TRANCHES) || 40;
 export const RETENTION_MIN_HOLD = Number(process.env.RETENTION_MIN_HOLD) || BASE_UNITS_PER_TOKEN;
+/**
+ * Un servicio que junta este monto entra al escrow de inmediato, sin esperar al cierre del
+ * período: cuanto más mueve, menos tiempo pasa su dinero en la tesorería.
+ */
+export const RETENTION_VOLUME_HOLD = Number(process.env.RETENTION_VOLUME_HOLD) || 20 * BASE_UNITS_PER_TOKEN;
+/** Un servicio que no llega al mínimo no espera más que esto: pasados estos días, entra lo que haya. */
+export const RETENTION_MAX_WAIT_DAYS = Number(process.env.RETENTION_MAX_WAIT_DAYS) || 7;
+/** Por debajo de esto no vale la pena una operación en la red (unidades base). */
+export const RETENTION_DUST = Number(process.env.RETENTION_DUST) || 100_000;
 
 export type Trust = 'new' | 'verified' | 'trusted';
 /** Días de retención según la confianza en el publicador. */
@@ -313,37 +322,49 @@ export function periodCutoff(now = nowS()): number {
 }
 
 /**
- * Cierra los períodos vencidos: por cada servicio, lo ganado antes del corte que aún no está en
- * una retención pasa a una nueva. Lo que no llega al mínimo espera al período siguiente.
+ * Decide qué ganancias entran ya al escrow. Por cada servicio, lo que aún no está en una
+ * retención entra cuando pasa UNA de estas tres cosas:
+ *   - Volumen: junta RETENTION_VOLUME_HOLD. Entra todo, de inmediato.
+ *   - Período: cerró el período y lo de antes del corte llega a RETENTION_MIN_HOLD. Entra eso.
+ *   - Espera: su ganancia más vieja lleva RETENTION_MAX_WAIT_DAYS sin llegar al mínimo. Entra
+ *     todo, salvo que sea menos que RETENTION_DUST.
  * Devuelve cuántas retenciones creó.
  */
 export async function closePeriods(now = nowS()): Promise<number> {
   const cutoff = periodCutoff(now);
   const groups = (await db
     .prepare(
-      `SELECT service, pay_to, SUM(amount_lamports - refunded)::bigint AS total
+      `SELECT service, pay_to,
+              SUM(amount_lamports - refunded)::bigint AS total,
+              COALESCE(SUM(amount_lamports - refunded) FILTER (WHERE created_at < ?), 0)::bigint AS before_cutoff,
+              MIN(created_at)::bigint AS oldest
        FROM agent_earnings
-       WHERE settlement_id IS NULL AND hold_id IS NULL AND escrow_id IS NULL AND created_at < ?
-       GROUP BY service, pay_to
-       HAVING SUM(amount_lamports - refunded) >= ?`,
+       WHERE settlement_id IS NULL AND hold_id IS NULL AND escrow_id IS NULL
+       GROUP BY service, pay_to`,
     )
-    .all(cutoff, RETENTION_MIN_HOLD)) as Array<{ service: string; pay_to: string; total: number }>;
+    .all(cutoff)) as Array<{ service: string; pay_to: string; total: number; before_cutoff: number; oldest: number }>;
   let created = 0;
   for (const g of groups) {
+    // `upTo`: entran las ganancias anteriores a ese momento.
+    let upTo: number;
+    if (Number(g.total) >= RETENTION_VOLUME_HOLD) upTo = now + 1;
+    else if (Number(g.before_cutoff) >= RETENTION_MIN_HOLD) upTo = cutoff;
+    else if (Number(g.oldest) <= now - RETENTION_MAX_WAIT_DAYS * DAY_S && Number(g.total) >= RETENTION_DUST) upTo = now + 1;
+    else continue;
     await withTransaction(async (tx) => {
       const info = await tx
         .prepare(
           `INSERT INTO earning_holds (service, pay_to, engagement_id, amount, status, period_end, created_at)
            VALUES (?, ?, ?, 0, 'funding', ?, ?) RETURNING id`,
         )
-        .run(g.service, g.pay_to, `kiba-hold-${randomBytes(8).toString('hex')}`, cutoff, nowS());
+        .run(g.service, g.pay_to, `kiba-hold-${randomBytes(8).toString('hex')}`, Math.min(upTo, now), nowS());
       const id = Number(info.lastInsertRowid);
       await tx
         .prepare(
           `UPDATE agent_earnings SET hold_id = ?
            WHERE service = ? AND pay_to = ? AND settlement_id IS NULL AND hold_id IS NULL AND escrow_id IS NULL AND created_at < ?`,
         )
-        .run(id, g.service, g.pay_to, cutoff);
+        .run(id, g.service, g.pay_to, upTo);
     });
     created++;
   }

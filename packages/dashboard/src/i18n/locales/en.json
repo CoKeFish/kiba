@@ -961,7 +961,7 @@
   },
   "holds": {
     "title": "Held earnings",
-    "desc": "What each service earns in a day goes into your Trustless Work escrow. It is released to your wallet when the period ends, if there are no open claims.",
+    "desc": "What each service earns in a day goes into your Trustless Work escrow, or sooner if it reaches 20 USDC. It is released to your wallet when the period ends, if there are no open claims.",
     "empty": "No held earnings yet. Today's earnings are held when the day closes.",
     "status": {
       "funding": "preparing the escrow",

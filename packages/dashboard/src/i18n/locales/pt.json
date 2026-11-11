@@ -961,7 +961,7 @@
   },
   "holds": {
     "title": "Ganhos retidos",
-    "desc": "O que cada serviço ganha em um dia entra no seu escrow da Trustless Work. É liberado para a sua wallet quando o prazo vence, se não houver reclamações abertas.",
+    "desc": "O que cada serviço ganha em um dia entra no seu escrow da Trustless Work, ou antes se juntar 20 USDC. É liberado para a sua wallet quando o prazo vence, se não houver reclamações abertas.",
     "empty": "Ainda não há ganhos retidos. O de hoje é retido ao fechar o dia.",
     "status": {
       "funding": "preparando o escrow",

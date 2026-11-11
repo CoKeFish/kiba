@@ -244,7 +244,7 @@ export async function noteVoucher(channel: string, v: { amount: bigint; signatur
 const SETTLE_THRESHOLD = Number(process.env.MPP_SESSION_SETTLE_THRESHOLD) || CHANNEL_SETTLE_THRESHOLD;
 const SETTLE_MAX_AGE_S = Number(process.env.MPP_SESSION_SETTLE_MAX_AGE_S) || CHANNEL_SETTLE_MAX_AGE_S;
 
-type Refunder = (to: string, lamports: number) => Promise<string>;
+type Refunder = (to: string, lamports: number, ref: string) => Promise<string>;
 let running = false;
 /**
  * Trabajo periódico: cobra a cada canal lo que el agente ya firmó y Kiba no ha cobrado. Cobra
@@ -302,7 +302,7 @@ export async function runMppSessionJob(refund: Refunder, opts: { force?: boolean
       const taken = await db.prepare(`UPDATE mpp_payments SET status = 'refunding' WHERE id = ? AND status = 'refund_pending' RETURNING id`).get(p.id);
       if (!taken) continue;
       try {
-        const tx = await refund(p.funder, Number(p.amount));
+        const tx = await refund(p.funder, Number(p.amount), String(p.id));
         await db.prepare(`UPDATE mpp_payments SET status = 'refunded', refund_tx = ? WHERE id = ?`).run(tx, p.id);
       } catch (err) {
         await db.prepare(`UPDATE mpp_payments SET status = 'refund_pending' WHERE id = ?`).run(p.id);

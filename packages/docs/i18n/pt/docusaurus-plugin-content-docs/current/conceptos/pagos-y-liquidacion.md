@@ -19,7 +19,7 @@ A Kiba usa o padrão **x402**: uma requisição HTTP recebe `402 Payment Require
 1. O gateway debita os créditos do usuário.
 2. Chama o serviço com um certificado curto assinado: nome do serviço, hash do payload, carimbo de tempo e nonce. O serviço verifica a assinatura com a chave **pública** da plataforma; nenhum segredo compartilhado trafega.
 3. O serviço responde. O gateway registra o ganho no livro do publisher. Se o serviço falhar, o débito é reembolsado.
-4. <TW /> Ao fechar o dia, o que cada serviço ganhou entra como uma nova parcela no **escrow da Trustless Work** do publisher. Cada publisher tem um único escrow.
+4. <TW /> Ao fechar o dia, o que cada serviço ganhou entra como uma nova parcela no **escrow da Trustless Work** do publisher. Cada publisher tem um único escrow. Um serviço que junta 20 USDC entra imediatamente, sem esperar o fechamento do dia. Um que não chega a 1 USDC espera, no máximo 7 dias.
 5. Vencido o prazo de retenção, essa parcela é **liberada** para a wallet do publisher; a Trustless Work aplica a comissão da plataforma ao liberar.
 
 ### Retenção e reclamações

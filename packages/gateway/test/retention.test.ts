@@ -8,7 +8,10 @@ import { db, initDb, pool } from '../src/db';
 import { recordEarning, settleAgent, getAccrued } from '../src/settlement';
 import {
   RETENTION_DAYS,
+  RETENTION_DUST,
+  RETENTION_MAX_WAIT_DAYS,
   RETENTION_MIN_HOLD,
+  RETENTION_VOLUME_HOLD,
   RETENTION_PERIOD_DAYS,
   claimInfoForTransactions,
   closePeriods,
@@ -184,6 +187,40 @@ test('lo que no llega al mínimo espera al período siguiente', async () => {
   assert.equal(await closePeriods(), 1);
   await fundHolds();
   assert.equal(Number((await holdsOf('reloj'))[0].amount), RETENTION_MIN_HOLD * 1.5);
+});
+
+test('un servicio que mueve mucho entra al escrow de inmediato, sin esperar al cierre del período', async () => {
+  const buyer = await createUser('b@x.com');
+  const big = RETENTION_VOLUME_HOLD / 1e7;
+  // Todo de hoy: el período no ha cerrado.
+  await paidCall(buyer, 'modelos', 'GPUB', big / 2, 0);
+  assert.equal(await closePeriods(), 0);
+  await paidCall(buyer, 'modelos', 'GPUB', big / 2, 0);
+  assert.equal(await closePeriods(), 1);
+  await fundHolds();
+  const [h] = await holdsOf('modelos');
+  assert.deepEqual([h.status, Number(h.amount)], ['held', RETENTION_VOLUME_HOLD]);
+  // Otro servicio del mismo publicador, pequeño, sigue esperando su cierre.
+  await paidCall(buyer, 'reloj', 'GPUB', 2, 0);
+  assert.equal(await closePeriods(), 0);
+  // Y lo siguiente del servicio grande empieza a contar de cero.
+  await paidCall(buyer, 'modelos', 'GPUB', 1, 0);
+  assert.equal(await closePeriods(), 0);
+});
+
+test('un servicio que no llega al mínimo no espera para siempre', async () => {
+  const buyer = await createUser('b@x.com');
+  const small = RETENTION_MIN_HOLD / 1e7 / 2;
+  await paidCall(buyer, 'reloj', 'GPUB', small, RETENTION_MAX_WAIT_DAYS - 1);
+  assert.equal(await closePeriods(), 0); // todavía dentro de la espera
+  await paidCall(buyer, 'viejo', 'GPUB', small, RETENTION_MAX_WAIT_DAYS + 1);
+  await paidCall(buyer, 'viejo', 'GPUB', small / 2, 0); // lo de hoy entra junto
+  assert.equal(await closePeriods(), 1);
+  await fundHolds();
+  assert.equal(Number((await holdsOf('viejo'))[0].amount), RETENTION_MIN_HOLD * 0.75);
+  // Menos que el piso no vale una operación en la red, por viejo que sea.
+  await paidCall(buyer, 'polvo', 'GPUB', RETENTION_DUST / 1e7 / 2, RETENTION_MAX_WAIT_DAYS + 5);
+  assert.equal(await closePeriods(), 0);
 });
 
 test('el plazo depende de la confianza en el publicador', async () => {

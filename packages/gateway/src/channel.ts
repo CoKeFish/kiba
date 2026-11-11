@@ -53,7 +53,8 @@ import {
   StrKey,
 } from '@stellar/stellar-sdk';
 import { resolveChainConfig } from 'kiba-sdk';
-import { db } from './db';
+import { db, withTransaction } from './db';
+import { onTreasuryPaid, queueTreasuryPayment, sendTreasuryPayment } from './treasury-pay';
 import { enqueueChainTask } from './treasury-queue';
 import { getMasterWallet } from './wallets';
 import {
@@ -884,30 +885,26 @@ async function payOwed(): Promise<void> {
   const rows = (
     (await db.prepare(`SELECT * FROM pay_channels WHERE status = 'closed' AND owed > 0`).all()) as ChannelRow[]
   ).map(num);
-  const sc = getSpendChain();
-  const treasury = treasuryKeypair();
   for (const ch of rows) {
-    // Apartar antes de pagar: dos pasadas a la vez no pagan dos veces.
-    const taken = await db
-      .prepare('UPDATE pay_channels SET owed = owed - ? WHERE id = ? AND owed >= ? RETURNING id')
-      .get(ch.owed, ch.id, ch.owed);
-    if (!taken) continue;
+    // En una sola transacción de base de datos: lo debido se aparta y queda anotado como un pago
+    // por hacer. De ahí en adelante lo lleva treasury-pay.ts, que nunca lo manda dos veces.
+    const paymentId = await withTransaction(async (tx) => {
+      const taken = await tx.prepare('UPDATE pay_channels SET owed = owed - ? WHERE id = ? AND owed >= ? RETURNING id').get(ch.owed, ch.id, ch.owed);
+      if (!taken) return null;
+      return queueTreasuryPayment({ kind: 'channel-owed', ref: `${ch.id}:${randomBytes(6).toString('hex')}`, to: ch.address, amount: ch.owed }, tx);
+    });
+    if (paymentId === null) continue;
     try {
-      const hash = await enqueueChainTask(async () => {
-        const tx = TransactionBuilder.fromXDR(
-          await sc.buildPayment(treasury.publicKey(), ch.address, BigInt(ch.owed)),
-          sc.passphrase(),
-        );
-        tx.sign(treasury);
-        return sc.submitSponsored(tx.toXDR());
-      });
-      await addMove(ch.id, 'claim_refund', ch.owed, hash);
+      await sendTreasuryPayment(paymentId);
     } catch (err) {
-      await db.prepare('UPDATE pay_channels SET owed = owed + ? WHERE id = ?').run(ch.owed, ch.id);
       console.error(`[channel] pagar devolución del canal ${ch.id}:`, (err as Error).message);
     }
   }
 }
+// Cuando el pago queda confirmado en la red, aparece en los movimientos del depósito.
+onTreasuryPaid('channel-owed', async (p) => {
+  await addMove(Number(p.ref.split(':')[0]), 'claim_refund', p.amount, p.txHash ?? p.hash ?? '');
+});
 
 /** Lo que el usuario puede gastar de su depósito ahora, o null si no tiene uno abierto. */
 export async function channelAvailable(userId: number): Promise<number | null> {

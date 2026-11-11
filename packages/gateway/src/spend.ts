@@ -58,6 +58,11 @@ export interface SpendChain {
   buildPayment(from: string, to: string, amount: bigint): Promise<string>;
   /** Envía una transacción ya firmada por su fuente, con las comisiones a cargo del collector. */
   submitSponsored(signedXdr: string): Promise<string>;
+  /**
+   * Qué fue de una transacción, por su hash. Sirve también el hash de la transacción de dentro
+   * cuando otra cuenta pagó la comisión; `hash` es entonces el de la que quedó en la red.
+   */
+  txStatus(hash: string): Promise<{ status: 'success' | 'failed' | 'not_found'; hash?: string }>;
   passphrase(): string;
   tokenContract(): string;
 }
@@ -191,6 +196,18 @@ class StellarSpendChain implements SpendChain {
     const units = amount.toString().padStart(8, '0');
     const asString = `${units.slice(0, -7)}.${units.slice(-7)}`;
     return this.classic(from, Operation.payment({ destination: to, asset: this.usdc, amount: asString }));
+  }
+
+  async txStatus(hash: string): Promise<{ status: 'success' | 'failed' | 'not_found'; hash?: string }> {
+    try {
+      const r = await this.horizon.transactions().transaction(hash).call();
+      // Si otra cuenta pagó la comisión, la que quedó en la red es la de fuera.
+      const outer = (r as unknown as { fee_bump_transaction?: { hash?: string } }).fee_bump_transaction?.hash;
+      return { status: r.successful ? 'success' : 'failed', hash: outer ?? r.hash };
+    } catch (err) {
+      if ((err as { response?: { status?: number } }).response?.status === 404) return { status: 'not_found' };
+      throw err;
+    }
   }
 
   async submitSponsored(signedXdr: string): Promise<string> {
