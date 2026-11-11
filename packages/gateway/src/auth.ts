@@ -78,13 +78,10 @@ export async function createUser(
   if (exists) return { error: 'Email ya registrado' };
 
   const password_hash = bcrypt.hashSync(password, 10);
-  const wallet = Keypair.generate();
-  // TODO(seguridad/custodia): la private key se guarda en CLARO — aceptable en
-  // testnet/hackathon, NO en mainnet. Endurecer antes de producción real: cifrado en reposo
-  // (AES-256-GCM + KMS) o delegar la custodia a Accesly (social login + gasless sobre Stellar)
-  // y dejar de almacenar claves aquí. Ver docs/TEST_PLAN.md (gateway-20/21).
-  const custodial_wallet_secret = JSON.stringify(Array.from(wallet.secretKey));
-  const custodial_wallet_pubkey = wallet.publicKey.toBase58();
+  // Kiba ya no crea ni guarda una clave por cuenta. Quien quiere pagar o publicar desde una
+  // wallet vincula la suya (Privy con él de dueño, o una externa) y firma él: ver spend.ts.
+  const custodial_wallet_secret = '[]';
+  const custodial_wallet_pubkey = '';
 
   // Bono inicial en USD → unidades base del activo activo (chain-aware).
   const bonusLamports = usdToLamports(SIGNUP_BONUS_USD);

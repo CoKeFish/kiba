@@ -361,6 +361,8 @@ async function runInit(): Promise<void> {
   );
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS privy_wallet_id TEXT`);
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS stellar_address TEXT`);
+  // 1 = la wallet de Privy que Kiba controlaba ya es del usuario: Kiba no puede firmar con ella.
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS privy_wallet_owned INTEGER NOT NULL DEFAULT 0`);
   // Wallet propia del usuario (spend.ts): la dirección con la que firmó, y de qué tipo es.
   // Las columnas spend_debt, spend_blocked y spend_expires_ledger, y las tablas spend_charges y
   // spend_reads, eran del cobro a crédito anterior: ya no se usan ni se crean (las bases de datos

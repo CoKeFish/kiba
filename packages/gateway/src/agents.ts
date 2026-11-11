@@ -1,23 +1,22 @@
 /**
- * Agent management — register / update / deregister / list a nombre del user,
- * AGNÓSTICO A LA CADENA (Solana o Stellar) vía la abstracción ChainClient.
+ * Servicios publicados desde el panel: registrar, cambiar, dar de baja y listar.
  *
- * Modelo: el "owner" on-chain del agente registrado ES la custodial wallet del
- * user (la misma keypair que firma open_escrow/claim_payment). Cuando alguien
- * paga por usar ese agente, el activo llega a la custodial del user — ingresos
- * reales on-chain, visibles en /v1/wallet.
+ * El dueño de un servicio en el registro de Stellar es una wallet, y solo ella puede cambiarlo
+ * o darlo de baja. Esa wallet es la del publicador, no una de Kiba:
  *
- * Flujo (idéntico al de proxy.ts/callOnBehalf, ya probado en Stellar):
- *   1. ChainClient para la custodial del user (chainClientFor → respeta CHAIN).
- *   2. ensureFunded() asegura saldo on-chain (friendbot en Stellar, refill master en Solana).
- *   3. cc.registerAgent / updateAgent / deregisterAgent firma con la wallet del user.
+ *   - Con la wallet vinculada a la cuenta (Privy con el usuario de dueño, o una externa), el
+ *     gateway ARMA la transacción y el usuario la FIRMA. Estas funciones devuelven entonces
+ *     `{ prepared, wallet }` y el servicio queda registrado cuando la firma llega a `/v1/spend/submit`.
+ *   - Las cuentas anteriores tienen una wallet que Kiba creó y puede firmar. Mientras no vinculen
+ *     la suya, sus servicios se siguen manejando con esa wallet, como antes. Kiba ya no crea más.
  *
- * Soroban no enumera el registro → trackeamos los servicios de cada user en la
- * tabla `user_agents` para poder listarlos (listMyAgents) sin enumeración on-chain.
+ * Soroban no enumera el registro: los servicios de cada cuenta se anotan en `user_agents`.
  */
-import { ASSET, BASE_UNITS_PER_TOKEN, chainClientForSigner } from './chain';
-import { ensureFunded, loadUserSigner } from './wallets';
+import { nativeToScVal, xdr } from '@stellar/stellar-sdk';
+import { ASSET, BASE_UNITS_PER_TOKEN, chainClientFor, chainClientForSigner } from './chain';
+import { ensureFunded, existingUserSigner, getMasterWallet } from './wallets';
 import { db } from './db';
+import { getSpendChain, onPreparedSent, storePrepared, type PreparedTx, type WalletKind } from './spend';
 import { getServiceLedgerStats, netBaseUnits } from './publisher';
 import type { ChainClient } from 'kiba-sdk';
 
@@ -73,12 +72,67 @@ export function validateUpdateInput(input: UpdateAgentInput): string | null {
   return null;
 }
 
-/** ChainClient (chain-aware) firmando con la custodial del user. Lanza si no hay cadena. */
-async function chainFor(userId: number): Promise<ChainClient> {
-  const cc = chainClientForSigner(await loadUserSigner(userId), `user:${userId}`);
+// ─── Acceso al registro ─────────────────────────────────────────────────────
+
+/** Lo que este módulo lee del registro. Inyectable en tests. */
+export interface RegistryReader {
+  fetchAgent: ChainClient['fetchAgent'];
+}
+let reader: RegistryReader | null = null;
+/** Tests: sustituye la lectura del registro (null = la red). */
+export function setRegistryReader(r: RegistryReader | null): void {
+  reader = r;
+}
+function registry(): RegistryReader {
+  if (reader) return reader;
+  const cc = chainClientFor(getMasterWallet(), 'treasury');
   if (!cc) throw new Error('on-chain registry unavailable (no chain configured)');
   return cc;
 }
+function registryId(): string {
+  const id = process.env.STELLAR_CONTRACT_ID;
+  if (!id) throw new Error('on-chain registry unavailable (no chain configured)');
+  return id;
+}
+
+/** La wallet con la que el usuario firma: la que vinculó a su cuenta. null si no tiene. */
+async function linkedWallet(userId: number): Promise<{ address: string; kind: WalletKind } | null> {
+  const row = (await db.prepare('SELECT spend_address, spend_kind FROM users WHERE id = ?').get(userId)) as
+    | { spend_address: string | null; spend_kind: string | null }
+    | undefined;
+  return row?.spend_address ? { address: row.spend_address, kind: row.spend_kind === 'privy' ? 'privy' : 'external' } : null;
+}
+
+/** Cliente del registro que firma con la wallet anterior de la cuenta (la que Kiba controla). null si no tiene. */
+async function legacyChain(userId: number): Promise<ChainClient | null> {
+  const signer = await existingUserSigner(userId);
+  return signer ? chainClientForSigner(signer, `user:${userId}`) : null;
+}
+
+/** Lo que el usuario tiene que firmar con su wallet para que el cambio ocurra. */
+export interface NeedsSignature {
+  prepared: PreparedTx;
+  wallet: { address: string; kind: WalletKind };
+}
+export const needsSignature = (r: unknown): r is NeedsSignature => typeof r === 'object' && r !== null && 'prepared' in r;
+
+const str = (v: string) => nativeToScVal(v, { type: 'string' });
+const i128 = (n: bigint) => nativeToScVal(n, { type: 'i128' });
+const opt = (v: xdr.ScVal | null) => v ?? xdr.ScVal.scvVoid();
+
+async function trackService(service: string, userId: number): Promise<void> {
+  await db
+    .prepare(
+      `INSERT INTO user_agents (service, user_id, created_at) VALUES (?, ?, ?)
+       ON CONFLICT (service) DO UPDATE SET user_id = EXCLUDED.user_id, created_at = EXCLUDED.created_at`,
+    )
+    .run(service, userId, Math.floor(Date.now() / 1000));
+}
+// Cuando la firma del usuario entra en la red, el servicio queda (o deja de estar) en su lista.
+onPreparedSent('agent_register', async ({ userId, meta }) => trackService(String(meta.service), userId));
+onPreparedSent('agent_deregister', async ({ userId, meta }) => {
+  await db.prepare('DELETE FROM user_agents WHERE service = ? AND user_id = ?').run(String(meta.service), userId);
+});
 
 export interface RegisterResult {
   signature: string;
@@ -88,46 +142,56 @@ export interface RegisterResult {
   refill?: { signature: string; lamports: number };
 }
 
-export async function registerAgent(
-  userId: number,
-  input: RegisterAgentInput,
-): Promise<RegisterResult> {
-  const cc = await chainFor(userId);
+export async function registerAgent(userId: number, input: RegisterAgentInput): Promise<RegisterResult | NeedsSignature> {
+  if (await registry().fetchAgent(input.service)) throw new Error(`service "${input.service}" is already registered`);
 
-  const existing = await cc.fetchAgent(input.service);
-  if (existing) throw new Error(`service "${input.service}" is already registered`);
+  // Con wallet propia: el usuario firma el registro y queda de dueño.
+  const wallet = await linkedWallet(userId);
+  if (wallet) {
+    const built = await getSpendChain().buildContractCall(wallet.address, registryId(), 'register_agent', [
+      nativeToScVal(wallet.address, { type: 'address' }),
+      str(input.service),
+      i128(BigInt(input.pricePerCallLamports)),
+      str(input.endpoint),
+      str(input.description),
+    ]);
+    return { prepared: await storePrepared(userId, 'agent_register', wallet.address, built, { service: input.service }), wallet };
+  }
 
+  // Sin wallet propia: solo las cuentas que ya tenían una wallet creada por Kiba.
+  const cc = await legacyChain(userId);
+  if (!cc) throw new Error('para publicar un servicio vincula tu wallet: el servicio queda a tu nombre y lo firmas tú');
   const refillInfo = await ensureFunded(userId, REGISTER_FUND_BASE_UNITS);
-
   const signature = await cc.registerAgent({
     service: input.service,
     pricePerCallBaseUnits: BigInt(input.pricePerCallLamports),
     endpoint: input.endpoint,
     description: input.description,
   });
-
-  // Trackear para poder listar (Soroban no enumera).
-  await db
-    .prepare(
-      `INSERT INTO user_agents (service, user_id, created_at) VALUES (?, ?, ?)
-       ON CONFLICT (service) DO UPDATE SET user_id = EXCLUDED.user_id, created_at = EXCLUDED.created_at`,
-    )
-    .run(input.service, userId, Math.floor(Date.now() / 1000));
-
+  await trackService(input.service, userId);
   return {
     signature,
     pda: `${ASSET === 'XLM' ? 'stellar' : 'solana'}:${input.service}`,
     owner: cc.ownerAddress,
     service: input.service,
     ...(refillInfo.refilled && refillInfo.signature
-      ? {
-          refill: {
-            signature: refillInfo.signature,
-            lamports: refillInfo.afterLamports - refillInfo.beforeLamports,
-          },
-        }
+      ? { refill: { signature: refillInfo.signature, lamports: refillInfo.afterLamports - refillInfo.beforeLamports } }
       : {}),
   };
+}
+
+/**
+ * Con qué wallet se cambia un servicio ya registrado: la del usuario si es la dueña, o la
+ * anterior de la cuenta si lo es ella. Lanza si la cuenta no es dueña.
+ */
+async function ownerOf(userId: number, service: string): Promise<{ wallet: { address: string; kind: WalletKind } } | { legacy: ChainClient }> {
+  const existing = await registry().fetchAgent(service);
+  if (!existing) throw new Error(`service "${service}" not found`);
+  const wallet = await linkedWallet(userId);
+  if (wallet && wallet.address === existing.ownerAddress) return { wallet };
+  const cc = await legacyChain(userId);
+  if (cc && cc.ownerAddress === existing.ownerAddress) return { legacy: cc };
+  throw new Error('not the owner of this agent');
 }
 
 export interface UpdateResult {
@@ -135,27 +199,24 @@ export interface UpdateResult {
   service: string;
 }
 
-export async function updateAgent(
-  userId: number,
-  service: string,
-  input: UpdateAgentInput,
-): Promise<UpdateResult> {
-  const cc = await chainFor(userId);
-
-  const existing = await cc.fetchAgent(service);
-  if (!existing) throw new Error(`service "${service}" not found`);
-  if (existing.ownerAddress !== cc.ownerAddress) throw new Error('not the owner of this agent');
-
+export async function updateAgent(userId: number, service: string, input: UpdateAgentInput): Promise<UpdateResult | NeedsSignature> {
+  const owner = await ownerOf(userId, service);
+  if ('wallet' in owner) {
+    const built = await getSpendChain().buildContractCall(owner.wallet.address, registryId(), 'update_agent', [
+      str(service),
+      opt(input.pricePerCallLamports !== undefined ? i128(BigInt(input.pricePerCallLamports)) : null),
+      opt(input.endpoint !== undefined ? str(input.endpoint) : null),
+      opt(input.description !== undefined ? str(input.description) : null),
+    ]);
+    return { prepared: await storePrepared(userId, 'agent_update', owner.wallet.address, built, { service }), wallet: owner.wallet };
+  }
   await ensureFunded(userId, UPDATE_FUND_BASE_UNITS);
-
-  const signature = await cc.updateAgent({
+  const signature = await owner.legacy.updateAgent({
     service,
-    pricePerCallBaseUnits:
-      input.pricePerCallLamports !== undefined ? BigInt(input.pricePerCallLamports) : null,
+    pricePerCallBaseUnits: input.pricePerCallLamports !== undefined ? BigInt(input.pricePerCallLamports) : null,
     endpoint: input.endpoint ?? null,
     description: input.description ?? null,
   });
-
   return { signature, service };
 }
 
@@ -164,18 +225,15 @@ export interface DeregisterResult {
   service: string;
 }
 
-export async function deregisterAgent(userId: number, service: string): Promise<DeregisterResult> {
-  const cc = await chainFor(userId);
-
-  const existing = await cc.fetchAgent(service);
-  if (!existing) throw new Error(`service "${service}" not found`);
-  if (existing.ownerAddress !== cc.ownerAddress) throw new Error('not the owner of this agent');
-
+export async function deregisterAgent(userId: number, service: string): Promise<DeregisterResult | NeedsSignature> {
+  const owner = await ownerOf(userId, service);
+  if ('wallet' in owner) {
+    const built = await getSpendChain().buildContractCall(owner.wallet.address, registryId(), 'deregister_agent', [str(service)]);
+    return { prepared: await storePrepared(userId, 'agent_deregister', owner.wallet.address, built, { service }), wallet: owner.wallet };
+  }
   await ensureFunded(userId, UPDATE_FUND_BASE_UNITS);
-
-  const signature = await cc.deregisterAgent(service);
+  const signature = await owner.legacy.deregisterAgent(service);
   await db.prepare('DELETE FROM user_agents WHERE service = ? AND user_id = ?').run(service, userId);
-
   return { signature, service };
 }
 
@@ -199,7 +257,7 @@ export interface AgentSummary {
 }
 
 export async function listMyAgents(userId: number): Promise<AgentSummary[]> {
-  const cc = await chainFor(userId);
+  const cc = registry();
   const rows = (await db
     .prepare('SELECT service FROM user_agents WHERE user_id = ? ORDER BY created_at DESC')
     .all(userId)) as { service: string }[];

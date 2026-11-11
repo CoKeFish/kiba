@@ -83,8 +83,11 @@ import { enqueueChainTask } from './treasury-queue';
 import { kibaPayEnabled, payForCall, reconcileKibaPays } from './kiba-pay';
 import {
   getSpendStatus,
+  legacyPrivyWallet,
   legacyWallet,
   migrateLegacyWallet,
+  ownLegacyPrivyWallet,
+  ownerTransferEnabled,
   prepareActivation,
   prepareWithdraw,
   submitPrepared,
@@ -130,6 +133,7 @@ import {
   updateAgent,
   validateRegisterInput,
   validateUpdateInput,
+  needsSignature,
 } from './agents';
 import {
   createApiKey,
@@ -1286,7 +1290,8 @@ app.post('/v1/agents', requireAuth, async (req, res) => {
     const result = await registerAgent(req.bearerUser!.id, input);
     // Publicar un agente convierte al user en publisher (idempotente).
     await setPublisher(req.bearerUser!.id);
-    res.status(201).json(result);
+    // Con wallet propia el registro lo firma el usuario: 202 con la transacción por firmar.
+    res.status(needsSignature(result) ? 202 : 201).json(result);
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'unknown error';
     const status = msg.includes('already registered') ? 409 : 500;
@@ -1317,6 +1322,7 @@ app.put('/v1/agents/:service', requireAuth, async (req, res) => {
 
   try {
     const result = await updateAgent(req.bearerUser!.id, service, input);
+    if (needsSignature(result)) return res.status(202).json(result);
     res.json(result);
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'unknown error';
@@ -1330,7 +1336,7 @@ app.delete('/v1/agents/:service', requireAuth, async (req, res) => {
   const service = String(req.params.service).trim();
   try {
     const result = await deregisterAgent(req.bearerUser!.id, service);
-    res.json(result);
+    res.status(needsSignature(result) ? 202 : 200).json(result);
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'unknown error';
     const status =
@@ -1549,7 +1555,9 @@ app.get('/v1/spend', requireAuth, async (req, res) => {
       legacyWallet(req.bearerUser!.id).catch(() => null),
     ]);
     // privyAppId es público (lo usa el SDK de Privy en el navegador): así no se hornea en el build.
-    res.json({ ...status, legacy, privyAppId: process.env.PRIVY_APP_ID || null });
+    // `legacyOwnable`: la cuenta tiene una wallet de Privy que Kiba controla y se le puede pasar.
+    const ownable = ownerTransferEnabled() ? await legacyPrivyWallet(req.bearerUser!.id).catch(() => null) : null;
+    res.json({ ...status, legacy, legacyOwnable: ownable ? { address: ownable.address } : null, privyAppId: process.env.PRIVY_APP_ID || null });
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
   }
@@ -1596,6 +1604,18 @@ app.post('/v1/spend/submit', requireAuth, async (req, res) => {
       signedXdr: typeof xdr === 'string' ? xdr : undefined,
     });
     res.json({ ...r, explorerUrl: explorerTxUrl(r.hash) });
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+/**
+ * Le pasa al usuario la wallet de Privy que Kiba controlaba: queda con el mismo dueño que la
+ * wallet de Privy que el usuario vinculó. Después Kiba no puede firmar con ella.
+ */
+app.post('/v1/spend/legacy/own', requireAuth, async (req, res) => {
+  try {
+    res.json(await ownLegacyPrivyWallet(req.bearerUser!.id, String(req.body?.walletId ?? '')));
   } catch (err) {
     res.status(400).json({ error: (err as Error).message });
   }

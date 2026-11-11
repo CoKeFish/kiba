@@ -22,7 +22,7 @@ import { dirname } from 'node:path';
 import { getBalance, lamportsToSol, lamportsToUsd } from './billing';
 import { ASSET, chainClientFor, chainClientForSigner } from './chain';
 import { db } from './db';
-import { privyEnabled, createStellarWallet, PrivyStellarSigner } from './privy';
+import { PrivyStellarSigner } from './privy';
 
 /** Nombre de la unidad base de la cadena activa (stroops en Stellar). */
 export const BASE_UNIT_NAME: 'lamports' | 'stroops' = 'stroops';
@@ -100,32 +100,31 @@ export async function loadUserWallet(userId: number): Promise<Keypair> {
  *    guarda la referencia y BORRA el secret local (la clave sale de la DB).
  *  - Privy no configurado → firma local con el secret guardado (legacy/degradado).
  */
-export async function loadUserSigner(userId: number): Promise<StellarSigner> {
+export async function existingUserSigner(userId: number): Promise<StellarSigner | null> {
   const row = (await db
-    .prepare('SELECT custodial_wallet_secret, privy_wallet_id, stellar_address FROM users WHERE id = ?')
+    .prepare('SELECT custodial_wallet_secret, privy_wallet_id, stellar_address, privy_wallet_owned FROM users WHERE id = ?')
     .get(userId)) as
-    | { custodial_wallet_secret: string | null; privy_wallet_id: string | null; stellar_address: string | null }
+    | { custodial_wallet_secret: string | null; privy_wallet_id: string | null; stellar_address: string | null; privy_wallet_owned: number }
     | undefined;
   if (!row) throw new Error(`user ${userId} not found`);
-
   if (row.privy_wallet_id && row.stellar_address) {
+    // Ya es del usuario: Kiba no puede firmar con ella.
+    if (Number(row.privy_wallet_owned) === 1) return null;
     return new PrivyStellarSigner(row.privy_wallet_id, row.stellar_address);
   }
-
-  if (privyEnabled()) {
-    const w = await createStellarWallet();
-    await db
-      .prepare(
-        "UPDATE users SET privy_wallet_id = ?, stellar_address = ?, custodial_wallet_pubkey = ?, custodial_wallet_secret = '' WHERE id = ?",
-      )
-      .run(w.walletId, w.address, w.address, userId);
-    console.log(`[wallets] user ${userId} migrado a Privy ${w.walletId} (${w.address})`);
-    return new PrivyStellarSigner(w.walletId, w.address);
-  }
-
-  // Legacy: deriva el keypair Stellar del seed ed25519 guardado.
+  if (!row.custodial_wallet_secret || row.custodial_wallet_secret === '[]') return null;
   const kp = await loadUserWallet(userId);
   return new LocalKeypairSigner(StellarKeypair.fromRawEd25519Seed(Buffer.from(kp.secretKey.slice(0, 32))));
+}
+
+/**
+ * Firmante de la wallet ANTERIOR de una cuenta: la que Kiba creó y puede firmar. Las cuentas
+ * nuevas no tienen una y Kiba ya no las crea: quien no la tiene firma con su propia wallet.
+ */
+export async function loadUserSigner(userId: number): Promise<StellarSigner> {
+  const s = await existingUserSigner(userId);
+  if (!s) throw new Error('esta cuenta no tiene una wallet que Kiba pueda firmar: vincula tu wallet y firma con ella');
+  return s;
 }
 
 /**

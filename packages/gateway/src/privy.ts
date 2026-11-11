@@ -9,8 +9,10 @@
  * Verificado contra la API viva: `raw_sign` devuelve una firma que
  * `Keypair.verify(tx.hash(), sig)` de Stellar acepta (spike #1).
  *
- * Las wallets salen con `owner_id: null` (app-owned) → firmables con el app-secret.
- * Endurecimiento opcional (follow-up): owner + authorization key + policies de gasto.
+ * Estas wallets de servidor salen con `owner_id: null`: las firma Kiba con el app-secret. Son
+ * las wallets ANTERIORES; Kiba ya no crea más. Las de ahora las crea el usuario desde el
+ * navegador y nacen con él de dueño. `setWalletOwner` le pasa una anterior a su usuario: desde
+ * ese momento Privy exige la autorización del dueño y el app-secret solo ya no la firma.
  */
 import { Transaction, FeeBumpTransaction } from '@stellar/stellar-sdk';
 import type { StellarSigner } from 'kiba-sdk';
@@ -50,6 +52,35 @@ export async function createStellarWallet(): Promise<PrivyWallet> {
   }
   const w = (await res.json()) as { id: string; address: string };
   return { walletId: w.id, address: w.address };
+}
+
+export interface PrivyWalletInfo {
+  id: string;
+  address: string;
+  /** Quién manda sobre la wallet; null = nadie (la firma el app-secret). */
+  ownerId: string | null;
+}
+
+/** Datos de una wallet, con su dueño. */
+export async function getWallet(walletId: string): Promise<PrivyWalletInfo> {
+  const res = await fetch(`${API_URL}/wallets/${encodeURIComponent(walletId)}`, { headers: authHeaders() });
+  if (!res.ok) throw new Error(`[privy] getWallet ${res.status}: ${await res.text()}`);
+  const w = (await res.json()) as { id: string; address: string; owner_id?: string | null };
+  return { id: w.id, address: w.address, ownerId: w.owner_id ?? null };
+}
+
+/**
+ * Le pone dueño a una wallet que no lo tiene. Con dueño, toda acción sobre la wallet (firmar
+ * incluido) necesita su autorización: el app-secret solo deja de bastar. No se puede deshacer
+ * desde Kiba.
+ */
+export async function setWalletOwner(walletId: string, ownerId: string): Promise<void> {
+  const res = await fetch(`${API_URL}/wallets/${encodeURIComponent(walletId)}`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+    body: JSON.stringify({ owner_id: ownerId }),
+  });
+  if (!res.ok) throw new Error(`[privy] setWalletOwner ${res.status}: ${await res.text()}`);
 }
 
 /** Firma un hash (32 bytes) con la clave de la wallet vía raw_sign. Devuelve la firma ed25519. */
