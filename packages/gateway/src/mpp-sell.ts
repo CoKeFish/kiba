@@ -15,9 +15,7 @@
 import { createHash } from 'node:crypto';
 import type { Request as ExpressRequest, Response as ExpressResponse } from 'express';
 import { TransactionBuilder } from '@stellar/stellar-sdk';
-import { Credential, Receipt } from 'mppx';
-import { Mppx as MppxServer, Store } from 'mppx/server';
-import { charge as stellarServerCharge } from '@stellar/mpp/charge/server';
+import { Credential, MppxServer, Receipt, Store, stellarServerCharge } from '@kiba/mpp';
 import { db, withTransaction } from './db';
 import { lamportsToUsd } from './billing';
 import { MPP_NETWORK, mppCurrency, mppTreasury } from './mpp';

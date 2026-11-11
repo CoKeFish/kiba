@@ -10,9 +10,7 @@
  * El lado vendedor está en mpp-sell.ts.
  */
 import { Keypair } from '@stellar/stellar-sdk';
-import { Challenge, Receipt } from 'mppx';
-import { Mppx as MppxClient } from 'mppx/client';
-import { charge as stellarClientCharge } from '@stellar/mpp/charge/client';
+import { Challenge, MppxClient, Receipt, stellarClientCharge } from '@kiba/mpp';
 import { getUsdcAddress } from '@x402/stellar';
 import { getMasterWallet } from './wallets';
 

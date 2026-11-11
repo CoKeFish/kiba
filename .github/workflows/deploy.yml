@@ -41,6 +41,7 @@ jobs:
               - 'packages/gateway/**'
               - 'packages/demo-agents/**'
               - 'packages/sdk/**'
+              - 'packages/mpp/**'
               - 'packages/landing/**'
               - 'packages/dashboard/**'
               - 'packages/docs/**'

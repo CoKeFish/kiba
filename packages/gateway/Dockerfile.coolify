@@ -16,12 +16,14 @@ WORKDIR /app
 
 COPY package.json package-lock.json tsconfig.base.json ./
 COPY packages/sdk/package.json ./packages/sdk/
+COPY packages/mpp/package.json ./packages/mpp/
 COPY packages/gateway/package.json ./packages/gateway/
 
 # --include=dev garantiza `tsx` aunque el build fije NODE_ENV=production.
 RUN npm install --workspace=@kiba/gateway --include-workspace-root --include=dev
 
 COPY packages/sdk ./packages/sdk
+COPY packages/mpp ./packages/mpp
 COPY packages/gateway ./packages/gateway
 
 WORKDIR /app/packages/gateway

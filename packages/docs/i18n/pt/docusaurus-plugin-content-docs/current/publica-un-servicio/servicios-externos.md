@@ -20,18 +20,18 @@ Se a sua API já cobra por conta própria com **x402** ou **MPP**, não é preci
 |---|---|---|
 | Integração | SDK da Kiba | Nenhuma |
 | Quem cobra do usuário | Kiba | Kiba |
-| Como você recebe | Em lotes, depois do prazo de retenção | Na hora, em cada chamada, com x402 |
+| Como você recebe | Em lotes, depois do prazo de retenção | Na hora, em cada chamada, com x402 ou MPP |
 | Comissão da Kiba | Descontada do seu preço (5 %) | Somada ao seu preço (5 %) |
 | Reclamações do usuário | Sim, enquanto durar a retenção | Não: o pagamento já foi feito na rede |
 
 :::info[MPP]
-As APIs que cobram com MPP podem ser listadas, mas a Kiba ainda não paga com esse protocolo. Ficam visíveis no catálogo e não podem ser chamadas até que isso aconteça.
+A Kiba paga as APIs de [MPP](/stellar/mpp) que oferecem uma cobrança por chamada em USDC na Stellar. Uma API de MPP que só aceite outra moeda, outra rede ou uma cobrança por sessão fica listada, mas não pode ser chamada.
 :::
 
 ## O que você precisa
 
 - Uma URL **https** pública.
-- Que responda `402` com os requisitos de pagamento do x402 para **USDC na Stellar**, na mesma rede em que a Kiba opera (testnet hoje).
+- Que responda `402` pedindo pagamento com x402 ou com MPP, em **USDC na Stellar** e na mesma rede em que a Kiba opera (testnet hoje).
 - Se a API precisar de parâmetros para dar o preço, um valor de exemplo para cada um.
 
 ## Listar uma API

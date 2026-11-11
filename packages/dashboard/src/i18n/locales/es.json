@@ -995,7 +995,7 @@
       "price": "Precio por llamada",
       "calls": "Llamadas"
     },
-    "mpp_hint": "Listado. Kiba todavía no paga con MPP.",
+    "mpp_hint": "Listado. Cobra de una forma que Kiba no puede pagar.",
     "remove": "Quitar {{name}}",
     "add_title": "Listar una API",
     "add_desc": "Al guardar, Kiba le pide una cotización a la URL sin pagar. Solo se acepta si responde pidiendo pago con x402 en Stellar o con MPP.",

@@ -7,6 +7,7 @@ COPY package.json package-lock.json tsconfig.base.json ./
 
 # Solo los workspaces que el gateway usa (sdk es dep transitiva).
 COPY packages/sdk/package.json ./packages/sdk/
+COPY packages/mpp/package.json ./packages/mpp/
 COPY packages/gateway/package.json ./packages/gateway/
 
 # Install scopeado al gateway → reduce node_modules y build RAM ~50%
@@ -14,6 +15,7 @@ COPY packages/gateway/package.json ./packages/gateway/
 RUN npm install --workspace=@kiba/gateway --include-workspace-root
 
 COPY packages/sdk ./packages/sdk
+COPY packages/mpp ./packages/mpp
 COPY packages/gateway ./packages/gateway
 
 WORKDIR /app/packages/gateway

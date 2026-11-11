@@ -1,0 +1,15 @@
+{
+  "name": "@kiba/mpp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Las librerías de MPP (Machine Payments Protocol) en Stellar, en un paquete aparte del gateway",
+  "type": "module",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "dependencies": {
+    "@stellar/mpp": "^0.7.1",
+    "@stellar/stellar-sdk": "^15.1.0",
+    "mppx": "0.6.31",
+    "viem": "2.51.0"
+  }
+}

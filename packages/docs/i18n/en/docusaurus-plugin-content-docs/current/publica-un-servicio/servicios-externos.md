@@ -20,18 +20,18 @@ This is the light publisher tier: your API does not change and the payment reach
 |---|---|---|
 | Integration | Kiba SDK | None |
 | Who charges the user | Kiba | Kiba |
-| How you get paid | In batches, after the holding period | Right away, on every call, with x402 |
+| How you get paid | In batches, after the holding period | Right away, on every call, with x402 or MPP |
 | Kiba's fee | Deducted from your price (5%) | Added on top of your price (5%) |
 | User claims | Yes, during the holding period | No: the payment is already on the network |
 
 :::info[MPP]
-APIs that charge with MPP can be listed, but Kiba does not pay with that protocol yet. They are visible in the catalog and cannot be called until it does.
+Kiba pays [MPP](/stellar/mpp) APIs that offer a per-call charge in USDC on Stellar. An MPP API that only accepts another currency, another network or a session charge stays listed but cannot be called.
 :::
 
 ## What you need
 
 - A public **https** URL.
-- It must reply `402` with x402 payment requirements for **USDC on Stellar**, on the same network Kiba runs on (testnet today).
+- It must reply `402` asking for payment with x402 or MPP, in **USDC on Stellar**, on the same network Kiba runs on (testnet today).
 - If the API needs parameters to return a price, an example value for each one.
 
 ## Listing an API

@@ -5,6 +5,7 @@
   "description": "Marketplace de agentes IA con pagos x402 en Solana",
   "workspaces": [
     "packages/sdk",
+    "packages/mpp",
     "packages/backend",
     "packages/landing",
     "packages/dashboard",

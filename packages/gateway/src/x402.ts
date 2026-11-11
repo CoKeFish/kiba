@@ -38,6 +38,7 @@ import { explorerTxUrl } from './chain';
 import { getMasterWallet } from './wallets';
 import { confirmChannel, releaseChannel, reserveChannel, type ChannelReserve } from './channel';
 import { assertAllowedUrl } from './net-guard';
+import { enqueueChainTask } from './treasury-queue';
 import { isMppChallenge, mppAuthorization, readMppQuote, readMppReceipt } from './mpp';
 import { resultUrl } from './results';
 
@@ -401,25 +402,32 @@ export async function callX402Url(args: X402CallArgs): Promise<X402CallResult> {
   };
 
   // 4. Firma de la treasury + llamada pagada.
-  let payHeaders: Record<string, string>;
-  try {
-    if (viaMpp) {
-      payHeaders = { authorization: await mppAuthorization(first.headers) };
-    } else {
-      const payload: PaymentPayload = await http.createPaymentPayload({ ...required!, accepts: [x402Accept!] });
-      payHeaders = http.encodePaymentSignatureHeader(payload);
+  const signAndCall = async (): Promise<HttpReply> => {
+    let payHeaders: Record<string, string>;
+    try {
+      if (viaMpp) {
+        payHeaders = { authorization: await mppAuthorization(first.headers) };
+      } else {
+        const payload: PaymentPayload = await http.createPaymentPayload({ ...required!, accepts: [x402Accept!] });
+        payHeaders = http.encodePaymentSignatureHeader(payload);
+      }
+    } catch (err) {
+      throw new Error(`no se pudo firmar el pago: ${(err as Error).message}`);
     }
-  } catch (err) {
-    const msg = `no se pudo firmar el pago: ${(err as Error).message}`;
-    await refund(msg);
-    await closeResult(resultId, { error: msg });
-    throw new Error(msg);
-  }
+    try {
+      return await send(u, method, { ...headers, ...payHeaders }, bodyText);
+    } catch (err) {
+      throw new Error(`la llamada pagada a ${u.host} falló: ${(err as Error).message}`);
+    }
+  };
   let second: HttpReply;
   try {
-    second = await send(u, method, { ...headers, ...payHeaders }, bodyText);
+    // Con MPP la tesorería firma una transacción completa, con su número de secuencia, y la API
+    // la envía a la red: tiene que pasar por la cola de la tesorería para no chocar con otra
+    // transacción suya. Con x402 solo firma la autorización de la transferencia y no hace falta.
+    second = viaMpp ? await enqueueChainTask(signAndCall) : await signAndCall();
   } catch (err) {
-    const msg = `la llamada pagada a ${u.host} falló: ${(err as Error).message}`;
+    const msg = (err as Error).message;
     await refund(msg);
     await closeResult(resultId, { error: msg });
     throw new Error(msg);
