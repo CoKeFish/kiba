@@ -53,6 +53,14 @@ import {
 } from './mcp-oauth';
 import { handleMcpRequest } from './mcp';
 import { callX402Url, x402PayerAddress, X402_NETWORK } from './x402';
+import {
+  callExternal,
+  isExternalService,
+  listExternal,
+  listMyExternal,
+  registerExternal,
+  removeExternal,
+} from './external';
 import { getBalance, getTransactions, lamportsToUsd, topup } from './billing';
 import {
   getPaymentProvider,
@@ -1325,6 +1333,21 @@ app.post('/v1/call', requireAuth, async (req, res) => {
     });
   }
 
+  // Servicio externo del catálogo (`ext:<slug>`): Kiba le paga a su API al momento.
+  if (isExternalService(service)) {
+    try {
+      const out = await callExternal({
+        userId: req.bearerUser!.id,
+        service,
+        payload: payload ?? {},
+        parentId: await resolveParentCall(req.get('x-kiba-parent-call')),
+      });
+      return res.json(out);
+    } catch (err) {
+      return res.status(502).json({ error: err instanceof Error ? err.message : 'unknown error' });
+    }
+  }
+
   try {
     // REST espera la llamada completa salvo que el cliente pida `waitMs` (p.ej. el adaptador
     // stdio, sujeto al timeout del cliente MCP). Con o sin espera, el resultado queda guardado.
@@ -1370,6 +1393,55 @@ app.post('/v1/x402/call', requireAuth, async (req, res) => {
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'unknown error';
     res.status(502).json({ error: msg });
+  }
+});
+
+// ─── Servicios externos (nivel ligero de publicador, external.ts) ───────────
+
+/** Catálogo de servicios externos. `?q=` filtra por nombre y descripción. */
+app.get('/v1/external', requireAuth, async (req, res) => {
+  try {
+    res.json(await listExternal(typeof req.query.q === 'string' ? req.query.q : undefined));
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+/** Los servicios externos que listó quien llama. */
+app.get('/v1/publisher/external', requireAuth, async (req, res) => {
+  try {
+    res.json(await listMyExternal(req.bearerUser!.id));
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+/** Lista un servicio externo: la URL debe cobrar con x402 o MPP. */
+app.post('/v1/publisher/external', requireAuth, async (req, res) => {
+  try {
+    const b = (req.body ?? {}) as Record<string, unknown>;
+    const svc = await registerExternal(req.bearerUser!.id, {
+      slug: String(b.slug ?? ''),
+      name: String(b.name ?? ''),
+      description: String(b.description ?? ''),
+      url: String(b.url ?? ''),
+      method: typeof b.method === 'string' ? b.method : undefined,
+      params: b.params,
+    });
+    // Listar un servicio convierte a la cuenta en publicador (idempotente).
+    await setPublisher(req.bearerUser!.id);
+    res.status(201).json(svc);
+  } catch (err) {
+    res.status(400).json({ error: err instanceof Error ? err.message : 'unknown error' });
+  }
+});
+
+app.delete('/v1/publisher/external/:slug', requireAuth, async (req, res) => {
+  try {
+    await removeExternal(req.bearerUser!.id, String(req.params.slug));
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(404).json({ error: err instanceof Error ? err.message : 'unknown error' });
   }
 });
 

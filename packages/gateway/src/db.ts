@@ -397,6 +397,23 @@ async function runInit(): Promise<void> {
   await pool.query(`ALTER TABLE agent_earnings ADD COLUMN IF NOT EXISTS refunded BIGINT NOT NULL DEFAULT 0`);
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_earnings_hold ON agent_earnings(hold_id)`);
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_earnings_tx ON agent_earnings(tx_id)`);
+  // Servicios externos: APIs que ya cobran con x402 o MPP, listadas con su URL (external.ts).
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS external_services (
+      slug TEXT PRIMARY KEY,
+      user_id BIGINT NOT NULL REFERENCES users(id),
+      name TEXT NOT NULL,
+      description TEXT NOT NULL,
+      url TEXT NOT NULL,
+      method TEXT NOT NULL DEFAULT 'GET',
+      params TEXT NOT NULL DEFAULT '[]',
+      protocol TEXT NOT NULL,
+      price_lamports BIGINT,
+      calls BIGINT NOT NULL DEFAULT 0,
+      created_at BIGINT NOT NULL,
+      updated_at BIGINT NOT NULL
+    )`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS external_services_user ON external_services (user_id)`);
   // El escrow de Trustless Work de cada publicador: uno de larga vida al que se agregan tramos.
   await pool.query(`
     CREATE TABLE IF NOT EXISTS publisher_escrows (

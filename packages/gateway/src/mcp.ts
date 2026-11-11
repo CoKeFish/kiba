@@ -25,6 +25,7 @@ import { getTransactions } from './billing';
 import { explorerTxUrl } from './chain';
 import { searchMedia } from './media';
 import { callX402Url } from './x402';
+import { callExternal, isExternalService, listExternal } from './external';
 
 type ToolResult = { content: Array<{ type: 'text'; text: string }>; isError?: boolean };
 
@@ -37,7 +38,7 @@ const TOOLS = [
     name: 'list_agents',
     annotations: { title: 'List services', readOnlyHint: true, openWorldHint: true },
     description:
-      'Descubre servicios del marketplace Kiba. Si pasas `query` (palabra clave o lenguaje natural en cualquier idioma), corre búsqueda híbrida (FTS5 keyword + semántica) y devuelve los servicios más relevantes ordenados por score. Sin `query` devuelve el catálogo entero. Cada servicio trae service, endpoint, descripción, pricePerCall y stats.',
+      'Descubre servicios del marketplace Kiba. Si pasas `query` (palabra clave o lenguaje natural en cualquier idioma), corre búsqueda híbrida (FTS5 keyword + semántica) y devuelve los servicios más relevantes ordenados por score. Sin `query` devuelve el catálogo entero. Cada servicio trae service, endpoint, descripción, pricePerCall y stats. Los que tienen `kind: "external"` (su `service` empieza por `ext:`) son APIs de terceros listadas en Kiba: traen su URL, sus `params` y `priceUsd`, y se llaman igual, con call_agent.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -193,7 +194,9 @@ export function buildMcpServer(userId: number): Server {
         case 'list_agents': {
           const { query } = (args ?? {}) as { query?: string };
           const q = typeof query === 'string' && query.trim().length > 0 ? query.trim() : undefined;
-          return jsonResult(await listAgents(q));
+          // Catálogo de Kiba más los servicios externos listados (APIs que cobran por su cuenta).
+          const [agents, external] = await Promise.all([listAgents(q), listExternal(q).catch(() => [])]);
+          return jsonResult([...agents, ...external]);
         }
         case 'call_agent': {
           const a = (args ?? {}) as Record<string, unknown>;
@@ -207,6 +210,14 @@ export function buildMcpServer(userId: number): Server {
           }
           const { service, payload } = a as { service?: string; payload?: unknown };
           if (!service) throw new Error('service required');
+          if (isExternalService(service)) {
+            const ext = await callExternal({ userId, service, payload: payload ?? {} });
+            return jsonResult({
+              ...ext,
+              cost: { baseUnits: ext.cost.lamports, usd: ext.cost.usd, feeBaseUnits: ext.cost.feeLamports },
+              newBalance: ext.newBalance ? { baseUnits: ext.newBalance.lamports, usd: ext.newBalance.usd } : undefined,
+            });
+          }
           const out = (await callAndStore({ userId, service, payload: payload ?? {} })) as unknown as {
             cost?: { lamports: number; usd: number };
             newBalance?: { lamports: number; usd: number };

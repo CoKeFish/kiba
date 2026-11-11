@@ -71,6 +71,10 @@ export interface X402CallArgs {
   maxUsd?: number;
   /** Llamada padre ya validada (results.resolveParentCall): un servicio paga esta API mientras sirve esa llamada. */
   parentId?: string | null;
+  /** Comisión de Kiba encima del precio de la API, en puntos básicos. El usuario paga precio + comisión. */
+  feeBps?: number;
+  /** Nombre con el que queda la llamada en el historial (por defecto `x402:<host>`). */
+  service?: string;
 }
 
 export interface X402CallResult {
@@ -81,7 +85,8 @@ export interface X402CallResult {
   /** Cuerpo de la respuesta de la API (JSON parseado o texto). */
   result: unknown;
   paid: boolean;
-  cost: { lamports: number; usd: number };
+  /** Lo que pagó el usuario. `feeLamports` es la parte que es comisión de Kiba, si la hubo. */
+  cost: { lamports: number; usd: number; feeLamports?: number };
   paidWith?: 'credit' | 'wallet';
   network?: string;
   payTo?: string;
@@ -250,6 +255,33 @@ async function closeResult(id: string, out: { result?: unknown; error?: string; 
     .catch(() => undefined);
 }
 
+// ─── cotización sin pagar ──────────────────────────────────────────────────
+
+export type PaidUrlQuote =
+  | { kind: 'x402'; lamports: number; network: string; payTo: string }
+  | { kind: 'mpp' }
+  | { kind: 'free'; status: number };
+
+/**
+ * Le pregunta a una URL cómo cobra, sin pagar nada: x402 en Stellar (con su precio), MPP, o no
+ * cobra. Lanza si pide pago de una forma que Kiba no conoce.
+ */
+export async function probePaidUrl(url: string, method = 'GET', body?: unknown): Promise<PaidUrlQuote> {
+  const u = await assertAllowedUrl(url);
+  const headers: Record<string, string> = { accept: 'application/json' };
+  const bodyText = body === undefined || body === null ? undefined : JSON.stringify(body);
+  if (bodyText !== undefined) headers['content-type'] = 'application/json';
+  const first = await send(u, method.toUpperCase(), headers, bodyText).catch((err) => {
+    throw new Error(`no se pudo llamar a ${u.host}: ${(err as Error).message}`);
+  });
+  if (first.status !== 402) return { kind: 'free', status: first.status };
+  // MPP pide el pago con el esquema de autenticación HTTP "Payment".
+  if (/^\s*Payment\b/i.test(first.headers.get('www-authenticate') ?? '')) return { kind: 'mpp' };
+  const required = httpClient().getPaymentRequiredResponse((n) => first.headers.get(n), first.body);
+  const accept = pickStellarRequirements(required.accepts ?? []);
+  return { kind: 'x402', lamports: Number(BigInt(accept.amount)), network: accept.network, payTo: accept.payTo };
+}
+
 // ─── entrada principal ─────────────────────────────────────────────────────
 
 export async function callX402Url(args: X402CallArgs): Promise<X402CallResult> {
@@ -267,7 +299,7 @@ export async function callX402Url(args: X402CallArgs): Promise<X402CallResult> {
   if (!headers.accept) headers.accept = 'application/json';
   const maxUsd = Math.min(args.maxUsd ?? MAX_USD_DEFAULT, MAX_USD_HARD);
 
-  const service = `x402:${u.host}`;
+  const service = args.service ?? `x402:${u.host}`;
   const resultId = await openResult(
     args.userId,
     service,
@@ -297,7 +329,10 @@ export async function callX402Url(args: X402CallArgs): Promise<X402CallResult> {
     await closeResult(resultId, { error: (err as Error).message });
     throw err;
   }
-  const lamports = Number(BigInt(accept.amount));
+  // `price` es lo que cobra la API; `lamports`, lo que paga el usuario (precio más comisión).
+  const price = Number(BigInt(accept.amount));
+  const fee = args.feeBps ? Math.ceil((price * args.feeBps) / 10_000) : 0;
+  const lamports = price + fee;
   const capLamports = usdToLamports(maxUsd);
   if (lamports > capLamports) {
     const msg = `la API cobra ${lamportsToUsd(lamports).toFixed(4)} USD por esta llamada y el límite es ${maxUsd} USD; repite con maxUsd para autorizarlo`;
@@ -306,7 +341,14 @@ export async function callX402Url(args: X402CallArgs): Promise<X402CallResult> {
   }
 
   // 3. Cobro al usuario: crédito primero, si no su depósito.
-  const meta = { mode: 'x402', url: u.href, network: accept.network, payTo: accept.payTo, scheme: accept.scheme };
+  const meta = {
+    mode: 'x402',
+    url: u.href,
+    network: accept.network,
+    payTo: accept.payTo,
+    scheme: accept.scheme,
+    ...(fee > 0 ? { priceLamports: price, feeLamports: fee } : {}),
+  };
   let paidWith: 'credit' | 'wallet';
   let hold: ChannelReserve = { ok: false, reason: 'none', available: 0 };
   let debitTxId: number | undefined;
@@ -382,7 +424,7 @@ export async function callX402Url(args: X402CallArgs): Promise<X402CallResult> {
     result: second.body,
     paid: true,
     paidWith,
-    cost: { lamports, usd: lamportsToUsd(lamports) },
+    cost: { lamports, usd: lamportsToUsd(lamports), ...(fee > 0 ? { feeLamports: fee } : {}) },
     network: accept.network,
     payTo: accept.payTo,
     payer: settled?.payer,
