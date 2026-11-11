@@ -67,7 +67,7 @@ The dashboard (top bar and **Billing** page) and the [`get_balance`](/conecta-tu
 |---|---|---|
 | Enough credit | The treasury signs and pays on-chain; the user's wallet isn't touched (a single charge) | `credit` |
 | No credit and an open deposit | The price is deducted from the deposit instantly; Kiba collects it from the channel in batches | `wallet` |
-| No credit and no deposit | The wallet pays directly with the full on-chain escrow; slower (a single charge) | `wallet` |
+| No credit and no deposit | The call is not made: top up credits or open a deposit | — |
 
 Publishers get paid **on-chain**, not in credits.
 

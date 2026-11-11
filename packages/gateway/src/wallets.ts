@@ -212,10 +212,9 @@ export async function getUserBalances(userId: number): Promise<UserBalances> {
   const creditLamports = await getBalance(userId);
   let walletLamports = 0;
   try {
-    // Lo que queda por gastar del depósito retirable, más la wallet anterior (paga en modo
-    // wallet-direct). Import diferido: channel.ts importa este módulo.
+    // Lo que queda por gastar del depósito retirable. Import diferido: channel.ts importa este módulo.
     const { channelAvailable } = await import('./channel.js');
-    walletLamports = ((await channelAvailable(userId)) ?? 0) + (await userOnChainBalance(userId));
+    walletLamports = (await channelAvailable(userId)) ?? 0;
   } catch (err) {
     console.warn(`[wallets] on-chain balance failed for user ${userId}:`, (err as Error).message);
   }

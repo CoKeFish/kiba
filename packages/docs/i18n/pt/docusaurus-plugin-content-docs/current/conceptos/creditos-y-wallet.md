@@ -67,7 +67,7 @@ O dashboard (barra superior e página **Billing**) e a ferramenta [`get_balance`
 |---|---|---|
 | Há crédito suficiente | A tesouraria assina e paga on-chain; a wallet do usuário não é tocada (uma única cobrança) | `credit` |
 | Não há crédito e há um depósito aberto | O preço é descontado do depósito na hora; a Kiba cobra do canal em lotes | `wallet` |
-| Não há crédito nem depósito | A wallet paga diretamente com o escrow completo on-chain; mais lento (uma única cobrança) | `wallet` |
+| Não há crédito nem depósito | A chamada não é feita: recarregue créditos ou abra um depósito | — |
 
 Os publishers recebem **on-chain**, não em créditos.
 

@@ -960,8 +960,8 @@
   },
   "holds": {
     "title": "Held earnings",
-    "desc": "What each service earns in a week goes into a Trustless Work escrow in your name. It is released to your wallet when the period ends, if there are no open claims.",
-    "empty": "No held earnings yet. The current week is held when it closes.",
+    "desc": "What each service earns in a day goes into your Trustless Work escrow. It is released to your wallet when the period ends, if there are no open claims.",
+    "empty": "No held earnings yet. Today's earnings are held when the day closes.",
     "status": {
       "funding": "preparing the escrow",
       "held": "held",
@@ -977,7 +977,7 @@
     "refunded": "refunded to users: {{usd}}",
     "view_escrow": "view escrow",
     "payouts_subtitle": "You keep {{netPct}}% of each paid call. Earnings are held for a period and then released to your wallet.",
-    "kpi_hint": "from the current week; held when it closes",
+    "kpi_hint": "from today; held when the day closes",
     "wallet_desc": "Your earnings arrive here when each hold is released."
   }
 }

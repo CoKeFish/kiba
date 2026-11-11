@@ -960,8 +960,8 @@
   },
   "holds": {
     "title": "Ganhos retidos",
-    "desc": "O que cada serviço ganha em uma semana vai para um escrow da Trustless Work em seu nome. É liberado para a sua wallet quando o prazo vence, se não houver reclamações abertas.",
-    "empty": "Ainda não há ganhos retidos. A semana em curso é retida ao fechar.",
+    "desc": "O que cada serviço ganha em um dia entra no seu escrow da Trustless Work. É liberado para a sua wallet quando o prazo vence, se não houver reclamações abertas.",
+    "empty": "Ainda não há ganhos retidos. O de hoje é retido ao fechar o dia.",
     "status": {
       "funding": "preparando o escrow",
       "held": "retido",
@@ -977,7 +977,7 @@
     "refunded": "devolvido a usuários: {{usd}}",
     "view_escrow": "ver escrow",
     "payouts_subtitle": "Você fica com {{netPct}}% de cada chamada paga. O ganho fica retido por um prazo e depois é liberado para a sua wallet.",
-    "kpi_hint": "da semana em curso; retido ao fechar",
+    "kpi_hint": "de hoje; retido ao fechar o dia",
     "wallet_desc": "Seus ganhos chegam aqui quando cada retenção é liberada."
   }
 }

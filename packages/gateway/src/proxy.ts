@@ -1,18 +1,14 @@
 /**
- * Proxy de /v1/call al SDK de Kiba.
+ * Proxy de /v1/call: una llamada a un servicio en nombre de un usuario.
  *
- * Modelo: dos buckets de fondos.
- *   1. Pre-quote: probe HTTP sin pago para obtener el monto REAL que el agente
- *      cobrará por ESTE payload (pricing dinámico via priceFn).
- *   2. Cascada (decide ANTES de llamar):
- *      - Si el CRÉDITO de plataforma cubre el costo → debita crédito y la TREASURY
- *        de la plataforma liquida el escrow on-chain (el wallet del user NO se toca).
- *      - Si no → modo wallet-direct: la custodial del user paga directo con su XLM
- *        on-chain. Sin debit de crédito.
- *   3. La llamada al servicio se hace UNA sola vez (callWithTrace), después de
- *      la decisión. El SDK maneja el handshake x402 internamente y devuelve
- *      un trace estructurado de los 4 steps.
- *   4. La cascada es por call entera, no parcial — para no fragmentar el escrow.
+ *   1. Cotización: se le pregunta al servicio cuánto cobra por ESTE pedido (precio dinámico).
+ *   2. Se decide de dónde sale el pago, antes de llamar:
+ *      - Créditos, si alcanzan.
+ *      - Si no, el depósito retirable del usuario (channel.ts).
+ *      - Si no hay ninguno de los dos, la llamada no se hace.
+ *   3. El servicio se llama una sola vez, con la llamada firmada por la plataforma. Si falla,
+ *      el pago se deshace.
+ *   4. Lo ganado por el publicador se anota y sigue el camino de la retención (retention.ts).
  */
 import axios from 'axios';
 import { AgentClient, type ServiceManifest, type X402Quote, type X402Trace } from 'kiba-sdk';
@@ -21,10 +17,8 @@ import { db, withTransaction } from './db';
 import {
   getMasterWallet,
   getPlatformSigner,
-  loadUserSigner,
   masterWalletPubkey,
   platformPublicKey,
-  userOnChainBalance,
 } from './wallets';
 import { BASE_UNITS_PER_TOKEN, explorerTxUrl } from './chain';
 import { recordEarning } from './settlement';
@@ -40,8 +34,6 @@ import { retentionEnabled } from './retention';
  */
 const FUND_WAIT_TIMEOUT_MS = Number(process.env.PER_CALL_FUND_TIMEOUT_MS ?? 0) || 0;
 
-const WALLET_TX_FEE_BUFFER = 5_000_000;
-
 const BACKEND_URL = process.env.BACKEND_URL || 'http://backend:4000';
 
 export async function listAgents(query?: string): Promise<unknown[]> {
@@ -50,22 +42,6 @@ export async function listAgents(query?: string): Promise<unknown[]> {
     : `${BACKEND_URL}/agents`;
   const r = await axios.get(url);
   return r.data;
-}
-
-/**
- * Pulls the on-chain signature out of an x402 trace. Prefers `claimSignature`
- * (proves the agent received payment); falls back to `escrow_opened.signature`
- * (proves the user funded the escrow) when claim is missing. Returns undefined
- * for legacy/no-program responses (signature === 'NO_ONCHAIN_PROGRAM_ID').
- */
-function pickOnChainSignature(trace: X402Trace): string | undefined {
-  const responded = trace.steps.find((s) => s.type === 'service_responded');
-  const opened = trace.steps.find((s) => s.type === 'escrow_opened');
-  const claim = responded?.type === 'service_responded' ? responded.claimSignature : undefined;
-  const open = opened?.type === 'escrow_opened' ? opened.signature : undefined;
-  const sig = claim ?? open;
-  if (!sig || sig === 'NO_ONCHAIN_PROGRAM_ID') return undefined;
-  return sig;
 }
 
 async function refundDebit(
@@ -86,33 +62,6 @@ async function refundDebit(
       )
       .run(userId, lamports, service, JSON.stringify({ reason }), now);
   });
-}
-
-async function recordWalletDirectCall(args: {
-  userId: number;
-  lamports: number;
-  service: string;
-  floorPricePerCall: number;
-  signature?: string;
-}): Promise<void> {
-  const now = Math.floor(Date.now() / 1000);
-  await db
-    .prepare(
-      `INSERT INTO transactions (user_id, type, amount_lamports, service, signature, metadata, created_at)
-     VALUES (?, 'call', ?, ?, ?, ?, ?)`,
-    )
-    .run(
-      args.userId,
-      -args.lamports,
-      args.service,
-      args.signature ?? null,
-      JSON.stringify({
-        mode: 'wallet-direct',
-        floorPricePerCall: args.floorPricePerCall,
-        dynamicAmountLamports: args.lamports,
-      }),
-      now,
-    );
 }
 
 /** Historial de una llamada pagada del depósito retirable (canal de pago del usuario). */
@@ -247,17 +196,14 @@ export async function callOnBehalf(args: {
 }): Promise<{
   result: unknown;
   cost: { lamports: number; usd: number };
-  mode: 'virtual' | 'deposit' | 'wallet-direct';
+  mode: 'virtual' | 'deposit';
   paidWith: 'credit' | 'wallet';
   newBalance: { lamports: number; usd: number };
   trace: X402Trace;
-  /** Link a stellar.expert para inspeccionar la tx on-chain de ESTA llamada: el escrow
-   *  x402 en wallet-direct, o el fondeo per-call del escrow del ciclo en modo crédito. */
+  /** Link a stellar.expert de la transacción de ESTA llamada, cuando se paga al momento. */
   explorerUrl?: string;
 }> {
-  // Cliente para la QUOTE (lectura, no firma). El firmante del usuario se carga SOLO en modo
-  // wallet-direct: cargarlo provisiona una wallet de Privy controlada por Kiba si no tiene una,
-  // y con crédito o depósito no hace falta.
+  // Cliente para la cotización y la llamada. Nunca firma con la wallet del usuario.
   const client = new AgentClient({ wallet: getMasterWallet() });
 
   // 1. Pre-quote: precio REAL que el agente cobrará para ESTE payload
@@ -435,45 +381,10 @@ export async function callOnBehalf(args: {
     };
   }
 
-  // ── MODO WALLET-DIRECT (no-custodial, escrow per-call on-chain) ───────────
-  // Sin crédito suficiente → la custodial del usuario paga directo el escrow on-chain.
-  // Sin cambios respecto al flujo previo: este modo conserva la liquidación x402 per-call.
-  const onChain = await userOnChainBalance(args.userId);
-  const required = lamports + WALLET_TX_FEE_BUFFER;
-  if (onChain < required) {
-    throw new Error(
-      `insufficient funds: credit ${virtualBalance} + wallet ${onChain} < ${required} (price ${lamports} + fee buffer ${WALLET_TX_FEE_BUFFER})`,
-    );
-  }
-
-  // Este modo SÍ firma con la wallet del usuario (escrow x402 per-call).
-  const walletClient = new AgentClient({ signer: await loadUserSigner(args.userId) });
-  const traced = await walletClient.callWithTrace(args.service, args.payload, {
-    // maxPrice circuit breaker — 2x del cotizado por seguridad (en unidades del token)
-    maxPrice: (lamports / BASE_UNITS_PER_TOKEN) * 2,
-    timeoutMs: 120_000,
-    callId: args.callId,
-  });
-  const onChainSig = pickOnChainSignature(traced.trace);
-  await recordWalletDirectCall({
-    userId: args.userId,
-    lamports,
-    service: args.service,
-    floorPricePerCall: manifest.pricePerCall,
-    signature: onChainSig,
-  });
-
-  const newBalanceLamports = await userOnChainBalance(args.userId);
-  return {
-    result: traced.result,
-    cost: { lamports, usd: lamportsToUsd(lamports) },
-    mode: 'wallet-direct',
-    paidWith: 'wallet',
-    newBalance: { lamports: newBalanceLamports, usd: lamportsToUsd(newBalanceLamports) },
-    trace: traced.trace,
-    explorerUrl: onChainSig ? explorerTxUrl(onChainSig) : undefined,
-  };
+  // Sin créditos ni depósito no hay de dónde pagar.
+  throw new Error(
+    `saldo insuficiente: la llamada cuesta ${lamportsToUsd(lamports).toFixed(4)} USD y tienes ${lamportsToUsd(virtualBalance).toFixed(4)} USD en créditos; recarga créditos o abre un depósito desde tu wallet`,
+  );
 }
 
-// Re-export para que index.ts lo siga importando desde aquí
 export { masterWalletPubkey, platformPublicKey };
