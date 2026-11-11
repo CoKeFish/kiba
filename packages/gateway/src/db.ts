@@ -376,12 +376,12 @@ async function runInit(): Promise<void> {
   );
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS privy_wallet_id TEXT`);
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS stellar_address TEXT`);
-  // Permiso de gasto (spend.ts): wallet propia del usuario + deuda anotada pendiente de cobro.
+  // Wallet propia del usuario (spend.ts): la dirección con la que firmó, y de qué tipo es.
+  // Las columnas spend_debt, spend_blocked y spend_expires_ledger, y las tablas spend_charges y
+  // spend_reads, eran del cobro a crédito anterior: ya no se usan ni se crean (las bases de datos
+  // que las tengan las conservan sin efecto).
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS spend_address TEXT`);
-  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS spend_debt BIGINT NOT NULL DEFAULT 0`);
-  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS spend_blocked INTEGER NOT NULL DEFAULT 0`);
-  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS spend_expires_ledger BIGINT`);
-  // 'privy' (wallet de pagos dedicada, dueño = el usuario) o 'external' (Freighter, xBull…).
+  // 'privy' (wallet de Privy cuyo dueño es el usuario) o 'external' (Freighter, xBull…).
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS spend_kind TEXT`);
   // Transacciones que arma el gateway para que el usuario las firme: solo estas se envían.
   await pool.query(`
@@ -400,34 +400,6 @@ async function runInit(): Promise<void> {
   await pool.query(
     `CREATE UNIQUE INDEX IF NOT EXISTS idx_users_spend_address ON users(spend_address) WHERE spend_address IS NOT NULL`,
   );
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS spend_charges (
-      id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-      user_id BIGINT NOT NULL REFERENCES users(id),
-      address TEXT NOT NULL,
-      amount BIGINT NOT NULL,
-      status TEXT NOT NULL,
-      tx_hash TEXT,
-      error TEXT,
-      created_at BIGINT NOT NULL,
-      settled_at BIGINT
-    )
-  `);
-  await pool.query(`CREATE INDEX IF NOT EXISTS idx_spend_charges_user ON spend_charges(user_id, created_at)`);
-  // Un solo cobro en vuelo por usuario, aunque corran varios procesos del gateway.
-  await pool.query(
-    `CREATE UNIQUE INDEX IF NOT EXISTS idx_spend_charges_one_pending ON spend_charges(user_id) WHERE status = 'pending'`,
-  );
-  // Última lectura on-chain (saldo + permiso) de cada wallet de pagos: respaldo cuando el RPC
-  // tarda, que sobrevive a reinicios y a ratos sin uso.
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS spend_reads (
-      address TEXT PRIMARY KEY,
-      balance BIGINT NOT NULL,
-      allowance BIGINT NOT NULL,
-      read_at BIGINT NOT NULL
-    )
-  `);
   // Depósito retirable (channel.ts): un canal de pago de Stellar por usuario.
   await pool.query(`
     CREATE TABLE IF NOT EXISTS pay_channels (

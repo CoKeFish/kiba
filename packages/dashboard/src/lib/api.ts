@@ -50,21 +50,15 @@ export const api = {
       body: JSON.stringify({ amount_usd }),
     }),
 
-  // Permiso de gasto: pagar desde la wallet propia del usuario
+  // Wallet propia del usuario
   spend: () => request<SpendStatus>("/v1/spend"),
   /** Crea la cuenta si hace falta y devuelve la trustline a firmar (o `ready`). */
-  spendActivate: (address: string) =>
+  spendActivate: (address: string, kind: "privy" | "external") =>
     request<{ ready: boolean; tx?: PreparedTx }>("/v1/spend/activate", {
       method: "POST",
-      body: JSON.stringify({ address }),
+      body: JSON.stringify({ address, kind }),
     }),
-  /** Permiso de gasto. Sin `amount` = sin tope; `amount: 0` = revocar. */
-  spendPrepare: (args: { address: string; amount?: number; days?: number; kind: "privy" | "external" }) =>
-    request<PreparedTx & { expirationLedger: number }>("/v1/spend/prepare", {
-      method: "POST",
-      body: JSON.stringify(args),
-    }),
-  /** Retiro desde la wallet de pagos. Sin `amount` = todo. */
+  /** Envía USDC de la wallet a otra dirección. Sin `amount` = todo. */
   spendWithdraw: (to: string, amount?: number) =>
     request<PreparedTx & { amountBaseUnits: number }>("/v1/spend/withdraw", {
       method: "POST",
@@ -326,7 +320,7 @@ export type Transaction = {
 
 /** Transacción armada por el gateway para que el usuario la firme. */
 export type PreparedTx = {
-  kind: "trustline" | "approve" | "withdraw" | "channel_open" | "channel_topup" | "channel_close_start" | "channel_refund";
+  kind: "trustline" | "withdraw" | "channel_open" | "channel_topup" | "channel_close_start" | "channel_refund";
   /** Hash (hex) a firmar con Privy `signRawHash`. */
   hash: string;
   /** XDR sin firmar, para wallets externas (Stellar Wallets Kit). */
@@ -367,28 +361,15 @@ export type ChannelStatus = {
 };
 
 export type SpendStatus = {
-  /** Wallet de pagos vinculada (G...), o null si aún no firmó un permiso. */
+  /** Wallet vinculada (G...), o null si el usuario aún no firmó nada con una. */
   address: string | null;
   kind: "privy" | "external" | null;
-  /** Permiso sin tope: el límite es el saldo. */
-  unlimited: boolean;
+  /** USDC que tiene la wallet, fuera del depósito (unidades base). */
+  balanceBaseUnits: number;
   /** Wallet anterior (controlada por Kiba) con su saldo, para migrarla. */
   legacy: { address: string; balanceBaseUnits: number } | null;
   /** App ID público de Privy (null si el gateway no tiene Privy configurado). */
   privyAppId: string | null;
-  /** Cuenta de Kiba que recibe el permiso (spender). */
-  spender: string;
-  balanceBaseUnits: number;
-  allowanceBaseUnits: number;
-  /** Consumo anotado aún no cobrado on-chain (negativo = a favor del usuario). */
-  debtBaseUnits: number;
-  debtCapBaseUnits: number;
-  blocked: boolean;
-  expiresLedger: number | null;
-  latestLedger: number;
-  /** Fecha estimada de vencimiento del permiso (unix s). */
-  expiresAt: number | null;
-  charges: { amount: number; status: "pending" | "settled" | "failed"; txHash: string | null; createdAt: number }[];
 };
 
 /** Un archivo de la respuesta copiado a la cuenta (gateway files.ts); `result` ya enlaza a él. */

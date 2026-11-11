@@ -74,10 +74,7 @@ import {
   legacyWallet,
   migrateLegacyWallet,
   prepareActivation,
-  prepareApprove,
   prepareWithdraw,
-  reconcilePendingSpend,
-  settleAllSpend,
   submitPrepared,
 } from './spend';
 import {
@@ -1379,7 +1376,7 @@ app.get('/v1/transactions', requireAuth, async (req, res) => {
   );
 });
 
-// ─── Permiso de gasto: wallet propia del usuario (spend.ts) ──
+// ─── Wallet propia del usuario (spend.ts) ──
 
 app.get('/v1/spend', requireAuth, async (req, res) => {
   try {
@@ -1402,37 +1399,19 @@ function usdcBody(v: unknown): number | undefined {
   return n;
 }
 
-/** Paso 1: crea la cuenta (si no existe) y devuelve la trustline de USDC a firmar, o `ready`. */
+/** Crea la cuenta (si no existe) y devuelve la trustline de USDC a firmar, o `ready`. */
 app.post('/v1/spend/activate', requireAuth, async (req, res) => {
-  const { address } = req.body ?? {};
+  const { address, kind } = req.body ?? {};
   if (typeof address !== 'string') return res.status(400).json({ error: 'address requerido' });
   try {
-    const p = await prepareActivation(req.bearerUser!.id, address);
+    const p = await prepareActivation(req.bearerUser!.id, address, kind === 'privy' ? 'privy' : 'external');
     res.json(p ? { ready: false, tx: p } : { ready: true });
   } catch (err) {
     res.status(400).json({ error: (err as Error).message });
   }
 });
 
-/** Paso 2: el permiso de gasto. Sin `amount` = sin tope; `amount: 0` = revocar. */
-app.post('/v1/spend/prepare', requireAuth, async (req, res) => {
-  const { address, amount, days, kind } = req.body ?? {};
-  if (typeof address !== 'string') return res.status(400).json({ error: 'address requerido' });
-  try {
-    res.json(
-      await prepareApprove(req.bearerUser!.id, {
-        address,
-        amount: usdcBody(amount),
-        days: Number(days) || 180,
-        kind: kind === 'privy' ? 'privy' : 'external',
-      }),
-    );
-  } catch (err) {
-    res.status(400).json({ error: (err as Error).message });
-  }
-});
-
-/** Retiro desde la wallet de pagos (cobra antes lo pendiente). Sin `amount` = todo. */
+/** Envía USDC de la wallet del usuario a otra dirección. Sin `amount` = todo. */
 app.post('/v1/spend/withdraw', requireAuth, async (req, res) => {
   const { to, amount } = req.body ?? {};
   if (typeof to !== 'string') return res.status(400).json({ error: 'to requerido' });
@@ -1458,7 +1437,7 @@ app.post('/v1/spend/submit', requireAuth, async (req, res) => {
   }
 });
 
-/** Pasa el USDC de la wallet anterior (controlada por Kiba) a la wallet de pagos del usuario. */
+/** Pasa el USDC de la wallet anterior (controlada por Kiba) a la wallet del usuario. */
 app.post('/v1/spend/migrate', requireAuth, async (req, res) => {
   try {
     const r = await migrateLegacyWallet(req.bearerUser!.id);
@@ -1664,10 +1643,6 @@ void initDb()
   .then(initFilesDir)
   .then(failOrphanedResults)
   .then(() => {
-    // Cobros del permiso de gasto que quedaron en vuelo al reiniciar: se resuelven por su hash.
-    void reconcilePendingSpend().catch((err) => console.warn('[spend] reconcile:', (err as Error).message));
-  })
-  .then(() => {
     // Pagos del contrato de Kiba que quedaron sin confirmación al reiniciar: se resuelven por hash.
     // Con TW (sin contrato de Kiba): pre-calienta los escrows del ciclo (WARM_ESCROW_SERVICES)
     // para que la primera llamada de cada servicio pague solo el fund, no el deploy.
@@ -1720,8 +1695,3 @@ if (SETTLEMENT_INTERVAL_MS > 0) {
   console.log(`[settlement] job programado cada ${SETTLEMENT_INTERVAL_MS}ms`);
 }
 
-// Cobro periódico de las deudas del permiso de gasto (además del cobro al llegar a medio tope).
-const SPEND_SETTLE_INTERVAL_MS = Number(process.env.SPEND_SETTLE_INTERVAL_MS) || 5 * 60_000;
-setInterval(() => {
-  void settleAllSpend().catch((err) => console.error('[spend] job falló:', (err as Error).message));
-}, SPEND_SETTLE_INTERVAL_MS);

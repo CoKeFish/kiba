@@ -56,7 +56,7 @@ Las transacciones preparadas las firma el usuario y se envían con `POST /v1/spe
 
 ## Tu saldo
 
-El dashboard (barra superior y página **Billing**) y la herramienta [`get_balance`](/conecta-tu-asistente/herramientas-mcp#get_balance) muestran **un solo saldo en USD**: tus créditos más lo que puedes gastar con tu wallet, ya descontado lo usado que aún no se cobró. Es lo que tiene tu asistente para pagar servicios.
+El dashboard (barra superior y página **Billing**) y la herramienta [`get_balance`](/conecta-tu-asistente/herramientas-mcp#get_balance) muestran **un solo saldo en USD**: tus créditos más lo que queda por gastar de tu depósito. Es lo que tiene tu asistente para pagar servicios.
 
 - El dashboard lo trunca en vez de redondearlo: nunca muestra más de lo que tienes.
 - En la API es `total_usd` de [`GET /v1/balance`](/api/endpoints#cuenta).

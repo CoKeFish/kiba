@@ -1,12 +1,11 @@
 /**
- * Wallet de pagos: una wallet Stellar dedicada a pagar en Kiba, controlada por el usuario.
+ * Pagar con la wallet propia: el depósito retirable y la wallet del usuario.
  *
  * - Con Privy (por defecto): el usuario entra con su correo (código de Privy) y se le crea una
  *   wallet Stellar cuyo dueño es él. Kiba NO puede firmar con ella.
  * - Con una wallet externa (Freighter, xBull, Lobstr… vía Stellar Wallets Kit) para quien prefiera.
  *
- * Al activarla firma una sola vez un permiso de gasto sin tope (el límite es lo que deposite): el
- * agente gasta sin pedir firma por transacción. Recargar = enviarle USDC; retirar = lo firma él.
+ * El usuario deja en un depósito lo que quiera gastar (DepositCard) y lo retira cuando quiera.
  * Kiba crea la cuenta y paga las comisiones: el usuario no necesita XLM.
  *
  * Todas las transacciones las arma el gateway; aquí solo se firman (hash con Privy, XDR completo
@@ -29,8 +28,8 @@ export default function PayWallet({ email }: { email: string }) {
   if (!st.privyAppId) {
     return (
       <>
-        <PayWalletBody st={st} privy={null} external={externalSigner} />
         <DepositCard privy={null} external={externalSigner} />
+        <PayWalletBody st={st} privy={null} external={externalSigner} />
       </>
     );
   }
@@ -133,6 +132,7 @@ function WithPrivy({ st, email }: { st: SpendStatus; email: string }) {
 
   return (
     <>
+      <DepositCard privy={privySigner} external={externalSigner} />
       <PayWalletBody
         st={st}
         privy={privySigner}
@@ -148,7 +148,6 @@ function WithPrivy({ st, email }: { st: SpendStatus; email: string }) {
             : null
         }
       />
-      <DepositCard privy={privySigner} external={externalSigner} />
     </>
   );
 }

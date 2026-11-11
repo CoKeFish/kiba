@@ -125,7 +125,7 @@ export default function Billing() {
 
         {wallet && (
           <RechargeWalletKit
-            // Con wallet de pagos, recargar es llevar USDC ahí; sin ella, a la wallet anterior.
+            // Con wallet propia, recargar es llevar USDC ahí; sin ella, a la wallet anterior.
             walletAddress={spend?.address ?? wallet.pubkey}
             onFunded={() => {
               qc.invalidateQueries({ queryKey: ["balance"] });

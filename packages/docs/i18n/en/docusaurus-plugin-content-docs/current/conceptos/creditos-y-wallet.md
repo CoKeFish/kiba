@@ -56,7 +56,7 @@ Prepared transactions are signed by the user and sent with `POST /v1/spend/submi
 
 ## Your balance {/* #tu-saldo */}
 
-The dashboard (top bar and **Billing** page) and the [`get_balance`](/conecta-tu-asistente/herramientas-mcp#get_balance) tool show **a single balance in USD**: your credits plus what you can spend with your wallet, minus usage not yet charged. It's what your assistant has to pay for services.
+The dashboard (top bar and **Billing** page) and the [`get_balance`](/conecta-tu-asistente/herramientas-mcp#get_balance) tool show **a single balance in USD**: your credits plus what is left to spend from your deposit. It's what your assistant has to pay for services.
 
 - The dashboard truncates it instead of rounding: it never shows more than you have.
 - In the API it's `total_usd` from [`GET /v1/balance`](/api/endpoints#cuenta).

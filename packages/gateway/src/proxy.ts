@@ -30,7 +30,6 @@ import { BASE_UNITS_PER_TOKEN, explorerTxUrl } from './chain';
 import { recordEarning } from './settlement';
 import { type PerCallFundResult } from './escrows';
 import { payOrFundForCall, perCallPaymentEnabled } from './kiba-pay';
-import { hasSpendWallet, releaseSpend, reserveSpend } from './spend';
 import { confirmChannel, releaseChannel, reserveChannel } from './channel';
 
 /**
@@ -115,13 +114,12 @@ async function recordWalletDirectCall(args: {
     );
 }
 
-async function recordSpendCall(args: {
+/** Historial de una llamada pagada del depósito retirable (canal de pago del usuario). */
+async function recordDepositCall(args: {
   userId: number;
   lamports: number;
   service: string;
   floorPricePerCall: number;
-  /** 'deposit' = pagada del depósito retirable (canal); por defecto, del permiso de gasto. */
-  mode?: 'spend-permit' | 'deposit';
 }): Promise<void> {
   await db
     .prepare(
@@ -133,7 +131,7 @@ async function recordSpendCall(args: {
       -args.lamports,
       args.service,
       JSON.stringify({
-        mode: args.mode ?? 'spend-permit',
+        mode: 'deposit',
         settlement: 'deferred',
         floorPricePerCall: args.floorPricePerCall,
         dynamicAmountLamports: args.lamports,
@@ -143,7 +141,7 @@ async function recordSpendCall(args: {
 }
 
 /**
- * Trace de una llamada por la vía de confianza (crédito o permiso de gasto): discover +
+ * Trace de una llamada por la vía de confianza (crédito o depósito): discover +
  * 402_received + (escrow_opened si el fund per-call confirmó) + service_responded — step types
  * que el dashboard ya conoce. El 402_received registra la pre-quote REAL (probe 402 de getQuote);
  * sin él, el panel de flujo del dashboard dejaba "Cotización recibida" eternamente en espera.
@@ -247,7 +245,7 @@ export async function callOnBehalf(args: {
 }): Promise<{
   result: unknown;
   cost: { lamports: number; usd: number };
-  mode: 'virtual' | 'deposit' | 'spend-permit' | 'wallet-direct';
+  mode: 'virtual' | 'deposit' | 'wallet-direct';
   paidWith: 'credit' | 'wallet';
   newBalance: { lamports: number; usd: number };
   trace: X402Trace;
@@ -257,7 +255,7 @@ export async function callOnBehalf(args: {
 }> {
   // Cliente para la QUOTE (lectura, no firma). El firmante del usuario se carga SOLO en modo
   // wallet-direct: cargarlo provisiona una wallet de Privy controlada por Kiba si no tiene una,
-  // y con crédito o wallet de pagos no hace falta.
+  // y con crédito o depósito no hace falta.
   const client = new AgentClient({ wallet: getMasterWallet() });
 
   // 1. Pre-quote: precio REAL que el agente cobrará para ESTE payload
@@ -406,12 +404,11 @@ export async function callOnBehalf(args: {
     }
     await confirmChannel(hold);
     await recordEarning({ service: args.service, payTo: quote.payTo, lamports });
-    await recordSpendCall({
+    await recordDepositCall({
       userId: args.userId,
       lamports,
       service: args.service,
       floorPricePerCall: manifest.pricePerCall,
-      mode: 'deposit',
     });
     return {
       result,
@@ -419,49 +416,6 @@ export async function callOnBehalf(args: {
       mode: 'deposit',
       paidWith: 'wallet',
       newBalance: { lamports: hold.left, usd: lamportsToUsd(hold.left) },
-      trace: platformTrace({ manifest, quote, tQuote, quoteDurationMs, t0, lamports }),
-    };
-  }
-
-  // ── MODO PERMISO DE GASTO (wallet propia del usuario, spend.ts) ──────────
-  // Sin crédito → si el usuario vinculó su wallet con un permiso de gasto, la llamada se anota
-  // como deuda al instante (acotada por saldo, permiso y tope de deuda) y se cobra por lotes con
-  // transfer_from. El agente se llama por la vía de confianza, igual que en modo crédito.
-  if (await hasSpendWallet(args.userId)) {
-    const reserved = await reserveSpend(args.userId, lamports);
-    if (!reserved.ok) throw new Error(`permiso de gasto: ${reserved.reason}`);
-
-    const t0 = Date.now();
-    let result: unknown;
-    try {
-      result = await client.callSigned(manifest.endpoint, args.payload, {
-        signer: getPlatformSigner(),
-        service: args.service,
-        timeoutMs: 120_000,
-        callId: args.callId,
-      });
-    } catch (err) {
-      manifests.delete(args.service);
-      await releaseSpend(args.userId, lamports);
-      throw err;
-    }
-    await recordEarning({ service: args.service, payTo: quote.payTo, lamports });
-    await recordSpendCall({
-      userId: args.userId,
-      lamports,
-      service: args.service,
-      floorPricePerCall: manifest.pricePerCall,
-    });
-
-    // Saldo restante según la lectura de la reserva: releer la cadena aquí añadía hasta ~13 s
-    // a la llamada cuando el RPC tenía un pico.
-    const left = reserved.left;
-    return {
-      result,
-      cost: { lamports, usd: lamportsToUsd(lamports) },
-      mode: 'spend-permit',
-      paidWith: 'wallet',
-      newBalance: { lamports: left, usd: lamportsToUsd(left) },
       trace: platformTrace({ manifest, quote, tQuote, quoteDurationMs, t0, lamports }),
     };
   }

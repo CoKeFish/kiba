@@ -33,7 +33,7 @@
  * tesorería y del `salt` del canal (no se almacena en la base de datos).
  *
  * Todas las transacciones del usuario las arma el gateway y él solo las firma (mismo mecanismo
- * que spend.ts: tabla `spend_prepared`, envío con las comisiones a cargo de Kiba).
+ * de spend.ts: tabla `spend_prepared`, envío con las comisiones a cargo de Kiba).
  */
 import { createHash, randomBytes } from 'node:crypto';
 import {
@@ -58,6 +58,7 @@ import {
   ADDRESS_RE,
   collectorKeypair,
   getSpendChain,
+  linkWallet,
   onPreparedSent,
   serialCollector,
   storePrepared,
@@ -675,10 +676,13 @@ export async function prepareChannelRefund(userId: number): Promise<PreparedTx &
   return { ...p, amountBaseUnits: Number(balance) };
 }
 
-onPreparedSent('channel_open', async ({ meta, hash }) => {
+onPreparedSent('channel_open', async ({ userId, address, meta, hash }) => {
   const id = Number(meta.channelId);
   const amount = Number(meta.amount);
   const channel = await getChain().openedChannel(hash);
+  // Firmó la apertura con esta wallet: queda como la wallet de la cuenta.
+  const kind = ((await db.prepare('SELECT kind FROM pay_channels WHERE id = ?').get(id)) as { kind: string } | undefined)?.kind;
+  await linkWallet(userId, address, kind === 'privy' ? 'privy' : 'external');
   await db
     .prepare(`UPDATE pay_channels SET channel = ?, deposited = ?, status = 'open', last_active_at = ? WHERE id = ? AND status = 'preparing'`)
     .run(channel, amount, nowS(), id);

@@ -81,7 +81,7 @@ const consume = (uid: number, n: number) =>
   db.prepare(`UPDATE pay_channels SET spent = spent + ? WHERE user_id = ? AND status = 'open'`).run(Math.round(n * 1e7), uid);
 
 await initDb();
-await db.exec('TRUNCATE pay_channel_moves, pay_channels, spend_prepared, spend_charges, transactions, users RESTART IDENTITY CASCADE');
+await db.exec('TRUNCATE pay_channel_moves, pay_channels, spend_prepared, transactions, users RESTART IDENTITY CASCADE');
 console.log(`Fábrica: ${channel.channelFactoryId()}`);
 console.log('Montando token, tesorería y wallet en testnet...');
 await Promise.all([issuer, treasury].map((k) => fund(k.publicKey())));

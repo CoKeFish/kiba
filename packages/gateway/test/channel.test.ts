@@ -20,7 +20,7 @@ import {
   type Transaction,
 } from '@stellar/stellar-sdk';
 import { db, initDb, pool } from '../src/db';
-import { setSpendChain, submitPrepared, type PreparedTx, type SpendChain } from '../src/spend';
+import { getSpendStatus, setSpendChain, submitPrepared, type PreparedTx, type SpendChain } from '../src/spend';
 import {
   CHANNEL_IDLE_DAYS,
   CHANNEL_MIN_DEPOSIT,
@@ -329,6 +329,19 @@ test('abrir el canal mueve el depósito de la wallet al canal', async () => {
     st.moves.map((m) => [m.kind, m.amount]),
     [['open', USDC(4)]],
   );
+  // Firmó la apertura con esa wallet: queda vinculada a su cuenta.
+  const w = await getSpendStatus(user);
+  assert.equal(w.address, kp.publicKey());
+  assert.equal(w.balanceBaseUnits, USDC(6));
+});
+
+test('el saldo que ve el usuario es uno solo: créditos más lo que queda del depósito', async () => {
+  const { getUserBalances } = await import('../src/wallets');
+  const { user } = await openChannel('a@x.com', 4);
+  await db.prepare('UPDATE users SET balance_lamports = ? WHERE id = ?').run(USDC(1), user);
+  const r = await reserveChannel(user, USDC(0.25));
+  if (r.ok) await confirmChannel(r);
+  assert.equal((await getUserBalances(user)).totalBaseUnits, USDC(1) + USDC(4) - USDC(0.25));
 });
 
 test('abrir exige wallet activada, depósito mínimo y saldo suficiente', async () => {

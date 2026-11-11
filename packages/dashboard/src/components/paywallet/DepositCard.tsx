@@ -81,7 +81,7 @@ export function DepositCard({ privy, external }: { privy: PayWalletSigner | null
       setStep("login");
       const address = await s.address();
       setStep("account");
-      const a = await api.spendActivate(address);
+      const a = await api.spendActivate(address, s.kind);
       if (!a.ready && a.tx) {
         setStep("trustline");
         await signAndSend(s, a.tx, address);

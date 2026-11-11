@@ -8,7 +8,7 @@
  *   1. Se llama a la URL sin pago. Si no responde 402, se devuelve tal cual (gratis).
  *   2. Del 402 se leen los requisitos de pago (cabecera PAYMENT-REQUIRED) y se elige la
  *      opción en Stellar con USDC.
- *   3. Se cobra al usuario (crédito o permiso de gasto) y la TREASURY firma la
+ *   3. Se cobra al usuario (crédito o depósito) y la TREASURY firma la
  *      autorización de la transferencia USDC (solo las auth entries: la red la paga
  *      el facilitador del vendedor, la treasury no gasta XLM).
  *   4. Se repite la llamada con la cabecera PAYMENT-SIGNATURE. El vendedor verifica y
@@ -35,7 +35,6 @@ import { attachSignature, debit, getBalance, lamportsToUsd, usdToLamports } from
 import { db, withTransaction } from './db';
 import { explorerTxUrl } from './chain';
 import { getMasterWallet } from './wallets';
-import { hasSpendWallet, releaseSpend, reserveSpend } from './spend';
 import { confirmChannel, releaseChannel, reserveChannel, type ChannelReserve } from './channel';
 import { assertAllowedUrl } from './net-guard';
 import { resultUrl } from './results';
@@ -306,7 +305,7 @@ export async function callX402Url(args: X402CallArgs): Promise<X402CallResult> {
     throw new Error(msg);
   }
 
-  // 3. Cobro al usuario: crédito primero, si no la wallet de pagos.
+  // 3. Cobro al usuario: crédito primero, si no su depósito.
   const meta = { mode: 'x402', url: u.href, network: accept.network, payTo: accept.payTo, scheme: accept.scheme };
   let paidWith: 'credit' | 'wallet';
   let hold: ChannelReserve = { ok: false, reason: 'none', available: 0 };
@@ -330,14 +329,6 @@ export async function callX402Url(args: X402CallArgs): Promise<X402CallResult> {
     const msg = `depósito insuficiente: la API cobra ${lamportsToUsd(lamports).toFixed(4)} USD y quedan ${lamportsToUsd(hold.available).toFixed(4)} USD; recarga el depósito`;
     await closeResult(resultId, { error: msg });
     throw new Error(msg);
-  } else if (await hasSpendWallet(args.userId)) {
-    const r = await reserveSpend(args.userId, lamports);
-    if (!r.ok) {
-      await closeResult(resultId, { error: `permiso de gasto: ${r.reason}` });
-      throw new Error(`permiso de gasto: ${r.reason}`);
-    }
-    paidWith = 'wallet';
-    left = r.left;
   } else {
     const msg = `saldo insuficiente: la API cobra ${lamportsToUsd(lamports).toFixed(4)} USD y tienes ${lamportsToUsd(virtual).toFixed(4)} USD`;
     await closeResult(resultId, { error: msg });
@@ -346,7 +337,6 @@ export async function callX402Url(args: X402CallArgs): Promise<X402CallResult> {
   const refund = async (reason: string) => {
     if (paidWith === 'credit') await refundCredit(args.userId, lamports, service, reason);
     else if (hold.ok) await releaseChannel(hold);
-    else await releaseSpend(args.userId, lamports);
   };
 
   // 4. Firma de la treasury + llamada pagada.

@@ -76,7 +76,7 @@ export async function sendUsdc({ source, destination, amount }: SendUsdcArgs): P
   }
 }
 
-/** Firma con la wallet conectada una transacción armada por el gateway (p.ej. el permiso de gasto). */
+/** Firma con la wallet conectada una transacción armada por el gateway (p.ej. un depósito). */
 export async function signXdr(xdr: string, address: string): Promise<string> {
   ensureKit();
   const { signedTxXdr } = await StellarWalletsKit.signTransaction(xdr, {

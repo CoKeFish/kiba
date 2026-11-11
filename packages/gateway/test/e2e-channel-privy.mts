@@ -1,15 +1,16 @@
 /**
- * E2E de la wallet de pagos contra Stellar TESTNET y la API real de Privy (no corre en `npm test`).
+ * E2E del depósito retirable con una wallet de Privy cuyo DUEÑO es el usuario, contra Stellar
+ * TESTNET y la API real de Privy (no corre en `npm test`).
  *
- * - Token propio con símbolo USDC (emisor nuevo, vía TRUSTLESS_WORK_TRUSTLINE_ADDRESS) para poder
- *   acuñarlo; treasury nueva.
- * - Wallet de pagos = wallet Stellar de Privy cuyo DUEÑO es una clave P-256 "del usuario": el
- *   gateway no puede firmar con ella; el test firma como lo haría el navegador.
- * - Wallet anterior = wallet de Privy app-owned (como las de hoy) para probar la migración.
+ * - La wallet del usuario es una wallet Stellar de Privy cuyo dueño es una clave P-256 "del
+ *   usuario": el gateway no puede firmar con ella; la prueba firma el hash como lo haría el
+ *   navegador con `signRawHash`.
+ * - Wallet anterior = wallet de Privy app-owned (la que Kiba sí controla), para la migración.
+ * - Token propio con símbolo USDC (emisor nuevo) para poder acuñarlo; tesorería nueva.
  *
  *   doppler run -p kiba -c prd --only-secrets PRIVY_APP_ID,PRIVY_APP_SECRET -- \
- *     docker run --rm -e PRIVY_APP_ID -e PRIVY_APP_SECRET -e DATABASE_URL=... kiba-gw-test \
- *     node --import tsx test/e2e-spend.mts
+ *     docker run --rm -e PRIVY_APP_ID -e PRIVY_APP_SECRET -e DATABASE_URL=... <imagen del gateway> \
+ *     node --import tsx test/e2e-channel-privy.mts
  */
 import crypto from 'node:crypto';
 import { Keypair as SolKeypair } from '@solana/web3.js';
@@ -54,13 +55,13 @@ async function privy(method: string, path: string, body: object, ownerKey?: cryp
   return j;
 }
 const userKey = crypto.generateKeyPairSync('ec', { namedCurve: 'P-256' });
-const payWallet = (await privy('POST', '/wallets', {
+const userWallet = (await privy('POST', '/wallets', {
   chain_type: 'stellar',
   owner: { public_key: userKey.publicKey.export({ type: 'spki', format: 'der' }).toString('base64') },
 })) as { id: string; address: string };
 /** Lo que hace el navegador con `signRawHash`: firma del hash, en hex con 0x. */
 async function userSigns(hash: string): Promise<string> {
-  const r = (await privy('POST', `/wallets/${payWallet.id}/raw_sign`, { params: { hash: '0x' + hash } }, userKey.privateKey)) as {
+  const r = (await privy('POST', `/wallets/${userWallet.id}/raw_sign`, { params: { hash: '0x' + hash } }, userKey.privateKey)) as {
     data: { signature: string };
   };
   return r.data.signature;
@@ -70,15 +71,17 @@ async function userSigns(hash: string): Promise<string> {
 const sol = SolKeypair.generate();
 const treasury = Keypair.fromRawEd25519Seed(Buffer.from(sol.secretKey.slice(0, 32)));
 const issuer = Keypair.random();
-const outside = Keypair.random(); // otra wallet del usuario, destino del retiro
+const outside = Keypair.random(); // otra wallet del usuario, destino del envío
+process.env.CHAIN = 'stellar';
 process.env.MASTER_WALLET_SECRET = JSON.stringify(Array.from(sol.secretKey));
 process.env.TRUSTLESS_WORK_TRUSTLINE_ADDRESS = issuer.publicKey();
 process.env.STELLAR_NETWORK = 'testnet';
 delete process.env.TRUSTLESS_WORK_API_KEY;
-process.env.SPEND_DEBT_CAP = '10000000'; // 1 USDC
+delete process.env.KIBA_CHANNEL_FACTORY_ID;
 
 const { db, initDb, pool } = await import('../src/db');
 const spend = await import('../src/spend');
+const channel = await import('../src/channel');
 const { PrivyStellarSigner, createStellarWallet } = await import('../src/privy');
 
 let pass = 0;
@@ -88,16 +91,17 @@ const check = (name: string, ok: boolean, extra = '') => {
   console.log(`${ok ? 'PASA ' : 'FALLA'}  ${name}${extra ? '  — ' + extra : ''}`);
 };
 const usdc = new Asset('USDC', issuer.publicKey());
-const fmt = (n: number) => (n / 1e7).toFixed(2);
 const xlmOf = async (a: string) => Number((await hz.loadAccount(a)).balances.find((b) => b.asset_type === 'native')!.balance);
 const usdcOf = async (a: string) => {
   const b = (await hz.loadAccount(a)).balances.find((x) => 'asset_code' in x && x.asset_code === 'USDC');
   return b ? Number(b.balance) : 0;
 };
+/** El usuario firma el hash con Privy y lo envía por el gateway. */
+const userSends = async (uid: number, p: { hash: string }) => spend.submitPrepared(uid, { hash: p.hash, signature: await userSigns(p.hash) });
 
 await initDb();
-await db.exec('TRUNCATE spend_prepared, spend_charges, transactions, users RESTART IDENTITY CASCADE');
-console.log('Montando token, treasury y wallets en testnet...');
+await db.exec('TRUNCATE pay_channel_holds, pay_channel_moves, pay_channels, spend_prepared, transactions, users RESTART IDENTITY CASCADE');
+console.log('Montando token, tesorería y wallets en testnet...');
 await Promise.all([issuer, treasury, outside].map((k) => fund(k.publicKey())));
 await Promise.all([treasury, outside].map((k) => classic(k, [Operation.changeTrust({ asset: usdc })])));
 {
@@ -115,56 +119,51 @@ const uid = Number(
     await db
       .prepare(
         `INSERT INTO users (email, password_hash, custodial_wallet_secret, custodial_wallet_pubkey, created_at)
-         VALUES ('e2e@kiba.test', 'x', '[]', 'x', ?) RETURNING id`,
+         VALUES ('e2e-privy@kiba.test', 'x', '[]', 'x', ?) RETURNING id`,
       )
       .run(Math.floor(Date.now() / 1000))
   ).lastInsertRowid,
 );
 
-// 0. El servidor de Kiba NO puede firmar con la wallet de pagos.
+// 0. El servidor de Kiba NO puede firmar con la wallet del usuario.
 try {
-  await privy('POST', `/wallets/${payWallet.id}/raw_sign`, { params: { hash: '0x' + '00'.repeat(32) } });
-  check('0. Kiba no puede firmar con la wallet de pagos', false);
+  await privy('POST', `/wallets/${userWallet.id}/raw_sign`, { params: { hash: '0x' + '00'.repeat(32) } });
+  check('0. Kiba no puede firmar con la wallet del usuario', false);
 } catch (e) {
-  check('0. Kiba no puede firmar con la wallet de pagos', /401/.test(String(e)), 'Privy responde 401 sin la firma del dueño');
+  check('0. Kiba no puede firmar con la wallet del usuario', /401/.test(String(e)), 'Privy responde 401 sin la firma del dueño');
 }
 
-// 1. Activar: Kiba crea la cuenta; el usuario firma trustline y permiso sin tope.
+// 1. Activar: Kiba crea la cuenta; el usuario firma (Privy) que acepta USDC y la wallet queda vinculada.
+const trust = await spend.prepareActivation(uid, userWallet.address, 'privy');
+check('1. Kiba crea la cuenta de la wallet', trust !== null && (await xlmOf(userWallet.address)) > 0, `reserva ${await xlmOf(userWallet.address)} XLM`);
+await userSends(uid, trust!);
+let w = await spend.getSpendStatus(uid);
+check('   el usuario firma con Privy y la wallet queda vinculada a su cuenta', w.address === userWallet.address && w.kind === 'privy');
+const xlm0 = await xlmOf(userWallet.address);
+
+// 2. Depositar: el usuario firma con Privy la apertura del canal.
+await classic(issuer, [Operation.payment({ destination: userWallet.address, asset: usdc, amount: '10' })]);
 const t0 = Date.now();
-const trust = await spend.prepareActivation(uid, payWallet.address);
-check('1. Kiba crea la cuenta de la wallet de pagos', trust !== null && (await xlmOf(payWallet.address)) > 0, `reserva ${await xlmOf(payWallet.address)} XLM`);
-await spend.submitPrepared(uid, { hash: trust!.hash, signature: await userSigns(trust!.hash) });
-const ap = await spend.prepareApprove(uid, { address: payWallet.address, kind: 'privy' });
-const apr = await spend.submitPrepared(uid, { hash: ap.hash, signature: await userSigns(ap.hash) });
-let st = await spend.getSpendStatus(uid);
-check('   el usuario firma (Privy) trustline y permiso sin tope', st.unlimited && st.address === payWallet.address, `${((Date.now() - t0) / 1000).toFixed(1)} s, tx ${apr.hash.slice(0, 10)}…`);
-const xlmAfterActivation = await xlmOf(payWallet.address);
-check('   el usuario no pagó comisiones (las pagó Kiba)', xlmAfterActivation === 1.6, `XLM en la wallet: ${xlmAfterActivation}`);
+await userSends(uid, await channel.prepareChannelOpen(uid, { address: userWallet.address, amount: 5e7, kind: 'privy' }));
+let st = await channel.getChannelStatus(uid);
+check(
+  '2. depósito de 5 USDC firmado con Privy',
+  st.channel?.state === 'open' && st.channel.kind === 'privy' && st.channel.depositedBaseUnits === 5e7 && (await usdcOf(userWallet.address)) === 5,
+  `${((Date.now() - t0) / 1000).toFixed(1)} s`,
+);
 
-// 2. El usuario recarga y el agente gasta sin pedir firma.
-await classic(issuer, [Operation.payment({ destination: payWallet.address, asset: usdc, amount: '10' })]);
-const lat: number[] = [];
-for (let i = 0; i < 6; i++) {
-  const t = Date.now();
-  const r = await spend.reserveSpend(uid, 2e6);
-  lat.push(Date.now() - t);
-  if (!r.ok) throw new Error(r.reason);
-}
-await spend.settleSpend(uid);
-await spend.settleSpend(uid);
-st = await spend.getSpendStatus(uid);
-check('2. 6 llamadas de 0.20 sin firmas del usuario, cobradas a la treasury', (await usdcOf(treasury.publicKey())) === 1.2 && st.debtBaseUnits === 0, `ms: ${lat.join(', ')}; cobros ${st.charges.map((c) => fmt(c.amount)).join(' + ')}`);
+// 3. Consumo y retiro: Kiba cobra lo consumido y el resto vuelve a la wallet de Privy.
+const hold = await channel.reserveChannel(uid, 3e6);
+if (hold.ok) await channel.confirmChannel(hold);
+const liq = await channel.liquidateChannel(uid);
+check(
+  '3. retiro: Kiba se queda con los 0.3 consumidos y vuelven 4.7 a la wallet del usuario',
+  // Los 0.3 pasan del umbral, así que Kiba puede haberlos cobrado ya antes de liquidar.
+  liq.refundedBaseUnits === 4.7e7 && (await usdcOf(treasury.publicKey())) === 0.3 && (await usdcOf(userWallet.address)) === 9.7,
+  `cobrado al liquidar: ${liq.paidBaseUnits / 1e7}`,
+);
 
-// 3. Retirar: lo firma el usuario; Kiba paga la comisión.
-await spend.reserveSpend(uid, 2e6); // consumo pendiente al momento de retirar
-const w = await spend.prepareWithdraw(uid, { to: outside.publicKey() });
-const blockedDuring = await spend.reserveSpend(uid, 2e6);
-await spend.submitPrepared(uid, { hash: w.hash, signature: await userSigns(w.hash) });
-check('3. retiro: primero se cobró lo pendiente y salió el resto', (await usdcOf(outside.publicKey())) === 8.6 && (await usdcOf(payWallet.address)) === 0, `retirado ${fmt(w.amountBaseUnits)} USDC a otra wallet`);
-check('   durante el retiro no se anotó más consumo', !blockedDuring.ok);
-check('   sin comisiones para el usuario', (await xlmOf(payWallet.address)) === 1.6);
-
-// 4. Migración desde una wallet app-owned de Privy (como las actuales).
+// 4. Migración desde una wallet app-owned de Privy (las anteriores, que Kiba sí controla).
 const legacy = await createStellarWallet();
 await fund(legacy.address);
 const legacySigner = new PrivyStellarSigner(legacy.walletId, legacy.address);
@@ -178,17 +177,19 @@ const legacySigner = new PrivyStellarSigner(legacy.walletId, legacy.address);
 }
 await classic(issuer, [Operation.payment({ destination: legacy.address, asset: usdc, amount: '3.5' })]);
 spend.setLegacySignerLoader(async () => legacySigner as never);
-const legacyBefore = await spend.legacyWallet(uid);
 const mg = await spend.migrateLegacyWallet(uid);
-check('4. migración: el USDC de la wallet anterior pasa a la wallet de pagos', (await usdcOf(payWallet.address)) === 3.5 && (await usdcOf(legacy.address)) === 0, `${fmt(legacyBefore!.balanceBaseUnits)} USDC, tx ${mg.hash.slice(0, 10)}…`);
+check('4. migración: el USDC de la wallet anterior pasa a la wallet del usuario', (await usdcOf(userWallet.address)) === 13.2 && (await usdcOf(legacy.address)) === 0, `tx ${mg.hash.slice(0, 10)}…`);
 
-// 5. Revocar.
-const rv = await spend.prepareApprove(uid, { address: payWallet.address, amount: 0 });
-await spend.submitPrepared(uid, { hash: rv.hash, signature: await userSigns(rv.hash) });
-const afterRevoke = await spend.reserveSpend(uid, 2e6);
-check('5. tras revocar, Kiba no puede anotar más', !afterRevoke.ok, afterRevoke.ok ? '' : afterRevoke.reason);
+// 5. Enviar USDC de la wallet a otra dirección: lo firma el usuario con Privy.
+const send = await spend.prepareWithdraw(uid, { to: outside.publicKey(), amount: 2e7 });
+await userSends(uid, send);
+w = await spend.getSpendStatus(uid);
+check('5. enviar 2 USDC a otra wallet, firmado con Privy', (await usdcOf(outside.publicKey())) === 2 && w.balanceBaseUnits === 11.2e7);
+
+// 6. Todo lo firmó el usuario y las comisiones las pagó Kiba.
+check('6. el usuario no pagó comisiones de red', (await xlmOf(userWallet.address)) === xlm0, `XLM: ${await xlmOf(userWallet.address)}`);
 
 console.log(`\n${pass}/${pass + fail} comprobaciones pasaron`);
-console.log(`wallets de prueba en Privy: pagos ${payWallet.id}, anterior ${legacy.walletId}`);
+console.log(`wallets de prueba en Privy: usuario ${userWallet.id}, anterior ${legacy.walletId}`);
 await pool.end();
 process.exit(fail ? 1 : 0);

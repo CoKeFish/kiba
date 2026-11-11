@@ -114,7 +114,7 @@ async function userSends(uid: number, p: { xdr: string }) {
 
 await initDb();
 await db.exec(
-  'TRUNCATE pay_channel_holds, pay_channel_moves, pay_channels, spend_prepared, spend_charges, agent_earnings, transactions, users RESTART IDENTITY CASCADE',
+  'TRUNCATE pay_channel_holds, pay_channel_moves, pay_channels, spend_prepared, agent_earnings, transactions, users RESTART IDENTITY CASCADE',
 );
 console.log('Montando token, tesorería, wallet y depósito en testnet...');
 await Promise.all([issuer, treasury].map((k) => fund(k.publicKey())));
