@@ -8,4 +8,6 @@ description = "Referencias a variables de entorno (process.env.X, env.X) no son 
 regexes = [
   '''process\.env\.[A-Z0-9_]+''',
   '''\benv\.[A-Z0-9_]+''',
+  # Texto fijo de una prueba (e2e-mpp.mts): la clave del vendedor de mentira, no un secreto.
+  '''vendedor-oficial-de-prueba-0123456789abcdef''',
 ]
