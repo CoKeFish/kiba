@@ -102,10 +102,12 @@ curl -si -X POST https://agent-web.kiba.tools/service -H 'content-type: applicat
 
 ### Experiencia de producto
 
-- **Nada de wallets que instalar.** El usuario crea su cuenta con su correo, recarga y pide. No instala una wallet, no guarda semillas ni compra XLM: Kiba abre su cuenta en Stellar y paga las comisiones de red de sus transacciones. El saldo se muestra en dólares; los precios por llamada, en Kibix (1 Kibix = 0,0001 USD), y cada pago trae su enlace on-chain para quien quiera verificarlo.
-- **Un permiso, cero interrupciones.** El usuario autoriza una vez un permiso de gasto sobre su wallet de pagos y el asistente paga sin pedir firma por llamada. El permiso lo impone el contrato de USDC en Stellar, con tope y vencimiento, y el usuario recarga, retira o revoca cuando quiera.
+- **Nada de wallets que instalar.** El usuario crea su cuenta con su correo, compra créditos y pide. No instala una wallet, no guarda semillas ni compra XLM. El saldo se muestra en dólares; los precios por llamada, en Kibix (1 Kibix = 0,0001 USD).
+- **Dos formas de pagar.** Con **créditos**, que son un prepago: hasta 200 USD por cuenta, vencen al año y no se retiran ni se transfieren. O con un **depósito desde tu wallet**, para quien ya tiene USDC: lo deja en un canal de pago de Stellar a su nombre, Kiba cobra solo lo que consume y el resto vuelve a su wallet cuando quiera. En los dos casos el asistente paga sin pedir firma por llamada.
+- **La wallet es del usuario.** Kiba no crea ni guarda wallets de nadie. Quien usa una la vincula con su correo (Privy, con él de dueño) o conecta la suya (Freighter y otras), y firma él. Kiba arma las transacciones y paga las comisiones de red.
+- **Reclamos.** Si un servicio no entrega lo que cobró, el usuario lo reclama desde su historial. Un administrador de Kiba lo revisa y devuelve todo o una parte.
 - **Un solo saldo.** Todas las llamadas y sus precios aparecen en la cuenta, con el enlace a la transacción.
-- **Recargas.** En pesos por Bre-B (modo de prueba en testnet) o enviando USDC desde cualquier wallet de Stellar. Wompi (PSE, Nequi, tarjeta) está programado en el gateway y el dashboard y se activa con las llaves del comercio al salir a mainnet.
+- **Recargas.** En pesos por Bre-B (modo de prueba en testnet). Wompi (PSE, Nequi, tarjeta) está programado en el gateway y el dashboard y se activa con las llaves del comercio al salir a mainnet.
 - **Funciona en los asistentes que ya usas:** Claude, ChatGPT, Cursor y cualquier cliente MCP ([guías de conexión](https://docs.kiba.tools/conecta-tu-asistente)); instalador de un clic en Windows.
 - **Funciona en móvil.** El flujo completo ocurre en la app de Claude o de ChatGPT del teléfono, con el conector de Kiba; el panel web también abre en el navegador del móvil.
 
@@ -126,18 +128,32 @@ Las tres primeras filas se solapan: desde el 19 de octubre cada pago por llamada
 
 Distribución, que no es uso: 680 descargas de `kiba-mcp` en [npm](https://www.npmjs.com/package/kiba-mcp) en los últimos 30 días y 51 del [instalador de Windows 0.1.6](https://github.com/CoKeFish/kiba/releases). Todavía no hay publicadores externos ni pagos en mainnet: ese es el siguiente hito.
 
+### Lo que cambió después de la entrega
+
+Trabajo posterior al evento, en noviembre de 2026. No forma parte de lo evaluado en Código Cordillera.
+
+| Qué | Cómo queda |
+|---|---|
+| **Retención y reclamos** | Las ganancias ya no se pagan al servir. Entran por tandas al escrow de Trustless Work del publicador y se liberan a los 14, 3 o 1 días según la confianza. Mientras tanto el usuario puede reclamar una llamada. |
+| **Depósito retirable** | Quien paga con su wallet deja un depósito en un canal de pago de Stellar. Sustituye al permiso de gasto y al canal de vales, que se retiraron. |
+| **Créditos como prepago** | Tope por cuenta, caducidad, y sin retiro ni transferencia. |
+| **Wallets del usuario** | Kiba dejó de crear y guardar claves. Publicar, cambiar o dar de baja un servicio lo firma el publicador con su wallet. |
+| **Servicios externos** | Una API que ya cobra con x402 o MPP se lista con su URL, sin integrar el SDK. Kiba le paga cada llamada al momento. |
+| **MPP** | Kiba paga APIs que cobran con MPP, y vende sus servicios por MPP en una ruta pública, por llamada o por sesión. Probado contra el demo oficial de Stellar. |
+| **Operación** | `/health` devuelve el commit desplegado; los pagos de la tesorería guardan su hash antes de enviarse y no se reintentan a ciegas; [política de seguridad](SECURITY.md). |
+
 ### Stellar: esencial, y la ruta a mainnet
 
-Stellar no es un detalle de Kiba: es el riel. Cada llamada pagada termina en `pay()` del contrato de pagos en Soroban, en USDC, con el reparto 95/5 fijado en el contrato y visible en cada transacción; el registro de servicios es un contrato; la wallet de pagos del usuario es una cuenta Stellar con un permiso `approve` sobre el contrato de USDC (SEP-41) y comisiones pagadas por Kiba con fee-bump; y la interoperabilidad es x402 sobre Stellar con los paquetes oficiales `@x402/stellar`. Sin Stellar no hay producto.
+Stellar no es un detalle de Kiba: es el riel. El registro de servicios es un contrato, y cada servicio queda a nombre de la wallet de su publicador. El depósito del usuario es un canal de pago de Stellar (el contrato [one-way-channel](https://github.com/stellar-experimental/one-way-channel) oficial), con comisiones pagadas por Kiba con fee-bump. Las ganancias de los publicadores se retienen en escrows de Trustless Work, un escrow por publicador, y se liberan en USDC con el reparto 95/5. Las compras con licencia terminan en `pay()` del contrato de pagos en Soroban, con la huella de la licencia en la transacción. Y la interoperabilidad es x402 y MPP sobre Stellar, con los paquetes oficiales `@x402/stellar` y `@stellar/mpp`. Sin Stellar no hay producto.
 
 Quien usa su asistente no necesita ver Stellar. Stellar es lo que hace abierto y comprobable el lado de los publicadores y lo que se compra, y eso una base de datos no lo da:
 
 - **Licencias verificables.** Lo que el usuario compra queda anclado al pago en cadena. Cualquiera lo comprueba sin Kiba, incluso si Kiba deja de existir.
 - **Catálogo abierto.** El registro de servicios es un contrato: el publicador es dueño de su ficha y cualquiera puede leerla.
 - **Pagos sin fronteras.** Un publicador de cualquier país cobra en su wallet, sin que Kiba integre un banco por país.
-- **Red abierta.** Por x402, cualquier agente del ecosistema puede pagarle a un servicio de Kiba, y el asistente de Kiba puede pagar cualquier API de fuera. MPP es el siguiente estándar en la ruta.
+- **Red abierta.** Por x402 y por MPP, cualquier agente del ecosistema puede pagarle a un servicio de Kiba, y el asistente de Kiba puede pagar cualquier API de fuera que cobre con esos estándares.
 - **Reputación que no se puede inventar.** Cada cobro queda en cadena, así que las cifras de uso de un servicio son comprobables y no un número que Kiba afirma.
-- **Garantías para el publicador (en construcción).** Su ganancia apartada en un escrow que él puede ver y que él mismo libera, con Kiba interviniendo solo si hay un reclamo.
+- **Garantías para el publicador.** Su ganancia queda apartada en un escrow de [Trustless Work](https://www.trustlesswork.com) a su nombre, que él puede ver en la red. Se libera a su wallet al vencer un plazo que depende de la confianza (14, 3 o 1 día), y Kiba interviene solo si hay un reclamo. El servicio mismo queda registrado a nombre de su wallet: Kiba no puede cambiarlo ni quitarlo.
 
 Lo que ya existe para mainnet: el SDK trae la configuración `mainnet` con el USDC de Circle (`packages/sdk/src/config.ts`, aún sin ejercitar en esa red), el contrato de pagos tiene su batería de pruebas (`packages/contracts-payments/src/test.rs`) y la documentación ya describe [qué cambia para un publicador en mainnet](https://docs.kiba.tools/publica-un-servicio/mainnet). Lo que falta son los pasos de la tabla.
 
@@ -145,7 +161,14 @@ Lo que ya existe para mainnet: el SDK trae la configuración `mainnet` con el US
 |---|---|---|
 | Contratos de pagos y registro desplegados en mainnet; facilitador [OpenZeppelin](https://channels.openzeppelin.com/x402) con USDC de Circle; revisión de seguridad de la autenticación y cifrado en reposo; primer pago real | Diciembre de 2026 | Los publicadores cobran dinero real |
 | Recargas con cualquier activo de Stellar (path payments: el usuario paga en XLM o EURC, Kiba recibe USDC) y recarga en pesos con Wompi | Enero de 2027 | Recargar sin saber qué es USDC |
-| MPP Session como forma estándar del canal de vales (un depósito, muchos compromisos off-chain, una liquidación); listado en x402 discovery | Febrero de 2027 | Cualquier agente x402 encuentra y paga servicios de Kiba |
+| Listado en x402 discovery y en los catálogos de MPP | Febrero de 2027 | Cualquier agente encuentra los servicios de Kiba sin conocer Kiba |
+
+**En el roadmap, sin fecha todavía:**
+
+- **Cobro parcial para el precio dinámico.** El servicio cobra el monto real de cada pedido y la diferencia vuelve a quien pagó.
+- **Cotización previa.** El asistente pide el precio antes de llamar y se lo muestra al usuario en el permiso.
+- **Precios en dólares** en lugar de Kibix en toda la interfaz.
+- **MPP por sesión cuando Kiba compra.** Hoy Kiba paga las APIs de fuera llamada por llamada.
 
 ### Financiamiento y lanzamiento
 
@@ -186,16 +209,20 @@ The best results rarely come from a general-purpose model alone. They come from 
 
 ## For users
 
-- **Nothing crypto to learn.** Sign up with an email, top up, ask. No addresses, seed phrases or network fees: Kiba opens the user's Stellar account and pays the fees of their transactions.
+- **Nothing crypto to learn.** Sign up with an email, buy credits, ask. No addresses, seed phrases or network fees.
 - **Works with existing assistants.** Claude, ChatGPT, Cursor and any MCP-compatible client. One-click installer on Windows; one command on other systems.
 - **One balance.** Top up once; every call and its price appear in the account history, each with its transaction.
-- **One permission, no interruptions.** The user authorizes a spending permission on a dedicated payments wallet once; the assistant then pays without a signature per call. The USDC contract on Stellar enforces the permission: Kiba cannot move more than authorized or after it expires, and the user can top up, withdraw or revoke at any time.
-- **Fast.** Paid calls are credited off-chain in well under a second; settlement on Stellar follows within seconds.
+- **Two ways to pay.** With **credits**, a prepayment: up to 200 USD per account, valid for a year, with no withdrawal or transfer. Or with a **deposit from your own wallet**, for those who already hold USDC: it sits in a Stellar payment channel in the user's name, Kiba collects only what is used and the rest returns to the wallet at any time. Either way the assistant pays without a signature per call.
+- **The wallet belongs to the user.** Kiba does not create or hold anyone's wallet. Users link one with their email (Privy, owned by them) or connect their own (Freighter and others) and sign themselves. Kiba builds the transactions and pays the network fees.
+- **Claims.** If a service does not deliver what it charged for, the user claims the call from their history. A Kiba administrator reviews it and refunds all or part of it.
+- **Fast.** Paid calls are charged off-chain in well under a second. What the publisher earned moves to Stellar afterwards, in batches.
 
 ## For publishers
 
 - **Publish once, earn per call.** Wrap an API, model or tool with the open SDK and set a price. Every connected assistant can find and pay the service.
-- **Paid in USDC.** Publishers keep 95% of every call. Payouts settle on-chain.
+- **Paid in USDC.** Publishers keep 95% of every call. Earnings go into a [Trustless Work](https://www.trustlesswork.com) escrow in the publisher's name and are released to their wallet after a holding period that depends on trust: 14, 3 or 1 day.
+- **The service is in your name.** Publishing, changing or removing a service is signed by the publisher's own wallet. Kiba cannot change it or take it down.
+- **Already charging on your own?** An API that charges with x402 or MPP can be listed with its URL, a description and its parameters, with nothing to integrate. Kiba pays it for each call right away.
 - **Flexible pricing.** A fixed price per call, or a price computed from each request: per page, per character, per second of audio.
 - **Verified, paid traffic.** Every request arrives signed by Kiba. The service only serves paid requests, with no shared secrets.
 - **Reporting.** Calls, earnings and payouts per service in the publisher dashboard.
@@ -231,21 +258,22 @@ Fifteen services, published by the team to exercise every kind of pricing and pa
 
 1. **Discovery.** Every service is listed in an open on-chain registry. Publishing a service adds it to the catalog.
 2. **Quote.** The service prices the specific request.
-3. **Payment.** Charged to the user's credits or payments wallet.
-4. **Settlement.** Kiba's Soroban payments contract pays the publisher in USDC and enforces the split on-chain: 95% to the publisher, 5% to Kiba.
+3. **Payment.** Charged to the user's credits, or to the deposit from their wallet.
+4. **Settlement.** What each service earned goes into its publisher's escrow on Stellar and is released in USDC after the holding period: 95% to the publisher, 5% to Kiba. Purchases that carry a license are paid right away through Kiba's Soroban payments contract, so the payment carries the license fingerprint.
 
 Further reading: [architecture](https://docs.kiba.tools/conceptos/arquitectura) · [payments and settlement](https://docs.kiba.tools/conceptos/pagos-y-liquidacion).
 
 ## Contracts
 
-Both contracts run on **Stellar testnet** and are open source in this repository. Mainnet deployment is scheduled for December 2026 (see the roadmap above).
+The contracts run on **Stellar testnet** and are open source in this repository. Mainnet deployment is scheduled for December 2026 (see the roadmap above).
 
 | Contract | Role | Source | Address |
 |---|---|---|---|
-| **Payments** | `pay()` per call with the 95/5 split, x402 escrow and the voucher channel; the `reference` argument carries the license fingerprint | [`packages/contracts-payments`](packages/contracts-payments) | [`CBARSI2VGH7SDUA2WD3CUEGWFY6GYGC2WRW5JYGYMR4BR2Q3WZHKDWL7`](https://stellar.expert/explorer/testnet/contract/CBARSI2VGH7SDUA2WD3CUEGWFY6GYGC2WRW5JYGYMR4BR2Q3WZHKDWL7) |
+| **Payments** | `pay()` per call with the 95/5 split, and the x402 escrow; the `reference` argument carries the license fingerprint | [`packages/contracts-payments`](packages/contracts-payments) | [`CBARSI2VGH7SDUA2WD3CUEGWFY6GYGC2WRW5JYGYMR4BR2Q3WZHKDWL7`](https://stellar.expert/explorer/testnet/contract/CBARSI2VGH7SDUA2WD3CUEGWFY6GYGC2WRW5JYGYMR4BR2Q3WZHKDWL7) |
 | **Registry** | Open on-chain catalog of services: name, endpoint, owner and price | [`packages/contracts-soroban`](packages/contracts-soroban) | [`CDYLMRS2UTBHNTWS67NC2OPQIH2HXGS36WZYC4JUMLKZWT7XXVUUX7XF`](https://stellar.expert/explorer/testnet/contract/CDYLMRS2UTBHNTWS67NC2OPQIH2HXGS36WZYC4JUMLKZWT7XXVUUX7XF) |
+| **Channel factory** | Opens each user's deposit as a payment channel, using Stellar's [one-way-channel](https://github.com/stellar-experimental/one-way-channel) contract | [`packages/contracts-channel`](packages/contracts-channel) | [`CBV34HJF4VU4YBGMNHC2L3TKLDSTOXYN5ADZRBWCILJLHOTAAKWX75SV`](https://stellar.expert/explorer/testnet/contract/CBV34HJF4VU4YBGMNHC2L3TKLDSTOXYN5ADZRBWCILJLHOTAAKWX75SV) |
 
-Every payout is a public transaction on [stellar.expert](https://stellar.expert/explorer/testnet); pending usage on the payments wallet is capped and every collection is recorded and reconciled. See [security](https://docs.kiba.tools/recursos/seguridad).
+Held earnings live in Trustless Work escrows, one per publisher. Every payout is a public transaction on [stellar.expert](https://stellar.expert/explorer/testnet), and every treasury payment stores its hash before it is sent, so a lost reply is resolved against the network instead of being resent. See [security](https://docs.kiba.tools/recursos/seguridad) and the [security policy](SECURITY.md).
 
 ---
 
@@ -265,9 +293,19 @@ Kiba speaks the open [x402](https://www.x402.org) standard on Stellar in both di
 
 - **Pay any x402 API from the chat.** `call_url(url)` in the connector. Kiba reads the 402, picks the USDC-on-Stellar option, charges the user's balance and signs the payment with its treasury. The seller's facilitator settles on-chain and the answer comes back with the transaction hash. Prices above 1 USD need an explicit `maxUsd`.
 - **Every Kiba service accepts x402.** With `x402` switched on in the SDK, a service answers its 402 with the standard `PAYMENT-REQUIRED` header priced for that exact request, and settles `PAYMENT-SIGNATURE` payments through a facilitator or by itself. Any x402 client pays it without Kiba's connector.
-- **Kiba's own rail is unchanged.** Credits, signed calls, batched settlement and licenses keep working as before; x402 is the interoperability lane.
+- **Kiba's own rail is unchanged.** Credits, signed calls, held earnings and licenses keep working as before; x402 is the interoperability lane.
 
 Examples: [`examples/x402-seller`](examples/x402-seller) and [`examples/x402-buyer`](examples/x402-buyer). Further reading: [x402 in the docs](https://docs.kiba.tools/stellar/x402) · [SDK: standard x402](packages/sdk/README.md#standard-x402-any-x402-client-can-pay-you).
+
+## MPP
+
+Kiba also speaks [MPP](https://mpp.dev) (Machine Payments Protocol) on Stellar in both directions, built on the official `@stellar/mpp` package.
+
+- **Pay any MPP API from the chat.** `call_url` recognises the MPP challenge the same way it recognises x402, charges the user's balance and pays from the treasury.
+- **Every Kiba service is sold over MPP.** Each service has a public route, `POST /mpp/<service>`, that needs no Kiba account. It replies with the price of the request; once the payment is verified on the network, Kiba calls the service and returns the result with its receipt.
+- **By session, for heavy use.** An agent that makes many calls opens a payment channel to Kiba, deposits USDC once and sends only a signature per call. Kiba collects from the channel in batches.
+
+Further reading: [MPP in the docs](https://docs.kiba.tools/stellar/mpp).
 
 ## Licensed media
 
