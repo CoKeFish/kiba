@@ -98,7 +98,8 @@ jobs:
   # docker-compose.prod.yml (el build cache de Docker amortigua los no cambiados).
   deploy-stack:
     needs: [changes, gitleaks, test]
-    if: needs.changes.outputs.stack == 'true' && github.event_name != 'pull_request'
+    # A mano (workflow_dispatch) despliega siempre: sirve para repetir un despliegue que no entró.
+    if: (needs.changes.outputs.stack == 'true' && github.event_name != 'pull_request') || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - name: Trigger Coolify deploy
