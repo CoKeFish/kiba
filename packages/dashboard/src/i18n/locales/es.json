@@ -337,7 +337,7 @@
     },
     "agents": {
       "title": "Mis servicios",
-      "subtitle": "Registra, edita y retira los servicios de tu wallet custodial.",
+      "subtitle": "Registra, edita y retira los servicios que publicaste con tu wallet.",
       "publish_agent": "Publicar servicio",
       "cancel": "Cancelar",
       "register_agent": "Registrar servicio",
@@ -371,7 +371,7 @@
     },
     "payouts": {
       "title": "Pagos",
-      "subtitle": "Las ganancias se liquidan directamente en tu wallet custodial en {{network}}. Los publicadores se quedan con {{netPct}}% de cada llamada pagada.",
+      "subtitle": "Las ganancias llegan a tu wallet en {{network}}. Los publicadores se quedan con {{netPct}}% de cada llamada pagada.",
       "kpi_available": "Saldo disponible para pago",
       "kpi_pending_hint": "{{amount}} {{asset}} pendientes de liquidación",
       "kpi_to_settle": "Por liquidar",
@@ -462,8 +462,8 @@
       "success_title": "Servicio registrado on-chain",
       "signature_label": "Firma",
       "card_title": "Registrar un nuevo servicio",
-      "desc_1": "Tu wallet custodial firma la instrucción on-chain",
-      "desc_2": ". Los pagos de los clientes ({{pct}}%) caen directamente en esta wallet.",
+      "desc_1": "Tú firmas con tu wallet la instrucción",
+      "desc_2": ": el servicio queda a tu nombre y solo tú puedes cambiarlo. Kiba paga la comisión de la red.",
       "service_label": "Slug del servicio",
       "service_placeholder": "mi-servicio-genial",
       "service_hint": "Minúsculas, alfanumérico, se permiten guiones/guiones bajos. Máx. 32 caracteres.",
@@ -483,8 +483,8 @@
     },
     "my_agents": {
       "title": "Mis servicios",
-      "summary_one": "{{count}} servicio propiedad de tu wallet custodial · Total ganado:",
-      "summary_other": "{{count}} servicios propiedad de tu wallet custodial · Total ganado:",
+      "summary_one": "{{count}} servicio a nombre de tu wallet · Total ganado:",
+      "summary_other": "{{count}} servicios a nombre de tu wallet · Total ganado:",
       "empty": "Aún no hay servicios. Publica el primero para empezar a ganar."
     },
     "agent": {

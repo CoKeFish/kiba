@@ -337,7 +337,7 @@
     },
     "agents": {
       "title": "Meus serviços",
-      "subtitle": "Registre, edite e desative os serviços da sua wallet custodial.",
+      "subtitle": "Registre, edite e desative os serviços que você publicou com a sua wallet.",
       "publish_agent": "Publicar serviço",
       "cancel": "Cancelar",
       "register_agent": "Registrar serviço",
@@ -371,7 +371,7 @@
     },
     "payouts": {
       "title": "Repasses",
-      "subtitle": "Os ganhos são liquidados diretamente na sua wallet custodial em {{network}}. Os publicadores ficam com {{netPct}}% de cada chamada paga.",
+      "subtitle": "Os ganhos chegam à sua wallet em {{network}}. Os publicadores ficam com {{netPct}}% de cada chamada paga.",
       "kpi_available": "Saldo disponível para repasse",
       "kpi_pending_hint": "{{amount}} {{asset}} pendentes de liquidação",
       "kpi_to_settle": "A liquidar",
@@ -462,8 +462,8 @@
       "success_title": "Serviço registrado on-chain",
       "signature_label": "Assinatura",
       "card_title": "Registrar um novo serviço",
-      "desc_1": "Sua wallet custodial assina a instrução on-chain",
-      "desc_2": ". Os pagamentos dos clientes ({{pct}}%) caem diretamente nesta wallet.",
+      "desc_1": "Você assina com a sua wallet a instrução",
+      "desc_2": ": o serviço fica em seu nome e só você pode alterá-lo. A Kiba paga a taxa da rede.",
       "service_label": "Slug do serviço",
       "service_placeholder": "meu-serviço-legal",
       "service_hint": "Minúsculas, alfanumérico, hífens/underscores permitidos. Máx. 32 caracteres.",
@@ -483,8 +483,8 @@
     },
     "my_agents": {
       "title": "Meus serviços",
-      "summary_one": "{{count}} serviço pertencente à sua wallet custodial · Total ganho:",
-      "summary_other": "{{count}} serviços pertencentes à sua wallet custodial · Total ganho:",
+      "summary_one": "{{count}} serviço em nome da sua wallet · Total ganho:",
+      "summary_other": "{{count}} serviços em nome da sua wallet · Total ganho:",
       "empty": "Ainda não há serviços. Publique o primeiro para começar a ganhar."
     },
     "agent": {

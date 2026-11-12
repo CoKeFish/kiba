@@ -17,6 +17,8 @@ export type WalletRef = { address: string; kind: "privy" | "external" };
 type PrivySign = (tx: PreparedTx, address: string) => Promise<SignedBody>;
 
 let privySign: PrivySign | null = null;
+/** Dirección de la wallet externa ya elegida en esta visita. */
+let externalReady: string | null = null;
 /** Lo llama PrivySignHost al montarse (y con null al desmontarse). */
 export function registerPrivySign(fn: PrivySign | null): void {
   privySign = fn;
@@ -25,8 +27,20 @@ export function registerPrivySign(fn: PrivySign | null): void {
 export async function signPrepared(tx: PreparedTx, wallet: WalletRef): Promise<SignedBody> {
   if (wallet.kind === "external") {
     const { connectStellarWallet, signXdr } = await import("@/lib/stellar-wallet");
+    // Si la wallet ya quedó elegida en esta visita, se firma directo. El selector solo se abre la
+    // primera vez (o si la firma no encuentra wallet), no en cada transacción.
+    if (externalReady === wallet.address) {
+      try {
+        return { xdr: await signXdr(tx.xdr, wallet.address) };
+      } catch (err) {
+        // Un rechazo del usuario es un rechazo: no se le vuelve a preguntar.
+        if (/reject|declin|denied|cancel/i.test(String((err as Error)?.message ?? err))) throw err;
+        externalReady = null;
+      }
+    }
     const connected = await connectStellarWallet();
     if (connected !== wallet.address) throw new Error(i18n.t("wallet_sign.other_wallet", { address: `${wallet.address.slice(0, 6)}…${wallet.address.slice(-4)}` }));
+    externalReady = connected;
     return { xdr: await signXdr(tx.xdr, wallet.address) };
   }
   // La sesión de Privy se carga aparte: se le da un momento a que esté lista.

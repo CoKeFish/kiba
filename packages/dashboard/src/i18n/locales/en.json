@@ -337,7 +337,7 @@
     },
     "agents": {
       "title": "My Services",
-      "subtitle": "Register, edit and retire the services owned by your custodial wallet.",
+      "subtitle": "Register, edit and retire the services you published with your wallet.",
       "publish_agent": "Publish service",
       "cancel": "Cancel",
       "register_agent": "Register service",
@@ -371,7 +371,7 @@
     },
     "payouts": {
       "title": "Payouts",
-      "subtitle": "Earnings settle directly to your custodial wallet on {{network}}. Publishers keep {{netPct}}% of every paid call.",
+      "subtitle": "Earnings reach your wallet on {{network}}. Publishers keep {{netPct}}% of every paid call.",
       "kpi_available": "Available payout balance",
       "kpi_pending_hint": "{{amount}} {{asset}} pending settlement",
       "kpi_to_settle": "To settle",
@@ -462,8 +462,8 @@
       "success_title": "Service registered on-chain",
       "signature_label": "Signature",
       "card_title": "Register a new service",
-      "desc_1": "Your custodial wallet signs the on-chain",
-      "desc_2": " instruction. Payments from clients ({{pct}}%) land in this wallet directly.",
+      "desc_1": "You sign the",
+      "desc_2": " instruction with your wallet: the service is registered in your name and only you can change it. Kiba pays the network fee.",
       "service_label": "Service slug",
       "service_placeholder": "my-cool-service",
       "service_hint": "Lowercase, alphanumeric, dashes/underscores allowed. Max 32 chars.",
@@ -483,8 +483,8 @@
     },
     "my_agents": {
       "title": "My services",
-      "summary_one": "{{count}} service owned by your custodial wallet · Total earned:",
-      "summary_other": "{{count}} services owned by your custodial wallet · Total earned:",
+      "summary_one": "{{count}} service in your wallet's name · Total earned:",
+      "summary_other": "{{count}} services in your wallet's name · Total earned:",
       "empty": "No services yet. Publish your first one to start earning."
     },
     "agent": {
