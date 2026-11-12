@@ -13,6 +13,11 @@ set -euo pipefail
 : "${E2E_TREASURY_SECRET:?falta E2E_TREASURY_SECRET}"
 NET=kiba-mpp-e2e-net
 OUT=$(mktemp -d)
+# En Git Bash (Windows) Docker necesita la ruta de Windows y que el shell no reescriba las demás.
+if command -v cygpath >/dev/null 2>&1; then
+  OUT=$(cygpath -m "$OUT")
+  export MSYS_NO_PATHCONV=1
+fi
 cleanup() {
   docker rm -f kiba-mpp-e2e-pg kiba-mpp-demo-server kiba-mpp-e2e >/dev/null 2>&1 || true
   docker network rm "$NET" >/dev/null 2>&1 || true

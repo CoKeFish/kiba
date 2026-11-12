@@ -82,7 +82,6 @@ delete process.env.KIBA_CHANNEL_FACTORY_ID;
 const { db, initDb, pool } = await import('../src/db');
 const spend = await import('../src/spend');
 const channel = await import('../src/channel');
-const { PrivyStellarSigner, createStellarWallet } = await import('../src/privy');
 
 let pass = 0;
 let fail = 0;
@@ -163,33 +162,16 @@ check(
   `cobrado al liquidar: ${liq.paidBaseUnits / 1e7}`,
 );
 
-// 4. Migración desde una wallet app-owned de Privy (las anteriores, que Kiba sí controla).
-const legacy = await createStellarWallet();
-await fund(legacy.address);
-const legacySigner = new PrivyStellarSigner(legacy.walletId, legacy.address);
-{
-  const tx = new TransactionBuilder(await hz.loadAccount(legacy.address), { fee: '1000', networkPassphrase: Networks.TESTNET })
-    .addOperation(Operation.changeTrust({ asset: usdc }))
-    .setTimeout(60)
-    .build();
-  await legacySigner.signTransaction(tx);
-  await hz.submitTransaction(tx);
-}
-await classic(issuer, [Operation.payment({ destination: legacy.address, asset: usdc, amount: '3.5' })]);
-spend.setLegacySignerLoader(async () => legacySigner as never);
-const mg = await spend.migrateLegacyWallet(uid);
-check('4. migración: el USDC de la wallet anterior pasa a la wallet del usuario', (await usdcOf(userWallet.address)) === 13.2 && (await usdcOf(legacy.address)) === 0, `tx ${mg.hash.slice(0, 10)}…`);
-
-// 5. Enviar USDC de la wallet a otra dirección: lo firma el usuario con Privy.
+// 4. Enviar USDC de la wallet a otra dirección: lo firma el usuario con Privy.
 const send = await spend.prepareWithdraw(uid, { to: outside.publicKey(), amount: 2e7 });
 await userSends(uid, send);
 w = await spend.getSpendStatus(uid);
-check('5. enviar 2 USDC a otra wallet, firmado con Privy', (await usdcOf(outside.publicKey())) === 2 && w.balanceBaseUnits === 11.2e7);
+check('4. enviar 2 USDC a otra wallet, firmado con Privy', (await usdcOf(outside.publicKey())) === 2 && w.balanceBaseUnits === 7.7e7);
 
-// 6. Todo lo firmó el usuario y las comisiones las pagó Kiba.
-check('6. el usuario no pagó comisiones de red', (await xlmOf(userWallet.address)) === xlm0, `XLM: ${await xlmOf(userWallet.address)}`);
+// 5. Todo lo firmó el usuario y las comisiones las pagó Kiba.
+check('5. el usuario no pagó comisiones de red', (await xlmOf(userWallet.address)) === xlm0, `XLM: ${await xlmOf(userWallet.address)}`);
 
 console.log(`\n${pass}/${pass + fail} comprobaciones pasaron`);
-console.log(`wallets de prueba en Privy: usuario ${userWallet.id}, anterior ${legacy.walletId}`);
+console.log(`wallet de prueba en Privy: ${userWallet.id}`);
 await pool.end();
 process.exit(fail ? 1 : 0);

@@ -38,7 +38,7 @@ While the earning from a call has not been released, the user can **claim** it f
 - If there were refunds, that tranche is closed with a split: the publisher gets their share and Kiba gets back what it already refunded to the user.
 - The publisher sees each hold, its release date and its escrow under **Payouts**.
 
-Calls with a [licence](/conceptos/licencias) are paid right away: their on-chain payment is the proof of the licence.
+Calls with a [licence](/licencias) are paid right away: their on-chain payment is the proof of the licence.
 
 ### Direct escrow call (SDK) {/* #llamada-con-escrow-directo-sdk */}
 

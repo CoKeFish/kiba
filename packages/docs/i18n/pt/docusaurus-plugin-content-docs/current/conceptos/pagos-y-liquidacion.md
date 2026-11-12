@@ -38,7 +38,7 @@ Enquanto o ganho de uma chamada não for liberado, o usuário pode **reclamá-la
 - Se houve devoluções, essa parcela é fechada com divisão: o publisher recebe a sua parte e a Kiba recupera o que já devolveu ao usuário.
 - O publisher vê cada retenção, a data de liberação e o escrow em **Pagamentos**.
 
-As chamadas com [licença](/conceptos/licencias) são pagas na hora: o pagamento on-chain é a prova da licença.
+As chamadas com [licença](/licencias) são pagas na hora: o pagamento on-chain é a prova da licença.
 
 ### Chamada com escrow direto (SDK) {/* #llamada-con-escrow-directo-sdk */}
 

@@ -401,13 +401,23 @@ export async function fundHolds(): Promise<number> {
       const trust = await trustOfService(h.service);
       const days = RETENTION_DAYS[trust];
       const at = nowS();
-      await db
-        .prepare(
-          `UPDATE earning_holds SET status = 'held', escrow_id = ?, amount = ?, trust = ?, retention_days = ?,
-                  funded_at = ?, release_at = ?, error = NULL
-           WHERE id = ? AND status = 'funding'`,
-        )
-        .run(escrowId, amount, trust, days, at, at + days * DAY_S, h.id);
+      await withTransaction(async (tx) => {
+        // Una devolución resuelta mientras se fondeaba ya no está en el escrow de menos: se anota
+        // como pendiente de recuperar al liberar.
+        const cur = await tx.prepare(`SELECT 1 FROM earning_holds WHERE id = ? AND status = 'funding' FOR UPDATE`).get(h.id);
+        if (!cur) return;
+        const net = (await tx
+          .prepare('SELECT COALESCE(SUM(amount_lamports - refunded), 0)::bigint AS total FROM agent_earnings WHERE hold_id = ?')
+          .get(h.id)) as { total: number };
+        const refundedMeanwhile = Math.max(0, amount - Number(net.total));
+        await tx
+          .prepare(
+            `UPDATE earning_holds SET status = 'held', escrow_id = ?, amount = ?, refund_due = refund_due + ?, trust = ?, retention_days = ?,
+                    funded_at = ?, release_at = ?, error = NULL
+             WHERE id = ?`,
+          )
+          .run(escrowId, amount, refundedMeanwhile, trust, days, at, at + days * DAY_S, h.id);
+      });
       funded++;
     } catch (err) {
       const msg = String((err as Error).message).split('\n')[0];
@@ -438,9 +448,21 @@ export async function releaseDue(now = nowS()): Promise<number> {
   let released = 0;
   for (const h of rows) {
     // Reclamar la retención: desde aquí no entra otra liberación ni un reclamo nuevo.
-    const claimed = await db.prepare(`UPDATE earning_holds SET status = 'releasing' WHERE id = ? AND status = 'held' RETURNING id`).get(h.id);
+    // Con la fila bloqueada se vuelve a mirar: un reclamo o una devolución pudo entrar desde la consulta.
+    const claimed = await withTransaction(async (tx) => {
+      const cur = (await tx.prepare(`SELECT status, refund_due FROM earning_holds WHERE id = ? FOR UPDATE`).get(h.id)) as
+        | { status: HoldStatus; refund_due: number }
+        | undefined;
+      if (!cur || cur.status !== 'held') return null;
+      const open = await tx
+        .prepare(`SELECT 1 FROM claims c JOIN agent_earnings e ON e.id = c.earning_id WHERE e.hold_id = ? AND c.status = 'open' LIMIT 1`)
+        .get(h.id);
+      if (open) return null;
+      await tx.prepare(`UPDATE earning_holds SET status = 'releasing' WHERE id = ?`).run(h.id);
+      return { refundDue: Number(cur.refund_due) };
+    });
     if (!claimed) continue;
-    const toTreasury = Math.min(h.refund_due, h.amount);
+    const toTreasury = Math.min(claimed.refundDue, h.amount);
     const toReceiver = h.amount - toTreasury;
     try {
       if (toTreasury > 0) await getBackend().resolve(h.escrow_id!, { receiver: h.pay_to, toReceiver, toTreasury });
@@ -614,13 +636,25 @@ export async function createClaim(userId: number, transactionId: number, reason:
   if (!e) throw new Error('esa llamada no se puede reclamar');
   if (Number(e.amount_lamports) - Number(e.refunded) <= 0) throw new Error('esa llamada ya se devolvió');
   if (!(await claimableUntil(e)).ok) throw new Error('el plazo para reclamar esta llamada ya pasó');
-  if (await db.prepare('SELECT 1 FROM claims WHERE earning_id = ?').get(e.id)) throw new Error('ya reclamaste esta llamada');
-  const row = (await db
-    .prepare(
-      `INSERT INTO claims (user_id, earning_id, tx_id, service, amount, reason, status, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, 'open', ?) RETURNING *`,
-    )
-    .get(userId, e.id, transactionId, e.service, Number(e.amount_lamports) - Number(e.refunded), text.slice(0, 2000), nowS())) as ClaimRow;
+  const row = await withTransaction(async (tx) => {
+    // La ganancia y su retención quedan bloqueadas: el reclamo entra antes de la liberación o no entra.
+    const cur = (await tx.prepare('SELECT hold_id, settled_at FROM agent_earnings WHERE id = ? FOR UPDATE').get(e.id)) as {
+      hold_id: number | null;
+      settled_at: number | null;
+    };
+    if (cur.settled_at != null) throw new Error('el plazo para reclamar esta llamada ya pasó');
+    if (cur.hold_id != null) {
+      const h = (await tx.prepare('SELECT status FROM earning_holds WHERE id = ? FOR UPDATE').get(cur.hold_id)) as { status: HoldStatus } | undefined;
+      if (!h || (h.status !== 'funding' && h.status !== 'held')) throw new Error('el plazo para reclamar esta llamada ya pasó');
+    }
+    if (await tx.prepare('SELECT 1 FROM claims WHERE earning_id = ?').get(e.id)) throw new Error('ya reclamaste esta llamada');
+    return (await tx
+      .prepare(
+        `INSERT INTO claims (user_id, earning_id, tx_id, service, amount, reason, status, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, 'open', ?) RETURNING *`,
+      )
+      .get(userId, e.id, transactionId, e.service, Number(e.amount_lamports) - Number(e.refunded), text.slice(0, 2000), nowS())) as ClaimRow;
+  });
   return claimView(row);
 }
 
@@ -721,14 +755,14 @@ export async function resolveClaim(
       .prepare(`UPDATE claims SET status = 'refunded', note = ?, resolved_at = ?, resolved_by = ? WHERE id = ? AND status = 'open' RETURNING *`)
       .get(note, nowS(), adminId, claimId)) as ClaimRow | undefined;
     if (!claim) throw new Error('el reclamo no está abierto');
-    const e = (await tx.prepare('SELECT * FROM agent_earnings WHERE id = ?').get(claim.earning_id)) as EarningRow;
+    const e = (await tx.prepare('SELECT * FROM agent_earnings WHERE id = ? FOR UPDATE').get(claim.earning_id)) as EarningRow;
     const left = Number(e.amount_lamports) - Number(e.refunded);
     const amount = args.amount === undefined ? Math.min(Number(claim.amount), left) : args.amount;
     if (!Number.isInteger(amount) || amount <= 0) throw new Error('monto inválido');
     if (amount > left) throw new Error('el monto supera lo que queda de esa llamada');
     if (e.settled_at != null) throw new Error('la ganancia de esa llamada ya se liberó');
     if (e.hold_id != null) {
-      const h = (await tx.prepare('SELECT status FROM earning_holds WHERE id = ?').get(e.hold_id)) as { status: HoldStatus } | undefined;
+      const h = (await tx.prepare('SELECT status FROM earning_holds WHERE id = ? FOR UPDATE').get(e.hold_id)) as { status: HoldStatus } | undefined;
       if (!h || (h.status !== 'funding' && h.status !== 'held')) throw new Error('la ganancia de esa llamada ya se liberó');
       // Con el escrow ya fondeado, lo devuelto se recupera de ahí al liberar.
       if (h.status === 'held') await tx.prepare('UPDATE earning_holds SET refund_due = refund_due + ? WHERE id = ?').run(amount, e.hold_id);
