@@ -89,8 +89,8 @@ const user = Number(
   (
     await db
       .prepare(
-        `INSERT INTO users (email, password_hash, custodial_wallet_secret, custodial_wallet_pubkey, balance_lamports, created_at)
-         VALUES ('comprador@kiba.test', 'x', '[]', 'pk', 5000000, ?) RETURNING id`,
+        `INSERT INTO users (email, password_hash, balance_lamports, created_at)
+         VALUES ('comprador@kiba.test', 'x', 5000000, ?) RETURNING id`,
       )
       .run(Math.floor(Date.now() / 1000))
   ).lastInsertRowid,

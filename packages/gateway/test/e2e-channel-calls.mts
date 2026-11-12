@@ -133,8 +133,8 @@ const uid = Number(
   (
     await db
       .prepare(
-        `INSERT INTO users (email, password_hash, custodial_wallet_secret, custodial_wallet_pubkey, balance_lamports, created_at)
-         VALUES ('e2e-calls@kiba.test', 'x', '[]', 'x', 0, ?) RETURNING id`,
+        `INSERT INTO users (email, password_hash, balance_lamports, created_at)
+         VALUES ('e2e-calls@kiba.test', 'x', 0, ?) RETURNING id`,
       )
       .run(Math.floor(Date.now() / 1000))
   ).lastInsertRowid,

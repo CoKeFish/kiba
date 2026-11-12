@@ -1,5 +1,5 @@
 /**
- * Auth helpers: signup, login, session JWT, custodial wallet generation.
+ * Auth helpers: signup, login, session JWT.
  */
 import bcrypt from 'bcryptjs';
 import { Keypair } from '@solana/web3.js';
@@ -78,20 +78,17 @@ export async function createUser(
   if (exists) return { error: 'Email ya registrado' };
 
   const password_hash = bcrypt.hashSync(password, 10);
-  // Kiba ya no crea ni guarda una clave por cuenta. Quien quiere pagar o publicar desde una
-  // wallet vincula la suya (Privy con él de dueño, o una externa) y firma él: ver spend.ts.
-  const custodial_wallet_secret = '[]';
-  const custodial_wallet_pubkey = '';
-
+  // Kiba no crea ni guarda claves: quien quiere pagar o publicar desde una wallet vincula la
+  // suya y firma él (ver spend.ts).
   // Bono inicial en USD → unidades base del activo activo (chain-aware).
   const bonusLamports = usdToLamports(SIGNUP_BONUS_USD);
 
   const result = await db
     .prepare(
-      `INSERT INTO users (email, password_hash, custodial_wallet_secret, custodial_wallet_pubkey, balance_lamports, created_at)
-       VALUES (?, ?, ?, ?, ?, ?) RETURNING id`,
+      `INSERT INTO users (email, password_hash, balance_lamports, created_at)
+       VALUES (?, ?, ?, ?) RETURNING id`,
     )
-    .run(email, password_hash, custodial_wallet_secret, custodial_wallet_pubkey, bonusLamports, Math.floor(Date.now() / 1000));
+    .run(email, password_hash, bonusLamports, Math.floor(Date.now() / 1000));
 
   const userId = result.lastInsertRowid as number;
 

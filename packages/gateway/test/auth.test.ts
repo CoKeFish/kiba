@@ -103,9 +103,8 @@ test('createUser inserta usuario y le da bono inicial $5', async () => {
     assert.equal(result.email, 'new@test.com');
     // Bono de signup: $5 convertidos a unidades base de la cadena activa.
     assert.equal(result.balance_lamports, usdToLamports(5));
-    // Kiba ya no crea ni guarda una clave por cuenta: el usuario vincula su propia wallet.
-    assert.equal(result.custodial_wallet_pubkey, '');
-    assert.equal(result.custodial_wallet_secret, '[]');
+    // Kiba no crea ni guarda claves: la cuenta no trae ningún campo de wallet.
+    assert.equal('custodial_wallet_secret' in result, false);
     // Hash de password no es el plaintext
     assert.notEqual(result.password_hash, 'password123');
   }

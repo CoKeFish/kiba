@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { execFileSync } from 'node:child_process';
-import { getMasterWallet, masterWalletPubkey, loadUserWallet } from '../src/wallets';
+import { getMasterWallet, masterWalletPubkey } from '../src/wallets';
 import { db, initDb, pool } from '../src/db';
 
 before(async () => {
@@ -100,26 +100,4 @@ test('loadMasterWallet cae a archivo cuando MASTER_WALLET_SECRET está vacío', 
   assert.equal(reloaded.publicKey.toBase58(), pubkeyFromMemory);
 
   rmSync(subTmp, { recursive: true, force: true });
-});
-
-// ─── loadUserWallet ────────────────────────────────────────────
-
-test('loadUserWallet recupera keypair del custodial_wallet_secret en DB', async () => {
-  const userKp = Keypair.generate();
-  const secretJson = JSON.stringify(Array.from(userKp.secretKey));
-  const now = Math.floor(Date.now() / 1000);
-  const result = await db
-    .prepare(
-      `INSERT INTO users (email, password_hash, custodial_wallet_secret, custodial_wallet_pubkey, balance_lamports, created_at)
-       VALUES (?, ?, ?, ?, ?, ?) RETURNING id`,
-    )
-    .run('uw@test', 'h', secretJson, userKp.publicKey.toBase58(), 0, now);
-  const userId = Number(result.lastInsertRowid);
-
-  const loaded = await loadUserWallet(userId);
-  assert.equal(loaded.publicKey.toBase58(), userKp.publicKey.toBase58());
-});
-
-test('loadUserWallet con userId inexistente lanza error', async () => {
-  await assert.rejects(() => loadUserWallet(999999), /not found/);
 });

@@ -117,9 +117,9 @@ function grantOf(result: unknown): LicenseGrant | null {
 
 async function buyerAddress(userId: number): Promise<string | undefined> {
   const row = await db
-    .prepare('SELECT stellar_address, spend_address FROM users WHERE id = ?')
-    .get<{ stellar_address: string | null; spend_address: string | null }>(userId);
-  return row?.spend_address || row?.stellar_address || undefined;
+    .prepare('SELECT spend_address FROM users WHERE id = ?')
+    .get<{ spend_address: string | null }>(userId);
+  return row?.spend_address || undefined;
 }
 
 function buildDocument(a: {

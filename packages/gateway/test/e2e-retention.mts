@@ -82,10 +82,10 @@ const mkUser = async (email: string) =>
     (
       await db
         .prepare(
-          `INSERT INTO users (email, password_hash, custodial_wallet_secret, custodial_wallet_pubkey, balance_lamports, created_at)
-           VALUES (?, 'x', '[]', ?, 0, ?) RETURNING id`,
+          `INSERT INTO users (email, password_hash, balance_lamports, created_at)
+           VALUES (?, 'x', 0, ?) RETURNING id`,
         )
-        .run(email, `pk-${email}`, now())
+        .run(email, now())
     ).lastInsertRowid,
   );
 const buyer = await mkUser('comprador@kiba.test');

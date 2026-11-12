@@ -83,11 +83,6 @@ import { enqueueChainTask } from './treasury-queue';
 import { kibaPayEnabled, payForCall, reconcileKibaPays } from './kiba-pay';
 import {
   getSpendStatus,
-  legacyPrivyWallet,
-  legacyWallet,
-  migrateLegacyWallet,
-  ownLegacyPrivyWallet,
-  ownerTransferEnabled,
   prepareActivation,
   prepareWithdraw,
   submitPrepared,
@@ -121,7 +116,6 @@ import {
   getMasterWallet,
   getOnChainBalance,
   getUserBalances,
-  userOnChainBalance,
 } from './wallets';
 import { ASSET, ASSET_USD_RATE, BASE_UNITS_PER_TOKEN, explorerTxUrl } from './chain';
 import { BASE_UNIT_NAME } from './wallets';
@@ -341,7 +335,6 @@ app.post('/signup', async (req, res) => {
       user: {
         id: String(result.id),
         email: result.email,
-        custodial_wallet: result.custodial_wallet_pubkey,
         balance_lamports: result.balance_lamports,
         is_publisher: !!result.is_publisher,
         publisher_name: result.publisher_name ?? null,
@@ -375,7 +368,6 @@ app.post('/login', async (req, res) => {
       user: {
         id: String(user.id),
         email: user.email,
-        custodial_wallet: user.custodial_wallet_pubkey,
         balance_lamports: user.balance_lamports,
         is_publisher: !!user.is_publisher,
         publisher_name: user.publisher_name ?? null,
@@ -413,7 +405,7 @@ app.get('/dashboard', requireSession, async (req, res) => {
       walletUsd: balances.walletUsd,
       totalUsd: balances.totalUsd,
       totalSol: balances.totalSol,
-      walletPubkey: user.custodial_wallet_pubkey,
+      walletPubkey: '',
       transactions: await getTransactions(user.id),
     }),
   );
@@ -906,7 +898,6 @@ app.get('/v1/me', requireAuth, async (req, res) => {
   res.json({
     id: String(user.id),
     email: user.email,
-    custodial_wallet: user.custodial_wallet_pubkey,
     is_publisher: !!user.is_publisher,
     publisher_name: user.publisher_name ?? null,
     is_admin: isAdminEmail(user.email),
@@ -962,23 +953,20 @@ app.get('/v1/balance', requireAuth, async (req, res) => {
   });
 });
 
-/**
- * Estado on-chain de la custodial wallet del user.
- * Útil para mostrar transparencia: lamports reales, no solo USD virtual.
- */
+/** Estado en la red de la wallet que el usuario vinculó a su cuenta (vacía si no vinculó ninguna). */
 app.get('/v1/wallet', requireAuth, async (req, res) => {
-  const user = await getUser(req.bearerUser!.id);
-  if (!user) return res.status(404).json({ error: 'user not found' });
   try {
-    const baseUnits = await userOnChainBalance(user.id);
+    const st = await getSpendStatus(req.bearerUser!.id);
+    const baseUnits = st.balanceBaseUnits;
     res.json({
-      pubkey: user.custodial_wallet_pubkey,
+      pubkey: st.address ?? '',
+      kind: st.kind,
       asset: ASSET,
       base_unit_name: BASE_UNIT_NAME,
       base_units: baseUnits,
       asset_amount: baseUnits / BASE_UNITS_PER_TOKEN,
       master_wallet: masterWalletPubkey(),
-      // Legacy (deprecated): mismos valores que base_units / asset_amount.
+      // Nombres anteriores, con los mismos valores.
       lamports: baseUnits,
       sol: baseUnits / BASE_UNITS_PER_TOKEN,
     });
@@ -1086,20 +1074,20 @@ app.post('/v1/publisher/activate', requireAuth, async (req, res) => {
 
 /**
  * Resumen del publisher: ingresos agregados, # de calls, agentes con sus stats
- * on-chain, y el saldo real de la custodial wallet (donde aterriza el 95%).
+ * on-chain, y el saldo de la wallet del publicador.
  */
 app.get('/v1/publisher/overview', requireAuth, async (req, res) => {
   try {
     const userId = req.bearerUser!.id;
     const user = await getUser(userId);
     if (!user) return res.status(404).json({ error: 'user not found' });
-    const [agents, walletBaseUnits] = await Promise.all([
-      listMyAgents(userId),
-      userOnChainBalance(userId).catch(() => 0),
-    ]);
+    const agents = await listMyAgents(userId);
+    // La wallet del publicador es la que vinculó a su cuenta.
+    const linked = (await getSpendStatus(userId).catch(() => null))?.address ?? '';
+    const walletBaseUnits = linked ? await addressOnChainBalance(linked) : 0;
 
     // Balance real donde aterrizan los payouts: la(s) wallet(s) OWNER de los agentes (no la
-    // custodial del user). Un owner puede tener varios servicios → deduplicamos direcciones.
+    // vinculada). Un owner puede tener varios servicios → deduplicamos direcciones.
     const owners = [...new Set(agents.map((a) => a.owner))];
     const payoutWallets = await Promise.all(
       owners.map(async (address) => {
@@ -1142,9 +1130,9 @@ app.get('/v1/publisher/overview', requireAuth, async (req, res) => {
         settled_asset: settledBase / BASE_UNITS_PER_TOKEN,
         settled_usd: lamportsToUsd(settledBase),
       },
-      // Custodial del user (se mantiene por compat; NO es donde caen los payouts hoy).
+      // La wallet vinculada a la cuenta.
       wallet: {
-        pubkey: user.custodial_wallet_pubkey,
+        pubkey: linked,
         base_units: walletBaseUnits,
         asset_amount: walletBaseUnits / BASE_UNITS_PER_TOKEN,
         usd: lamportsToUsd(walletBaseUnits),
@@ -1265,7 +1253,7 @@ app.get('/v1/publisher/analytics', requireAuth, async (req, res) => {
 });
 
 // ─── Agent management (registry CRUD) ─────────────────────────────
-// El user firma con su custodial wallet → on-chain queda como owner.
+// El usuario firma con su wallet → en el registro queda como dueño.
 
 app.get('/v1/agents/mine', requireAuth, async (req, res) => {
   try {
@@ -1290,8 +1278,8 @@ app.post('/v1/agents', requireAuth, async (req, res) => {
     const result = await registerAgent(req.bearerUser!.id, input);
     // Publicar un agente convierte al user en publisher (idempotente).
     await setPublisher(req.bearerUser!.id);
-    // Con wallet propia el registro lo firma el usuario: 202 con la transacción por firmar.
-    res.status(needsSignature(result) ? 202 : 201).json(result);
+    // El registro lo firma el usuario: 202 con la transacción por firmar.
+    res.status(202).json(result);
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'unknown error';
     const status = msg.includes('already registered') ? 409 : 500;
@@ -1322,7 +1310,7 @@ app.put('/v1/agents/:service', requireAuth, async (req, res) => {
 
   try {
     const result = await updateAgent(req.bearerUser!.id, service, input);
-    if (needsSignature(result)) return res.status(202).json(result);
+    return res.status(202).json(result);
     res.json(result);
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'unknown error';
@@ -1336,7 +1324,7 @@ app.delete('/v1/agents/:service', requireAuth, async (req, res) => {
   const service = String(req.params.service).trim();
   try {
     const result = await deregisterAgent(req.bearerUser!.id, service);
-    res.status(needsSignature(result) ? 202 : 200).json(result);
+    res.status(202).json(result);
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'unknown error';
     const status =
@@ -1550,14 +1538,9 @@ app.get('/v1/transactions', requireAuth, async (req, res) => {
 
 app.get('/v1/spend', requireAuth, async (req, res) => {
   try {
-    const [status, legacy] = await Promise.all([
-      getSpendStatus(req.bearerUser!.id),
-      legacyWallet(req.bearerUser!.id).catch(() => null),
-    ]);
+    const status = await getSpendStatus(req.bearerUser!.id);
     // privyAppId es público (lo usa el SDK de Privy en el navegador): así no se hornea en el build.
-    // `legacyOwnable`: la cuenta tiene una wallet de Privy que Kiba controla y se le puede pasar.
-    const ownable = ownerTransferEnabled() ? await legacyPrivyWallet(req.bearerUser!.id).catch(() => null) : null;
-    res.json({ ...status, legacy, legacyOwnable: ownable ? { address: ownable.address } : null, privyAppId: process.env.PRIVY_APP_ID || null });
+    res.json({ ...status, privyAppId: process.env.PRIVY_APP_ID || null });
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
   }
@@ -1603,28 +1586,6 @@ app.post('/v1/spend/submit', requireAuth, async (req, res) => {
       signature: typeof signature === 'string' ? signature : undefined,
       signedXdr: typeof xdr === 'string' ? xdr : undefined,
     });
-    res.json({ ...r, explorerUrl: explorerTxUrl(r.hash) });
-  } catch (err) {
-    res.status(400).json({ error: (err as Error).message });
-  }
-});
-
-/**
- * Le pasa al usuario la wallet de Privy que Kiba controlaba: queda con el mismo dueño que la
- * wallet de Privy que el usuario vinculó. Después Kiba no puede firmar con ella.
- */
-app.post('/v1/spend/legacy/own', requireAuth, async (req, res) => {
-  try {
-    res.json(await ownLegacyPrivyWallet(req.bearerUser!.id, String(req.body?.walletId ?? '')));
-  } catch (err) {
-    res.status(400).json({ error: (err as Error).message });
-  }
-});
-
-/** Pasa el USDC de la wallet anterior (controlada por Kiba) a la wallet del usuario. */
-app.post('/v1/spend/migrate', requireAuth, async (req, res) => {
-  try {
-    const r = await migrateLegacyWallet(req.bearerUser!.id);
     res.json({ ...r, explorerUrl: explorerTxUrl(r.hash) });
   } catch (err) {
     res.status(400).json({ error: (err as Error).message });

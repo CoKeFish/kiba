@@ -42,5 +42,3 @@ O dono de um serviço no registro da Stellar é uma wallet, e só ela pode alter
 1. Vincule a sua wallet em **Faturamento**: uma da Privy, criada com o seu e-mail e da qual você é o dono, ou uma externa como a Freighter.
 2. Ao publicar, alterar ou remover um serviço, o painel pede que você assine com essa wallet. A Kiba monta a transação e paga a taxa: você não precisa de XLM.
 3. O serviço fica registrado em nome da sua wallet. A Kiba não pode alterá-lo nem removê-lo.
-
-As contas criadas antes desta mudança têm uma wallet criada pela Kiba. Os serviços que já publicaram com ela continuam funcionando igual até vincularem a própria.

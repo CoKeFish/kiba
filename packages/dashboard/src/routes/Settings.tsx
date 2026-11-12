@@ -174,9 +174,7 @@ export default function Settings() {
               <h2 className="settings-card__title">{t("settings.custodial_wallet_title")}</h2>
             </div>
             <p className="settings-card__desc">
-              {t("settings.custodial_wallet_desc_before")}{" "}
-              <code>open_escrow</code> {t("settings.custodial_wallet_desc_between")}{" "}
-              <code>claim_payment</code> {t("settings.custodial_wallet_desc_after")}
+              {t("settings.wallet_desc")}
             </p>
           </div>
           <button
@@ -190,7 +188,9 @@ export default function Settings() {
           </button>
         </div>
         <div className="settings-card__body">
-          {wallet ? (
+          {wallet && !wallet.pubkey ? (
+            <p className="settings-loading">{t("settings.wallet_none")}</p>
+          ) : wallet ? (
             <>
               <FieldRow
                 label={t("settings.public_key_label", { network: chain.networkLabel })}

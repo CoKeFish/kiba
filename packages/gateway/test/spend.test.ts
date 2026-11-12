@@ -18,11 +18,8 @@ import {
 import { db, initDb, pool } from '../src/db';
 import {
   getSpendStatus,
-  legacyWallet,
-  migrateLegacyWallet,
   prepareActivation,
   prepareWithdraw,
-  setLegacySignerLoader,
   setSpendChain,
   submitPrepared,
   type PreparedTx,
@@ -115,10 +112,10 @@ beforeEach(async () => {
 async function createTestUser(email: string): Promise<number> {
   const result = await db
     .prepare(
-      `INSERT INTO users (email, password_hash, custodial_wallet_secret, custodial_wallet_pubkey, balance_lamports, created_at)
-       VALUES (?, ?, ?, ?, ?, ?) RETURNING id`,
+      `INSERT INTO users (email, password_hash, balance_lamports, created_at)
+       VALUES (?, ?, ?, ?) RETURNING id`,
     )
-    .run(email, 'fake-hash', '[]', `pk-${email}`, 0, Math.floor(Date.now() / 1000));
+    .run(email, 'fake-hash', 0, Math.floor(Date.now() / 1000));
   return Number(result.lastInsertRowid);
 }
 
@@ -239,25 +236,3 @@ test('enviar USDC de la wallet a otra dirección lo firma el usuario', async () 
   assert.deepEqual(rows.map((r) => Number(r.amount_lamports)), [-USDC(1.5), -USDC(2.5)]);
 });
 
-test('migrar: el USDC de la wallet anterior pasa a la wallet del usuario', async () => {
-  const kp = Keypair.random();
-  const legacy = Keypair.random();
-  const u = await createTestUser('a@x.com');
-  setLegacySignerLoader(async () => ({
-    publicKey: () => legacy.publicKey(),
-    signTransaction: async (tx: Transaction) => tx.sign(legacy),
-  }));
-  try {
-    await assert.rejects(() => migrateLegacyWallet(u), /vincula tu wallet/);
-    await activate(u, kp);
-    chain.balance.set(legacy.publicKey(), BigInt(USDC(3.25)));
-    assert.deepEqual(await legacyWallet(u), { address: legacy.publicKey(), balanceBaseUnits: USDC(3.25) });
-    const r = await migrateLegacyWallet(u);
-    assert.equal(r.amountBaseUnits, USDC(3.25));
-    assert.equal(chain.balance.get(kp.publicKey()), BigInt(USDC(3.25)));
-    assert.equal(chain.balance.get(legacy.publicKey()), 0n);
-    await assert.rejects(() => migrateLegacyWallet(u), /no tiene USDC/);
-  } finally {
-    setLegacySignerLoader(null);
-  }
-});

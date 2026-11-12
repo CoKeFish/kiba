@@ -1,13 +1,8 @@
 /**
- * Per-user custodial wallets + master wallet, sobre Stellar/Soroban.
+ * La tesorería de Kiba (master wallet) y lecturas de saldo en la red.
  *
- * Cada user tiene una keypair ed25519 (creada en signup, secret en
- * users.custodial_wallet_secret) que firma open_escrow / claim_payment en Soroban
- * (la dirección Stellar G... se deriva del seed). Las cantidades están en unidades
- * base del activo (stroops) — ver chain.ts / billing.ts.
- *
- * Fondeo on-demand (testnet): la cuenta del user se fondea con friendbot la primera
- * vez (10.000 XLM), suficiente para la demo.
+ * Kiba no tiene wallets de usuarios: cada usuario vincula la suya y firma él (ver spend.ts).
+ * Aquí solo vive la clave de la tesorería, que es de Kiba.
  */
 import { Keypair } from '@solana/web3.js';
 import { Keypair as StellarKeypair } from '@stellar/stellar-sdk';
@@ -22,7 +17,6 @@ import { dirname } from 'node:path';
 import { getBalance, lamportsToSol, lamportsToUsd } from './billing';
 import { ASSET, chainClientFor, chainClientForSigner } from './chain';
 import { db } from './db';
-import { PrivyStellarSigner } from './privy';
 
 /** Nombre de la unidad base de la cadena activa (stroops en Stellar). */
 export const BASE_UNIT_NAME: 'lamports' | 'stroops' = 'stroops';
@@ -82,72 +76,6 @@ export function masterWalletPubkey(): string {
   // Dirección nativa de la cadena activa (Stellar deriva del seed).
   const cc = chainClientFor(masterWallet, 'master');
   return cc?.ownerAddress ?? masterWallet.publicKey.toBase58();
-}
-
-export async function loadUserWallet(userId: number): Promise<Keypair> {
-  const row = (await db
-    .prepare('SELECT custodial_wallet_secret FROM users WHERE id = ?')
-    .get(userId)) as { custodial_wallet_secret: string } | undefined;
-  if (!row) throw new Error(`user ${userId} not found`);
-  const secret = JSON.parse(row.custodial_wallet_secret) as number[];
-  return Keypair.fromSecretKey(new Uint8Array(secret));
-}
-
-/**
- * Firmante Stellar del usuario.
- *  - Migrado a Privy → firma remota (la clave vive en el TEE de Privy, no en la DB).
- *  - No migrado y Privy habilitado → provisiona la wallet de Privy de forma lazy,
- *    guarda la referencia y BORRA el secret local (la clave sale de la DB).
- *  - Privy no configurado → firma local con el secret guardado (legacy/degradado).
- */
-export async function existingUserSigner(userId: number): Promise<StellarSigner | null> {
-  const row = (await db
-    .prepare('SELECT custodial_wallet_secret, privy_wallet_id, stellar_address, privy_wallet_owned FROM users WHERE id = ?')
-    .get(userId)) as
-    | { custodial_wallet_secret: string | null; privy_wallet_id: string | null; stellar_address: string | null; privy_wallet_owned: number }
-    | undefined;
-  if (!row) throw new Error(`user ${userId} not found`);
-  if (row.privy_wallet_id && row.stellar_address) {
-    // Ya es del usuario: Kiba no puede firmar con ella.
-    if (Number(row.privy_wallet_owned) === 1) return null;
-    return new PrivyStellarSigner(row.privy_wallet_id, row.stellar_address);
-  }
-  if (!row.custodial_wallet_secret || row.custodial_wallet_secret === '[]') return null;
-  const kp = await loadUserWallet(userId);
-  return new LocalKeypairSigner(StellarKeypair.fromRawEd25519Seed(Buffer.from(kp.secretKey.slice(0, 32))));
-}
-
-/**
- * Firmante de la wallet ANTERIOR de una cuenta: la que Kiba creó y puede firmar. Las cuentas
- * nuevas no tienen una y Kiba ya no las crea: quien no la tiene firma con su propia wallet.
- */
-export async function loadUserSigner(userId: number): Promise<StellarSigner> {
-  const s = await existingUserSigner(userId);
-  if (!s) throw new Error('esta cuenta no tiene una wallet que Kiba pueda firmar: vincula tu wallet y firma con ella');
-  return s;
-}
-
-/**
- * Dirección Stellar de la wallet anterior del usuario SIN provisionar nada (a diferencia de
- * loadUserSigner, que crea una wallet de Privy controlada por Kiba si no hay). null si no tiene.
- */
-async function existingUserAddress(userId: number): Promise<string | null> {
-  const row = (await db
-    .prepare('SELECT custodial_wallet_secret, privy_wallet_id, stellar_address FROM users WHERE id = ?')
-    .get(userId)) as
-    | { custodial_wallet_secret: string | null; privy_wallet_id: string | null; stellar_address: string | null }
-    | undefined;
-  if (!row) return null;
-  if (row.privy_wallet_id && row.stellar_address) return row.stellar_address;
-  if (!row.custodial_wallet_secret || row.custodial_wallet_secret === '[]') return null;
-  const kp = await loadUserWallet(userId);
-  return StellarKeypair.fromRawEd25519Seed(Buffer.from(kp.secretKey.slice(0, 32))).publicKey();
-}
-
-/** Saldo on-chain (unidades base) de la wallet del usuario. Leer no crea wallets. */
-export async function userOnChainBalance(userId: number): Promise<number> {
-  const address = await existingUserAddress(userId);
-  return address ? addressOnChainBalance(address) : 0;
 }
 
 /**
@@ -238,31 +166,6 @@ export async function getUserBalances(userId: number): Promise<UserBalances> {
     totalLamports,
     totalSol,
   };
-}
-
-export interface RefillResult {
-  refilled: boolean;
-  signature?: string;
-  beforeLamports: number;
-  afterLamports: number;
-}
-
-/**
- * Asegura que la custodial del user tenga fondos on-chain para operar.
- * Testnet: friendbot fondea la cuenta (una vez; idempotente si ya existe).
- */
-export async function ensureFunded(
-  userId: number,
-  requiredLamports: number,
-): Promise<RefillResult> {
-  const cc = chainClientForSigner(await loadUserSigner(userId), `user:${userId}`);
-  const beforeLamports = cc ? Number(await cc.getBalanceBaseUnits()) : 0;
-  if (cc && beforeLamports < requiredLamports + 1_000_000) {
-    // ensureFunds usa friendbot si la cuenta no existe (crea + fondea) + trustline USDC.
-    await cc.ensureFunds(0, 0);
-  }
-  const afterLamports = cc ? Number(await cc.getBalanceBaseUnits()) : beforeLamports;
-  return { refilled: afterLamports > beforeLamports, beforeLamports, afterLamports };
 }
 
 /**

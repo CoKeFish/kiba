@@ -23,7 +23,7 @@ A USD balance in the gateway ledger. It's what an assistant spends when it calls
 
 ## Wallet (on-chain)
 
-Every account gets a Stellar wallet. When Privy is configured, it's provisioned as a **non-custodial** server wallet: the key lives in Privy's secure enclave (TEE) and the gateway only requests signatures (`raw_sign`). Its public address shows in the dashboard and in `GET /v1/me` (`custodial_wallet` field).
+The wallet is yours: Kiba does not create or hold user wallets. You link it under **Billing**: a Privy wallet, created with your email and owned by you, or an external one such as Freighter. Kiba builds the transactions and you sign them. Its address appears in the dashboard and in `GET /v1/spend`.
 
 - It holds **USDC** on Stellar; the gateway sets up the [trustline](/stellar/usdc-y-trustlines).
 - To fund it, send USDC to its address: it's a regular Stellar account, no memo.

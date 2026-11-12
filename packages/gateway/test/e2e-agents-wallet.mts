@@ -22,7 +22,7 @@ const { createUser } = await import('../src/auth');
 const { linkWallet, submitPrepared } = await import('../src/spend');
 const { deregisterAgent, listMyAgents, needsSignature, registerAgent, updateAgent } = await import('../src/agents');
 const { chainClientFor } = await import('../src/chain');
-const { getMasterWallet, existingUserSigner } = await import('../src/wallets');
+const { getMasterWallet } = await import('../src/wallets');
 
 let pass = 0;
 let fail = 0;
@@ -41,7 +41,6 @@ const u = await createUser('publicador@kiba.test', 'password123');
 if ('error' in u) throw new Error(u.error);
 const userId = Number(u.id);
 await linkWallet(userId, wallet.publicKey(), 'external');
-check('la cuenta no tiene ninguna wallet que Kiba pueda firmar', (await existingUserSigner(userId)) === null);
 
 const reader = chainClientFor(getMasterWallet(), 'treasury')!;
 const service = `e2e-${Date.now().toString(36)}`;

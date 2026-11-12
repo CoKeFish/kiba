@@ -552,10 +552,7 @@
     "user_id_label": "ID de usuário",
     "account_created_label": "Conta criada",
     "loading_profile": "Carregando perfil…",
-    "custodial_wallet_title": "Wallet custodiada",
-    "custodial_wallet_desc_before": "Seu par de chaves Stellar. Fica no gateway. Assina cada",
-    "custodial_wallet_desc_between": "e",
-    "custodial_wallet_desc_after": "em seu nome.",
+    "custodial_wallet_title": "Sua wallet",
     "refresh_wallet_aria": "Atualizar wallet",
     "public_key_label": "Chave pública ({{network}})",
     "onchain_balance_label": "Saldo on-chain",
@@ -573,7 +570,9 @@
     "session_security_title": "Segurança da sessão",
     "session_security_sub": "1 sessão ativa",
     "connected_identity_title": "Identidade conectada",
-    "connected_identity_fallback": "E-mail"
+    "connected_identity_fallback": "E-mail",
+    "wallet_desc": "A wallet que você vinculou à sua conta. É sua: a Kiba não pode assinar com ela nem mover o que há nela.",
+    "wallet_none": "Você ainda não vinculou uma wallet. Faça isso em Faturamento."
   },
   "credentials": {
     "title": "Credenciais",
@@ -778,8 +777,6 @@
     "kind_external": "Carteira externa",
     "privy_logout": "Sair da carteira",
     "balance": "Na wallet",
-    "legacy_hint": "Você tem {{amount}} USDC na sua wallet anterior, que a Kiba controla. Mova-os para a sua wallet, que você controla.",
-    "legacy_move": "Mover {{amount}} USDC para a minha wallet",
     "topup": "Receber",
     "withdraw": "Enviar",
     "cancel": "Cancelar",
@@ -798,7 +795,6 @@
       "migrate": "Movendo o seu saldo…"
     },
     "withdrawn": "Você enviou {{amount}} USDC.",
-    "migrated": "Você moveu {{amount}} USDC para a sua wallet.",
     "err_generic": "Não foi possível concluir. Tente novamente.",
     "err_amount": "Valor inválido.",
     "err_login": "Não foi possível entrar na carteira ({{code}}).",

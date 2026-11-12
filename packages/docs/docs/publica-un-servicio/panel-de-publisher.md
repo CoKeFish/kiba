@@ -42,5 +42,3 @@ El dueño de un servicio en el registro de Stellar es una wallet, y solo ella pu
 1. Vincula tu wallet en **Facturación**: una de Privy, que se crea con tu correo y de la que tú eres el dueño, o una externa como Freighter.
 2. Al publicar, cambiar o dar de baja un servicio, el panel te pide firmar con esa wallet. Kiba arma la transacción y paga la comisión: no necesitas XLM.
 3. El servicio queda registrado a nombre de tu wallet. Kiba no puede cambiarlo ni quitarlo.
-
-Las cuentas creadas antes de este cambio tienen una wallet que creó Kiba. Los servicios que ya publicaron con ella se siguen manejando igual hasta que vinculen la suya.

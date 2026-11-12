@@ -11,7 +11,6 @@
  *     `spend_prepared`) y el usuario solo devuelve la firma del hash (Privy `signRawHash`) o el
  *     XDR firmado (Stellar Wallets Kit). Nada que no haya preparado el gateway se envía.
  *   - Mover USDC de la wallet a otra dirección (lo firma el usuario).
- *   - Pasar a la wallet del usuario el saldo de la wallet anterior, la que Kiba sí controlaba.
  *
  * El usuario no necesita XLM: Kiba paga las comisiones de sus transacciones con fee-bump.
  *
@@ -38,7 +37,6 @@ import {
 import { resolveChainConfig } from 'kiba-sdk';
 import { db } from './db';
 import { getMasterWallet } from './wallets';
-import { PrivyStellarSigner, getWallet, privyEnabled, setWalletOwner } from './privy';
 
 /** Validez de una transacción preparada para que el usuario la firme. */
 const PREPARED_TTL_S = 600;
@@ -459,128 +457,4 @@ export async function getSpendStatus(userId: number): Promise<SpendStatus> {
     kind: (u?.spend_kind as WalletKind | null) ?? null,
     balanceBaseUnits: Number(balance),
   };
-}
-
-// ─── Migración de la wallet anterior (controlada por Kiba) ──────────────────
-
-interface LegacySigner {
-  publicKey(): string;
-  signTransaction(tx: Transaction): Promise<void>;
-}
-
-/**
- * Wallet anterior del usuario (Privy app-owned o custodial local): la que Kiba PUEDE firmar.
- * null si el usuario nunca tuvo una. No crea wallets (a diferencia de loadUserSigner).
- */
-async function legacySigner(userId: number): Promise<LegacySigner | null> {
-  const row = (await db
-    .prepare('SELECT custodial_wallet_secret, privy_wallet_id, stellar_address, privy_wallet_owned FROM users WHERE id = ?')
-    .get(userId)) as
-    | { custodial_wallet_secret: string | null; privy_wallet_id: string | null; stellar_address: string | null; privy_wallet_owned: number }
-    | undefined;
-  if (!row) return null;
-  // Directo, sin loadUserSigner: ese provisiona una wallet nueva de Privy y BORRA la clave local,
-  // lo que dejaría atrapado el saldo de la wallet local que queremos migrar.
-  if (row.privy_wallet_id && row.stellar_address) {
-    // Si ya se le pasó al usuario, Kiba no puede firmar con ella.
-    if (Number(row.privy_wallet_owned) === 1) return null;
-    return new PrivyStellarSigner(row.privy_wallet_id, row.stellar_address) as unknown as LegacySigner;
-  }
-  if (!row.custodial_wallet_secret || row.custodial_wallet_secret === '[]') return null;
-  const seed = Uint8Array.from(JSON.parse(row.custodial_wallet_secret) as number[]).slice(0, 32);
-  const kp = Keypair.fromRawEd25519Seed(Buffer.from(seed));
-  return {
-    publicKey: () => kp.publicKey(),
-    signTransaction: async (tx: Transaction) => tx.sign(kp),
-  };
-}
-let legacySignerFor: (userId: number) => Promise<LegacySigner | null> = legacySigner;
-/** Tests: sustituye la carga del firmante de la wallet anterior. */
-export function setLegacySignerLoader(fn: ((userId: number) => Promise<LegacySigner | null>) | null): void {
-  legacySignerFor = fn ?? legacySigner;
-}
-
-export async function legacyWallet(userId: number): Promise<{ address: string; balanceBaseUnits: number } | null> {
-  const s = await legacySignerFor(userId);
-  if (!s) return null;
-  const { balance } = await getChain().read(s.publicKey());
-  return { address: s.publicKey(), balanceBaseUnits: Number(balance) };
-}
-
-/**
- * Pasa todo el USDC de la wallet anterior a la wallet del usuario. Lo pide el usuario (botón);
- * Kiba firma con la wallet anterior (es la última vez) y paga la comisión.
- */
-export async function migrateLegacyWallet(userId: number): Promise<{ hash: string; amountBaseUnits: number }> {
-  const u = await loadUser(userId);
-  if (!u?.spend_address) throw new Error('vincula tu wallet primero');
-  const s = await legacySignerFor(userId);
-  if (!s) throw new Error('no tienes una wallet anterior');
-  if (s.publicKey() === u.spend_address) throw new Error('la wallet anterior ya es tu wallet');
-  const c = getChain();
-  const { balance } = await c.read(s.publicKey());
-  if (balance <= 0n) throw new Error('la wallet anterior no tiene USDC');
-  const tx = TransactionBuilder.fromXDR(await c.buildPayment(s.publicKey(), u.spend_address, balance), c.passphrase()) as Transaction;
-  await s.signTransaction(tx);
-  const hash = await c.submitSponsored(tx.toXDR());
-  await db
-    .prepare(
-      `INSERT INTO transactions (user_id, type, amount_lamports, service, signature, metadata, created_at)
-       VALUES (?, 'migrate', ?, 'pay-wallet', ?, ?, ?)`,
-    )
-    .run(userId, Number(balance), hash, JSON.stringify({ from: s.publicKey(), to: u.spend_address }), nowS());
-  return { hash, amountBaseUnits: Number(balance) };
-}
-
-
-// ─── Pasarle al usuario la wallet de Privy que Kiba controlaba ──────────────
-
-type PrivyApi = { getWallet: typeof getWallet; setWalletOwner: typeof setWalletOwner };
-let privyApi: PrivyApi = { getWallet, setWalletOwner };
-/** Tests: sustituye la API de Privy (null = la real). */
-export function setPrivyApi(api: PrivyApi | null): void {
-  privyApi = api ?? { getWallet, setWalletOwner };
-  privyApiInjected = api !== null;
-}
-let privyApiInjected = false;
-
-/** ¿Se ofrece pasarle la wallet anterior a su usuario? Hay que encenderlo con PRIVY_OWNER_TRANSFER=1. */
-export function ownerTransferEnabled(): boolean {
-  return process.env.PRIVY_OWNER_TRANSFER === '1' && (privyEnabled() || privyApiInjected);
-}
-
-/** ¿Esta cuenta tiene una wallet de Privy controlada por Kiba que todavía se le puede pasar? */
-export async function legacyPrivyWallet(userId: number): Promise<{ walletId: string; address: string } | null> {
-  const row = (await db.prepare('SELECT privy_wallet_id, stellar_address, privy_wallet_owned FROM users WHERE id = ?').get(userId)) as
-    | { privy_wallet_id: string | null; stellar_address: string | null; privy_wallet_owned: number }
-    | undefined;
-  if (!row?.privy_wallet_id || !row.stellar_address || Number(row.privy_wallet_owned) === 1) return null;
-  return { walletId: row.privy_wallet_id, address: row.stellar_address };
-}
-
-/**
- * Le pasa al usuario la wallet de Privy que Kiba controlaba: queda con el MISMO dueño que la
- * wallet de Privy que el usuario ya vinculó (y con la que ya firmó, lo que prueba que es suya).
- * `userWalletId` es el identificador en Privy de esa wallet vinculada. Después de esto Kiba no
- * puede firmar con la wallet anterior: solo su dueño. No se puede deshacer.
- */
-export async function ownLegacyPrivyWallet(userId: number, userWalletId: string): Promise<{ address: string; ownerId: string }> {
-  if (!ownerTransferEnabled()) throw new Error('pasar la wallet anterior a tu nombre todavía no está disponible');
-  const u = await loadUser(userId);
-  if (!u?.spend_address || u.spend_kind !== 'privy') throw new Error('primero vincula tu wallet de Privy');
-  const legacy = await legacyPrivyWallet(userId);
-  if (!legacy) throw new Error('no tienes una wallet anterior que se pueda pasar a tu nombre');
-  // La wallet que el usuario dice que es suya tiene que ser la que vinculó firmando.
-  const mine = await privyApi.getWallet(String(userWalletId ?? '').trim());
-  if (mine.address !== u.spend_address) throw new Error('esa no es la wallet de Privy que vinculaste a tu cuenta');
-  if (!mine.ownerId) throw new Error('tu wallet de Privy no tiene dueño; no sirve para esto');
-  const before = await privyApi.getWallet(legacy.walletId);
-  if (before.address !== legacy.address) throw new Error('la wallet anterior no coincide con la registrada');
-  if (before.ownerId && before.ownerId !== mine.ownerId) throw new Error('la wallet anterior ya tiene otro dueño');
-  if (!before.ownerId) await privyApi.setWalletOwner(legacy.walletId, mine.ownerId);
-  // Se confirma leyendo de nuevo: solo entonces Kiba deja de contarla como suya.
-  const after = await privyApi.getWallet(legacy.walletId);
-  if (after.ownerId !== mine.ownerId) throw new Error('Privy no confirmó el cambio de dueño; la wallet sigue como estaba');
-  await db.prepare('UPDATE users SET privy_wallet_owned = 1 WHERE id = ?').run(userId);
-  return { address: legacy.address, ownerId: mine.ownerId };
 }

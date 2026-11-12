@@ -32,7 +32,7 @@ export interface PayWalletSigner {
   sign(tx: PreparedTx, address: string): Promise<{ hash: string; signature: string } | { xdr: string }>;
 }
 
-type Step = "withdraw" | "migrate";
+type Step = "withdraw";
 type Panel = null | "receive" | "send";
 
 /** USDC con 2–4 decimales, truncando (un saldo nunca debe mostrarse redondeado hacia arriba). */
@@ -93,13 +93,6 @@ export function PayWalletBody({
       return { text: t("paywallet.withdrawn", { amount: usdc(w.amountBaseUnits) }), hash: r.hash };
     });
 
-  const migrate = () =>
-    run(async () => {
-      setStep("migrate");
-      const r = await api.spendMigrate();
-      return { text: t("paywallet.migrated", { amount: usdc(r.amountBaseUnits) }), hash: r.hash };
-    });
-
   return (
     <Card>
       <CardHeader>
@@ -132,15 +125,6 @@ export function PayWalletBody({
           <span className="text-[var(--color-fg-muted)]">{t("paywallet.balance")}: </span>
           <span className="tabular-nums font-semibold">{usdc(st.balanceBaseUnits)} USDC</span>
         </p>
-
-        {st.legacy && st.legacy.balanceBaseUnits > 0 && (
-          <div className="rounded-md border border-[var(--color-border)] p-3 text-sm space-y-2">
-            <p>{t("paywallet.legacy_hint", { amount: usdc(st.legacy.balanceBaseUnits) })}</p>
-            <Button size="sm" variant="subtle" onClick={migrate} disabled={busy}>
-              {t("paywallet.legacy_move", { amount: usdc(st.legacy.balanceBaseUnits) })}
-            </Button>
-          </div>
-        )}
 
         <div className="flex flex-wrap gap-2">
           <Button size="sm" variant={panel === "receive" ? "default" : "subtle"} onClick={() => setPanel(panel === "receive" ? null : "receive")}>

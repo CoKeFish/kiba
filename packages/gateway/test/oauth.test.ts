@@ -39,10 +39,10 @@ async function createTestUser(email: string): Promise<number> {
   const now = Math.floor(Date.now() / 1000);
   const result = await db
     .prepare(
-      `INSERT INTO users (email, password_hash, custodial_wallet_secret, custodial_wallet_pubkey, balance_lamports, created_at)
-       VALUES (?, ?, ?, ?, ?, ?) RETURNING id`,
+      `INSERT INTO users (email, password_hash, balance_lamports, created_at)
+       VALUES (?, ?, ?, ?) RETURNING id`,
     )
-    .run(email, 'fake', '[]', `pk-${email}`, 0, now);
+    .run(email, 'fake', 0, now);
   return Number(result.lastInsertRowid);
 }
 

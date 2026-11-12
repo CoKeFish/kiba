@@ -123,10 +123,10 @@ async function user(balanceLamports: number): Promise<number> {
   const now = Math.floor(Date.now() / 1000);
   const u = await db
     .prepare(
-      `INSERT INTO users (email, password_hash, custodial_wallet_secret, custodial_wallet_pubkey, balance_lamports, created_at)
-       VALUES (?, 'x', '[]', ?, ?, ?) RETURNING id`,
+      `INSERT INTO users (email, password_hash, balance_lamports, created_at)
+       VALUES (?, 'x', ?, ?) RETURNING id`,
     )
-    .run(`u${Date.now()}${Math.random()}@x.com`, `pk-${Math.random()}`, balanceLamports, now);
+    .run(`u${Date.now()}${Math.random()}@x.com`, balanceLamports, now);
   return Number(u.lastInsertRowid);
 }
 

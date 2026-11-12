@@ -206,8 +206,6 @@ services:
       # Privy server wallets (no-custodial) para las wallets de usuario. Sin estas, las
       # wallets caen al keypair custodial local (legacy).
       - PRIVY_APP_ID=${PRIVY_APP_ID:-}
-      - PRIVY_APP_SECRET=${PRIVY_APP_SECRET:-}
-      - PRIVY_API_URL=${PRIVY_API_URL:-https://api.privy.io/v1}
       # Pagos fiat → créditos. Sin WOMPI_* el provider cae a bre-b-sandbox.
       - PAYMENT_PROVIDER=${PAYMENT_PROVIDER:-bre-b-sandbox}
       - COP_USD_RATE=${COP_USD_RATE:-4000}

@@ -9,12 +9,8 @@ import assert from 'node:assert/strict';
 import { Account, Keypair, Networks, Operation, TransactionBuilder, scValToNative, type Transaction, type xdr } from '@stellar/stellar-sdk';
 import { db, initDb, pool } from '../src/db';
 import { createUser } from '../src/auth';
-import { existingUserSigner, loadUserSigner } from '../src/wallets';
 import {
-  legacyPrivyWallet,
   linkWallet,
-  ownLegacyPrivyWallet,
-  setPrivyApi,
   setSpendChain,
   submitPrepared,
   type SpendChain,
@@ -55,8 +51,6 @@ before(async () => {
 after(async () => {
   setSpendChain(null);
   setRegistryReader(null);
-  setPrivyApi(null);
-  delete process.env.PRIVY_OWNER_TRANSFER;
   await pool.end();
 });
 beforeEach(async () => {
@@ -87,11 +81,15 @@ const input = { service: 'traductor', pricePerCallLamports: 1_000_000, endpoint:
 const myServices = async (userId: number) =>
   ((await db.prepare('SELECT service FROM user_agents WHERE user_id = ?').all(userId)) as Array<{ service: string }>).map((r) => r.service);
 
-test('una cuenta nueva no tiene ninguna wallet que Kiba pueda firmar', async () => {
+test('sin una wallet vinculada no se publica: nada queda a nombre de una clave de Kiba', async () => {
   const userId = await account('nueva@test.com');
-  assert.equal(await existingUserSigner(userId), null);
-  await assert.rejects(() => loadUserSigner(userId), /vincula tu wallet/);
-  // Sin wallet no se publica: nada queda a nombre de una clave de Kiba.
+  const columns = ((await db.prepare(`SELECT column_name FROM information_schema.columns WHERE table_name = 'users'`).all()) as Array<{ column_name: string }>).map(
+    (c) => c.column_name,
+  );
+  // La base ya no tiene dónde guardar una clave ni una wallet controlada por Kiba.
+  for (const gone of ['custodial_wallet_secret', 'custodial_wallet_pubkey', 'privy_wallet_id', 'stellar_address', 'privy_wallet_owned']) {
+    assert.equal(columns.includes(gone), false, gone);
+  }
   await assert.rejects(() => registerAgent(userId, input), /vincula tu wallet/);
   assert.equal(calls.length, 0);
 });
@@ -146,67 +144,4 @@ test('cambiar y dar de baja un servicio propio también lo firma el usuario; uno
   assert.deepEqual(await myServices(userId), ['traductor']); // sigue hasta que firme
   if (needsSignature(del)) await signAndSubmit(userId, del.prepared);
   assert.deepEqual([onChain.has('traductor'), await myServices(userId)], [false, []]);
-});
-
-// ─── Pasarle al usuario la wallet de Privy que Kiba controlaba ──────────────
-
-/** Privy, en memoria: wallet → dirección y dueño. */
-function fakePrivy(wallets: Record<string, { address: string; ownerId: string | null }>) {
-  const patched: Array<[string, string]> = [];
-  setPrivyApi({
-    getWallet: async (id: string) => {
-      const w = wallets[id];
-      if (!w) throw new Error('[privy] getWallet 404');
-      return { id, address: w.address, ownerId: w.ownerId };
-    },
-    setWalletOwner: async (id: string, ownerId: string) => {
-      patched.push([id, ownerId]);
-      wallets[id].ownerId = ownerId;
-    },
-  });
-  return patched;
-}
-
-test('la wallet anterior de Privy pasa a ser del usuario, y Kiba deja de poder firmar con ella', async () => {
-  const userId = await account('viejo@test.com');
-  const legacy = Keypair.random().publicKey();
-  await db.prepare('UPDATE users SET privy_wallet_id = ?, stellar_address = ? WHERE id = ?').run('wal-kiba', legacy, userId);
-  assert.ok(await existingUserSigner(userId)); // hoy Kiba puede firmar con ella
-  const patched = fakePrivy({
-    'wal-kiba': { address: legacy, ownerId: null },
-    'wal-mia': { address: me.publicKey(), ownerId: 'quorum-del-usuario' },
-    'wal-ajena': { address: other.publicKey(), ownerId: 'quorum-de-otro' },
-  });
-
-  // Apagado por defecto.
-  await assert.rejects(() => ownLegacyPrivyWallet(userId, 'wal-mia'), /todavía no está disponible/);
-  process.env.PRIVY_OWNER_TRANSFER = '1';
-  // Hace falta haber vinculado (firmando) una wallet de Privy propia.
-  await assert.rejects(() => ownLegacyPrivyWallet(userId, 'wal-mia'), /primero vincula tu wallet de Privy/);
-  await linkWallet(userId, me.publicKey(), 'privy');
-  // Y que la wallet que se presenta sea esa: no se le puede dar la wallet a otro dueño.
-  await assert.rejects(() => ownLegacyPrivyWallet(userId, 'wal-ajena'), /no es la wallet de Privy que vinculaste/);
-  assert.equal(patched.length, 0);
-
-  const r = await ownLegacyPrivyWallet(userId, 'wal-mia');
-  assert.deepEqual(r, { address: legacy, ownerId: 'quorum-del-usuario' });
-  assert.deepEqual(patched, [['wal-kiba', 'quorum-del-usuario']]);
-  assert.equal(await existingUserSigner(userId), null);
-  assert.equal(await legacyPrivyWallet(userId), null);
-  await assert.rejects(() => ownLegacyPrivyWallet(userId, 'wal-mia'), /no tienes una wallet anterior/);
-});
-
-test('si Privy no confirma el cambio de dueño, Kiba no da la wallet por entregada', async () => {
-  const userId = await account('viejo@test.com');
-  const legacy = Keypair.random().publicKey();
-  await db.prepare('UPDATE users SET privy_wallet_id = ?, stellar_address = ? WHERE id = ?').run('wal-kiba', legacy, userId);
-  await linkWallet(userId, me.publicKey(), 'privy');
-  process.env.PRIVY_OWNER_TRANSFER = '1';
-  setPrivyApi({
-    getWallet: async (id: string) => (id === 'wal-mia' ? { id, address: me.publicKey(), ownerId: 'quorum' } : { id, address: legacy, ownerId: null }),
-    setWalletOwner: async () => undefined, // responde bien, pero no cambia nada
-  });
-  await assert.rejects(() => ownLegacyPrivyWallet(userId, 'wal-mia'), /no confirmó el cambio de dueño/);
-  assert.ok(await existingUserSigner(userId));
-  assert.ok(await legacyPrivyWallet(userId));
 });

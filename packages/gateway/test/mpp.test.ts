@@ -96,10 +96,10 @@ beforeEach(async () => {
 async function createUser(email: string, credits = 0): Promise<number> {
   const r = await db
     .prepare(
-      `INSERT INTO users (email, password_hash, custodial_wallet_secret, custodial_wallet_pubkey, balance_lamports, created_at)
-       VALUES (?, 'x', '[]', ?, ?, ?) RETURNING id`,
+      `INSERT INTO users (email, password_hash, balance_lamports, created_at)
+       VALUES (?, 'x', ?, ?) RETURNING id`,
     )
-    .run(email, `pk-${email}`, credits, Math.floor(Date.now() / 1000));
+    .run(email, credits, Math.floor(Date.now() / 1000));
   return Number(r.lastInsertRowid);
 }
 

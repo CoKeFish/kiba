@@ -8,7 +8,7 @@ description: "Qué ya está en main y qué sigue."
 ## Ya en `main`
 
 - Registro on-chain, descubrimiento híbrido, gateway con OAuth y créditos, conector MCP remoto, `kiba-mcp`, instalador Windows, dashboard con panel de publisher, SDK, liquidación por lotes.
-- Wallets de usuario no custodiales vía Privy (cuando `PRIVY_APP_ID`/`PRIVY_APP_SECRET` están configurados).
+- Wallets del usuario: cada quien vincula la suya (Privy con él de dueño, o una externa) y firma él. Kiba no crea ni guarda wallets de usuarios.
 
 ## Siguiente
 

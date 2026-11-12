@@ -301,10 +301,10 @@ beforeEach(async () => {
 async function createTestUser(email: string): Promise<number> {
   const result = await db
     .prepare(
-      `INSERT INTO users (email, password_hash, custodial_wallet_secret, custodial_wallet_pubkey, balance_lamports, created_at)
-       VALUES (?, ?, ?, ?, ?, ?) RETURNING id`,
+      `INSERT INTO users (email, password_hash, balance_lamports, created_at)
+       VALUES (?, ?, ?, ?) RETURNING id`,
     )
-    .run(email, 'fake-hash', '[]', `pk-${email}`, 0, Math.floor(Date.now() / 1000));
+    .run(email, 'fake-hash', 0, Math.floor(Date.now() / 1000));
   return Number(result.lastInsertRowid);
 }
 

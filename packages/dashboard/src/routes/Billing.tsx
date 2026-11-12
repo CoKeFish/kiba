@@ -44,7 +44,6 @@ export default function Billing() {
   const { t } = useTranslation();
   const qc = useQueryClient();
   const { data: balance } = useQuery({ queryKey: ["balance"], queryFn: api.balance });
-  const { data: wallet } = useQuery({ queryKey: ["wallet"], queryFn: api.wallet });
   const { data: spend } = useQuery({ queryKey: ["spend"], queryFn: api.spend });
   const { user } = useAuth();
   const { data: txs = [] } = useQuery({
@@ -134,13 +133,12 @@ export default function Billing() {
           </section>
         </div>
 
-        {wallet && (
+        {spend?.address && (
           <RechargeWalletKit
-            // Con wallet propia, recargar es llevar USDC ahí; sin ella, a la wallet anterior.
-            walletAddress={spend?.address ?? wallet.pubkey}
+            // Recargar es llevar USDC a la wallet que el usuario vinculó a su cuenta.
+            walletAddress={spend.address}
             onFunded={() => {
               qc.invalidateQueries({ queryKey: ["balance"] });
-              qc.invalidateQueries({ queryKey: ["wallet"] });
               qc.invalidateQueries({ queryKey: ["spend"] });
             }}
           />

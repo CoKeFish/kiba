@@ -118,11 +118,6 @@ export const api = {
     ),
   channelCloseStart: () => request<PreparedTx>("/v1/channel/close-start", { method: "POST" }),
   channelRefund: () => request<PreparedTx & { amountBaseUnits: number }>("/v1/channel/refund", { method: "POST" }),
-  spendMigrate: () =>
-    request<{ hash: string; amountBaseUnits: number; explorerUrl: string }>("/v1/spend/migrate", {
-      method: "POST",
-    }),
-
   // Transactions
   transactions: (limit = 50) => request<Transaction[]>(`/v1/transactions?limit=${limit}`),
 
@@ -286,7 +281,6 @@ export const api = {
 export type User = {
   id: string;
   email: string;
-  custodial_wallet: string;
   /** Modo publisher activo (misma cuenta). Habilita la gestión de agentes + ingresos. */
   is_publisher?: boolean;
   publisher_name?: string | null;
@@ -494,8 +488,6 @@ export type SpendStatus = {
   kind: "privy" | "external" | null;
   /** USDC que tiene la wallet, fuera del depósito (unidades base). */
   balanceBaseUnits: number;
-  /** Wallet anterior (controlada por Kiba) con su saldo, para migrarla. */
-  legacy: { address: string; balanceBaseUnits: number } | null;
   /** App ID público de Privy (null si el gateway no tiene Privy configurado). */
   privyAppId: string | null;
 };

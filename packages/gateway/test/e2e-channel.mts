@@ -100,8 +100,8 @@ const uid = Number(
   (
     await db
       .prepare(
-        `INSERT INTO users (email, password_hash, custodial_wallet_secret, custodial_wallet_pubkey, created_at)
-         VALUES ('e2e-channel@kiba.test', 'x', '[]', 'x', ?) RETURNING id`,
+        `INSERT INTO users (email, password_hash, created_at)
+         VALUES ('e2e-channel@kiba.test', 'x', ?) RETURNING id`,
       )
       .run(Math.floor(Date.now() / 1000))
   ).lastInsertRowid,

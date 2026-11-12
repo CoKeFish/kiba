@@ -23,7 +23,7 @@ Saldo en USD en el libro del gateway. Es lo que gasta un asistente al llamar a u
 
 ## Wallet (on-chain)
 
-Cada cuenta recibe una wallet Stellar. Cuando Privy está configurado, se aprovisiona como wallet de servidor **no custodial**: la clave vive en el enclave seguro (TEE) de Privy y el gateway solo solicita firmas (`raw_sign`). Su dirección pública aparece en el dashboard y en `GET /v1/me` (campo `custodial_wallet`).
+La wallet es tuya: Kiba no crea ni guarda wallets de usuarios. La vinculas en **Facturación**: una de Privy, que se crea con tu correo y de la que tú eres el dueño, o una externa como Freighter. Kiba arma las transacciones y tú las firmas. Su dirección aparece en el dashboard y en `GET /v1/spend`.
 
 - Guarda **USDC** en Stellar; el gateway configura la [trustline](/stellar/usdc-y-trustlines).
 - Para fondearla, envía USDC a su dirección: es una cuenta Stellar normal, sin memo.

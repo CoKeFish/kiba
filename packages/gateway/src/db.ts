@@ -122,15 +122,11 @@ async function runInit(): Promise<void> {
       id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
       email TEXT UNIQUE NOT NULL,
       password_hash TEXT NOT NULL,
-      custodial_wallet_secret TEXT NOT NULL,
-      custodial_wallet_pubkey TEXT NOT NULL,
       balance_lamports BIGINT NOT NULL DEFAULT 0,
       created_at BIGINT NOT NULL,
       is_publisher INTEGER NOT NULL DEFAULT 0,
       publisher_name TEXT,
-      auto_settle INTEGER NOT NULL DEFAULT 0,
-      privy_wallet_id TEXT,
-      stellar_address TEXT
+      auto_settle INTEGER NOT NULL DEFAULT 0
     );
 
     CREATE TABLE IF NOT EXISTS oauth_sessions (
@@ -359,10 +355,11 @@ async function runInit(): Promise<void> {
   await pool.query(
     `ALTER TABLE users ADD COLUMN IF NOT EXISTS auto_settle INTEGER NOT NULL DEFAULT 0`,
   );
-  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS privy_wallet_id TEXT`);
-  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS stellar_address TEXT`);
-  // 1 = la wallet de Privy que Kiba controlaba ya es del usuario: Kiba no puede firmar con ella.
-  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS privy_wallet_owned INTEGER NOT NULL DEFAULT 0`);
+  // Kiba ya no tiene wallets de usuarios: se borran las claves que guardaba y las referencias a
+  // las wallets de Privy que firmaba. Cada usuario vincula su propia wallet (spend_address).
+  for (const column of ['custodial_wallet_secret', 'custodial_wallet_pubkey', 'privy_wallet_id', 'stellar_address', 'privy_wallet_owned']) {
+    await pool.query(`ALTER TABLE users DROP COLUMN IF EXISTS ${column}`);
+  }
   // Wallet propia del usuario (spend.ts): la dirección con la que firmó, y de qué tipo es.
   // Las columnas spend_debt, spend_blocked y spend_expires_ledger, y las tablas spend_charges y
   // spend_reads, eran del cobro a crédito anterior: ya no se usan ni se crean (las bases de datos
@@ -629,8 +626,6 @@ export interface UserRow {
   id: number;
   email: string;
   password_hash: string;
-  custodial_wallet_secret: string;
-  custodial_wallet_pubkey: string;
   balance_lamports: number;
   created_at: number;
   is_publisher: number;
@@ -638,9 +633,7 @@ export interface UserRow {
   /** Opt-in del publisher a la liquidación automática por lotes (cron). 0 = solo bajo demanda. */
   auto_settle: number;
   /** Privy: id de la server wallet (clave en el TEE de Privy). null = legacy/no migrado. */
-  privy_wallet_id: string | null;
   /** Privy: dirección Stellar (G...) de la wallet. null = legacy/no migrado. */
-  stellar_address: string | null;
 }
 
 export interface OAuthSessionRow {

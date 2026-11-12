@@ -51,10 +51,10 @@ async function publisher(service: string, autoSettle = true): Promise<void> {
   const now = Math.floor(Date.now() / 1000);
   const u = await db
     .prepare(
-      `INSERT INTO users (email, password_hash, custodial_wallet_secret, custodial_wallet_pubkey, balance_lamports, created_at, auto_settle)
-       VALUES (?, 'x', '[]', ?, 0, ?, ?) RETURNING id`,
+      `INSERT INTO users (email, password_hash, balance_lamports, created_at, auto_settle)
+       VALUES (?, 'x', 0, ?, ?) RETURNING id`,
     )
-    .run(`${service}@x.com`, `pk-${service}`, now, autoSettle ? 1 : 0);
+    .run(`${service}@x.com`, now, autoSettle ? 1 : 0);
   await db
     .prepare('INSERT INTO user_agents (service, user_id, created_at) VALUES (?, ?, ?)')
     .run(service, Number(u.lastInsertRowid), now);
