@@ -646,6 +646,33 @@ services:
       umami-db:
         condition: service_healthy
 
+  # Tope de espacio de las grabaciones de sesión. Umami auto-hospedado no borra nada por
+  # su cuenta: este bucle (docker/umami-prune.sh) mide cada hora lo que ocupan y borra las
+  # visitas más antiguas cuando pasan de UMAMI_REPLAY_MAX_MB. Las guardadas a mano en
+  # Umami no se borran. Ver docs/DEPLOYMENT.md § Métricas.
+  umami-prune:
+    build:
+      context: .
+      dockerfile: docker/umami-prune.Dockerfile
+    init: true
+    environment:
+      - DOPPLER_TOKEN=${DOPPLER_TOKEN}
+      - PGHOST=umami-db
+      - PGUSER=umami
+      - PGDATABASE=umami
+      # PGPASSWORD llega vía doppler run (UMAMI_DB_PASSWORD)
+      - UMAMI_REPLAY_MAX_MB=5120
+    healthcheck:
+      # El bucle deja este archivo tras cada revisión correcta y lo quita si falla.
+      test: ["CMD", "test", "-f", "/tmp/umami-prune.ok"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    depends_on:
+      umami-db:
+        condition: service_healthy
+
   # ── Frontends (kiba.tools, app.kiba.tools) ─────────────────────────────────
   # Sitios estáticos sin secretos (no usan Doppler). Las URLs públicas se hornean
   # en build time (build args). Dominios en Coolify: landing → https://kiba.tools:4321,

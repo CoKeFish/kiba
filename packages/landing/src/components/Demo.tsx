@@ -523,6 +523,9 @@ export default function Demo({ strings }: { strings?: DemoStrings }) {
   return (
     <div
       ref={ref}
+      // Cambia de escena sola: fuera de la grabación de sesiones de Umami (si no, genera eventos
+      // sin que nadie haga nada). Hoy ninguna página monta este componente; queda marcado por si vuelve.
+      data-replay-block
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       style={{ maxWidth: 760, margin: "0 auto" }}

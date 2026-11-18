@@ -85,7 +85,8 @@ export function ResponseSummary({
   const nothing = !asset && !mainText && list.length === 0 && urls.length === 0;
 
   return (
-    <div className="rs">
+    // data-replay-block: el contenido comprado (texto, enlaces de descarga) no entra en las grabaciones de sesión.
+    <div className="rs" data-replay-block>
       {asset && downloadUrl && (
         <PurchasedAsset asset={asset} downloadUrl={downloadUrl} expiresAt={field(result, "expiresAt")} />
       )}

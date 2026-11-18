@@ -125,7 +125,7 @@ redesplegar solo el stack con:
 ## Stack de Coolify (docker-compose.prod.yml)
 
 - 18 servicios: `gateway` (8000), `backend` (4000), `postgres`, 10 `agent-<x>` (5001-5010),
-  `umami` (3000) + `umami-db` (métricas internas, ver § Métricas internas),
+  `umami` (3000) + `umami-db` + `umami-prune` (métricas internas, ver § Métricas internas),
   `landing` (4321, build de Astro servido con `serve`; las `PUBLIC_*` van como build args en
   el compose), `dashboard` (80, build de Vite servido por nginx: `packages/dashboard/nginx.conf`
   reescribe `/api/*` → `gateway:8000` y `/backend/*` → `backend:4000` por la red interna) y
@@ -192,6 +192,38 @@ El script y el endpoint de recolección llevan nombres propios (`TRACKER_SCRIPT_
 `COLLECT_API_ENDPOINT=/api/kb` en el compose) porque los de serie (`script.js`, `/api/send`)
 los cortan los bloqueadores de anuncios. Apagar la medición de un sitio = quitar su build arg
 del compose (sin id no se inyecta nada). En local no hay Umami ni tracker.
+
+### Grabación de sesiones y mapas de calor
+
+Además del tracker, cada frontend carga la grabadora (`https://metrics.kiba.tools/recorder.js`,
+mismo id de sitio; Umami no deja renombrarla, así que un bloqueador de anuncios puede cortarla).
+Graba por eventos (foto inicial del DOM + cambios, clics, scroll), no vídeo. Se configura **por
+sitio en Umami**, no en el repo: Websites → Edit → Replays & Heatmaps, o
+`POST /api/websites/<id>` con `replayConfig`. Valores puestos:
+
+| Sitio | Muestreo (grabación y mapa de calor) | Duración máxima | Enmascarado |
+|---|---|---|---|
+| kiba.tools | 100 % | 24 h (en la práctica, sin límite) | `moderate`: campos de formulario |
+| app.kiba.tools | 100 % | 24 h | `strict`: todo el texto y los campos |
+| docs.kiba.tools | 100 % | 24 h | `moderate` |
+
+- **Excluir un bloque de la grabación**: ponerle el atributo `data-replay-block` (el
+  `blockSelector` de los tres sitios es `[data-replay-block]`). En la reproducción queda un
+  recuadro vacío del mismo tamaño. Sirve para lo que cambia solo (genera eventos sin que nadie
+  haga nada) y para contenido que no debe quedar guardado: en el dashboard lo lleva el contenido
+  comprado (`ResponseSummary`, `ResultDetail`), porque el enmascarado tapa el texto pero no los
+  enlaces de descarga ni las imágenes.
+- **Excluir un navegador propio** (ni métricas ni grabación): abrir una vez cada sitio con
+  `?metrics=off` (`https://kiba.tools/?metrics=off`, `https://app.kiba.tools/?metrics=off`,
+  `https://docs.kiba.tools/?metrics=off`). Guarda `umami.disabled` en el `localStorage` de ese
+  origen; `?metrics=on` lo quita. Hay que hacerlo por navegador y por sitio.
+- **Tope de espacio**: Umami auto-hospedado no borra grabaciones por su cuenta. El servicio
+  `umami-prune` (`docker/umami-prune.sh`) mide cada hora los bytes de `session_replay.events` y,
+  si pasan de `UMAMI_REPLAY_MAX_MB` (compose, 5120 = 5 GB), borra visitas enteras empezando por
+  las más antiguas. Las guardadas a mano en Umami (botón Save de una grabación) no se borran,
+  pero cuentan para el tope. El tope es sobre los datos; el archivo en disco puede ser algo mayor
+  (índices y lo que entre entre dos revisiones). Los mapas de calor (`heatmap_event`, filas
+  pequeñas) no tienen tope. Ver qué hizo: logs del contenedor (`[umami-prune] …`).
 
 ## Vercel (solo redirects)
 

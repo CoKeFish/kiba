@@ -17,8 +17,14 @@ const LLMS_DESCRIPTION: Record<string, string> = {
   pt: 'A Kiba permite que qualquer assistente de IA descubra serviços especializados e pague por chamada, com liquidação em USDC na Stellar.',
 };
 
-// Métricas internas (Umami): el tracker solo se inyecta si el build trae el id del sitio (prod).
+// Métricas internas (Umami): el tracker (kb.js) y la grabadora de sesiones (recorder.js) solo se
+// inyectan si el build trae el id del sitio (prod).
 const UMAMI_WEBSITE_ID = process.env.UMAMI_WEBSITE_ID;
+// ?metrics=off deja este navegador fuera de las métricas y grabaciones; ?metrics=on lo revierte.
+const METRICS_OPT_OUT =
+  'try{var m=new URLSearchParams(location.search).get("metrics");' +
+  'if(m==="off")localStorage.setItem("umami.disabled","1");' +
+  'else if(m==="on")localStorage.removeItem("umami.disabled")}catch(e){}';
 
 const config: Config = {
   title: 'Kiba Docs',
@@ -28,9 +34,14 @@ const config: Config = {
   headTags: [
     {tagName: 'link', attributes: {rel: 'apple-touch-icon', href: '/img/apple-touch-icon.png'}},
     {tagName: 'link', attributes: {rel: 'icon', type: 'image/png', sizes: '512x512', href: '/img/kiba-icon-512.png'}},
+    ...(UMAMI_WEBSITE_ID ? [{tagName: 'script', attributes: {}, innerHTML: METRICS_OPT_OUT}] : []),
   ],
   scripts: UMAMI_WEBSITE_ID
-    ? [{src: 'https://metrics.kiba.tools/kb.js', defer: true, 'data-website-id': UMAMI_WEBSITE_ID}]
+    ? ['kb.js', 'recorder.js'].map((file) => ({
+        src: `https://metrics.kiba.tools/${file}`,
+        defer: true,
+        'data-website-id': UMAMI_WEBSITE_ID,
+      }))
     : [],
 
   future: {

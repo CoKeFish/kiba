@@ -81,7 +81,8 @@ export default function ResultDetail() {
               <CardHeader>
                 <CardTitle>{t("results.content")}</CardTitle>
               </CardHeader>
-              <CardBody>
+              {/* data-replay-block: el contenido comprado no entra en las grabaciones de sesión. */}
+              <CardBody data-replay-block>
                 <ResultPreview call={latest} />
               </CardBody>
             </Card>

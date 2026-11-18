@@ -42,7 +42,10 @@ const navLinks = [
   { label: t("nav.docs"), href: "https://docs.kiba.tools" },
 ];
 
-// Métricas internas (Umami): el tracker solo se inyecta si el build trae el id del sitio (prod).
+// Métricas internas (Umami): el tracker y la grabadora de sesiones solo se inyectan si el
+// build trae el id del sitio (prod). Un bloque con data-replay-block no entra en la grabación.
+// El script en línea del <head> atiende ?metrics=off, que deja ese navegador fuera de las
+// métricas y grabaciones (guarda umami.disabled en localStorage); ?metrics=on lo revierte.
 const umamiWebsiteId = import.meta.env.PUBLIC_UMAMI_WEBSITE_ID;
 ---
 
@@ -69,8 +72,18 @@ const umamiWebsiteId = import.meta.env.PUBLIC_UMAMI_WEBSITE_ID;
       rel="stylesheet"
     />
     <title>{title}</title>
+    <script is:inline>
+      try {
+        var m = new URLSearchParams(location.search).get("metrics");
+        if (m === "off") localStorage.setItem("umami.disabled", "1");
+        else if (m === "on") localStorage.removeItem("umami.disabled");
+      } catch (e) {}
+    </script>
     {umamiWebsiteId && (
       <script is:inline defer src="https://metrics.kiba.tools/kb.js" data-website-id={umamiWebsiteId}></script>
+    )}
+    {umamiWebsiteId && (
+      <script is:inline defer src="https://metrics.kiba.tools/recorder.js" data-website-id={umamiWebsiteId}></script>
     )}
   </head>
   <body>
