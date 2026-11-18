@@ -30,8 +30,8 @@ const DASHBOARD_URL = import.meta.env.PUBLIC_DASHBOARD_URL || "https://app.kiba.
       </p>
 
       <div class="hero-ctas">
-        <a href="#agents" class="btn-hero btn-hero-p hero-cta-in hero-cta-d1">{t("hero.cta.explore")}</a>
-        <a href="#how-it-works" class="btn-hero btn-hero-o hero-cta-in hero-cta-d2">
+        <a href="#agents" data-kb-event="hero: explorar servicios" class="btn-hero btn-hero-p hero-cta-in hero-cta-d1">{t("hero.cta.explore")}</a>
+        <a href="#how-it-works" data-kb-event="hero: ver cómo funciona" class="btn-hero btn-hero-o hero-cta-in hero-cta-d2">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/><path d="M10 8l6 4-6 4V8z" fill="currentColor"/></svg>
           {t("hero.cta.how")}
         </a>

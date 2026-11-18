@@ -329,6 +329,8 @@ export default function Playground() {
                   type="button"
                   className="playground-prompt"
                   onClick={() => setPayloadText(p.payload)}
+                  data-kb-event="playground: ejemplo rápido"
+                  data-kb-ejemplo={p.labelKey}
                 >
                   {t(p.labelKey)}
                 </button>
@@ -368,6 +370,8 @@ export default function Playground() {
                 className="playground-run-btn"
                 onClick={runCall}
                 disabled={!service || running}
+                data-kb-event="playground: ejecutar llamada"
+                data-kb-servicio={selected?.service}
               >
                 <Play size={16} fill="currentColor" />
                 {running ? t("playground.running") : t("playground.run_request")}
@@ -461,7 +465,7 @@ export default function Playground() {
       <section className="playground-cta">
         <div>
           <p className="playground-cta__text">{t("playground.cta_text")}</p>
-          <Link to="/app/agents" className="playground-cta-btn">
+          <Link to="/app/agents" className="playground-cta-btn" data-kb-event="playground: explorar servicios">
             <Bot size={16} />
             {t("playground.explore_agents")}
           </Link>

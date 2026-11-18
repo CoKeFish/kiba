@@ -80,6 +80,7 @@ export function PublisherGate({ children }: { children: ReactNode }) {
             className="pub-btn pub-btn--primary"
             onClick={() => activate.mutate()}
             disabled={activate.isPending}
+            data-kb-event="publicador: activar modo publicador"
           >
             {activate.isPending ? t("publisher_gate.activating") : t("publisher_gate.activate")}
           </button>

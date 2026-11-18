@@ -62,7 +62,7 @@ function CopyableUrl() {
   return (
     <div className="connect-url-row">
       <code className="connect-url-code">{MCP_URL}</code>
-      <button type="button" className="connect-copy-btn" onClick={() => copy(MCP_URL)} aria-label={t("connect.panel.copy_url_aria")}>
+      <button type="button" className="connect-copy-btn" onClick={() => copy(MCP_URL)} aria-label={t("connect.panel.copy_url_aria")} data-kb-event="conectar: copiar url del mcp">
         {copied ? <Check size={15} /> : <Copy size={15} />}
         {copied ? t("connect.panel.copied") : t("connect.panel.copy")}
       </button>
@@ -75,7 +75,7 @@ function CopyableConfig() {
   const { copied, copy } = useCopy();
   return (
     <div className="connect-code">
-      <button type="button" className="connect-code__copy" onClick={() => copy(INSTALL_CONFIG)} aria-label={t("connect.panel.copy_config_aria")}>
+      <button type="button" className="connect-code__copy" onClick={() => copy(INSTALL_CONFIG)} aria-label={t("connect.panel.copy_config_aria")} data-kb-event="conectar: copiar configuración">
         {copied ? <Check size={14} /> : <Copy size={14} />}
         {copied ? t("connect.panel.copied") : t("connect.panel.copy")}
       </button>
@@ -103,7 +103,7 @@ function StepCard({
           <h3 className="connect-step-card__title">{title}</h3>
           {beta && <span className="connect-beta">{t("connect.panel.beta")}</span>}
         </div>
-        <a href={href} target="_blank" rel="noopener noreferrer" className="connect-open-link">
+        <a href={href} target="_blank" rel="noopener noreferrer" className="connect-open-link" data-kb-event="conectar: abrir cliente" data-kb-cliente={title}>
           {t("connect.panel.open")} <ExternalLink size={13} />
         </a>
       </div>
@@ -133,7 +133,7 @@ export function ConnectPanel({ compact = false }: { compact?: boolean }) {
         <div className="connect-banner__copy">
           <h3 className="connect-banner__title">{t("connect.panel.banner_title")}</h3>
           <p className="connect-banner__text">{t("connect.panel.banner_text")}</p>
-          <Link to="/app/connect" className="connect-banner__btn">
+          <Link to="/app/connect" className="connect-banner__btn" data-kb-event="conectar: empezar desde el banner">
             {t("connect.panel.banner_btn")} <ArrowRight size={16} />
           </Link>
         </div>
@@ -192,6 +192,7 @@ export function ConnectPanel({ compact = false }: { compact?: boolean }) {
             href={INSTALLER_URL}
             target="_blank"
             rel="noopener noreferrer"
+            data-kb-event="conectar: descargar instalador"
           >
             <Download size={16} /> {t("connect.panel.download_btn")}
           </a>

@@ -177,6 +177,7 @@ export default function AgentsCatalog({ strings }: { strings?: CatalogStrings })
         <div style={{ position: "relative", flex: 1, minWidth: 240 }}>
           <input
             type="text"
+            data-kb-event="catálogo: buscador"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={s.placeholder}
@@ -217,6 +218,8 @@ export default function AgentsCatalog({ strings }: { strings?: CatalogStrings })
               key={m}
               type="button"
               className="acat-mode-btn"
+              data-kb-event="catálogo: modo de búsqueda"
+              data-kb-modo={m}
               onClick={() => setMode(m)}
               style={{
                 padding: "10px 16px",
@@ -245,6 +248,8 @@ export default function AgentsCatalog({ strings }: { strings?: CatalogStrings })
             <button
               key={sug}
               type="button"
+              data-kb-event="catálogo: sugerencia de búsqueda"
+              data-kb-sugerencia={sug}
               onClick={() => setQuery(sug)}
               style={{
                 padding: "5px 14px",
@@ -354,6 +359,8 @@ function AgentCard({ agent: a, hasQuery, index, readDocs }: { agent: Agent; hasQ
         {DOCS_ROUTES[a.service] && (
           <a
             href={DOCS_ROUTES[a.service]}
+            data-kb-event="catálogo: leer docs del servicio"
+            data-kb-servicio={a.service}
             style={{
               fontFamily: "var(--font-sans)",
               fontSize: 12,

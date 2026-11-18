@@ -46,6 +46,8 @@ export function AuthShell({
           <Link
             to={headerLinkTo}
             className={`auth-header-btn${headerLinkAccent ? " auth-header-btn--accent" : ""}`}
+            data-kb-event="acceso: alternar entre acceso y registro"
+            data-kb-destino={headerLinkTo}
           >
             {headerLinkLabel}
           </Link>

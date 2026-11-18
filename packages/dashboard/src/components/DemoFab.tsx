@@ -195,6 +195,8 @@ function DemoFabInner() {
                   onClick={() => setOpen(false)}
                   style={linkStyle}
                   className="demo-fab-link"
+                  data-kb-event="demo: abrir enlace externo"
+                  data-kb-destino={l.href}
                 >
                   {t(l.labelKey)} <ExternalLink size={12} style={{ color: "var(--color-fg-subtle)" }} />
                 </a>
@@ -205,6 +207,8 @@ function DemoFabInner() {
                   onClick={() => setOpen(false)}
                   style={linkStyle}
                   className="demo-fab-link"
+                  data-kb-event="demo: ir a atajo"
+                  data-kb-destino={l.to}
                 >
                   {t(l.labelKey)}
                 </Link>
@@ -215,6 +219,7 @@ function DemoFabInner() {
           <button
             onClick={() => fund.mutate()}
             disabled={fund.isPending}
+            data-kb-event="demo: fondear escrow"
             style={{
               width: "100%",
               padding: "9px 12px",
@@ -267,6 +272,7 @@ function DemoFabInner() {
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
+        data-kb-event="demo: abrir o cerrar panel"
         style={{
           position: "fixed",
           left: pos.x,

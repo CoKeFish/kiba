@@ -31,7 +31,7 @@ export default function PublisherPublish() {
           </p>
         </div>
         <div className="pub-actions">
-          <Link to="/app/publisher/agents" className="pub-btn pub-btn--secondary pub-btn--sm">
+          <Link to="/app/publisher/agents" className="pub-btn pub-btn--secondary pub-btn--sm" data-kb-event="publicador: ir a mis servicios">
             {t("publisher.publish.my_agents")}
           </Link>
         </div>

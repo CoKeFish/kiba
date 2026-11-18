@@ -60,6 +60,8 @@ export default function Transactions() {
                 size="sm"
                 variant={filter === f ? "default" : "subtle"}
                 onClick={() => setFilter(f)}
+                data-kb-event="movimientos: filtrar por tipo"
+                data-kb-filtro={f}
               >
                 {t(`transactions.filter.${f}`)}
               </Button>

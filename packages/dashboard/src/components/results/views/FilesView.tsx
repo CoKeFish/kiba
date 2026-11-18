@@ -160,7 +160,7 @@ function Files(props: ResultViewProps) {
                   </p>
                 </div>
               </div>
-              <a className="rs-btn" href={downloadUrl(f)}>
+              <a className="rs-btn" href={downloadUrl(f)} data-kb-event="resultados: descargar archivo" data-kb-tipo={kind}>
                 <Download size={14} /> {t("results.files.download")}
               </a>
             </li>

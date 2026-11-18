@@ -82,6 +82,8 @@ export default function MediaCatalog() {
               type="button"
               className={`agents-mode-btn${type === ty ? " is-active" : ""}`}
               onClick={() => setType(ty)}
+              data-kb-event="multimedia: filtrar por tipo"
+              data-kb-tipo={ty}
             >
               {t(`media.types.${ty}`)}
             </button>
@@ -203,11 +205,11 @@ function MediaCard({ item, sample }: { item: MediaHit; sample: string }) {
         )}
 
         <div className="media-card__actions">
-          <button type="button" className="agents-call-btn" onClick={copyRequest} title={request}>
+          <button type="button" className="agents-call-btn" onClick={copyRequest} title={request} data-kb-event="multimedia: copiar pedido para el asistente" data-kb-servicio={item.service} data-kb-tipo={item.type}>
             {copied ? <Check size={15} /> : <Copy size={15} />}
             {copied ? t("media.copied") : t("media.copy_request")}
           </button>
-          <button type="button" className="media-link-btn" onClick={openPlayground}>
+          <button type="button" className="media-link-btn" onClick={openPlayground} data-kb-event="multimedia: probar en el playground" data-kb-servicio={item.service} data-kb-tipo={item.type}>
             {t("media.try_playground")}
           </button>
         </div>

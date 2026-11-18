@@ -71,7 +71,7 @@ const catalogStrings = {
     <AgentsCatalog client:visible strings={catalogStrings} />
 
     <div style="text-align: center; margin-top: 24px;">
-      <a href={`${DASHBOARD_URL}/agents`} style="
+      <a href={`${DASHBOARD_URL}/agents`} data-kb-event="catálogo: ver todos los servicios" style="
         font-family: var(--font-sans); font-size: 14px; font-weight: 700;
         color: var(--accent); text-decoration: none;
       ">{t("agents.viewall")}</a>
@@ -112,6 +112,7 @@ const catalogStrings = {
     <div class="cta-band-actions" style="position: relative; z-index: 2; display: flex; gap: 12px; flex-wrap: wrap;">
       <a
         href={`${DASHBOARD_URL}/signup`}
+        data-kb-event="franja final: empezar a explorar"
         class="btn-cta"
         style="
           font-family: var(--font-sans); font-size: 15px; font-weight: 700;
@@ -124,6 +125,7 @@ const catalogStrings = {
       <a
         href={INSTALLER_URL}
         title={t("cta.download_title")}
+        data-kb-event="franja final: descargar instalador"
         style="
           display: inline-flex; align-items: center; gap: 8px;
           font-family: var(--font-sans); font-size: 15px; font-weight: 700;

@@ -158,6 +158,7 @@ export default function ResultDetail() {
                         <Link
                           to={`/app/results/${h.resultId}`}
                           className="ml-auto text-xs text-[var(--color-primary)] hover:underline"
+                          data-kb-event="resultados: abrir entrada del historial"
                         >
                           {t("results.open")}
                         </Link>
@@ -173,14 +174,14 @@ export default function ResultDetail() {
             <CardBody className="space-y-3">
               {latest.result != null && (
                 <details>
-                  <summary className="text-sm font-medium cursor-pointer">{t("results.output")}</summary>
+                  <summary className="text-sm font-medium cursor-pointer" data-kb-event="resultados: desplegar respuesta">{t("results.output")}</summary>
                   <pre className="mt-2 text-xs font-mono whitespace-pre-wrap break-all">
                     {JSON.stringify(latest.result, null, 2)}
                   </pre>
                 </details>
               )}
               <details>
-                <summary className="text-sm font-medium cursor-pointer">{t("results.input")}</summary>
+                <summary className="text-sm font-medium cursor-pointer" data-kb-event="resultados: desplegar solicitud">{t("results.input")}</summary>
                 <pre className="mt-2 text-xs font-mono whitespace-pre-wrap break-all">
                   {JSON.stringify(r.payload, null, 2)}
                 </pre>

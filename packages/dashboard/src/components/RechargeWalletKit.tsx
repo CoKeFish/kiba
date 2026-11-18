@@ -99,12 +99,12 @@ export function RechargeWalletKit({
                 </a>
               </div>
             </div>
-            <Button variant="subtle" size="sm" onClick={reset}>
+            <Button variant="subtle" size="sm" onClick={reset} data-kb-event="recarga wallet: hacer otra recarga">
               {t("payments.wallet.another_topup")}
             </Button>
           </div>
         ) : !addr ? (
-          <Button size="sm" onClick={connect} disabled={connecting}>
+          <Button size="sm" onClick={connect} disabled={connecting} data-kb-event="recarga wallet: conectar wallet">
             <Wallet size={14} />
             {connecting ? t("payments.wallet.connecting") : t("payments.wallet.connect")}
           </Button>
@@ -118,6 +118,7 @@ export function RechargeWalletKit({
               <button
                 type="button"
                 onClick={() => setAddr(null)}
+                data-kb-event="recarga wallet: cambiar wallet"
                 className="text-[var(--color-fg-subtle)] hover:text-[var(--color-fg)] underline"
               >
                 {t("payments.wallet.change")}
@@ -130,6 +131,8 @@ export function RechargeWalletKit({
                   key={u}
                   type="button"
                   onClick={() => setAmount(u)}
+                  data-kb-event="recarga wallet: monto rápido"
+                  data-kb-monto={u}
                   className={`rounded-full border px-3 py-1.5 text-sm transition-colors ${
                     amount === u
                       ? "border-[var(--color-primary)] bg-[color-mix(in_srgb,var(--color-primary)_12%,transparent)] text-[var(--color-fg)]"
@@ -150,7 +153,7 @@ export function RechargeWalletKit({
               />
             </div>
 
-            <Button size="sm" onClick={send} disabled={sending || amount <= 0}>
+            <Button size="sm" onClick={send} disabled={sending || amount <= 0} data-kb-event="recarga wallet: enviar usdc">
               <Send size={14} className={sending ? "animate-pulse" : ""} />
               {sending ? t("payments.wallet.sending") : t("payments.wallet.send_button", { amount })}
             </Button>

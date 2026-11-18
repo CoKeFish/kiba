@@ -17,6 +17,7 @@ const tiers = [
       t("pricing.free.f4"),
     ],
     cta: t("pricing.free.cta"),
+    kbEvent: "precios: plan gratis",
     href: `${DASHBOARD_URL}/signup`,
     featured: false,
   },
@@ -31,6 +32,7 @@ const tiers = [
       t("pricing.payg.f4"),
     ],
     cta: t("pricing.payg.cta"),
+    kbEvent: "precios: plan pago por uso",
     href: `${DASHBOARD_URL}/signup`,
     featured: true,
   },
@@ -45,6 +47,7 @@ const tiers = [
       t("pricing.native.f4"),
     ],
     cta: t("pricing.native.cta"),
+    kbEvent: "precios: plan stellar nativo",
     href: "https://github.com/CoKeFish/kiba",
     featured: false,
   },
@@ -142,6 +145,7 @@ const tiers = [
 
           <a
             href={tier.href}
+            data-kb-event={tier.kbEvent}
             style={`
               display: block; text-align: center;
               font-family: var(--font-sans);

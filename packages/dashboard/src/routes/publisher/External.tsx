@@ -123,6 +123,8 @@ export default function PublisherExternal() {
                           onClick={() => remove.mutate(s.slug)}
                           disabled={remove.isPending}
                           aria-label={t("external.remove", { name: s.name })}
+                          data-kb-event="publicador: quitar servicio externo"
+                          data-kb-servicio={s.service}
                         >
                           <Trash2 size={14} />
                         </button>
@@ -276,6 +278,7 @@ export default function PublisherExternal() {
                   className="pub-icon-btn"
                   onClick={() => setParams((list) => list.filter((_, j) => j !== i))}
                   aria-label={t("external.params.remove")}
+                  data-kb-event="publicador: quitar parámetro"
                 >
                   <Trash2 size={14} />
                 </button>
@@ -287,12 +290,13 @@ export default function PublisherExternal() {
               style={{ marginTop: 10 }}
               onClick={() => setParams((list) => [...list, emptyParam()])}
               disabled={params.length >= 20}
+              data-kb-event="publicador: agregar parámetro"
             >
               <Plus size={14} /> {t("external.params.add")}
             </button>
           </div>
 
-          <button type="submit" className="pub-btn pub-btn--primary" disabled={!ready || create.isPending}>
+          <button type="submit" className="pub-btn pub-btn--primary" disabled={!ready || create.isPending} data-kb-event="publicador: listar servicio externo">
             {create.isPending ? (
               <>
                 <Loader2 size={14} className="pub-spin" /> {t("external.checking")}

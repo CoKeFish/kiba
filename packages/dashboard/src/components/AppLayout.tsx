@@ -158,6 +158,8 @@ export function AppLayout() {
                 key={m}
                 type="button"
                 onClick={() => switchMode(m)}
+                data-kb-event="barra: cambiar modo"
+                data-kb-modo={m}
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -203,7 +205,7 @@ export function AppLayout() {
         <div className="app-sidebar__foot">
           <LanguageSwitcher variant="sidebar" />
           {user?.email && <div className="app-sidebar__email">{user.email}</div>}
-          <button type="button" onClick={handleLogout} className="app-logout">
+          <button type="button" onClick={handleLogout} className="app-logout" data-kb-event="barra: cerrar sesión">
             <LogOut size={15} />
             {t("nav.logout")}
           </button>
@@ -222,6 +224,7 @@ export function AppLayout() {
               aria-label={t("nav.menu")}
               aria-controls="app-sidebar"
               aria-expanded={menuOpen}
+              data-kb-event="barra: abrir menú"
             >
               <Menu size={20} />
             </button>
@@ -236,7 +239,7 @@ export function AppLayout() {
               {/* Un solo saldo: lo regalado + la wallet de pagos, ya descontado lo usado. */}
               <strong>{balance ? formatBalance(balance.total_usd) : "—"}</strong>
             </div>
-            <Button size="md" className="whitespace-nowrap" onClick={() => navigate("/app/billing")}>
+            <Button size="md" className="whitespace-nowrap" onClick={() => navigate("/app/billing")} data-kb-event="barra: ir a recargar">
               {t("topbar.top_up")}
             </Button>
           </div>

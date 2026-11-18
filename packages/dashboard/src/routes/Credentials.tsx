@@ -35,7 +35,7 @@ export default function Credentials() {
       <section className="cred-cta">
         <div>
           <p className="cred-cta__text">{t("credentials.cta_text")}</p>
-          <a href={DOCS_URL} target="_blank" rel="noreferrer" className="cred-cta-btn">
+          <a href={DOCS_URL} target="_blank" rel="noreferrer" className="cred-cta-btn" data-kb-event="credenciales: abrir documentación">
             <BookOpen size={16} />
             {t("credentials.view_docs")}
           </a>
@@ -111,7 +111,7 @@ function ApiKeysSection() {
               aria-hidden
               className="cred-create-wrap__mascot"
             />
-            <button type="submit" className="cred-create-btn" disabled={createMut.isPending}>
+            <button type="submit" className="cred-create-btn" disabled={createMut.isPending} data-kb-event="credenciales: crear clave">
               {createMut.isPending ? t("credentials.creating") : t("credentials.create_key")}
             </button>
           </div>
@@ -127,6 +127,7 @@ function ApiKeysSection() {
                 className="cred-copy-btn"
                 onClick={copy}
                 aria-label={t("credentials.copy_key_aria")}
+                data-kb-event="credenciales: copiar clave"
               >
                 {copied ? <Check size={16} /> : <Copy size={16} />}
               </button>
@@ -173,6 +174,7 @@ function ApiKeysSection() {
                         onClick={() => revokeMut.mutate(k.id)}
                         disabled={revokeMut.isPending}
                         aria-label={t("credentials.revoke_named_aria", { name: k.name })}
+                        data-kb-event="credenciales: revocar clave"
                       >
                         <Trash2 size={15} />
                       </button>
@@ -252,6 +254,7 @@ function OAuthSection() {
                         className="cred-revoke-btn"
                         onClick={() => revokeMut.mutate(c.id)}
                         disabled={revokeMut.isPending}
+                        data-kb-event="credenciales: revocar app conectada"
                       >
                         {t("credentials.revoke")}
                       </button>

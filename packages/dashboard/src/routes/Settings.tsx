@@ -51,6 +51,7 @@ function CopyButton({ value }: { value: string }) {
         setTimeout(() => setCopied(false), 1500);
       }}
       aria-label={t("settings.copy_aria")}
+      data-kb-event="ajustes: copiar dato"
     >
       {copied ? <Check size={14} style={{ color: "var(--color-success)" }} /> : <Copy size={14} />}
     </button>
@@ -183,6 +184,7 @@ export default function Settings() {
             onClick={() => refetchWallet()}
             disabled={isFetching}
             aria-label={t("settings.refresh_wallet_aria")}
+            data-kb-event="ajustes: refrescar wallet"
           >
             <RefreshCw size={15} className={isFetching ? "is-spinning" : ""} />
           </button>
@@ -250,7 +252,7 @@ export default function Settings() {
         </div>
         <div className="settings-card__body">
           <div className="settings-prefs">
-            <button type="button" className="settings-pref">
+            <button type="button" className="settings-pref" data-kb-event="ajustes: abrir notificaciones">
               <div className="settings-pref__icon">
                 <Bell size={17} strokeWidth={2} />
               </div>
@@ -260,7 +262,7 @@ export default function Settings() {
               </div>
               <ChevronRight size={16} className="settings-pref__chev" />
             </button>
-            <button type="button" className="settings-pref">
+            <button type="button" className="settings-pref" data-kb-event="ajustes: abrir seguridad de la sesión">
               <div className="settings-pref__icon">
                 <Lock size={17} strokeWidth={2} />
               </div>
@@ -270,7 +272,7 @@ export default function Settings() {
               </div>
               <ChevronRight size={16} className="settings-pref__chev" />
             </button>
-            <button type="button" className="settings-pref">
+            <button type="button" className="settings-pref" data-kb-event="ajustes: abrir identidad conectada">
               <div className="settings-pref__icon">
                 <UserPlus size={17} strokeWidth={2} />
               </div>

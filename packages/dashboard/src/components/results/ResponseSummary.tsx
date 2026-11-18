@@ -92,7 +92,7 @@ export function ResponseSummary({
       )}
 
       {license && (
-        <a className="rs-license" href={license.dashboardUrl} target="_blank" rel="noopener noreferrer">
+        <a className="rs-license" href={license.dashboardUrl} target="_blank" rel="noopener noreferrer" data-kb-event="resultados: verificar licencia emitida">
           <FileBadge size={15} />
           <span>{t("playground.summary.license")}</span>
           <ExternalLink size={12} />
@@ -120,7 +120,7 @@ export function ResponseSummary({
             ) : AUDIO_RE.test(u.url) ? (
               <audio key={u.url} className="rs-asset__audio" controls src={u.url} />
             ) : (
-              <a key={u.url} className="rs-link" href={u.url} target="_blank" rel="noopener noreferrer">
+              <a key={u.url} className="rs-link" href={u.url} target="_blank" rel="noopener noreferrer" data-kb-event="resultados: abrir enlace de la respuesta">
                 <ExternalLink size={12} /> {humanize(u.key) || u.url}
               </a>
             ),
@@ -131,12 +131,12 @@ export function ResponseSummary({
       {nothing && <p className="rs-muted">{t("playground.summary.nothing")}</p>}
 
       <div className="rs-foot">
-        <button type="button" className="rs-toggle" onClick={() => setShowJson((v) => !v)} aria-expanded={showJson}>
+        <button type="button" className="rs-toggle" onClick={() => setShowJson((v) => !v)} aria-expanded={showJson} data-kb-event="resultados: mostrar u ocultar json">
           <ChevronDown size={14} className={showJson ? "rs-toggle__icon is-open" : "rs-toggle__icon"} />
           {showJson ? t("playground.summary.hide_json") : t("playground.summary.show_json")}
         </button>
         {resultId && (
-          <Link className="rs-toggle" to={`/app/results/${encodeURIComponent(resultId)}`}>
+          <Link className="rs-toggle" to={`/app/results/${encodeURIComponent(resultId)}`} data-kb-event="resultados: abrir en resultados">
             {t("playground.summary.open_result")}
           </Link>
         )}

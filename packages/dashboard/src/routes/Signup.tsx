@@ -113,7 +113,7 @@ export default function Signup() {
 
           {error && <p className="auth-error">{error}</p>}
 
-          <button type="submit" className="auth-submit" disabled={loading}>
+          <button type="submit" className="auth-submit" disabled={loading} data-kb-event="registro: crear cuenta">
             {loading ? t("auth.signup.submitting") : t("auth.signup.submit")}
           </button>
 
@@ -125,7 +125,7 @@ export default function Signup() {
 
           <p className="auth-footer-link">
             {t("auth.signup.footer_prompt")}{" "}
-            <Link to="/login">{t("auth.signup.footer_link")}</Link>
+            <Link to="/login" data-kb-event="registro: ir a acceso desde el pie">{t("auth.signup.footer_link")}</Link>
           </p>
         </form>
       </div>

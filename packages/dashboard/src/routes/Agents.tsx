@@ -111,6 +111,8 @@ export default function Agents() {
               type="button"
               className={`agents-mode-btn${mode === m ? " is-active" : ""}`}
               onClick={() => setMode(m)}
+              data-kb-event="servicios: filtrar por modo"
+              data-kb-modo={m}
             >
               {t(`agents.mode.${m}`)}
             </button>
@@ -153,6 +155,8 @@ export default function Agents() {
                     onClick={() =>
                       navigate(`/app/playground?service=${encodeURIComponent(a.service)}`)
                     }
+                    data-kb-event="servicios: llamar servicio"
+                    data-kb-servicio={a.service}
                   >
                     {t("agents.call_agent")}
                     <ArrowRight size={15} />
@@ -176,6 +180,7 @@ export default function Agents() {
             target="_blank"
             rel="noopener noreferrer"
             className="agents-help-btn"
+            data-kb-event="servicios: abrir documentación"
           >
             <BookOpen size={16} />
             {t("agents.explore_docs")}
@@ -185,7 +190,7 @@ export default function Agents() {
       </section>
 
       {/* Fuera del menú a propósito (el asistente es quien compra), pero a la vista: es lo que se muestra en la demo. */}
-      <Link to="/app/agents/media" className="agents-media-entry">
+      <Link to="/app/agents/media" className="agents-media-entry" data-kb-event="servicios: abrir catálogo multimedia">
         <span className="agents-media-entry__icon">
           <Images size={18} strokeWidth={2} />
         </span>

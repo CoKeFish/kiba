@@ -51,7 +51,7 @@ export function PurchasedAsset({
             {when ? t("playground.summary.purchased_expires", { when }) : t("playground.summary.purchased")}
           </p>
         </div>
-        <a className="rs-btn" href={downloadUrl} target="_blank" rel="noopener noreferrer">
+        <a className="rs-btn" href={downloadUrl} target="_blank" rel="noopener noreferrer" data-kb-event="resultados: descargar archivo comprado">
           <Download size={14} /> {t("playground.summary.download")}
         </a>
       </div>

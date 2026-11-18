@@ -44,7 +44,7 @@ const MCP_URL = `${GATEWAY_URL.replace(/\/+$/, "")}/mcp`;
       <p>
         {t("guide.c1.body.pre")}<strong>{t("guide.c1.body.strong")}</strong>{t("guide.c1.body.post")}
       </p>
-      <a class="guide-btn" href={INSTALLER_URL} title={t("guide.c1.btn_title")}>
+      <a class="guide-btn" href={INSTALLER_URL} title={t("guide.c1.btn_title")} data-kb-event="guía: descargar instalador">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
         {t("guide.c1.btn")}
       </a>
@@ -60,7 +60,7 @@ const MCP_URL = `${GATEWAY_URL.replace(/\/+$/, "")}/mcp`;
       <p>{t("guide.c2.body")}</p>
       <div class="guide-url">
         <code>{MCP_URL}</code>
-        <button class="guide-copy" type="button" data-copy={MCP_URL}>{t("guide.copy")}</button>
+        <button class="guide-copy" type="button" data-copy={MCP_URL} data-kb-event="guía: copiar url para claude">{t("guide.copy")}</button>
       </div>
       <ol>
         <li>{t("guide.c2.s1")}</li>
@@ -85,7 +85,7 @@ const MCP_URL = `${GATEWAY_URL.replace(/\/+$/, "")}/mcp`;
       <p>{t("guide.c3.body")}</p>
       <div class="guide-url">
         <code>{MCP_URL}</code>
-        <button class="guide-copy" type="button" data-copy={MCP_URL}>{t("guide.copy")}</button>
+        <button class="guide-copy" type="button" data-copy={MCP_URL} data-kb-event="guía: copiar url para chatgpt">{t("guide.copy")}</button>
       </div>
       <ol>
         <li>{t("guide.c3.s1")}</li>
@@ -103,7 +103,7 @@ const MCP_URL = `${GATEWAY_URL.replace(/\/+$/, "")}/mcp`;
   </article>
 
   <p class="guide-foot">
-    {t("guide.foot.pre")}<a href={`${DASHBOARD_URL}/signup`}>{t("guide.foot.link")}</a>{t("guide.foot.post")}
+    {t("guide.foot.pre")}<a href={`${DASHBOARD_URL}/signup`} data-kb-event="guía: crear cuenta">{t("guide.foot.link")}</a>{t("guide.foot.post")}
   </p>
 </section>
 

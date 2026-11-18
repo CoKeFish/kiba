@@ -115,7 +115,7 @@ export function PayWalletBody({
           </a>
           <CopyButton value={address} />
           {privySession && (
-            <button type="button" onClick={() => void privySession.logout()} className="ml-auto underline hover:text-[var(--color-fg)]">
+            <button type="button" onClick={() => void privySession.logout()} className="ml-auto underline hover:text-[var(--color-fg)]" data-kb-event="billetera: cerrar sesión de la wallet">
               {t("paywallet.privy_logout")}
             </button>
           )}
@@ -127,7 +127,7 @@ export function PayWalletBody({
         </p>
 
         <div className="flex flex-wrap gap-2">
-          <Button size="sm" variant={panel === "receive" ? "default" : "subtle"} onClick={() => setPanel(panel === "receive" ? null : "receive")}>
+          <Button size="sm" variant={panel === "receive" ? "default" : "subtle"} onClick={() => setPanel(panel === "receive" ? null : "receive")} data-kb-event="billetera: abrir recibir">
             <ArrowDownToLine size={14} />
             {t("paywallet.topup")}
           </Button>
@@ -136,6 +136,7 @@ export function PayWalletBody({
             variant={panel === "send" ? "default" : "subtle"}
             onClick={() => setPanel(panel === "send" ? null : "send")}
             disabled={busy || st.balanceBaseUnits <= 0}
+            data-kb-event="billetera: abrir enviar"
           >
             <ArrowUpFromLine size={14} />
             {t("paywallet.withdraw")}
@@ -179,7 +180,7 @@ export function PayWalletBody({
                 aria-label={t("paywallet.withdraw_amount")}
               />
               <span className="text-xs text-[var(--color-fg-muted)]">USDC</span>
-              <Button size="sm" onClick={send} disabled={busy || !/^G[A-Z2-7]{55}$/.test(to.trim())}>
+              <Button size="sm" onClick={send} disabled={busy || !/^G[A-Z2-7]{55}$/.test(to.trim())} data-kb-event="billetera: enviar usdc">
                 {t("paywallet.withdraw_button")}
               </Button>
             </div>
@@ -233,6 +234,7 @@ export function CopyButton({ value, label }: { value: string; label?: string }) 
       }}
       className="inline-flex items-center gap-1 text-xs text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]"
       aria-label={t("paywallet.copy_address")}
+      data-kb-event="billetera: copiar dirección"
     >
       <Copy size={12} />
       {copied ? t("paywallet.copied") : label}

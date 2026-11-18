@@ -34,18 +34,25 @@ const canonicalPath = stripLangFromPath(Astro.url.pathname);
 const origin = Astro.site ? Astro.site.origin : "";
 const localeList = Object.keys(languages) as Lang[];
 
+// kbEvent es el nombre con el que el clic llega a las métricas (ver data-kb-event más abajo).
 const navLinks = [
-  { label: t("nav.agents"), href: `${home}#agents` },
-  { label: t("nav.how"), href: `${home}#how-it-works` },
-  { label: t("nav.guide"), href: localizePath("/guide", lang) },
-  { label: t("nav.pricing"), href: `${home}#pricing` },
-  { label: t("nav.docs"), href: "https://docs.kiba.tools" },
+  { label: t("nav.agents"), href: `${home}#agents`, kbEvent: "cabecera: servicios" },
+  { label: t("nav.how"), href: `${home}#how-it-works`, kbEvent: "cabecera: cómo funciona" },
+  { label: t("nav.guide"), href: localizePath("/guide", lang), kbEvent: "cabecera: guía" },
+  { label: t("nav.pricing"), href: `${home}#pricing`, kbEvent: "cabecera: precios" },
+  { label: t("nav.docs"), href: "https://docs.kiba.tools", kbEvent: "cabecera: docs" },
 ];
 
 // Métricas internas (Umami): el tracker y la grabadora de sesiones solo se inyectan si el
 // build trae el id del sitio (prod). Un bloque con data-replay-block no entra en la grabación.
 // El script en línea del <head> atiende ?metrics=off, que deja ese navegador fuera de las
 // métricas y grabaciones (guarda umami.disabled en localStorage); ?metrics=on lo revierte.
+//
+// Qué opciones se usan: cada control lleva el atributo data-kb-event con un nombre del tipo
+// «zona: acción» (un literal fijo, en español, de 50 caracteres como máximo) y el último script
+// del <head> envía ese nombre a Umami al hacer clic. Los data-kb-<clave> del mismo elemento viajan como detalle. Ese script también
+// envía "permanece 10 s", "30 s", "1 min", "3 min" y "10 min" según el tiempo que la página
+// lleva visible y con actividad. El informe sale con scripts/metricas-uso.mjs.
 const umamiWebsiteId = import.meta.env.PUBLIC_UMAMI_WEBSITE_ID;
 ---
 
@@ -85,6 +92,42 @@ const umamiWebsiteId = import.meta.env.PUBLIC_UMAMI_WEBSITE_ID;
     {umamiWebsiteId && (
       <script is:inline defer src="https://metrics.kiba.tools/recorder.js" data-website-id={umamiWebsiteId}></script>
     )}
+    <script is:inline>
+      // Mismo código que packages/dashboard/src/lib/uso.ts y el de packages/docs/docusaurus.config.ts.
+      (function () {
+        if (!document.querySelector("script[data-website-id]")) return;
+        function send(name, data) {
+          if (window.umami) window.umami.track(name, data);
+          return !!window.umami;
+        }
+        // Clics: solo los de una persona (isTrusted), con el nombre del control más cercano.
+        document.addEventListener("click", function (e) {
+          var el = e.isTrusted && e.target && e.target.closest ? e.target.closest("[data-kb-event]") : null;
+          if (!el) return;
+          var data;
+          for (var i = 0; i < el.attributes.length; i++) {
+            var a = el.attributes[i];
+            if (a.name.indexOf("data-kb-") === 0 && a.name !== "data-kb-event") {
+              data = data || {};
+              data[a.name.slice(8)] = a.value;
+            }
+          }
+          send(el.getAttribute("data-kb-event"), data);
+        }, true);
+        // Permanencia: segundos con la pestaña visible y actividad en el último minuto, por página.
+        var MARKS = [[10, "10 s"], [30, "30 s"], [60, "1 min"], [180, "3 min"], [600, "10 min"]];
+        var path = location.pathname, secs = 0, next = 0, last = Date.now();
+        ["pointerdown", "pointermove", "keydown", "scroll", "touchstart"].forEach(function (type) {
+          addEventListener(type, function () { last = Date.now(); }, { capture: true, passive: true });
+        });
+        setInterval(function () {
+          if (location.pathname !== path) { path = location.pathname; secs = 0; next = 0; last = Date.now(); }
+          if (document.visibilityState !== "visible" || Date.now() - last > 60000) return;
+          secs += 1;
+          if (next < MARKS.length && secs >= MARKS[next][0] && send("permanece " + MARKS[next][1])) next += 1;
+        }, 1000);
+      })();
+    </script>
   </head>
   <body>
     <!-- Fixed header -->
@@ -97,7 +140,7 @@ const umamiWebsiteId = import.meta.env.PUBLIC_UMAMI_WEBSITE_ID;
       <!-- Nav links (escritorio) -->
       <nav class="site-nav" aria-label="Main">
         {navLinks.map((item) => (
-          <a href={item.href} class="nav-link">{item.label}</a>
+          <a href={item.href} class="nav-link" data-kb-event={item.kbEvent}>{item.label}</a>
         ))}
       </nav>
 
@@ -108,23 +151,26 @@ const umamiWebsiteId = import.meta.env.PUBLIC_UMAMI_WEBSITE_ID;
           {localeList.map((l) => (
             <a
               href={localizePath(canonicalPath, l)}
+              data-kb-event="cabecera: cambiar idioma"
+              data-kb-idioma={l}
               class={`lang-opt ${l === lang ? "is-active" : ""}`}
               aria-current={l === lang ? "true" : undefined}
             >{languages[l]}</a>
           ))}
         </div>
-        <a href={`${DASHBOARD_URL}/login`} class="btn-ghost site-cta--secondary">{t("cta.signin")}</a>
-        <a href={INSTALLER_URL} title={t("cta.download_title")} class="btn-ghost site-cta--secondary">
+        <a href={`${DASHBOARD_URL}/login`} data-kb-event="cabecera: iniciar sesión" class="btn-ghost site-cta--secondary">{t("cta.signin")}</a>
+        <a href={INSTALLER_URL} title={t("cta.download_title")} data-kb-event="cabecera: descargar instalador" class="btn-ghost site-cta--secondary">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
           {t("cta.download")}
         </a>
-        <a href={`${DASHBOARD_URL}/signup`} class="btn-primary">{t("cta.start")}</a>
+        <a href={`${DASHBOARD_URL}/signup`} data-kb-event="cabecera: empezar a explorar" class="btn-primary">{t("cta.start")}</a>
 
         <!-- Menú (solo móvil) -->
         <button
           type="button"
           class="site-menu-btn"
           id="site-menu-btn"
+          data-kb-event="cabecera: menú móvil"
           aria-controls="site-menu"
           aria-expanded="false"
           aria-label={t("nav.menu")}
@@ -141,7 +187,7 @@ const umamiWebsiteId = import.meta.env.PUBLIC_UMAMI_WEBSITE_ID;
     <div id="site-menu" class="site-menu" hidden>
       <nav class="site-menu__nav" aria-label="Main">
         {navLinks.map((item) => (
-          <a href={item.href} class="site-menu__link">{item.label}</a>
+          <a href={item.href} class="site-menu__link" data-kb-event={item.kbEvent}>{item.label}</a>
         ))}
       </nav>
       <div class="site-menu__row">
@@ -149,6 +195,8 @@ const umamiWebsiteId = import.meta.env.PUBLIC_UMAMI_WEBSITE_ID;
           {localeList.map((l) => (
             <a
               href={localizePath(canonicalPath, l)}
+              data-kb-event="cabecera: cambiar idioma"
+              data-kb-idioma={l}
               class={`lang-opt ${l === lang ? "is-active" : ""}`}
               aria-current={l === lang ? "true" : undefined}
             >{languages[l]}</a>
@@ -156,8 +204,8 @@ const umamiWebsiteId = import.meta.env.PUBLIC_UMAMI_WEBSITE_ID;
         </div>
       </div>
       <div class="site-menu__ctas">
-        <a href={`${DASHBOARD_URL}/login`} class="btn-ghost">{t("cta.signin")}</a>
-        <a href={INSTALLER_URL} title={t("cta.download_title")} class="btn-ghost">
+        <a href={`${DASHBOARD_URL}/login`} data-kb-event="cabecera: iniciar sesión" class="btn-ghost">{t("cta.signin")}</a>
+        <a href={INSTALLER_URL} title={t("cta.download_title")} data-kb-event="cabecera: descargar instalador" class="btn-ghost">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
           {t("cta.download")}
         </a>

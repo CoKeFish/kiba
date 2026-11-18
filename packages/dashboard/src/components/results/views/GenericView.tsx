@@ -21,6 +21,7 @@ function Generic({ data, urls }: ResultViewProps) {
               target="_blank"
               rel="noopener noreferrer"
               className="text-sm text-[var(--color-primary)] hover:underline inline-flex items-center gap-1 break-all"
+              data-kb-event="resultados: abrir enlace del resultado"
             >
               <ExternalLink className="w-3 h-3 shrink-0" /> {u.key || u.url}
             </a>

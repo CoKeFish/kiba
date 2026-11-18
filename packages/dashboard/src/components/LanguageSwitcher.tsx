@@ -36,6 +36,8 @@ export function LanguageSwitcher({ variant = "sidebar" }: Props) {
             type="button"
             onClick={() => i18n.changeLanguage(lng)}
             aria-pressed={isActive}
+            data-kb-event="idioma: cambiar idioma"
+            data-kb-idioma={lng}
             style={{
               padding: "5px 8px",
               borderRadius: 999,

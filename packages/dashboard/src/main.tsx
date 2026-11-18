@@ -5,6 +5,7 @@ import { BrowserRouter } from "react-router-dom";
 import App from "./App";
 import { AuthProvider } from "@/lib/auth";
 import { ModeProvider } from "@/lib/mode";
+import { medirUso } from "@/lib/uso";
 import "./i18n";
 import "./styles/globals.css";
 
@@ -29,6 +30,8 @@ if (umamiWebsiteId) {
     script.dataset.websiteId = umamiWebsiteId;
     document.head.appendChild(script);
   }
+  // Clics en los controles con data-kb-event y marcas de permanencia por pantalla.
+  medirUso();
 }
 
 const queryClient = new QueryClient({

@@ -102,6 +102,7 @@ export default function Platform() {
           className="platform-refresh"
           onClick={() => refetch()}
           disabled={isFetching}
+          data-kb-event="plataforma: refrescar"
         >
           <RefreshCw size={14} className={isFetching ? "is-spinning" : ""} />
           {t("platform.refresh")}
@@ -140,6 +141,7 @@ export default function Platform() {
                 className="platform-copy-btn"
                 onClick={() => copyAddress(treasury.pubkey)}
                 aria-label={t("platform.copy_treasury_aria")}
+                data-kb-event="plataforma: copiar dirección de tesorería"
               >
                 {copied ? <Check size={14} /> : <Copy size={14} />}
               </button>
@@ -282,7 +284,7 @@ export default function Platform() {
       <section className="platform-cta">
         <div>
           <p className="platform-cta__text">{t("platform.cta_text")}</p>
-          <a href={DOCS_URL} target="_blank" rel="noreferrer" className="platform-cta-btn">
+          <a href={DOCS_URL} target="_blank" rel="noreferrer" className="platform-cta-btn" data-kb-event="plataforma: abrir documentación">
             {t("platform.cta_learn_more")}
             <ExternalLink size={14} />
           </a>

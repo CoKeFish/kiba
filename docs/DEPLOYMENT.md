@@ -225,6 +225,45 @@ sitio en Umami**, no en el repo: Websites → Edit → Replays & Heatmaps, o
   (índices y lo que entre entre dos revisiones). Los mapas de calor (`heatmap_event`, filas
   pequeñas) no tienen tope. Ver qué hizo: logs del contenedor (`[umami-prune] …`).
 
+### Qué opciones se usan y cuánto se queda la gente
+
+El mapa de calor guarda solo coordenadas, no el botón. Para saber qué se pulsa, cada frontend
+lleva un oyente propio que envía eventos a Umami con `umami.track`:
+
+- **Clics**: un control con `data-kb-event="zona: acción"` envía ese nombre al hacer clic (vale
+  también el clic en un hijo suyo). Solo cuentan los clics de una persona (`isTrusted`), no los
+  que dispara el código. Convención del nombre: español, minúsculas, 50 caracteres como máximo
+  (Umami corta ahí) y **siempre un literal fijo**, porque el catálogo de opciones se saca del
+  código. En listas generadas desde un arreglo (menú, pie, planes) el literal va en un campo
+  `kbEvent`. Si el mismo control se repite por elemento, el nombre es uno solo y el detalle va
+  en `data-kb-<clave>` (modo, idioma, monto predefinido, slug de servicio). Nunca texto escrito
+  por el usuario, correos, direcciones, claves ni resultados.
+- **Por qué no `data-umami-event`**: en un enlace, el tracker de Umami cancela la navegación,
+  espera la respuesta del servidor de métricas y navega con `location.href`. En el dashboard eso
+  recarga la página entera y en la landing ata cada enlace a que el servidor de métricas responda.
+- **Permanencia**: la página envía `permanece 10 s`, `30 s`, `1 min`, `3 min` y `10 min` según
+  los segundos que lleva visible y con actividad en el último minuto. La cuenta es por página y
+  vuelve a cero al cambiar de ruta. Hace falta porque Umami calcula la duración solo entre
+  páginas vistas: una visita de una sola página, que es la mayoría en la landing, le sale en 0 s.
+- **Efecto en el rebote**: para Umami una visita con un evento ya no es rebote. Desde este cambio
+  el rebote significa «una sola página, ningún clic en una opción y menos de 10 s».
+- **Dónde está el código**: `packages/landing/src/layouts/Base.astro` (script en línea),
+  `packages/dashboard/src/lib/uso.ts` y `packages/docs/docusaurus.config.ts` (`METRICS_USAGE`).
+  Es el mismo oyente copiado tres veces; un cambio hay que llevarlo a los tres.
+
+Dónde mirarlo en Umami: **Events** (ranking de opciones y de marcas de tiempo, filtrable por
+página), **Sessions** (lo que hizo cada visita, en orden y con hora) y **Journeys** (recorridos
+agregados). Umami solo enseña lo que recibió, así que las opciones **sin uso** salen del informe
+que cruza el catálogo del código con los eventos:
+
+```bash
+doppler run --project shared --config prd --only-secrets UMAMI_ADMIN_PASSWORD -- \
+  node scripts/metricas-uso.mjs 30   # días; por defecto 30
+```
+
+Por sitio imprime la permanencia por página, las opciones usadas (clics, visitas y cuántas veces
+fue el primer clic de la visita) y la lista de opciones sin uso.
+
 ## Vercel (solo redirects)
 
 Los proyectos `kiba-landing` y `kiba-dashboard` siguen existiendo únicamente para que las

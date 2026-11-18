@@ -330,7 +330,7 @@ export default function Usage() {
       <section className="usage-cta">
         <div className="usage-cta__copy">
           <p className="usage-cta__text">{t("usage.cta_text")}</p>
-          <Link to="/app/playground" className="usage-cta-btn">
+          <Link to="/app/playground" className="usage-cta-btn" data-kb-event="uso: ir al playground">
             <Play size={16} fill="currentColor" />
             {t("usage.cta_button")}
           </Link>

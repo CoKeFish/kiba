@@ -31,7 +31,7 @@ export default function PublisherOverview() {
           </p>
         </div>
         <div className="pub-actions">
-          <Link to="/app/publisher/publish" className="pub-btn pub-btn--primary pub-btn--sm">
+          <Link to="/app/publisher/publish" className="pub-btn pub-btn--primary pub-btn--sm" data-kb-event="publicador: publicar desde ingresos">
             <Plus size={16} />
             {t("publisher.overview.publish_agent")}
           </Link>
@@ -133,7 +133,7 @@ export default function PublisherOverview() {
               <img src="/agents/cuadrado.png" alt="" aria-hidden className="pub-empty__mascot" />
               <p className="pub-empty__title">{t("publisher.overview.empty_title")}</p>
               <p className="pub-empty__text">{t("publisher.overview.empty_text")}</p>
-              <Link to="/app/publisher/publish" className="pub-btn pub-btn--primary pub-btn--sm" style={{ marginTop: 8 }}>
+              <Link to="/app/publisher/publish" className="pub-btn pub-btn--primary pub-btn--sm" style={{ marginTop: 8 }} data-kb-event="publicador: publicar primer servicio">
                 <Plus size={14} />
                 {t("publisher.overview.publish_first")}
               </Link>

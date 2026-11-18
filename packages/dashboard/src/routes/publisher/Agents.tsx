@@ -38,7 +38,7 @@ export default function PublisherAgents() {
           </p>
         </div>
         <div className="pub-actions">
-          <Link to="/app/publisher/publish" className="pub-btn pub-btn--secondary pub-btn--sm">
+          <Link to="/app/publisher/publish" className="pub-btn pub-btn--secondary pub-btn--sm" data-kb-event="publicador: publicar desde mis servicios">
             <Plus size={16} />
             {t("publisher.agents.publish_agent")}
           </Link>
@@ -46,6 +46,7 @@ export default function PublisherAgents() {
             type="button"
             className="pub-btn pub-btn--primary pub-btn--sm"
             onClick={() => setShowRegister((v) => !v)}
+            data-kb-event="publicador: abrir o cerrar registro"
           >
             {showRegister ? <X size={16} /> : <Plus size={16} />}
             {showRegister ? t("publisher.agents.cancel") : t("publisher.agents.register_agent")}

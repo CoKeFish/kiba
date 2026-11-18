@@ -31,12 +31,14 @@ export function LicenseCard({ license, compact = false }: { license: LicenseSumm
     [t("results.license.exclusive"), yesNo(terms.exclusive)],
     [t("results.license.transferable"), yesNo(terms.transferable)],
   ];
-  const link = (href: string, label: string) => (
+  const link = (href: string, label: string, kind: string) => (
     <a
       key={href}
       href={href}
       target="_blank"
       rel="noopener noreferrer"
+      data-kb-event="resultados: abrir enlace de licencia"
+      data-kb-enlace={kind}
       className="text-sm text-[var(--color-primary)] hover:underline inline-flex items-center gap-1"
     >
       <ExternalLink className="w-3 h-3" /> {label}
@@ -95,7 +97,7 @@ export function LicenseCard({ license, compact = false }: { license: LicenseSumm
             <dt className="text-[var(--color-fg-muted)]">{t("results.license.payment")}</dt>
             <dd>
               {license.explorerUrl
-                ? link(license.explorerUrl, t("results.onchain"))
+                ? link(license.explorerUrl, t("results.onchain"), "pago")
                 : t("results.license.payment_pending")}
             </dd>
           </div>
@@ -106,8 +108,8 @@ export function LicenseCard({ license, compact = false }: { license: LicenseSumm
         </dl>
 
         <div className="flex flex-wrap gap-4">
-          {link(license.documentUrl, t("results.license.document"))}
-          {link(license.dashboardUrl, t("results.license.verify"))}
+          {link(license.documentUrl, t("results.license.document"), "documento")}
+          {link(license.dashboardUrl, t("results.license.verify"), "verificación")}
         </div>
         <p className="text-xs text-[var(--color-fg-muted)] font-mono break-all">{license.id}</p>
       </CardBody>

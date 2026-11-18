@@ -182,7 +182,7 @@ export function DepositCard({ privy, external }: { privy: PayWalletSigner | null
                 aria-label={t("deposit.amount_label")}
               />
               <span className="text-xs text-[var(--color-fg-muted)]">USDC</span>
-              <Button size="sm" onClick={() => open(privy ?? external)} disabled={busy}>
+              <Button size="sm" onClick={() => open(privy ?? external)} disabled={busy} data-kb-event="depósito: depositar">
                 <ArrowDownToLine size={14} />
                 {t("deposit.open")}
               </Button>
@@ -195,6 +195,7 @@ export function DepositCard({ privy, external }: { privy: PayWalletSigner | null
                 type="button"
                 onClick={() => open(external)}
                 disabled={busy}
+                data-kb-event="depósito: depositar con wallet propia"
                 className="text-xs text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] underline disabled:opacity-50"
               >
                 {t("paywallet.use_external")}
@@ -237,19 +238,19 @@ export function DepositCard({ privy, external }: { privy: PayWalletSigner | null
 
             <div className="flex flex-wrap gap-2 items-center">
               {live.state === "open" && (
-                <Button size="sm" variant={topUpOpen ? "default" : "subtle"} onClick={() => setTopUpOpen(!topUpOpen)} disabled={busy}>
+                <Button size="sm" variant={topUpOpen ? "default" : "subtle"} onClick={() => setTopUpOpen(!topUpOpen)} disabled={busy} data-kb-event="depósito: abrir recarga">
                   <ArrowDownToLine size={14} />
                   {t("deposit.topup")}
                 </Button>
               )}
               {live.state !== "liquidating" && (
-                <Button size="sm" variant={confirm === "withdraw" ? "default" : "subtle"} onClick={() => setConfirm("withdraw")} disabled={busy}>
+                <Button size="sm" variant={confirm === "withdraw" ? "default" : "subtle"} onClick={() => setConfirm("withdraw")} disabled={busy} data-kb-event="depósito: retirar">
                   <ArrowUpFromLine size={14} />
                   {t("deposit.withdraw")}
                 </Button>
               )}
               {refundReady && (
-                <Button size="sm" variant="subtle" onClick={refund} disabled={busy}>
+                <Button size="sm" variant="subtle" onClick={refund} disabled={busy} data-kb-event="depósito: retirar lo que queda">
                   {t("deposit.refund")}
                 </Button>
               )}
@@ -258,6 +259,7 @@ export function DepositCard({ privy, external }: { privy: PayWalletSigner | null
                   type="button"
                   onClick={() => setConfirm("exit")}
                   disabled={busy}
+                  data-kb-event="depósito: retirar sin pasar por kiba"
                   className="text-xs text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] underline disabled:opacity-50"
                 >
                   {t("deposit.exit")}
@@ -278,7 +280,7 @@ export function DepositCard({ privy, external }: { privy: PayWalletSigner | null
                   aria-label={t("deposit.amount_label")}
                 />
                 <span className="text-xs text-[var(--color-fg-muted)]">USDC</span>
-                <Button size="sm" onClick={topUp} disabled={busy || !(Number(amount) > 0)}>
+                <Button size="sm" onClick={topUp} disabled={busy || !(Number(amount) > 0)} data-kb-event="depósito: recargar">
                   {t("deposit.topup")}
                 </Button>
               </div>
@@ -293,7 +295,7 @@ export function DepositCard({ privy, external }: { privy: PayWalletSigner | null
                   })}
                 </p>
                 <div className="flex gap-2 items-center">
-                  <Button size="sm" onClick={liquidate} disabled={busy}>
+                  <Button size="sm" onClick={liquidate} disabled={busy} data-kb-event="depósito: confirmar retiro">
                     {t("deposit.withdraw_yes")}
                   </Button>
                   <button type="button" className="text-xs underline" onClick={() => setConfirm(null)}>
@@ -307,7 +309,7 @@ export function DepositCard({ privy, external }: { privy: PayWalletSigner | null
               <div className="rounded-md border border-[var(--color-border)] p-4 space-y-3 text-sm">
                 <p>{t("deposit.exit_hint", { wait: waitText(live.waitLedgers) })}</p>
                 <div className="flex gap-2 items-center">
-                  <Button size="sm" variant="subtle" onClick={exitStart} disabled={busy}>
+                  <Button size="sm" variant="subtle" onClick={exitStart} disabled={busy} data-kb-event="depósito: confirmar retiro sin kiba">
                     {t("deposit.exit_yes")}
                   </Button>
                   <button type="button" className="text-xs underline" onClick={() => setConfirm(null)}>

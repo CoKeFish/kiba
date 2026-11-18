@@ -70,6 +70,7 @@ export default function Results() {
                       <Link
                         to={`/app/results/${r.resultId}`}
                         className="text-xs text-[var(--color-primary)] hover:underline"
+                        data-kb-event="resultados: abrir resultado"
                       >
                         {t("results.open")}
                       </Link>

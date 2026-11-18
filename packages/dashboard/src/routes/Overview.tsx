@@ -79,7 +79,7 @@ export default function Overview() {
         <div className="overview-welcome__copy">
           <p className="overview-welcome__greeting">{t("overview.welcome_greeting", { name })}</p>
           <p className="overview-welcome__tagline">{t("overview.welcome_tagline")}</p>
-          <Link to="/app/agents" className="overview-explore-btn">
+          <Link to="/app/agents" className="overview-explore-btn" data-kb-event="inicio: explorar servicios">
             <Bot size={17} strokeWidth={2.25} />
             {t("overview.explore_agents")}
           </Link>
@@ -174,7 +174,7 @@ export default function Overview() {
             <h2 className="overview-tx-title">{t("overview.tx_title")}</h2>
             <p className="overview-tx-desc">{t("overview.tx_desc")}</p>
           </div>
-          <Link to="/app/transactions" className="overview-tx-link">
+          <Link to="/app/transactions" className="overview-tx-link" data-kb-event="inicio: ver todos los movimientos">
             {t("overview.tx_view_all")} <ArrowUpRight size={14} />
           </Link>
         </div>
@@ -253,11 +253,12 @@ export default function Overview() {
               target="_blank"
               rel="noopener noreferrer"
               className="overview-help-btn"
+              data-kb-event="inicio: abrir documentación"
             >
               <BookOpen size={16} />
               {t("overview.help_view_docs")}
             </a>
-            <a href="mailto:support@kiba.dev" className="overview-help-btn">
+            <a href="mailto:support@kiba.dev" className="overview-help-btn" data-kb-event="inicio: contactar soporte">
               <MessageCircle size={16} />
               {t("overview.help_contact")}
             </a>

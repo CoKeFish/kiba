@@ -93,6 +93,7 @@ export default function Verify() {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-[var(--color-primary)] hover:underline inline-flex items-center gap-1"
+                data-kb-event="verificación: abrir documento de licencia"
               >
                 {t("verify.document")} <ExternalLink className="w-3 h-3" />
               </a>

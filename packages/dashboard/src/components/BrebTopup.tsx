@@ -197,7 +197,7 @@ export function BrebTopup() {
             </span>{" "}
             {t("payments.breb.paid_credited_after", { cop: COP.format(charge.amount_cop) })}
           </p>
-          <Button variant="subtle" size="sm" onClick={reset} className="mx-auto">
+          <Button variant="subtle" size="sm" onClick={reset} className="mx-auto" data-kb-event="bre-b: hacer otra recarga">
             {t("payments.breb.another_topup")}
           </Button>
         </CardBody>
@@ -258,7 +258,7 @@ export function BrebTopup() {
                 </div>
                 <div className="flex items-center gap-2 rounded-md border border-[var(--color-border)] px-3 py-2">
                   <span className="font-mono text-xs flex-1 truncate">{d.depositAddress}</span>
-                  <Button variant="ghost" size="sm" onClick={() => copyText(d.depositAddress)}>
+                  <Button variant="ghost" size="sm" onClick={() => copyText(d.depositAddress)} data-kb-event="bre-b: copiar dirección de depósito">
                     <Copy className="w-3 h-3" />
                   </Button>
                 </div>
@@ -269,7 +269,7 @@ export function BrebTopup() {
                 </div>
                 <div className="flex items-center gap-2 rounded-md border border-[var(--color-warning)] px-3 py-2">
                   <span className="font-mono text-sm flex-1 truncate">{charge.detail.memo}</span>
-                  <Button variant="ghost" size="sm" onClick={() => copyText(charge.detail.memo)}>
+                  <Button variant="ghost" size="sm" onClick={() => copyText(charge.detail.memo)} data-kb-event="bre-b: copiar memo">
                     <Copy className="w-3 h-3" />
                     {copied ? t("payments.breb.copied") : t("payments.breb.copy")}
                   </Button>
@@ -290,6 +290,7 @@ export function BrebTopup() {
               size="sm"
               onClick={() => verifyDeposit.mutate(charge.id)}
               disabled={verifyDeposit.isPending}
+              data-kb-event="bre-b: verificar depósito"
             >
               {verifyDeposit.isPending
                 ? t("payments.breb.verifying_short")
@@ -338,7 +339,7 @@ export function BrebTopup() {
                 </div>
                 <div className="flex items-center gap-2 rounded-md border border-[var(--color-border)] px-3 py-2">
                   <span className="font-mono text-sm flex-1">{charge.detail.llave}</span>
-                  <Button variant="ghost" size="sm" onClick={copyLlave}>
+                  <Button variant="ghost" size="sm" onClick={copyLlave} data-kb-event="bre-b: copiar llave">
                     <Copy className="w-3 h-3" />
                     {copied ? t("payments.breb.copied") : t("payments.breb.copy")}
                   </Button>
@@ -356,7 +357,7 @@ export function BrebTopup() {
               <RefreshCw className="w-3 h-3 animate-spin" />
               {t("payments.breb.waiting_payment")}
             </span>
-            <Button size="sm" onClick={() => simulate.mutate(charge.id)} disabled={simulate.isPending}>
+            <Button size="sm" onClick={() => simulate.mutate(charge.id)} disabled={simulate.isPending} data-kb-event="bre-b: simular pago">
               {simulate.isPending
                 ? t("payments.breb.simulating")
                 : t("payments.breb.simulate_payment")}
@@ -401,6 +402,8 @@ export function BrebTopup() {
                     setSelectedProvider(m.provider);
                     create.reset();
                   }}
+                  data-kb-event="bre-b: elegir método de pago"
+                  data-kb-metodo={m.provider}
                   className={`rounded-full border px-4 py-2 text-sm font-medium transition-colors ${
                     active
                       ? "border-[var(--color-primary)] bg-[color-mix(in_srgb,var(--color-primary)_14%,transparent)] text-[var(--color-fg)]"
@@ -421,6 +424,8 @@ export function BrebTopup() {
               key={c}
               type="button"
               onClick={() => setAmountCop(c)}
+              data-kb-event="bre-b: monto rápido"
+              data-kb-monto={c}
               className={`rounded-full border px-4 py-2 text-sm transition-colors ${
                 amountCop === c
                   ? "border-[var(--color-primary)] bg-[color-mix(in_srgb,var(--color-primary)_12%,transparent)] text-[var(--color-fg)]"
@@ -459,7 +464,7 @@ export function BrebTopup() {
           <p className="text-sm text-[var(--color-danger)]">{(create.error as Error).message}</p>
         )}
 
-        <Button onClick={() => create.mutate()} disabled={create.isPending || amountCop < 1000}>
+        <Button onClick={() => create.mutate()} disabled={create.isPending || amountCop < 1000} data-kb-event="bre-b: crear cobro" data-kb-metodo={selected?.provider}>
           {isRedirect ? <ExternalLink className="w-4 h-4" /> : <QrCode className="w-4 h-4" />}
           {create.isPending
             ? isRedirect

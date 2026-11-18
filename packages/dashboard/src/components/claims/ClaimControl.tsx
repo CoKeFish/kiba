@@ -52,7 +52,7 @@ export function ClaimControl({ transactionId, info }: { transactionId: number; i
   if (!open) {
     return (
       <div className="space-y-1">
-        <Button size="sm" variant="subtle" onClick={() => setOpen(true)}>
+        <Button size="sm" variant="subtle" onClick={() => setOpen(true)} data-kb-event="reclamos: abrir formulario de reclamo">
           {t("claims.claim")}
         </Button>
         {info.until && (
@@ -82,7 +82,7 @@ export function ClaimControl({ transactionId, info }: { transactionId: number; i
         className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-bg-elevated)] px-2 py-1.5 text-sm focus:outline-none focus:border-[var(--color-primary)]"
       />
       <div className="flex items-center gap-2">
-        <Button size="sm" type="submit" disabled={send.isPending || reason.trim().length < 10}>
+        <Button size="sm" type="submit" disabled={send.isPending || reason.trim().length < 10} data-kb-event="reclamos: enviar reclamo">
           {send.isPending && <Loader2 size={14} className="animate-spin" />}
           {t("claims.send")}
         </Button>

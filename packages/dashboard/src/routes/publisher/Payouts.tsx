@@ -161,7 +161,7 @@ export default function PublisherPayouts() {
           {wallets.map((w) => (
             <div className="pub-wallet-row" key={w.address}>
               <span>{w.address}</span>
-              <button type="button" className="pub-icon-btn" onClick={() => copy(w.address)} aria-label={t("publisher.payouts.copy_address")}>
+              <button type="button" className="pub-icon-btn" onClick={() => copy(w.address)} aria-label={t("publisher.payouts.copy_address")} data-kb-event="publicador: copiar dirección de cobro">
                 {copied === w.address ? <Check size={14} /> : <Copy size={14} />}
               </button>
               <a
@@ -192,6 +192,7 @@ export default function PublisherPayouts() {
               checked={autoSettleOn}
               disabled={autoSettleMut.isPending || !data}
               onChange={(e) => autoSettleMut.mutate(e.target.checked)}
+              data-kb-event="publicador: alternar liquidación automática"
             />
             <span>
               <span className="pub-auto-settle__title">{t("publisher.payouts.auto_settle_title")}</span>
@@ -207,6 +208,7 @@ export default function PublisherPayouts() {
             style={{ marginTop: 16 }}
             onClick={() => settleMut.mutate()}
             disabled={settleMut.isPending}
+            data-kb-event="publicador: liquidar ahora"
           >
             {settleMut.isPending ? (
               <>

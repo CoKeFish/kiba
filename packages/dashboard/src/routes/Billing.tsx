@@ -167,6 +167,8 @@ export default function Billing() {
               type="button"
               className={`billing-amount${amount === q ? " is-active" : ""}`}
               onClick={() => setAmount(q)}
+              data-kb-event="recargas: monto rápido"
+              data-kb-monto={q}
             >
               ${q}
             </button>
@@ -203,6 +205,7 @@ export default function Billing() {
           className="billing-submit"
           onClick={() => submit(amount)}
           disabled={mutation.isPending || amount <= 0}
+          data-kb-event="recargas: añadir saldo"
         >
           <CreditCard size={16} />
           {mutation.isPending

@@ -140,11 +140,11 @@ function OpenClaim({ claim }: { claim: Claim }) {
           className={`${inputClass} w-44`}
         />
         <span className="text-xs text-[var(--color-fg-muted)]">USDC</span>
-        <Button size="sm" onClick={() => resolve.mutate("refund")} disabled={resolve.isPending || invalid}>
+        <Button size="sm" onClick={() => resolve.mutate("refund")} disabled={resolve.isPending || invalid} data-kb-event="reclamos: devolver al usuario">
           {resolve.isPending && <Loader2 size={14} className="animate-spin" />}
           {partial ? t("admin_claims.refund_partial") : t("admin_claims.refund_all")}
         </Button>
-        <Button size="sm" variant="subtle" onClick={() => resolve.mutate("reject")} disabled={resolve.isPending}>
+        <Button size="sm" variant="subtle" onClick={() => resolve.mutate("reject")} disabled={resolve.isPending} data-kb-event="reclamos: rechazar reclamo">
           {t("admin_claims.reject")}
         </Button>
       </div>

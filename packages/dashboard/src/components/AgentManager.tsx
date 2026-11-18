@@ -161,6 +161,8 @@ export function RegisterAgentForm({ onSuccess }: { onSuccess?: () => void }) {
                   type="button"
                   className={`am-preset${priceUsd === p.usd ? " is-active" : ""}`}
                   onClick={() => setPriceUsd(p.usd)}
+                  data-kb-event="publicador: precio predefinido"
+                  data-kb-precio={p.usd}
                 >
                   <p className="am-preset__title">{t(p.labelKey)}</p>
                   <p className="am-preset__price">${p.usd.toFixed(2)}</p>
@@ -193,7 +195,7 @@ export function RegisterAgentForm({ onSuccess }: { onSuccess?: () => void }) {
           {submitError && <div className="am-error">{submitError}</div>}
 
           <div className="am-form-actions">
-            <button type="submit" className="am-btn am-btn--primary" disabled={mutation.isPending}>
+            <button type="submit" className="am-btn am-btn--primary" disabled={mutation.isPending} data-kb-event="publicador: registrar servicio">
               {mutation.isPending ? t("agent_manager.register.registering") : t("agent_manager.register.submit")}
             </button>
           </div>
@@ -320,7 +322,7 @@ function MyAgentRow({ agent }: { agent: MyAgent }) {
           </div>
         </div>
         <div className="am-agent__actions">
-          <button type="button" className="am-btn am-btn--ghost am-btn--sm" onClick={() => setEditing(true)}>
+          <button type="button" className="am-btn am-btn--ghost am-btn--sm" onClick={() => setEditing(true)} data-kb-event="publicador: editar servicio" data-kb-servicio={agent.service}>
             <Pencil size={13} />
             {t("agent_manager.agent.edit")}
           </button>
@@ -331,6 +333,8 @@ function MyAgentRow({ agent }: { agent: MyAgent }) {
                 className="am-btn am-btn--danger am-btn--sm"
                 onClick={() => deleteMut.mutate()}
                 disabled={deleteMut.isPending}
+                data-kb-event="publicador: confirmar borrado de servicio"
+                data-kb-servicio={agent.service}
               >
                 {deleteMut.isPending ? "…" : t("agent_manager.agent.confirm")}
               </button>
@@ -339,7 +343,7 @@ function MyAgentRow({ agent }: { agent: MyAgent }) {
               </button>
             </div>
           ) : (
-            <button type="button" className="am-btn am-btn--ghost am-btn--sm" onClick={() => setConfirmDelete(true)}>
+            <button type="button" className="am-btn am-btn--ghost am-btn--sm" onClick={() => setConfirmDelete(true)} data-kb-event="publicador: borrar servicio" data-kb-servicio={agent.service}>
               <Trash2 size={13} />
               {t("agent_manager.agent.delete")}
             </button>
@@ -431,6 +435,8 @@ function EditAgentRow({
             className="am-btn am-btn--primary am-btn--sm"
             onClick={() => mut.mutate()}
             disabled={mut.isPending}
+            data-kb-event="publicador: guardar servicio"
+            data-kb-servicio={agent.service}
           >
             {mut.isPending ? t("agent_manager.edit.saving") : t("agent_manager.edit.save")}
           </button>
